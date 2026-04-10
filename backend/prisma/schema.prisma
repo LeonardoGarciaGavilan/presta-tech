@@ -1,0 +1,492 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id            String           @id @default(uuid())
+  nombre        String
+  activa        Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  alertas       Alerta[]
+  auditorias    Auditoria[]
+  cajas         CajaSesion[]
+  clientes      Cliente[]
+  configuracion Configuracion?
+  desembolsos   DesembolsoCaja[]
+  gastos        Gasto[]
+  prestamos     Prestamo[]
+  rutas         Ruta[]
+  usuarios      Usuario[]
+}
+
+model Usuario {
+  id                  String           @id @default(uuid())
+  nombre              String
+  email               String           @unique
+  password            String
+  rol                 Rol              @default(EMPLEADO)
+  activo              Boolean          @default(true)
+  debeCambiarPassword Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  empresaId           String?
+  auditorias          Auditoria[]
+  cajas               CajaSesion[]
+  desembolsos         DesembolsoCaja[]
+  gastos              Gasto[]
+  pagos               Pago[]
+  rutas               Ruta[]
+  empresa             Empresa?         @relation(fields: [empresaId], references: [id])
+  refreshTokens       RefreshToken[]
+
+  @@index([empresaId])
+}
+
+model RefreshToken {
+  id            String    @id @default(uuid())
+  usuarioId     String
+  tokenHash     String    @unique
+  userAgent     String?
+  ip            String?
+  expiresAt     DateTime
+  revoked       Boolean   @default(false)
+  revokedAt     DateTime?
+  revokedReason String?
+  createdAt     DateTime  @default(now())
+
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+}
+
+model Cliente {
+  id                String        @id @default(uuid())
+  nombre            String
+  apellido          String?
+  cedula            String        @unique
+  telefono          String?
+  celular           String?
+  email             String?
+  provincia         String?
+  municipio         String?
+  sector            String?
+  direccion         String?
+  ocupacion         String?
+  empresaLaboral    String?
+  ingresos          Float?
+  observaciones     String?
+  activo            Boolean       @default(true)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  empresaId         String
+  latitud           Float?
+  longitud          Float?
+  coordsAproximadas Boolean       @default(false)
+  empresa           Empresa       @relation(fields: [empresaId], references: [id])
+  prestamos         Prestamo[]
+  garantias         Prestamo[]    @relation("GarantePrestamos")
+  rutaClientes      RutaCliente[]
+
+  @@index([empresaId])
+  @@index([empresaId, activo])
+  @@index([nombre])
+  @@index([cedula])
+  @@index([telefono])
+  @@index([provincia, municipio])
+}
+
+model Prestamo {
+  id                        String          @id @default(uuid())
+  monto                     Float
+  tasaInteres               Float
+  numeroCuotas              Int
+  montoTotal                Float
+  saldoPendiente            Float           @default(0)
+  cuotaMensual              Float
+  frecuenciaPago            FrecuenciaPago  @default(MENSUAL)
+  fechaInicio               DateTime        @default(now())
+  fechaVencimiento          DateTime
+  moraAcumulada             Float           @default(0)
+  estado                    EstadoPrestamo  @default(SOLICITADO)
+  refinanciado              Boolean         @default(false)
+  vecesRefinanciado         Int             @default(0)
+  historialRefinanciamiento Json?
+  motivoRechazo             String?
+  solicitadoPor             String?
+  aprobadoPor               String?
+  fechaAprobacion           DateTime?
+  fechaDesembolso           DateTime?
+  createdAt                 DateTime        @default(now())
+  empresaId                 String
+  clienteId                 String
+  garanteId                 String?
+  alertas                   Alerta[]
+  cuotas                    Cuota[]
+  desembolso                DesembolsoCaja?
+  pagos                     Pago[]
+  cliente                   Cliente         @relation(fields: [clienteId], references: [id])
+  empresa                   Empresa         @relation(fields: [empresaId], references: [id])
+  garante                   Cliente?        @relation("GarantePrestamos", fields: [garanteId], references: [id])
+
+  @@index([empresaId])
+  @@index([empresaId, estado])
+  @@index([clienteId])
+  @@index([garanteId])
+  @@index([empresaId, createdAt])
+}
+
+model Cuota {
+  id               String    @id @default(uuid())
+  numero           Int
+  monto            Float
+  capital          Float
+  interes          Float
+  mora             Float     @default(0)
+  fechaVencimiento DateTime
+  pagada           Boolean   @default(false)
+  fechaPago        DateTime?
+  createdAt        DateTime  @default(now())
+  prestamoId       String
+  prestamo         Prestamo  @relation(fields: [prestamoId], references: [id])
+
+  @@index([prestamoId])
+  @@index([pagada, fechaVencimiento])
+  @@index([prestamoId, pagada])
+  @@index([fechaVencimiento])
+}
+
+model Pago {
+  id          String      @id @default(uuid())
+  montoTotal  Float
+  capital     Float
+  interes     Float
+  mora        Float       @default(0)
+  metodo      MetodoPago
+  referencia  String?
+  observacion String?
+  createdAt   DateTime    @default(now())
+  usuarioId   String
+  prestamoId  String
+  cajaId      String?
+  caja        CajaSesion? @relation(fields: [cajaId], references: [id])
+  prestamo    Prestamo    @relation(fields: [prestamoId], references: [id])
+  usuario     Usuario     @relation(fields: [usuarioId], references: [id])
+
+  @@index([prestamoId])
+  @@index([createdAt])
+  @@index([usuarioId])
+  @@index([cajaId])
+  @@index([metodo])
+  @@index([cajaId, createdAt])
+}
+
+model Configuracion {
+  id                    String   @id @default(uuid())
+  tasaInteresBase       Float
+  moraPorcentajeMensual Float
+  diasGracia            Int      @default(0)
+  permitirAbonoCapital  Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  empresaId             String   @unique
+  montoMaximoPago       Float?
+  montoMaximoPrestamo   Float?
+  montoMinimoPrestamo   Float    @default(500)
+  empresa               Empresa  @relation(fields: [empresaId], references: [id])
+}
+
+model Auditoria {
+  id              String   @id @default(uuid())
+  accion          String
+  descripcion     String?
+  createdAt       DateTime @default(now())
+  empresaId       String?
+  monto           Float?
+  referenciaId    String?
+  tipo            String
+  usuarioId       String?
+  datosAnteriores Json?
+  datosNuevos     Json?
+  referenciaTipo  String?
+  ip              String?
+  userAgent       String?
+  nivel           String?  // INFO, WARN, ERROR
+  empresa         Empresa? @relation(fields: [empresaId], references: [id])
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId, createdAt])
+  @@index([empresaId, tipo])
+  @@index([empresaId, accion])
+  @@index([usuarioId, createdAt])
+}
+
+model Gasto {
+  id            String   @id @default(cuid())
+  categoria     String
+  descripcion   String
+  monto         Float
+  fecha         DateTime
+  proveedor     String?
+  referencia    String?
+  observaciones String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  empresaId     String
+  usuarioId     String
+  empresa       Empresa  @relation(fields: [empresaId], references: [id])
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId])
+  @@index([empresaId, fecha])
+}
+
+model CajaSesion {
+  id              String           @id @default(uuid())
+  fecha           String
+  montoInicial    Float
+  estado          EstadoCaja       @default(ABIERTA)
+  montoCierre     Float?
+  diferencia      Float?
+  observaciones   String?
+  fechaCierre     DateTime?
+  createdAt       DateTime         @default(now())
+  empresaId       String
+  usuarioId       String
+  efectivoReal    Float?
+  efectivoSistema Float?
+  empresa         Empresa          @relation(fields: [empresaId], references: [id])
+  usuario         Usuario          @relation(fields: [usuarioId], references: [id])
+  desembolsos     DesembolsoCaja[]
+  pagos           Pago[]
+
+  @@index([empresaId, estado])
+  @@index([empresaId, createdAt])
+}
+
+/// Egreso de caja generado automáticamente al desembolsar un préstamo
+model DesembolsoCaja {
+  id         String     @id @default(uuid())
+  monto      Float
+  concepto   String
+  createdAt  DateTime   @default(now())
+  cajaId     String
+  prestamoId String     @unique
+  empresaId  String
+  usuarioId  String
+  caja       CajaSesion @relation(fields: [cajaId], references: [id])
+  empresa    Empresa    @relation(fields: [empresaId], references: [id])
+  prestamo   Prestamo   @relation(fields: [prestamoId], references: [id])
+  usuario    Usuario    @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId, createdAt])
+  @@index([cajaId])
+}
+
+model Ruta {
+  id          String        @id @default(uuid())
+  nombre      String
+  descripcion String?
+  activa      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  empresaId   String
+  usuarioId   String
+  empresa     Empresa       @relation(fields: [empresaId], references: [id])
+  usuario     Usuario       @relation(fields: [usuarioId], references: [id])
+  clientes    RutaCliente[]
+
+  @@index([empresaId, activa])
+}
+
+model RutaCliente {
+  id           String    @id @default(uuid())
+  orden        Int       @default(0)
+  observacion  String?
+  visitadoHoy  Boolean   @default(false)
+  ultimaVisita DateTime?
+  createdAt    DateTime  @default(now())
+  rutaId       String
+  clienteId    String
+  fechaRuta    String?
+  cliente      Cliente   @relation(fields: [clienteId], references: [id])
+  ruta         Ruta      @relation(fields: [rutaId], references: [id], onDelete: Cascade)
+
+  @@unique([rutaId, clienteId])
+  @@index([rutaId, fechaRuta])
+}
+
+model Alerta {
+  id            String     @id @default(uuid())
+  tipo          TipoAlerta
+  descripcion   String
+  clienteNombre String
+  detalle       Json       @default("{}")
+  leida         Boolean    @default(false)
+  usuarioId     String
+  createdAt     DateTime   @default(now())
+  empresaId     String
+  prestamoId    String
+  usuarioNombre String     @default("Sistema")
+  empresa       Empresa    @relation(fields: [empresaId], references: [id])
+  prestamo      Prestamo   @relation(fields: [prestamoId], references: [id])
+
+  @@index([empresaId, createdAt])
+  @@index([empresaId, leida])
+  @@index([prestamoId])
+}
+
+model Empleado {
+  id             String                 @id @default(cuid())
+  empresaId      String
+  nombre         String
+  apellido       String
+  cedula         String
+  telefono       String?
+  celular        String?
+  email          String?
+  cargo          String
+  departamento   String?
+  salario        Float
+  frecuenciaPago FrecuenciaPagoEmpleado @default(QUINCENAL)
+  fechaIngreso   DateTime
+  activo         Boolean                @default(true)
+  observaciones  String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  asistencias    AsistenciaEmpleado[]
+  descuentos     DescuentoEmpleado[]
+  pagos          PagoSalario[]
+
+  @@index([empresaId])
+  @@index([empresaId, activo])
+}
+
+model AsistenciaEmpleado {
+  id              String           @id @default(cuid())
+  empleadoId      String
+  empresaId       String
+  fecha           String
+  entrada         String?
+  salida          String?
+  horasTrabajadas Float?
+  estado          EstadoAsistencia @default(PRESENTE)
+  observacion     String?
+  createdAt       DateTime         @default(now())
+  empleado        Empleado         @relation(fields: [empleadoId], references: [id])
+
+  @@unique([empleadoId, fecha])
+  @@index([empresaId, fecha])
+}
+
+model PagoSalario {
+  id              String             @id @default(cuid())
+  empleadoId      String
+  empresaId       String
+  periodo         String
+  descripcion     String?
+  salarioBruto    Float
+  totalDescuentos Float              @default(0)
+  salarioNeto     Float
+  metodoPago      MetodoPagoEmpleado @default(EFECTIVO)
+  referencia      String?
+  fechaPago       DateTime           @default(now())
+  observaciones   String?
+  createdAt       DateTime           @default(now())
+  empleado        Empleado           @relation(fields: [empleadoId], references: [id])
+
+  @@index([empresaId])
+  @@index([empleadoId])
+}
+
+model DescuentoEmpleado {
+  id          String        @id @default(cuid())
+  empleadoId  String
+  empresaId   String
+  tipo        TipoDescuento
+  descripcion String
+  monto       Float
+  fecha       DateTime      @default(now())
+  aplicado    Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  empleado    Empleado      @relation(fields: [empleadoId], references: [id])
+
+  @@index([empresaId])
+  @@index([empleadoId, aplicado])
+}
+
+enum Rol {
+  SUPERADMIN
+  ADMIN
+  EMPLEADO
+}
+
+enum EstadoPrestamo {
+  SOLICITADO
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+  ACTIVO
+  PAGADO
+  ATRASADO
+  CANCELADO
+}
+
+enum FrecuenciaPago {
+  DIARIO
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  CHEQUE
+}
+
+enum EstadoCaja {
+  ABIERTA
+  CERRADA
+}
+
+enum TipoAlerta {
+  REFINANCIAMIENTO
+  CAMBIO_FRECUENCIA
+  CAMBIO_TASA
+  CAMBIO_CUOTAS
+  CAMBIO_FECHA_PAGO
+  CANCELACION
+  CAMBIO_ESTADO
+}
+
+enum FrecuenciaPagoEmpleado {
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  AUSENTE
+  TARDANZA
+  MEDIO_DIA
+  FERIADO
+  VACACIONES
+}
+
+enum MetodoPagoEmpleado {
+  EFECTIVO
+  TRANSFERENCIA
+  CHEQUE
+}
+
+enum TipoDescuento {
+  TARDANZA
+  AUSENCIA
+  PRESTAMO
+  OTRO
+}

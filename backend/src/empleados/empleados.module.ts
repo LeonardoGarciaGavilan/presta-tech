@@ -1,0 +1,11 @@
+// src/empleados/empleados.module.ts
+import { Module } from '@nestjs/common';
+import { EmpleadosService } from './empleados.service';
+import { EmpleadosController } from './empleados.controller';
+
+@Module({
+  controllers: [EmpleadosController],
+  providers: [EmpleadosService],
+  exports: [EmpleadosService],
+})
+export class EmpleadosModule {}

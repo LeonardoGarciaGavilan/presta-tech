@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Fix: iOS y Android hacen zoom automático en inputs con font-size < 16px.
+  Esta regla fuerza 16px en móvil para TODOS los inputs/select/textarea,
+  evitando el zoom y la distorsión. En pantallas >= 640px Tailwind
+  sobrescribe con text-sm normalmente.
+*/
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
