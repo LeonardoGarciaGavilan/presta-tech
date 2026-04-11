@@ -13,7 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: process.env.FRONTEND_URL || 'https://presta-tech.vercel.app',
     credentials: true,
   },
   namespace: '/alerts',
