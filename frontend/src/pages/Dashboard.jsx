@@ -186,9 +186,9 @@ export default function Dashboard() {
       const [pRes, pgRes, allPres, allPagos, allClientes] = await Promise.all([
         api.get("/prestamos/resumen"),
         api.get("/pagos/resumen"),
-        api.get("/prestamos?limit=1000"),
+        api.get("/prestamos?limit=100"),
         api.get("/pagos"),
-        api.get("/clientes?limit=1000"),
+        api.get("/clientes?limit=100"),
       ]);
 
       const prestamosArray = Array.isArray(allPres.data)

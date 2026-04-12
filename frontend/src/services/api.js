@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://presta-tech-api.onrende
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
-  timeout: 40000,
+  timeout: 90000,
 });
 
 const AUTH_PUBLIC_ROUTES = [
