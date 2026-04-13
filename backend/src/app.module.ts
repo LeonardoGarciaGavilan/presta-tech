@@ -35,18 +35,29 @@ import jwtConfig from './config/jwt.config';   // 👈 agregar
       load: [jwtConfig],       // carga tu config centralizada
     }),
 
-    // ─── Caché global con Redis ───────────────────────────────────────────
+    // ─── Caché global con Redis (opcional) ───────────────────────────────────
     CacheModule.registerAsync({
       isGlobal: true,
-      useFactory: () => ({
-        stores: [
-          new Keyv({
-            store: new KeyvRedis(`redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`),
-            namespace: 'sas',
-          }),
-        ],
-        ttl: 60_000,
-      }),
+      useFactory: async () => {
+        const redisUrl = process.env.REDIS_URL;
+        const redisHost = process.env.REDIS_HOST;
+        const redisPort = process.env.REDIS_PORT || 6379;
+
+        if (!redisUrl && (!redisHost || redisHost === 'localhost')) {
+          console.warn('⚠️ Redis no configurado, usando cache en memoria');
+          return {};
+        }
+
+        console.log('🔄 Redis cache habilitado');
+        return {
+          stores: [
+            new Keyv({
+              store: new KeyvRedis(redisUrl || `redis://${redisHost}:${redisPort}`),
+              namespace: 'sas',
+            }),
+          ],
+        };
+      },
     }),
 
     ThrottlerModule.forRoot([
