@@ -18,11 +18,17 @@ export class ConfiguracionService {
   }
 
   async findOne(empresaId: string) {
-    // 1. Intentar desde caché
-    const cached = await this.cacheManager.get(this.cacheKey(empresaId));
-    if (cached) return cached;
+    const cacheKey = this.cacheKey(empresaId);
 
-    // 2. Si no hay caché, consultar BD
+    // 1. Intentar leer desde caché (NO bloqueante)
+    try {
+      const cached = await this.cacheManager.get(cacheKey);
+      if (cached) return cached;
+    } catch (e) {
+      console.warn('Cache read error:', e?.message);
+    }
+
+    // 2. Consultar BD
     const config = await this.prisma.configuracion.findUnique({
       where: { empresaId },
     });
@@ -31,7 +37,6 @@ export class ConfiguracionService {
       ? { 
           ...config, 
           existe: true,
-          // Asegurar valores por defecto si existen pero son null
           montoMinimoPrestamo: config.montoMinimoPrestamo ?? 500,
           montoMaximoPrestamo: config.montoMaximoPrestamo ?? null,
           montoMaximoPago: config.montoMaximoPago ?? null,
@@ -48,8 +53,13 @@ export class ConfiguracionService {
           existe: false,
         };
 
-    // 3. Guardar en caché por 5 minutos (en ms para cache-manager v7)
-    await this.cacheManager.set(this.cacheKey(empresaId), result, 300_000);
+    // 3. Intentar guardar en caché (NO bloqueante)
+    try {
+      await this.cacheManager.set(cacheKey, result, 300_000);
+    } catch (e) {
+      console.warn('Cache write error:', e?.message);
+    }
+
     return result;
   }
 
@@ -87,8 +97,12 @@ export class ConfiguracionService {
       create: { ...datosNuevos, empresaId },
     });
 
-    // 🔄 Invalidar caché cuando se actualiza la configuración
-    await this.cacheManager.del(this.cacheKey(empresaId));
+    // 🔄 Invalidar caché cuando se actualiza la configuración (NO bloqueante)
+    try {
+      await this.cacheManager.del(this.cacheKey(empresaId));
+    } catch (e) {
+      console.warn('Cache delete error:', e?.message);
+    }
 
     await registrarAuditoria(this.prisma, {
       empresaId,
