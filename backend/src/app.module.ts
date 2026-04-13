@@ -24,6 +24,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { FinanzasModule } from './finanzas/finanzas.module';
 import { EmpleadosModule } from './empleados/empleados.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import jwtConfig from './config/jwt.config';   // 👈 agregar
 
 @Module({
@@ -73,6 +74,7 @@ import jwtConfig from './config/jwt.config';   // 👈 agregar
     FinanzasModule,
     EmpleadosModule,
     AuditoriaModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

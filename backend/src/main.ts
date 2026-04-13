@@ -41,9 +41,20 @@ expressApp.set('trust proxy', 1);
     transform: true,              // convierte tipos automáticamente (string → number, etc.)
   }));
 
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL_LOCAL,
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true, // 🔒 Permite enviar cookies al frontend
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
   });
 
   const port = process.env.PORT || 3000;
