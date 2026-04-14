@@ -8,8 +8,8 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  const EMAIL    = 'garcia18leonardo18@gmail.com';   // ◄ cambia esto
-  const PASSWORD = 'Antonioredminote8';           // ◄ cambia esto
+  const EMAIL    = '';   // ◄ cambia esto
+  const PASSWORD = '';           // ◄ cambia esto
   const NOMBRE   = 'Super Administrador';       // ◄ cambia esto
 
   // Verificar que no exista ya

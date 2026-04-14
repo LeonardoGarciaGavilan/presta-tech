@@ -20,6 +20,7 @@ import {
   startOfDay,
   differenceInDays,
 } from 'date-fns';
+import { format, toZonedTime } from 'date-fns-tz';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
@@ -66,11 +67,19 @@ export type TipoAlerta =
 
 @Injectable()
 export class PrestamosService {
+  private readonly TIMEZONE_RD = 'America/Santo_Domingo';
+
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly alertsGateway?: AlertsGateway,
     @Inject(CACHE_MANAGER) @Optional() private cacheManager?: Cache,
   ) {}
+
+  private getFechaRD(): string {
+    const now = new Date();
+    const zonedDate = toZonedTime(now, this.TIMEZONE_RD);
+    return format(zonedDate, 'yyyy-MM-dd');
+  }
 
   private siguienteFecha(
     fecha: Date,
@@ -489,8 +498,7 @@ export class PrestamosService {
       throw new BadRequestException('Este préstamo ya tiene cuotas generadas');
     }
 
-    const hoyFecha = new Date();
-    const hoyStr = `${hoyFecha.getFullYear()}-${String(hoyFecha.getMonth() + 1).padStart(2, '0')}-${String(hoyFecha.getDate()).padStart(2, '0')}`;
+    const hoyStr = this.getFechaRD();
 
     const cajaAbierta = await this.prisma.cajaSesion.findFirst({
       where: {
