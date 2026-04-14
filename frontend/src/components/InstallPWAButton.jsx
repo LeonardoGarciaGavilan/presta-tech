@@ -10,7 +10,7 @@ export default function InstallPWAButton() {
       toast.success('App instalada correctamente');
     }
   };
-
+ 
   if (!canInstall) return null;
 
   return (
