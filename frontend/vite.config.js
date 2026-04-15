@@ -3,12 +3,14 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: '/',
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'robots.txt', 'offline.html'],
       manifest: {
+        id: '/',
         name: 'Presta Tech',
         short_name: 'PrestaTech',
         description: 'Sistema de gestión de préstamos',
