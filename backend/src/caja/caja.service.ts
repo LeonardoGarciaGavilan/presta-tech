@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class CajaService {
@@ -14,9 +15,8 @@ export class CajaService {
 
   // ─── Rango de un día en hora local (fix timezone) ─────────────────────────
   private rangoDia(fecha: string) {
-    const inicioDia = new Date(`${fecha}T00:00:00.000`);
-    const finDia    = new Date(`${fecha}T23:59:59.999`);
-    return { inicioDia, finDia };
+    const fechaObj = new Date(`${fecha}T12:00:00`);
+    return { inicioDia: getInicioDiaRD(fechaObj), finDia: getFinDiaRD(fechaObj) };
   }
 
   // ─── Resumen de pagos del día ─────────────────────────────────────────────

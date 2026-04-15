@@ -9,15 +9,7 @@ import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-
-// ─── Fecha local (fix UTC-4 República Dominicana) ─────────────────────────────
-function fechaLocalHoy(): string {
-  const hoy = new Date();
-  const año = hoy.getFullYear();
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-  const dia = String(hoy.getDate()).padStart(2, '0');
-  return `${año}-${mes}-${dia}`;
-}
+import { getFechaRD } from '../common/utils/fecha.utils';
 
 @Controller('caja')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -28,7 +20,7 @@ export class CajaController {
   @Get('resumen')
   @Roles('ADMIN', 'EMPLEADO')
   getResumen(@Tenant() empresaId: string, @Query('fecha') fecha: string) {
-    const fechaConsulta = fecha ?? fechaLocalHoy();
+    const fechaConsulta = fecha ?? getFechaRD();
     return this.cajaService.getResumenDia(empresaId, fechaConsulta);
   }
 
@@ -36,7 +28,7 @@ export class CajaController {
   @Get('activa')
   @Roles('ADMIN', 'EMPLEADO')
   miCajaActiva(@Tenant() empresaId: string, @CurrentUser() user: any, @Query('fecha') fecha: string) {
-    const fechaConsulta = fecha ?? fechaLocalHoy();
+    const fechaConsulta = fecha ?? getFechaRD();
     return this.cajaService.miCajaActiva(
       empresaId,
       user.userId,
@@ -64,7 +56,7 @@ export class CajaController {
     @CurrentUser() user: any,
     @Body() body: { montoInicial: number; fecha?: string },
   ) {
-    const fecha = body.fecha ?? fechaLocalHoy();
+    const fecha = body.fecha ?? getFechaRD();
     return this.cajaService.abrirCaja(
       empresaId,
       user.userId,

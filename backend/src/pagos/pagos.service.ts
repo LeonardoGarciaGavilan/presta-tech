@@ -14,6 +14,7 @@ import { EstadoPrestamo, MetodoPago } from '@prisma/client';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { getFechaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class PagosService {
@@ -79,8 +80,7 @@ export class PagosService {
   // ─── Validar caja abierta ────────────────────────────────────────────────
 
   private async assertCajaAbierta(empresaId: string, usuarioId: string) {
-    const hoy = new Date();
-    const fecha = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
+    const fecha = getFechaRD();
 
     const caja = await this.prisma.cajaSesion.findFirst({
       where: { empresaId, usuarioId, fecha, estado: 'ABIERTA' },
