@@ -3,17 +3,20 @@ import { startOfDay, endOfDay } from 'date-fns';
 
 const TIMEZONE_RD = 'America/Santo_Domingo';
 
-export const getFechaRD = (date = new Date()): string => {
-  const zonedDate = toZonedTime(date, TIMEZONE_RD);
+export const getFechaRD = (date: Date | string = new Date()): string => {
+  const dateObj = typeof date === 'string' ? new Date(`${date}T12:00:00`) : date;
+  const zonedDate = toZonedTime(dateObj, TIMEZONE_RD);
   return format(zonedDate, 'yyyy-MM-dd');
 };
 
-export const getInicioDiaRD = (date = new Date()): Date => {
-  const zonedDate = toZonedTime(date, TIMEZONE_RD);
+export const getInicioDiaRD = (date: Date | string = new Date()): Date => {
+  const dateObj = typeof date === 'string' ? new Date(`${date}T12:00:00`) : date;
+  const zonedDate = toZonedTime(dateObj, TIMEZONE_RD);
   return startOfDay(zonedDate);
 };
 
-export const getFinDiaRD = (date = new Date()): Date => {
-  const zonedDate = toZonedTime(date, TIMEZONE_RD);
+export const getFinDiaRD = (date: Date | string = new Date()): Date => {
+  const dateObj = typeof date === 'string' ? new Date(`${date}T12:00:00`) : date;
+  const zonedDate = toZonedTime(dateObj, TIMEZONE_RD);
   return endOfDay(zonedDate);
 };

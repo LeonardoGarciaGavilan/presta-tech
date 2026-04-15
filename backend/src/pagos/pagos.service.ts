@@ -14,7 +14,7 @@ import { EstadoPrestamo, MetodoPago } from '@prisma/client';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
-import { getFechaRD } from '../common/utils/fecha.utils';
+import { getFechaRD, getInicioDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class PagosService {
@@ -621,9 +621,8 @@ export class PagosService {
   // ─── RESUMEN DE PAGOS ─────────────────────────────────────────────────────
 
   async getResumen(empresaId: string) {
-    const hoy       = new Date();
-    const inicioHoy = new Date(hoy.setHours(0, 0, 0, 0));
-    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    const inicioHoy = getInicioDiaRD();
+    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
     const [totalHoy, totalMes, conteoHoy, conteoMes] = await Promise.all([
       this.prisma.pago.aggregate({
