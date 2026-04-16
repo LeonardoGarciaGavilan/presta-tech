@@ -14,7 +14,7 @@ import { EstadoPrestamo, MetodoPago } from '@prisma/client';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
-import { getFechaRD, getInicioDiaRD } from '../common/utils/fecha.utils';
+import { getFechaRD, getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class PagosService {
@@ -622,18 +622,22 @@ export class PagosService {
 
   async getResumen(empresaId: string) {
     const inicioHoy = getInicioDiaRD();
+    const finHoy = getFinDiaRD();
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const finMes = getFinDiaRD();
+
+    console.log('DEBUG RANGO HOY:', { inicio: inicioHoy.toISOString(), fin: finHoy.toISOString() });
 
     const [totalHoy, totalMes, conteoHoy, conteoMes] = await Promise.all([
       this.prisma.pago.aggregate({
-        where: { prestamo: { empresaId }, createdAt: { gte: inicioHoy } },
+        where: { prestamo: { empresaId }, createdAt: { gte: inicioHoy, lte: finHoy } },
         _sum: { montoTotal: true },
       }),
       this.prisma.pago.aggregate({
         where: { prestamo: { empresaId }, createdAt: { gte: inicioMes } },
         _sum: { montoTotal: true },
       }),
-      this.prisma.pago.count({ where: { prestamo: { empresaId }, createdAt: { gte: inicioHoy } } }),
+      this.prisma.pago.count({ where: { prestamo: { empresaId }, createdAt: { gte: inicioHoy, lte: finHoy } } }),
       this.prisma.pago.count({ where: { prestamo: { empresaId }, createdAt: { gte: inicioMes } } }),
     ]);
 

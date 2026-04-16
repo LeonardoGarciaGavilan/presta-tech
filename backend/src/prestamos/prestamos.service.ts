@@ -24,6 +24,7 @@ import { format, toZonedTime } from 'date-fns-tz';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 export interface CuotaCalculada {
   numero: number;
@@ -1393,8 +1394,10 @@ export class PrestamosService {
     const where: any = { empresaId, ...(soloNoLeidas && { leida: false }) };
     if (desde || hasta) {
       where.createdAt = {};
-      if (desde) where.createdAt.gte = new Date(`${desde}T00:00:00`);
-      if (hasta) where.createdAt.lte = new Date(`${hasta}T23:59:59.999`);
+      if (desde) where.createdAt.gte = getInicioDiaRD(desde);
+      if (hasta) where.createdAt.lte = getFinDiaRD(hasta);
+
+      console.log('DEBUG ALERTAS RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
     }
     return (this.prisma as any).alerta.findMany({
       where,

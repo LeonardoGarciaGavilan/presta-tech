@@ -2,6 +2,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { calcularDesdeObjeto, calcularSaldoDesdeCuotas } from '../common/utils/prestamo.utils';
+import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class ReportesService {
@@ -27,8 +28,11 @@ export class ReportesService {
   ) {
     this.assertAdmin(user);
 
-    const desdeDate = new Date(`${desde}T00:00:00`);
-    const hastaDate = new Date(`${hasta}T23:59:59.999`);
+    const desdeDate = getInicioDiaRD(desde);
+    const hastaDate = getFinDiaRD(hasta);
+
+    console.log('DEBUG REPORTES RANGO:', { desde: desdeDate.toISOString(), hasta: hastaDate.toISOString() });
+
     const skip = (pagina - 1) * porPagina;
 
     // Obtener pagos con paginación
@@ -453,8 +457,10 @@ export class ReportesService {
   ) {
     this.assertAdmin(user);
 
-    const desdeDate = new Date(`${desde}T00:00:00.000`);
-    const hastaDate = new Date(`${hasta}T23:59:59.999`);
+    const desdeDate = getInicioDiaRD(desde);
+    const hastaDate = getFinDiaRD(hasta);
+
+    console.log('DEBUG REPORTE CAJAS RANGO:', { desde: desdeDate.toISOString(), hasta: hastaDate.toISOString() });
 
     const cajas = await this.prisma.cajaSesion.findMany({
       where: {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoPrestamo } from '@prisma/client';
-import { getInicioDiaRD, getFechaRD } from '../common/utils/fecha.utils';
+import { getInicioDiaRD, getFinDiaRD, getFechaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class DashboardService {
@@ -9,8 +9,11 @@ export class DashboardService {
 
   async getDashboard(empresaId: string) {
     const hoy = getInicioDiaRD();
+    const finHoy = getFinDiaRD();
     const inicioHoy = getInicioDiaRD();
     const fechaRD = getFechaRD();
+
+    console.log('DEBUG DASHBOARD RANGO:', { inicio: inicioHoy.toISOString(), fin: finHoy.toISOString() });
 
     const [
       prestamosPorEstado,
@@ -57,7 +60,7 @@ export class DashboardService {
       this.prisma.pago.aggregate({
         where: {
           prestamo: { empresaId },
-          createdAt: { gte: inicioHoy },
+          createdAt: { gte: inicioHoy, lte: finHoy },
         },
         _sum: { montoTotal: true },
       }),

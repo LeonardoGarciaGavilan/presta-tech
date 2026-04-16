@@ -1,6 +1,7 @@
 // src/auditoria/auditoria.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 interface FindAllOptions {
   user: any;
@@ -45,8 +46,10 @@ export class AuditoriaService {
     // Filtro por rango de fechas
     if (desde || hasta) {
       where.createdAt = {};
-      if (desde) where.createdAt.gte = new Date(`${desde}T00:00:00`);
-      if (hasta) where.createdAt.lte = new Date(`${hasta}T23:59:59`);
+      if (desde) where.createdAt.gte = getInicioDiaRD(desde);
+      if (hasta) where.createdAt.lte = getFinDiaRD(hasta);
+
+      console.log('DEBUG AUDITORIA RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
     }
 
     return this.prisma.auditoria.findMany({
