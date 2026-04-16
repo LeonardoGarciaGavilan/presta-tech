@@ -9,8 +9,7 @@ import { PROVINCIAS } from "../utils/provincias-municipios";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const hoy = () => new Date().toISOString().slice(0, 10);
 const primerDiaMes = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); };
-const fmtFechaCorta = (f) => new Intl.DateTimeFormat("es-DO", { day: "2-digit", month: "short", year: "numeric" })
-  .format(new Date(String(f).slice(0, 10) + "T12:00:00"));
+const fmtFechaCorta = (f) => new Intl.DateTimeFormat("es-DO", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(f));
 const fmtHora = (d) => new Intl.DateTimeFormat("es-DO", { hour: "2-digit", minute: "2-digit", hour12: true }).format(new Date(d));
 
 const ESTADO_COLOR = {
