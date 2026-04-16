@@ -15,8 +15,7 @@ export class CajaService {
 
   // ─── Rango de un día en hora local (fix timezone) ─────────────────────────
   private rangoDia(fecha: string) {
-    const fechaObj = new Date(`${fecha}T12:00:00`);
-    return { inicioDia: getInicioDiaRD(fechaObj), finDia: getFinDiaRD(fechaObj) };
+    return { inicioDia: getInicioDiaRD(fecha), finDia: getFinDiaRD(fecha) };
   }
 
   // ─── Resumen de pagos del día ─────────────────────────────────────────────
