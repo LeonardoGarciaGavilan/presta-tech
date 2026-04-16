@@ -1,29 +1,54 @@
-import { format, fromZonedTime } from 'date-fns-tz';
+import { format, toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { startOfDay, endOfDay } from 'date-fns';
 
 const TIMEZONE = 'America/Santo_Domingo';
 
 export const getFechaRD = (date: Date | string = new Date()): string => {
   const dateObj = typeof date === 'string' ? new Date(`${date}T12:00:00`) : date;
-  const utcDate = fromZonedTime(dateObj, TIMEZONE);
-  return format(new Date(utcDate), 'yyyy-MM-dd');
+  const zonedDate = toZonedTime(dateObj, TIMEZONE);
+  return format(zonedDate, 'yyyy-MM-dd');
 };
 
 export const getInicioDiaRD = (fecha?: string): Date => {
-  const base = fecha ? new Date(`${fecha}T12:00:00`) : new Date();
-  const inicioLocal = startOfDay(base);
-  return fromZonedTime(inicioLocal, TIMEZONE);
+  let fechaBase: Date;
+  
+  if (fecha) {
+    fechaBase = new Date(`${fecha}T12:00:00`);
+  } else {
+    const now = new Date();
+    fechaBase = toZonedTime(now, TIMEZONE);
+  }
+  
+  const inicioDiaRD = startOfDay(fechaBase);
+  const inicioUTC = fromZonedTime(inicioDiaRD, TIMEZONE);
+  
+  console.log('RANGO CORRECTO RD - getInicioDiaRD:', {
+    fechaBase: fechaBase.toISOString(),
+    inicioDiaRD: inicioDiaRD.toISOString(),
+    inicioUTC: inicioUTC.toISOString(),
+  });
+  
+  return inicioUTC;
 };
 
 export const getFinDiaRD = (fecha?: string): Date => {
-  const base = fecha ? new Date(`${fecha}T12:00:00`) : new Date();
-  const finLocal = endOfDay(base);
-  return fromZonedTime(finLocal, TIMEZONE);
+  let fechaBase: Date;
+  
+  if (fecha) {
+    fechaBase = new Date(`${fecha}T12:00:00`);
+  } else {
+    const now = new Date();
+    fechaBase = toZonedTime(now, TIMEZONE);
+  }
+  
+  const finDiaRD = endOfDay(fechaBase);
+  const finUTC = fromZonedTime(finDiaRD, TIMEZONE);
+  
+  console.log('RANGO CORRECTO RD - getFinDiaRD:', {
+    fechaBase: fechaBase.toISOString(),
+    finDiaRD: finDiaRD.toISOString(),
+    finUTC: finUTC.toISOString(),
+  });
+  
+  return finUTC;
 };
-
-const inicio = getInicioDiaRD();
-const fin = getFinDiaRD();
-console.log('RANGO CORRECTO fecha.utils:', {
-  inicio: inicio.toISOString(),
-  fin: fin.toISOString(),
-});
