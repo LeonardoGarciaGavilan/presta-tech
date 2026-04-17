@@ -8,7 +8,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt', 'offline.html'],
+      injectRegister: 'auto',
+      injectManifest: true,
       manifest: {
         id: '/',
         name: 'Presta Tech',

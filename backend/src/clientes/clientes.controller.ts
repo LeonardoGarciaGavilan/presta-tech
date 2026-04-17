@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Body, Patch, Param, Delete,
-  UseGuards, Request, Query, ParseIntPipe, DefaultValuePipe,
+  UseGuards, Query, ParseIntPipe, DefaultValuePipe,
 } from '@nestjs/common';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
@@ -25,11 +25,11 @@ export class ClientesController {
   @Roles('ADMIN', 'EMPLEADO')
   findAll(
     @Tenant() empresaId: string,
-    @Query('page',    new DefaultValuePipe(1),  ParseIntPipe) page: number,
-    @Query('limit',   new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('search')  search: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('search') search: string,
   ) {
-    const porPagina = Math.min(limit, 1000); // máximo 100 por página
+    const porPagina = Math.min(limit, 1000);
     return this.clientesService.findAll(empresaId, page, porPagina, search);
   }
 
@@ -37,8 +37,8 @@ export class ClientesController {
   @Roles('ADMIN')
   findInactivos(
     @Tenant() empresaId: string,
-    @Query('page',   new DefaultValuePipe(1),  ParseIntPipe) page: number,
-    @Query('limit',  new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('search') search: string,
   ) {
     const porPagina = Math.min(limit, 100);
@@ -65,7 +65,7 @@ export class ClientesController {
 
   @Patch(':id/reactivar')
   @Roles('ADMIN')
-  reactivar(@Param('id') id: string, @Tenant() empresaId: string) {
+  reaccionar(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.clientesService.reactivar(id, empresaId);
   }
 }
