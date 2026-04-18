@@ -6,6 +6,7 @@ import { formatCurrency } from "../utils/prestamosUtils";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { Users, HandCoins, AlertTriangle, CreditCard, Banknote, TrendingUp } from "lucide-react";
 
 const saludar = () => {
   const h = new Date().getHours();
@@ -56,6 +57,22 @@ const QuickActionCard = ({ icon, title, description, label, action, onClick, col
   );
 };
 
+const colors = {
+  blue: { bg: "bg-blue-100", text: "text-blue-600" },
+  green: { bg: "bg-green-100", text: "text-green-600" },
+  red: { bg: "bg-red-100", text: "text-red-600" },
+  emerald: { bg: "bg-emerald-100", text: "text-emerald-600" },
+};
+
+const IconWrapper = ({ icon: Icon, color }) => {
+  const c = colors[color] || colors.blue;
+  return (
+    <div className={`p-2 rounded-lg ${c.bg}`}>
+      <Icon className={`w-5 h-5 ${c.text}`} />
+    </div>
+  );
+};
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -70,10 +87,11 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const ResumenEjecutivo = ({ resumen, navigate }) => {
+const ResumenEjecutivo = ({ resumen, cobradoHoy, navigate }) => {
   const monto = resumen?.cobroEsperadoHoy?.monto || 0;
   const cuotas = resumen?.cobroEsperadoHoy?.cuotas || 0;
   const moraCritica = resumen?.moraCritica?.clientes || 0;
+  const faltante = monto - (cobradoHoy || 0);
 
   if (monto === 0 && moraCritica === 0) return null;
 
@@ -83,25 +101,32 @@ const ResumenEjecutivo = ({ resumen, navigate }) => {
         <div>
           <p className="text-sm font-semibold text-amber-800">
             Hoy debes cobrar <span className="text-base">{formatCurrency(monto)}</span>
-            {cuotas > 0 && <span className="text-amber-600 font-normal"> ({cuotas} cuota{cuotas !== 1 ? 's' : ''})</span>}
           </p>
+          {cuotas > 0 && (
+            <p className="text-xs text-amber-600 mt-0.5">{cuotas} cuota{cuotas !== 1 ? 's' : ''} por cobrar hoy {cuotas !== 1 ? 's' : ''}</p>
+          )}
+          {faltante > 0 && (
+            <p className="text-xs text-orange-600 mt-1">
+              Te faltan {formatCurrency(faltante)} para completar el día
+            </p>
+          )}
           {moraCritica > 0 && (
             <p className="text-xs text-red-600 mt-1">
-              ⚠️ {moraCritica} cliente{moraCritica !== 1 ? 's' : ''} en mora crítica +30 días
+              ⚠️ {moraCritica} cliente{moraCritica !== 1 ? 's' : ''} en mora crítica (+30 días)
             </p>
           )}
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => navigate("/pagos")}
-            className="px-3 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+            className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
           >
             Cobrar ahora
           </button>
           {moraCritica > 0 && (
             <button
               onClick={() => navigate("/prestamos?estado=atrasado")}
-              className="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-200 transition-colors"
             >
               Ver atrasados
             </button>
@@ -207,7 +232,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <ResumenEjecutivo resumen={d.resumen} navigate={navigate} />
+      <ResumenEjecutivo resumen={d.resumen} cobradoHoy={d.pagosResumen?.cobradoHoy} navigate={navigate} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Cartera activa" value={formatCurrency(d.saldoPendienteTotal)} sub={null} icon="💼" accent="bg-blue-50" />
@@ -218,11 +243,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
         <QuickActionCard
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.994 9.994 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c.342-.243.683-.505 1.025-.684M19.35 10.664A4.002 4.002 0 0119 17.25m-2.407-4.385c.055-.185.11-.37.164-.558M4.5 5.25a3 3 0 003 3m0-3a3 3 0 013 3m-3 0l.001-.072a4.002 4.002 0 017.37-2.815M4.5 5.25a3 3 0 00-3 3m0-3a3 3 0 013 3m-3 0l.001-.072A9.953 9.953 0 013.75 9.75c0 .652.063 1.292.179 1.914M19.35 10.664A9.953 9.953 0 0021.75 9.75c0-.652-.063-1.292-.179-1.914m0 0a3 3 0 01-3-3m3 3a3 3 0 000 6h-3v-2.25a3 3 0 00-3-3m0 0a3 3 0 01-3 3v2.25m0 6h.008v.008H19.35v-.008z" />
-            </svg>
-          }
+          icon={<IconWrapper icon={Users} color="blue" />}
           title="Clientes"
           description="Gestiona tu cartera de clientes"
           label={`${d.totalClientes} clientes`}
@@ -232,25 +253,17 @@ export default function Dashboard() {
         />
 
         <QuickActionCard
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0-1V7m-2.599 1c-.519 1.598-1.599 2.599-2.401 3M6 7v10m6-6v10" />
-            </svg>
-          }
+          icon={<IconWrapper icon={HandCoins} color="green" />}
           title="Nuevo préstamo"
           description="Registrar nuevo préstamo"
-          label="Nuevo"
+          label="Crear préstamo"
           action="Abrir"
           onClick={() => navigate("/prestamos/nuevo")}
           color="green"
         />
 
         <QuickActionCard
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-          }
+          icon={<IconWrapper icon={AlertTriangle} color="red" />}
           title="Atrasados"
           description="Clientes con cuotas vencidas"
           label={`${d.cantidades?.atrasados || 0} préstamos`}
@@ -260,11 +273,7 @@ export default function Dashboard() {
         />
 
         <QuickActionCard
-          icon={
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 18h.75m0 0v-.375c0-.621.504-1.125 1.125-1.125h15.75c.621 0 1.125.504 1.125 1.125v.375m0 0h15.75c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125H4.125c-.621 0-1.125-.504-1.125-1.125v-9.75m0 0h-.008v.008H4.125V4.5z" />
-            </svg>
-          }
+          icon={<IconWrapper icon={CreditCard} color="emerald" />}
           title="Cobros"
           description="Registrar pagos recibidos"
           label={pagosHoy > 0 ? `${pagosHoy} hoy` : "Sin cobros hoy"}
@@ -278,9 +287,7 @@ export default function Dashboard() {
         <h2 className="text-sm font-bold text-gray-700 mb-3">Ingresos (RD$)</h2>
         {(!d.cobrosPorMes || d.cobrosPorMes.length === 0 || d.cobrosPorMes.every(m => m.monto === 0))
           ? <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-              <svg className="w-10 h-10 mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 21 19.875v-6.75M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-2.25m-6.75 0H5.625c-.621 0-1.125.504-1.125 1.125v2.25m0 0h15.75c.621 0 1.125-.504 1.125-1.125v-2.25m0-6.75H5.625c-.621 0-1.125.504-1.125 1.125v2.25m0 0H21" />
-              </svg>
+              <Banknote className="w-10 h-10 mb-2 text-gray-300" />
               <p className="text-sm font-medium">Aún no hay datos</p>
               <p className="text-xs">Los ingresos aparecerán aquí</p>
             </div>
