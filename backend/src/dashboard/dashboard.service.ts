@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoPrestamo } from '@prisma/client';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
-import { format, subMonths, startOfMonth, endOfMonth, addDays, startOfDay, subDays } from 'date-fns';
+import { format, subMonths, startOfMonth, addDays, startOfDay, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
 const TIMEZONE_RD = 'America/Santo_Domingo';
@@ -20,17 +20,15 @@ export class DashboardService {
     const hace6Meses = subMonths(new Date(), 5);
     const inicioHace6Meses = startOfMonth(hace6Meses);
 
-    // Consultas paralelas para KPIs y pagos
+    // =====================
+    // BLOQUE 1: KPIs básicos (5 queries)
+    // =====================
     const [
       prestamosPorEstado,
       saldoCuotas,
       montoTotal,
-      cuotasVencidas,
       clientesActivos,
-      pagosTotales,
-      pagosDelMes,
-      cobrosGrafico,
-      desembolsosGrafico,
+      cuotasVencidas,
     ] = await Promise.all([
       // Préstamos por estado
       this.prisma.prestamo.groupBy({
@@ -39,7 +37,7 @@ export class DashboardService {
         _count: { id: true },
       }),
 
-      // Saldo pendiente calculado desde cuotas (más preciso)
+      // Saldo pendiente desde cuotas
       this.prisma.cuota.aggregate({
         where: {
           pagada: false,
@@ -57,6 +55,11 @@ export class DashboardService {
         _sum: { monto: true },
       }),
 
+      // Clientes activos
+      this.prisma.cliente.count({
+        where: { empresaId, activo: true },
+      }),
+
       // Cuotas vencidas
       this.prisma.cuota.count({
         where: {
@@ -65,13 +68,13 @@ export class DashboardService {
           prestamo: { empresaId },
         },
       }),
+    ]);
 
-      // Clientes activos
-      this.prisma.cliente.count({
-        where: { empresaId, activo: true },
-      }),
-
-      // Pagos de hoy (suma y conteo)
+    // =====================
+    // BLOQUE 2: Pagos (2 queries)
+    // =====================
+    const [pagosTotales, pagosDelMes] = await Promise.all([
+      // Pagos de hoy
       this.prisma.pago.aggregate({
         where: {
           prestamo: { empresaId },
@@ -80,7 +83,7 @@ export class DashboardService {
         _sum: { montoTotal: true },
       }),
 
-      // Pagos del mes (suma y conteo)
+      // Pagos del mes
       this.prisma.pago.aggregate({
         where: {
           prestamo: { empresaId },
@@ -88,8 +91,13 @@ export class DashboardService {
         },
         _sum: { montoTotal: true },
       }),
+    ]);
 
-      // COBROS: Una sola query con groupBy por año-mes
+    // =====================
+    // BLOQUE 3: Gráficos (2 queries)
+    // =====================
+    const [cobrosGrafico, desembolsosGrafico] = await Promise.all([
+      // Cobros por mes
       this.prisma.$queryRaw`
         SELECT 
           TO_CHAR(DATE_TRUNC('month', "createdAt"), 'YYYY-MM') as mes_key,
@@ -102,7 +110,7 @@ export class DashboardService {
         ORDER BY 1 ASC
       `,
 
-      // DESEMBOLSOS: Una sola query con groupBy por año-mes
+      // Desembolsos por mes
       this.prisma.$queryRaw`
         SELECT 
           TO_CHAR(DATE_TRUNC('month', "createdAt"), 'YYYY-MM') as mes_key,
@@ -116,7 +124,55 @@ export class DashboardService {
       `,
     ]);
 
-    // Procesar cantidades por estado
+    // =====================
+    // BLOQUE 4: Listas + Resumen (5 queries)
+    // =====================
+    const [clientesRecientes, prestamosAtrasados, proximasCuotas, cobroEsperado, moraCritica] = await Promise.all([
+      this.obtenerClientesRecientes(empresaId),
+      this.obtenerPrestamosAtrasados(empresaId),
+      this.obtenerProximasCuotas(empresaId),
+      // Cobro esperado hoy
+      this.prisma.cuota.aggregate({
+        where: {
+          pagada: false,
+          fechaVencimiento: { gte: hoy, lte: finHoy },
+          prestamo: {
+            empresaId,
+            estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
+          },
+        },
+        _sum: { monto: true },
+        _count: { id: true },
+      }),
+      // Mora crítica (+30 días)
+      this.prisma.cuota.findMany({
+        where: {
+          pagada: false,
+          fechaVencimiento: { lte: subDays(new Date(), 30) },
+          prestamo: {
+            empresaId,
+            estado: EstadoPrestamo.ATRASADO,
+          },
+        },
+        select: { prestamo: { select: { clienteId: true } } },
+      }),
+    ]);
+
+    // Procesar mora crítica - clientes únicos
+    const moraCriticaClientes = new Set(moraCritica.map(c => c.prestamo.clienteId));
+    const resumen = {
+      cobroEsperadoHoy: {
+        monto: Math.round((cobroEsperado._sum.monto ?? 0) * 100) / 100,
+        cuotas: cobroEsperado._count.id,
+      },
+      moraCritica: {
+        clientes: moraCriticaClientes.size,
+      },
+    };
+
+    // =====================
+    // PROCESAR RESULTADOS
+    // =====================
     const cantidades = {
       activos: 0,
       atrasados: 0,
@@ -140,27 +196,18 @@ export class DashboardService {
       if (key) cantidades[key] = item._count.id;
     }
 
-    // Calcular saldo pendiente real desde cuotas
     const saldoPendienteTotal = Math.round(
       ((saldoCuotas._sum.capital ?? 0) +
         (saldoCuotas._sum.interes ?? 0) +
         (saldoCuotas._sum.mora ?? 0)) * 100
     ) / 100;
 
-    // Procesar cobros por mes del resultado raw
     const cobrosPorMes = this.procesarGraficoMensual(cobrosGrafico);
-
-    // Procesar desembolsos por mes del resultado raw
     const desembolsosPorMes = this.procesarGraficoMensual(desembolsosGrafico);
 
-    // Consultas para listas
-    const [clientesRecientes, prestamosAtrasados, proximasCuotas] = await Promise.all([
-      this.obtenerClientesRecientes(empresaId),
-      this.obtenerPrestamosAtrasados(empresaId),
-      this.obtenerProximasCuotas(empresaId),
-    ]);
-
-    // Estructura de respuesta
+    // =====================
+    // CONSTRUIR RESPUESTA
+    // =====================
     return {
       kpis: {
         cantidades,
@@ -184,12 +231,12 @@ export class DashboardService {
         prestamosAtrasados,
         proximasCuotas,
       },
+      resumen,
     };
   }
 
   private procesarGraficoMensual(datosRaw: unknown): { mes: string; monto: number }[] {
     const datos = datosRaw as { mes_key: string; monto: number }[] || [];
-    
     const ahora = new Date();
     const resultado: { mes: string; monto: number }[] = [];
 
@@ -224,12 +271,18 @@ export class DashboardService {
         celular: true,
         activo: true,
         createdAt: true,
-        prestamos: {
-          where: { estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] } },
-          select: { id: true },
-        },
       },
     });
+
+    const clienteIds = clientes.map((c) => c.id);
+    const prestamosActivos = await this.prisma.prestamo.findMany({
+      where: {
+        clienteId: { in: clienteIds },
+        estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
+      },
+      select: { clienteId: true },
+    });
+    const clientesConPrestamo = new Set(prestamosActivos.map((p) => p.clienteId));
 
     return clientes.map((c) => ({
       id: c.id,
@@ -239,7 +292,7 @@ export class DashboardService {
       telefono: c.telefono ?? c.celular ?? '',
       activo: c.activo,
       createdAt: c.createdAt,
-      tienePrestamoActivo: c.prestamos.length > 0,
+      tienePrestamoActivo: clientesConPrestamo.has(c.id),
     }));
   }
 
@@ -249,7 +302,11 @@ export class DashboardService {
         empresaId,
         estado: EstadoPrestamo.ATRASADO,
       },
-      include: {
+      select: {
+        id: true,
+        monto: true,
+        saldoPendiente: true,
+        estado: true,
         cliente: {
           select: {
             id: true,
@@ -265,6 +322,15 @@ export class DashboardService {
           },
           orderBy: { fechaVencimiento: 'asc' },
           take: 1,
+          select: {
+            id: true,
+            numero: true,
+            monto: true,
+            capital: true,
+            interes: true,
+            mora: true,
+            fechaVencimiento: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -318,7 +384,14 @@ export class DashboardService {
           estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
         },
       },
-      include: {
+      select: {
+        id: true,
+        numero: true,
+        monto: true,
+        capital: true,
+        interes: true,
+        mora: true,
+        fechaVencimiento: true,
         prestamo: {
           select: {
             id: true,

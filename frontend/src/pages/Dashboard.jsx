@@ -2,53 +2,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { formatCurrency, formatDate, formatCedula } from "../utils/prestamosUtils";
+import { formatCurrency } from "../utils/prestamosUtils";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-
-if (typeof document !== "undefined" && !document.getElementById("dashboard-styles")) {
-  const s = document.createElement("style");
-  s.id = "dashboard-styles";
-  s.textContent = `@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`;
-  document.head.appendChild(s);
-}
-
-const CACHE_TTL = 30 * 1000;
-
-const getCacheKey = (empresaId) => empresaId ? `dashboard_cache_${empresaId}` : null;
-
-const getCached = (empresaId) => {
-  const cacheKey = getCacheKey(empresaId);
-  if (!cacheKey) return null;
-  try {
-    const raw = localStorage.getItem(cacheKey);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return { data: parsed.data, ts: parsed.ts, expired: Date.now() - parsed.ts > CACHE_TTL };
-  } catch { return null; }
-};
-
-const setCache = (data, empresaId) => {
-  const cacheKey = getCacheKey(empresaId);
-  if (!cacheKey) return;
-  try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data })); } catch { }
-};
-
-export const clearDashboardCache = (empresaId = null) => {
-  const cacheKey = getCacheKey(empresaId);
-  if (cacheKey) {
-    try { localStorage.removeItem(cacheKey); } catch { }
-  }
-  try {
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith("dashboard_cache_")) {
-        localStorage.removeItem(key);
-      }
-    });
-  } catch { }
-};
 
 const saludar = () => {
   const h = new Date().getHours();
@@ -61,11 +18,8 @@ const Skeleton = ({ className }) => (
   <div className={`bg-gray-100 rounded-xl animate-pulse ${className}`} />
 );
 
-const KpiCard = ({ label, value, sub, icon, accent, delay = 0 }) => (
-  <div
-    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all"
-    style={{ animation: `fadeUp 0.4s ease both`, animationDelay: `${delay}ms` }}
-  >
+const KpiCard = ({ label, value, sub, icon, accent }) => (
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
     <div className="flex items-center gap-2 mb-2">
       <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0 ${accent}`}>
         {icon}
@@ -73,20 +27,87 @@ const KpiCard = ({ label, value, sub, icon, accent, delay = 0 }) => (
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider leading-tight">{label}</p>
     </div>
     <p className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight break-all">{value}</p>
-    {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
+    {sub !== "0" && sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
   </div>
 );
 
-const CustomTooltip = ({ active, payload, label, currency = false }) => {
+const QuickActionCard = ({ icon, title, description, label, action, onClick, color }) => {
+  const colors = {
+    blue: { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200", hover: "hover:bg-blue-100" },
+    green: { bg: "bg-green-50", text: "text-green-600", border: "border-green-200", hover: "hover:bg-green-100" },
+    red: { bg: "bg-red-50", text: "text-red-600", border: "border-red-200", hover: "hover:bg-red-100" },
+    emerald: { bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200", hover: "hover:bg-emerald-100" },
+  };
+  const c = colors[color] || colors.blue;
+
+  return (
+    <div
+      className={`${c.bg} rounded-xl border ${c.border} p-4 hover:shadow-md transition-all cursor-pointer ${c.hover}`}
+      onClick={onClick}
+    >
+      <div className={`${c.text} mb-2`}>{icon}</div>
+      <h3 className="text-base font-bold text-gray-900">{title}</h3>
+      <p className="text-sm text-gray-500 mt-1">{description}</p>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200/60">
+        <span className="text-sm font-semibold text-gray-700">{label}</span>
+        <span className={`text-sm font-medium ${c.text}`}>{action} →</span>
+      </div>
+    </div>
+  );
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs">
       <p className="font-semibold text-gray-700 mb-1">{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color }} className="font-medium">
-          {p.name}: {currency ? formatCurrency(p.value) : p.value}
+          {p.name}: {formatCurrency(p.value)}
         </p>
       ))}
+    </div>
+  );
+};
+
+const ResumenEjecutivo = ({ resumen, navigate }) => {
+  const monto = resumen?.cobroEsperadoHoy?.monto || 0;
+  const cuotas = resumen?.cobroEsperadoHoy?.cuotas || 0;
+  const moraCritica = resumen?.moraCritica?.clientes || 0;
+
+  if (monto === 0 && moraCritica === 0) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-amber-800">
+            Hoy debes cobrar <span className="text-base">{formatCurrency(monto)}</span>
+            {cuotas > 0 && <span className="text-amber-600 font-normal"> ({cuotas} cuota{cuotas !== 1 ? 's' : ''})</span>}
+          </p>
+          {moraCritica > 0 && (
+            <p className="text-xs text-red-600 mt-1">
+              ⚠️ {moraCritica} cliente{moraCritica !== 1 ? 's' : ''} en mora crítica +30 días
+            </p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate("/pagos")}
+            className="px-3 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+          >
+            Cobrar ahora
+          </button>
+          {moraCritica > 0 && (
+            <button
+              onClick={() => navigate("/prestamos?estado=atrasado")}
+              className="px-3 py-1.5 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Ver atrasados
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -97,60 +118,35 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cacheAge, setCacheAge] = useState(null);
   const [error, setError] = useState(null);
   const fetchingRef = useRef(false);
 
-  const fetchDashboard = useCallback(async (empresaId, silent = false) => {
-    if (!empresaId) return;
+  const fetchDashboard = useCallback(async () => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
-    if (!silent) setRefreshing(true);
+    setRefreshing(true);
     setError(null);
 
     try {
       const response = await api.get("/dashboard");
-      const dashboardData = response.data;
+      const { kpis, pagos, graficos, resumen } = response.data;
 
-      const processed = {
-        cantidades: dashboardData.cantidades || {},
-        saldoPendienteTotal: dashboardData.saldoPendienteTotal || 0,
-        montoTotalPrestado: dashboardData.montoTotalPrestado || 0,
-        cuotasVencidasHoy: dashboardData.cuotasVencidasHoy || 0,
-        clientesActivos: dashboardData.clientesActivos || 0,
-        pagosHoy: dashboardData.pagosHoy || 0,
-        prestamosResumen: {
-          cantidades: dashboardData.cantidades || {},
-          saldoPendienteTotal: dashboardData.saldoPendienteTotal || 0,
-          cuotasVencidasHoy: dashboardData.cuotasVencidasHoy || 0,
-        },
+      setData({
+        cantidades: kpis?.cantidades || {},
+        saldoPendienteTotal: kpis?.saldoPendienteTotal || 0,
+        cuotasVencidasHoy: kpis?.cuotasVencidasHoy || 0,
         pagosResumen: {
-          cobradoHoy: dashboardData.pagosHoy || 0,
-          pagosHoy: 0,
-          cobradoMes: 0,
-          pagosMes: 0,
+          cobradoHoy: pagos?.cobradoHoy || 0,
+          cobradoMes: pagos?.cobradoMes || 0,
+          pagosHoy: pagos?.pagosHoy || 0,
+          pagosMes: pagos?.pagosMes || 0,
         },
-        cobrosPorMes: [],
-        desembolsosPorMes: [],
-        distribucion: [
-          { name: "Activos", value: dashboardData.cantidades?.activos ?? 0, color: "#10b981" },
-          { name: "Atrasados", value: dashboardData.cantidades?.atrasados ?? 0, color: "#ef4444" },
-          { name: "Pagados", value: dashboardData.cantidades?.pagados ?? 0, color: "#3b82f6" },
-          { name: "Cancelados", value: dashboardData.cantidades?.cancelados ?? 0, color: "#9ca3af" },
-        ].filter((d) => d.value > 0),
-        clientesRecientes: [],
-        totalClientes: dashboardData.clientesActivos || 0,
-        clientesConPrestamo: 0,
-        clientesSinPrestamo: Math.max(0, (dashboardData.clientesActivos || 0) - 0),
-        atrasados: [],
-        proximasCuotas: [],
-      };
-
-      setCache(processed, empresaId);
-      setData(processed);
-      setCacheAge("justo ahora");
+        cobrosPorMes: graficos?.cobrosPorMes || [],
+        totalClientes: kpis?.clientesActivos || 0,
+        resumen,
+      });
     } catch (err) {
-      console.error("[Dashboard] Error fetching:", err);
+      console.error("[Dashboard] Error:", err);
       setError("Error al cargar el dashboard");
     } finally {
       setLoading(false);
@@ -159,78 +155,42 @@ export default function Dashboard() {
     }
   }, []);
 
-  const fetchAll = useCallback(async (force = false) => {
-    const empresaId = user?.empresaId;
-    if (!empresaId) {
-      setLoading(false);
-      return;
-    }
-
-    const cached = getCached(empresaId);
-    if (!force && cached) {
-      setData(cached.data);
-      setLoading(false);
-      const mins = Math.floor((Date.now() - cached.ts) / 60000);
-      setCacheAge(mins === 0 ? "justo ahora" : `hace ${mins} min`);
-      if (cached.expired) fetchDashboard(empresaId, true);
-      return;
-    }
-    setLoading(!data);
-    await fetchDashboard(empresaId, false);
-  }, [data, fetchDashboard, user?.empresaId]);
-
   useEffect(() => {
-    if (!user?.empresaId) return;
-    fetchAll();
-  }, [user?.empresaId]);
+    if (user?.empresaId) {
+      fetchDashboard();
+    }
+  }, [user?.empresaId, fetchDashboard]);
 
   if (loading || !data) return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-4">
       <Skeleton className="h-8 w-56" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 sm:h-28" />)}
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Skeleton className="lg:col-span-2 h-56" />
-        <Skeleton className="h-56" />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Skeleton className="h-52" />
-        <Skeleton className="h-52" />
-      </div>
+      <Skeleton className="h-64" />
     </div>
   );
 
-  const d = data || {};
+  const d = data;
+  const pagosHoy = d.pagosResumen?.pagosHoy || 0;
+  const pagosMes = d.pagosResumen?.pagosMes || 0;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-4">
 
-      <div className="flex items-start justify-between gap-3" style={{ animation: "fadeUp 0.3s ease both" }}>
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            {saludar()}, <span className="text-blue-600">{user?.nombre || user?.email?.split("@")[0]}</span> 👋
+            {saludar()}, <span className="text-blue-600">{user?.nombre || user?.email?.split("@")[0]}</span>
           </h1>
           <p className="text-xs sm:text-sm text-gray-400 mt-0.5 hidden sm:block">
             {new Intl.DateTimeFormat("es-DO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date())}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0 mt-0.5">
-          {cacheAge && (
-            <span className="text-[10px] text-gray-400 hidden sm:block">Actualizado {cacheAge}</span>
-          )}
-          {refreshing && !loading && (
-            <span className="text-[10px] text-blue-400 hidden sm:flex items-center gap-1">
-              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Actualizando…
-            </span>
-          )}
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => { clearDashboardCache(user?.empresaId); fetchAll(true); }}
+            onClick={fetchDashboard}
             disabled={refreshing}
-            title="Forzar actualización"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-200 text-xs font-medium shadow-sm transition-all disabled:opacity-50"
           >
             <svg className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -247,36 +207,84 @@ export default function Dashboard() {
         </div>
       )}
 
+      <ResumenEjecutivo resumen={d.resumen} navigate={navigate} />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Cartera activa" value={formatCurrency(d.saldoPendienteTotal ?? 0)} sub="Saldo pendiente total" icon="💼" accent="bg-blue-50" delay={0} />
-        <KpiCard label="Cobrado hoy" value={formatCurrency(d.pagosResumen?.cobradoHoy ?? 0)} sub={`${d.pagosResumen?.pagosHoy ?? 0} pagos`} icon="💰" accent="bg-emerald-50" delay={60} />
-        <KpiCard label="Atrasados" value={d.cantidades?.atrasados ?? 0} sub={`${d.cuotasVencidasHoy ?? 0} cuotas vencidas`} icon="⚠️" accent="bg-red-50" delay={120} />
-        <KpiCard label="Cobrado este mes" value={formatCurrency(d.pagosResumen?.cobradoMes ?? 0)} sub={`${d.pagosResumen?.pagosMes ?? 0} pagos`} icon="📅" accent="bg-amber-50" delay={180} />
+        <KpiCard label="Cartera activa" value={formatCurrency(d.saldoPendienteTotal)} sub={null} icon="💼" accent="bg-blue-50" />
+        <KpiCard label="Cobrado hoy" value={formatCurrency(d.pagosResumen?.cobradoHoy)} sub={pagosHoy > 0 ? `${pagosHoy} pagos` : null} icon="💰" accent="bg-emerald-50" />
+        <KpiCard label="Atrasados" value={d.cantidades?.atrasados || 0} sub={d.cuotasVencidasHoy > 0 ? `${d.cuotasVencidasHoy} cuotas vencidas` : null} icon="⚠️" accent="bg-red-50" />
+        <KpiCard label="Cobrado mes" value={formatCurrency(d.pagosResumen?.cobradoMes)} sub={pagosMes > 0 ? `${pagosMes} pagos` : null} icon="📅" accent="bg-amber-50" />
       </div>
 
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3" style={{ animation: "fadeUp 0.4s ease 0.2s both" }}>
-        {[
-          { label: "Total préstamos", value: Object.values(d.cantidades ?? {}).reduce((a, b) => a + b, 0), color: "text-gray-800" },
-          { label: "Activos", value: d.cantidades?.activos ?? 0, color: "text-emerald-600" },
-          { label: "Pagados", value: d.cantidades?.pagados ?? 0, color: "text-blue-600" },
-          { label: "Total clientes", value: d.totalClientes ?? 0, color: "text-gray-800" },
-          { label: "Con préstamo", value: d.clientesConPrestamo ?? 0, color: "text-violet-600" },
-          { label: "Sin préstamo", value: d.clientesSinPrestamo ?? 0, color: "text-gray-400" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-white rounded-xl border border-gray-100 px-2 py-2.5 sm:px-3 sm:py-3 text-center shadow-sm">
-            <p className={`text-base sm:text-xl font-bold ${color}`}>{value}</p>
-            <p className="text-[9px] sm:text-xs text-gray-400 mt-0.5 leading-tight">{label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
+        <QuickActionCard
+          icon={
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.994 9.994 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c.342-.243.683-.505 1.025-.684M19.35 10.664A4.002 4.002 0 0119 17.25m-2.407-4.385c.055-.185.11-.37.164-.558M4.5 5.25a3 3 0 003 3m0-3a3 3 0 013 3m-3 0l.001-.072a4.002 4.002 0 017.37-2.815M4.5 5.25a3 3 0 00-3 3m0-3a3 3 0 013 3m-3 0l.001-.072A9.953 9.953 0 013.75 9.75c0 .652.063 1.292.179 1.914M19.35 10.664A9.953 9.953 0 0021.75 9.75c0-.652-.063-1.292-.179-1.914m0 0a3 3 0 01-3-3m3 3a3 3 0 000 6h-3v-2.25a3 3 0 00-3-3m0 0a3 3 0 01-3 3v2.25m0 6h.008v.008H19.35v-.008z" />
+            </svg>
+          }
+          title="Clientes"
+          description="Gestiona tu cartera de clientes"
+          label={`${d.totalClientes} clientes`}
+          action="Abrir"
+          onClick={() => navigate("/clientes")}
+          color="blue"
+        />
+
+        <QuickActionCard
+          icon={
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0-1V7m-2.599 1c-.519 1.598-1.599 2.599-2.401 3M6 7v10m6-6v10" />
+            </svg>
+          }
+          title="Nuevo préstamo"
+          description="Registrar nuevo préstamo"
+          label="Nuevo"
+          action="Abrir"
+          onClick={() => navigate("/prestamos/nuevo")}
+          color="green"
+        />
+
+        <QuickActionCard
+          icon={
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          }
+          title="Atrasados"
+          description="Clientes con cuotas vencidas"
+          label={`${d.cantidades?.atrasados || 0} préstamos`}
+          action="Abrir"
+          onClick={() => navigate("/prestamos?estado=atrasado")}
+          color="red"
+        />
+
+        <QuickActionCard
+          icon={
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 18h.75m0 0v-.375c0-.621.504-1.125 1.125-1.125h15.75c.621 0 1.125.504 1.125 1.125v.375m0 0h15.75c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125H4.125c-.621 0-1.125-.504-1.125-1.125v-9.75m0 0h-.008v.008H4.125V4.5z" />
+            </svg>
+          }
+          title="Cobros"
+          description="Registrar pagos recibidos"
+          label={pagosHoy > 0 ? `${pagosHoy} hoy` : "Sin cobros hoy"}
+          action="Abrir"
+          onClick={() => navigate("/pagos")}
+          color="emerald"
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5"
-          style={{ animation: "fadeUp 0.4s ease 0.25s both" }}>
-          <h2 className="text-sm font-bold text-gray-700 mb-3 sm:mb-4">Cobros últimos 6 meses</h2>
-          {(!d.cobrosPorMes || d.cobrosPorMes.length === 0)
-            ? <div className="flex items-center justify-center h-40 text-gray-400 text-sm">Sin datos disponibles</div>
-            : <ResponsiveContainer width="100%" height={170}>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+        <h2 className="text-sm font-bold text-gray-700 mb-3">Ingresos (RD$)</h2>
+        {(!d.cobrosPorMes || d.cobrosPorMes.length === 0 || d.cobrosPorMes.every(m => m.monto === 0))
+          ? <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+              <svg className="w-10 h-10 mb-2 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 21 19.875v-6.75M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-2.25m-6.75 0H5.625c-.621 0-1.125.504-1.125 1.125v2.25m0 0h15.75c.621 0 1.125-.504 1.125-1.125v-2.25m0-6.75H5.625c-.621 0-1.125.504-1.125 1.125v2.25m0 0H21" />
+              </svg>
+              <p className="text-sm font-medium">Aún no hay datos</p>
+              <p className="text-xs">Los ingresos aparecerán aquí</p>
+            </div>
+          : <ResponsiveContainer width="100%" height={160}>
               <AreaChart data={d.cobrosPorMes} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradCobros" x1="0" y1="0" x2="0" y2="1">
@@ -287,162 +295,13 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip content={<CustomTooltip currency />} />
-                <Area type="monotone" dataKey="cobrado" name="Cobrado" stroke="#3b82f6"
-                  strokeWidth={2.5} fill="url(#gradCobros)" dot={{ fill: "#3b82f6", r: 3 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="monto" name="Ingresos" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradCobros)" dot={{ fill: "#3b82f6", r: 3 }} />
               </AreaChart>
             </ResponsiveContainer>
-          }
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5"
-          style={{ animation: "fadeUp 0.4s ease 0.3s both" }}>
-          <h2 className="text-sm font-bold text-gray-700 mb-3">Distribución cartera</h2>
-          {(!d.distribucion || d.distribucion.length === 0)
-            ? <div className="flex items-center justify-center h-40 text-gray-400 text-sm">Sin datos</div>
-            : <>
-              <ResponsiveContainer width="100%" height={130}>
-                <PieChart>
-                  <Pie data={d.distribucion} cx="50%" cy="50%" innerRadius={38} outerRadius={58}
-                    paddingAngle={3} dataKey="value">
-                    {d.distribucion.map((e, i) => <Cell key={i} fill={e.color} />)}
-                  </Pie>
-                  <Tooltip formatter={(v) => v} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 justify-center">
-                {d.distribucion.map((e) => (
-                  <div key={e.name} className="flex items-center gap-1 text-xs text-gray-600">
-                    <div className="w-2 h-2 rounded-full" style={{ background: e.color }} />
-                    {e.name} <span className="font-bold text-gray-800">{e.value}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          }
-        </div>
+        }
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5"
-          style={{ animation: "fadeUp 0.4s ease 0.35s both" }}>
-          <h2 className="text-sm font-bold text-gray-700 mb-3 sm:mb-4">Desembolsos por mes</h2>
-          {(!d.desembolsosPorMes || d.desembolsosPorMes.length === 0)
-            ? <div className="flex items-center justify-center h-40 text-gray-400 text-sm">Sin datos disponibles</div>
-            : <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={d.desembolsosPorMes} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip content={<CustomTooltip currency />} />
-                <Bar dataKey="monto" name="Monto" fill="#6366f1" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          }
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
-          style={{ animation: "fadeUp 0.4s ease 0.4s both" }}>
-          <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-gray-700">Clientes recientes</h2>
-            <button onClick={() => navigate("/clientes")} className="text-xs text-blue-500 hover:underline font-medium">Ver todos →</button>
-          </div>
-          {(!d.clientesRecientes || d.clientesRecientes.length === 0)
-            ? <div className="text-center py-10 text-gray-400 text-sm">Sin clientes registrados</div>
-            : <div className="divide-y divide-gray-50">
-              {d.clientesRecientes.map((c) => (
-                <div key={c.id} className="flex items-center justify-between px-4 sm:px-5 py-2.5 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-xs font-bold text-blue-700 shrink-0">
-                      {c.nombre?.[0]?.toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{c.nombre} {c.apellido}</p>
-                      <p className="text-xs text-gray-400 font-mono hidden sm:block">{formatCedula(c.cedula || "")}</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.activo ? "bg-emerald-50 text-emerald-700 border border-emerald-100" : "bg-gray-100 text-gray-400"}`}>
-                      {c.activo ? "Activo" : "Inactivo"}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-0.5 hidden sm:block">{formatDate(c.createdAt)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          }
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
-          style={{ animation: "fadeUp 0.4s ease 0.45s both" }}>
-          <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <h2 className="text-sm font-bold text-gray-700">Préstamos Atrasados</h2>
-            </div>
-            <button onClick={() => navigate("/prestamos")} className="text-xs text-blue-500 hover:underline font-medium">Ver todos →</button>
-          </div>
-          {(!d.atrasados || d.atrasados.length === 0)
-            ? <div className="text-center py-8 text-gray-400 text-sm">Sin préstamos atrasados</div>
-            : <div className="space-y-2">
-              {d.atrasados.map((p) => {
-                const cuota = p.cuotas?.[0];
-                return (
-                  <div key={p.id}
-                    className="flex items-center justify-between px-4 sm:px-5 py-2.5 hover:bg-red-50/40 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/prestamos/${p.id}`)}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{p.cliente?.nombre} {p.cliente?.apellido}</p>
-                      <p className="text-xs text-gray-400 font-mono hidden sm:block">{formatCedula(p.cliente?.cedula || "")}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-red-600">{formatCurrency(p.saldoPendiente)}</p>
-                      {cuota && <p className="text-xs text-red-400">Vence: {formatDate(cuota.fechaVencimiento)}</p>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          }
-        </div>
-
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
-          style={{ animation: "fadeUp 0.4s ease 0.5s both" }}>
-          <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400" />
-              <h2 className="text-sm font-bold text-gray-700">Próximas <span className="text-gray-400 font-normal">(7 días)</span></h2>
-            </div>
-            <button onClick={() => navigate("/pagos")} className="text-xs text-blue-500 hover:underline font-medium">Cobrar →</button>
-          </div>
-          {(!d.proximasCuotas || d.proximasCuotas.length === 0)
-            ? <div className="text-center py-8 text-gray-400 text-sm">Sin cuotas próximas</div>
-            : <div className="space-y-2">
-              {d.proximasCuotas.map((c) => {
-                const dias = Math.ceil((new Date(c.fechaVencimiento) - new Date()) / 86400000);
-                return (
-                  <div key={c.id}
-                    className="flex items-center justify-between px-4 sm:px-5 py-2.5 hover:bg-amber-50/40 cursor-pointer transition-colors"
-                    onClick={() => navigate("/pagos")}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{c.prestamo.cliente?.nombre} {c.prestamo.cliente?.apellido}</p>
-                      <p className={`text-xs font-medium mt-0.5 ${dias <= 1 ? "text-red-500" : "text-amber-500"}`}>
-                        {dias === 0 ? "Vence hoy" : `En ${dias} día${dias !== 1 ? "s" : ""}`} · #{c.numero}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-gray-800">{formatCurrency(c.monto + (c.mora || 0))}</p>
-                      <p className="text-xs text-gray-400 hidden sm:block">{formatDate(c.fechaVencimiento)}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          }
-        </div>
-      </div>
     </div>
   );
 }
