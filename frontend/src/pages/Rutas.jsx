@@ -1216,7 +1216,7 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
                     })()}
                     <button onClick={() => toggleVisit(c.rutaClienteId, c.visitadoHoy)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 whitespace-nowrap ${c.visitadoHoy ? "bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50" : "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-sm"}`}>
-                      {c.visitadoHoy ? "Desmarcar" : "✓ Visitar"}
+                      {c.visitadoHoy ? "Desmarcar" : "✓"}
                     </button>
                   </div>
                 </div>
