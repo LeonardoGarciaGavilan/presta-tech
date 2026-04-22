@@ -94,7 +94,7 @@ const ResumenEjecutivo = ({ resumen, cobradoHoy, navigate }) => {
   const faltante = monto - (cobradoHoy || 0);
 
   if (monto === 0 && moraCritica === 0) return null;
-
+ 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -27,14 +27,6 @@ const METODO_LABEL = {
 export default function ReciboPago({ data, empresa, onClose }) {
   const reciboRef = useRef(null);
 
-  // Bloquear scroll del body cuando el recibo está abierto
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, []);
-
   if (!data) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

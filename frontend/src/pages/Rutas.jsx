@@ -1,6 +1,7 @@
 // src/pages/Rutas.jsx
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { formatCurrency, formatDate, formatCedula } from "../utils/prestamosUtils";
@@ -391,9 +392,18 @@ const MapaRuta = ({ clientes, visitadoIds = [] }) => {
 const ModalRuta = ({ ruta, onConfirm, onClose, loading }) => {
   const [nombre, setNombre] = useState(ruta?.nombre ?? "");
   const [desc, setDesc] = useState(ruta?.descripcion ?? "");
-  return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0" }}>
-      <div className="bg-white w-full sm:max-w-md sm:mb-8 sm:mx-4 rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 anim-fadeup" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom,0px))" }}>
+
+  const content = (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "rgba(15,23,42,0.6)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        padding: 0
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white w-full sm:max-w-md sm:mb-8 sm:mx-4 rounded-t-3xl sm:rounded-3xl shadow-2xl p-6" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom,0px))", animation: "fadeUp 0.2s ease" }}>
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
         <div className="flex items-center gap-3 mb-6">
           <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl">🗺️</div>
@@ -426,6 +436,8 @@ const ModalRuta = ({ ruta, onConfirm, onClose, loading }) => {
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 };
 
 // ─── ModalObs ─────────────────────────────────────────────────────────────────
@@ -437,9 +449,17 @@ const ModalObs = ({ rc, rutaId, onSaved, onClose }) => {
     try { await api.patch(`/rutas/${rutaId}/clientes/${rc.id}`, { observacion: obs }); onSaved(); }
     catch { } finally { setSaving(false); }
   };
-  return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div className="bg-white w-full sm:max-w-md sm:mb-8 sm:mx-4 rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 anim-fadeup" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom,0px))" }}>
+
+  const content = (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "rgba(15,23,42,0.6)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center"
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white w-full sm:max-w-md sm:mb-8 sm:mx-4 rounded-t-3xl sm:rounded-3xl shadow-2xl p-6" style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom,0px))", animation: "fadeUp 0.2s ease" }}>
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 sm:hidden" />
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-xl">💡</div>
@@ -461,6 +481,8 @@ const ModalObs = ({ rc, rutaId, onSaved, onClose }) => {
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 };
 
 // ─── ModalMasa ────────────────────────────────────────────────────────────────
@@ -514,7 +536,6 @@ const ModalMasa = ({ rutaId, yaEnRuta, onDone, onClose }) => {
 
   const filtrados = useMemo(() => todos.filter(c => {
     const q = busqueda.toLowerCase().trim();
-    // 👇 limpiar guiones para buscar cédula con o sin ellos
     const qSinGuiones = q.replace(/-/g, "");
     const mb = !q ||
       `${c.nombre ?? ""} ${c.apellido ?? ""}`.toLowerCase().includes(q) ||
@@ -598,10 +619,16 @@ const ModalMasa = ({ rutaId, yaEnRuta, onDone, onClose }) => {
     finally { setSaving(false); }
   };
 
-  return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, overflowY: "auto", background: "rgba(15,23,42,0.65)" }}>
+  const content = (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        overflowY: "auto", background: "rgba(15,23,42,0.65)"
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div style={{ minHeight: "100%", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "1.5rem 1rem" }}>
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden anim-fadeup">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden" style={{ animation: "fadeUp 0.2s ease" }}>
 
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
             <div>
@@ -797,268 +824,11 @@ const ModalMasa = ({ rutaId, yaEnRuta, onDone, onClose }) => {
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 };
 
 // ─── VistaDia ─────────────────────────────────────────────────────────────────
-// ─── Modal pago rápido desde ruta ────────────────────────────────────────────
-const ModalPagoRuta = ({ cliente, prestamos, onPagado, onClose, showToast }) => {
-  // Inicializar con el primer préstamo si hay solo uno
-  const prestamoInicial = prestamos.length === 1 ? prestamos[0] : null;
-
-  const {
-    prestamoId,
-    setPrestamoId,
-    prestamoData,
-    monto,
-    setMonto,
-    metodo,
-    setMetodo,
-    referencia,
-    setReferencia,
-    observacion,
-    setObservacion,
-    errors,
-    submitting,
-    loadingCuotas,
-    cuotaActual,
-    montoNum,
-    diferencia,
-    validarPago,
-    handleSubmit,
-    handleCuotaChange,
-    limpiarError,
-    cerrarRecibo,
-    reciboData,
-    mostrarRecibo,
-    config,
-    cuotas,
-    calcularMontoExacto,
-  } = usePago({
-    prestamoInicial,
-    onSuccess: () => {
-      onPagado();
-    },
-    showToast,
-  });
-
-  const fmt = (n) => new Intl.NumberFormat("es-DO", { style: "currency", currency: "DOP", minimumFractionDigits: 2 }).format(n);
-
-  const formatFecha = (fecha) => {
-    if (!fecha) return "—";
-    const f = new Date(fecha);
-    if (isNaN(f.getTime())) return "—";
-    return f.toLocaleDateString("es-DO", { day: "numeric", month: "short" });
-  };
-
-  const handlePagarClick = async () => {
-    showToast(`Pago de ${fmt(montoNum)} registrado ✓`);
-    await handleSubmit();
-  };
-
-  return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,0.65)", display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "40px" }}>
-      <div className="bg-white w-full max-w-md mx-4 rounded-2xl shadow-2xl p-6 anim-fadeup max-h-[85vh] overflow-y-auto">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-xl">💵</div>
-          <div>
-            <h3 className="font-bold text-gray-900">Registrar pago</h3>
-            <p className="text-xs text-gray-400">{cliente.nombre} {cliente.apellido}</p>
-          </div>
-        </div>
-
-        {/* Selector de préstamo si hay varios */}
-        {prestamos.length > 1 && (
-          <div className="mb-3">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Préstamo</label>
-            <select
-              value={prestamoId}
-              onChange={(e) => setPrestamoId(e.target.value)}
-              className="input-field w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50"
-            >
-              {prestamos.map(p => (
-                <option key={p.id} value={p.id}>{fmt(p.monto)} · {p.estado} · Saldo: {fmt(p.saldo)}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Estado de carga */}
-        {loadingCuotas ? (
-          <div className="flex flex-col items-center justify-center py-8 gap-3">
-            <div className="w-7 h-7 border-[3px] border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
-            <p className="text-xs text-gray-400 font-medium">Cargando cuotas del préstamo…</p>
-          </div>
-        ) : cuotas.length === 0 ? (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 mb-3 text-sm text-emerald-700 font-medium text-center">
-            ✅ Este préstamo no tiene cuotas pendientes
-          </div>
-        ) : (
-          <>
-            {/* Selector de cuota */}
-            <div className="mb-3">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Cuota</label>
-              <select
-                value={cuotaActual?.id || "PROXIMA"}
-                onChange={(e) => handleCuotaChange(e.target.value)}
-                className="input-field w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50"
-              >
-                <option value="PROXIMA">
-                  Próxima — #{cuotas[0]?.numero} · {fmt(cuotas[0]?.monto + (cuotas[0]?.mora || 0))} · vence {formatFecha(cuotas[0]?.fechaVencimiento)}
-                </option>
-                {cuotas.slice(1).map(c => (
-                  <option key={c.id} value={c.id}>
-                    Cuota #{c.numero} · {fmt(c.monto + (c.mora || 0))}{c.mora > 0 ? ` (mora: ${fmt(c.mora)})` : ""} · {formatFecha(c.fechaVencimiento)}
-                  </option>
-                ))}
-              </select>
-
-              {/* Detalle de la cuota */}
-              {cuotaActual && (
-                <div className="grid grid-cols-3 gap-1.5 mt-2 text-[10px]">
-                  {[
-                    { l: "Capital", v: cuotaActual.capital, c: "text-blue-600", bg: "bg-blue-50" },
-                    { l: "Interés", v: cuotaActual.interes, c: "text-amber-600", bg: "bg-amber-50" },
-                    { l: "Mora", v: cuotaActual.mora || 0, c: "text-red-600", bg: "bg-red-50" },
-                  ].map(x => (
-                    <div key={x.l} className={`${x.bg} rounded-lg p-1.5 text-center`}>
-                      <p className="text-gray-400">{x.l}</p>
-                      <p className={`font-bold ${x.c}`}>{fmt(x.v)}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Saldo pendiente del préstamo */}
-              {prestamoId && (
-                <div className="mb-3 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mt-2">
-                  {/* Saldo real del préstamo */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-blue-600 font-medium">Saldo pendiente del préstamo</span>
-                    <span className="text-sm font-bold text-blue-700">{fmt(prestamoData?.saldoPendiente ?? 0)}</span>
-                  </div>
-                  {/* Límite máximo por pago (si está configurado) */}
-                  {config?.montoMaximoPago > 0 && (
-                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-blue-100">
-                      <span className="text-xs text-gray-500">Límite máximo por pago</span>
-                      <span className="text-xs font-medium text-gray-500">{fmt(config.montoMaximoPago)}</span>
-                    </div>
-                  )}
-                  {/* Saldo restante de la cuota */}
-                  {cuotaActual && (
-                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-blue-100">
-                      {cuotaActual && montoNum > 0 && !errors.monto && (
-                        <>
-                          {montoNum === calcularMontoExacto(cuotaActual) && (
-                            <span className="text-xs text-emerald-600 font-medium">✅ Monto exacto de la cuota</span>
-                          )}
-                          {montoNum > calcularMontoExacto(cuotaActual) && (
-                            <span className="text-xs text-blue-600 font-medium">↑ Excedente se aplicará como abono a capital</span>
-                          )}
-                          {montoNum < calcularMontoExacto(cuotaActual) && (
-                            <span className="text-xs text-yellow-600 font-medium">⚠️ Faltan {fmt(calcularMontoExacto(cuotaActual) - montoNum)}</span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Monto */}
-            <div className="mb-3">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Monto (RD$)</label>
-              <div className={`flex items-center border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 bg-gray-50 ${errors.monto ? 'border-red-500' : 'border-gray-200'}`}>
-                <span className="px-3 py-2.5 bg-gray-100 text-gray-500 text-sm font-medium border-r border-gray-200 shrink-0">RD$</span>
-                <input
-                  type="number"
-                  value={monto}
-                  onChange={(e) => { setMonto(e.target.value); limpiarError("monto"); }}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  className={`flex-1 px-3 py-2.5 text-sm bg-gray-50 focus:bg-white focus:outline-none ${errors.monto ? 'border-red-500' : ''}`}
-                />
-              </div>
-              {errors.monto && <p className="text-red-500 text-xs mt-1">{errors.monto}</p>}
-              {/* Indicador visual */}
-              {!errors.monto && cuotaActual && montoNum > 0 && (() => {
-                if (diferencia === 0) return <p className="text-xs text-emerald-600 font-medium mt-1">✅ Monto exacto de la cuota</p>;
-                if (diferencia > 0) return <p className="text-xs text-blue-600 font-medium mt-1">↑ Excedente de {fmt(diferencia)} se aplicará como abono a capital</p>;
-                return <p className="text-xs text-red-500 font-medium mt-1">⚠️ Faltan {fmt(Math.abs(diferencia))} para cubrir la cuota completa</p>;
-              })()}
-            </div>
-          </>
-        )}
-
-        {/* Método de pago */}
-        <div className="mb-4">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Método</label>
-          <div className="grid grid-cols-4 gap-2">
-            {[["EFECTIVO", "💵", "Efectivo"], ["TRANSFERENCIA", "🏦", "Transfer."], ["TARJETA", "💳", "Tarjeta"], ["CHEQUE", "📄", "Cheque"]].map(([v, ic, lb]) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => { setMetodo(v); limpiarError("metodo"); }}
-                className={`py-2 rounded-xl text-xs font-bold border flex flex-col items-center gap-0.5 transition-all ${metodo === v ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-gray-600 border-gray-200 hover:border-emerald-300"}`}
-              >
-                <span>{ic}</span>{lb}
-              </button>
-            ))}
-          </div>
-          {errors.metodo && <p className="text-red-500 text-xs mt-1">{errors.metodo}</p>}
-        </div>
-
-        {/* Referencia */}
-        <div className="mb-3">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Referencia <span className="text-gray-400 font-normal">(opcional)</span></label>
-          <input
-            type="text"
-            value={referencia}
-            onChange={(e) => setReferencia(e.target.value)}
-            placeholder="Nº transferencia, cheque..."
-            className="input-field w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50"
-          />
-        </div>
-
-        {/* Observación */}
-        <div className="mb-3">
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Observación <span className="text-gray-400 font-normal">(opcional)</span></label>
-          <textarea
-            value={observacion}
-            onChange={(e) => setObservacion(e.target.value)}
-            placeholder="Notas adicionales..."
-            rows={2}
-            className="input-field w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 resize-none"
-          />
-        </div>
-
-        {/* Botones */}
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-700 text-sm font-bold">Cancelar</button>
-          <button
-            onClick={handlePagarClick}
-            disabled={submitting || !montoNum || loadingCuotas || !!errors.monto}
-            className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-95"
-          >
-            {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "✓"}
-            {submitting ? "Registrando…" : loadingCuotas ? "Cargando…" : `Pagar ${montoNum > 0 ? fmt(montoNum) : ""}`}
-          </button>
-        </div>
-      </div>
-
-      {/* Modal de Recibo */}
-      {mostrarRecibo && reciboData && (
-        <ReciboPago
-          data={reciboData}
-          onClose={cerrarRecibo}
-        />
-      )}
-    </div>
-  );
-};
-
 const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
   const navigate = useNavigate();
   const [fecha, setFecha] = useState(hoyStr());
@@ -1067,43 +837,60 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
   const [tab, setTab] = useState("todos");
   const [mapa, setMapa] = useState(false);
   const [cobradoHoy, setCobradoHoy] = useState(0);
-  const [ordenLocal, setOrdenLocal] = useState(null); // null = usar orden del backend
-  
-  // Estado para modal de pago inline
-  const [showModalPago, setShowModalPago] = useState(false);
-  const [clientePagar, setClientePagar] = useState(null);
-  const [prestamosPagar, setPrestamosPagar] = useState([]);
-  
-  const abrirPagoModal = (cliente, prestamos) => {
-    setClientePagar(cliente);
-    setPrestamosPagar(prestamos);
-    setShowModalPago(true);
-  };
-  
-  const cerrarPagoModal = () => {
-    setShowModalPago(false);
-    setClientePagar(null);
-    setPrestamosPagar([]);
-  };
-  
+  const [ordenLocal, setOrdenLocal] = useState(null);
+
+  // Estado para cobros rápidos
+  const [cobrandoIds, setCobrandoIds] = useState(new Set());
+  const [cobradoOkIds, setCobradoOkIds] = useState(new Set());
+
+  // Estado para recibo y confirmación
+  const [reciboData, setReciboData] = useState(null);
+  const [showRecibo, setShowRecibo] = useState(false);
+  const [confirmCobro, setConfirmCobro] = useState(null);
+
   const hoy = hoyStr();
 
+  // ── Helpers de cuota ──────────────────────────────────────────────────────
+  const getMontoProximaCuota = (clienteData) => {
+    const prestamo = clienteData.prestamos?.find(p => ["ACTIVO", "ATRASADO"].includes(p.estado));
+    if (!prestamo?.proximaCuota) return null;
+    const cuota = prestamo.proximaCuota;
+    return {
+      prestamoId: prestamo.id,
+      cuotaId:    cuota.id,
+      monto:      cuota.monto + (cuota.mora || 0),
+      numero:     cuota.numero,
+      tieneMora:  (cuota.mora || 0) > 0,
+    };
+  };
+
+  const puedeCobroRapido = (clienteData) => {
+    if (!clienteData.tienePrestamos || clienteData.visitadoHoy) return false;
+    return !!getMontoProximaCuota(clienteData);
+  };
+
+  const getMontoCobrar = (clienteData) => {
+    return getMontoProximaCuota(clienteData)?.monto ?? 0;
+  };
+
+  // ── Cargar datos ──────────────────────────────────────────────────────────
   const cargar = useCallback(async () => {
     setLoading(true);
-    setOrdenLocal(null); // resetear orden al recargar
+    setOrdenLocal(null);
     try { const r = await api.get(`/rutas/${rutaId}/dia?fecha=${fecha}`); setData(r.data); }
     catch { } finally { setLoading(false); }
   }, [rutaId, fecha]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  // Cobrado del día desde API pagos
   useEffect(() => {
     api.get(`/pagos/resumen`).then(r => setCobradoHoy(r.data?.cobradoHoy ?? 0)).catch(() => {});
   }, []);
 
+  // ── Marcar visitado — SIN cargar() al final ───────────────────────────────
+  // ✅ FIX: Eliminado cargar() para evitar recarga completa de la pantalla
   const toggleVisit = async (rcId, actual) => {
-    // Actualización optimista inmediata
+    // Actualización optimista inmediata en UI
     setData(p => ({
       ...p,
       clientes: p.clientes.map(c => c.rutaClienteId === rcId ? { ...c, visitadoHoy: !actual } : c),
@@ -1112,9 +899,7 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
     try {
       await api.patch(`/rutas/clientes/${rcId}/visita`, { visitado: !actual });
       showToast(!actual ? "Marcado como visitado ✓" : "Visita desmarcada");
-      // Recargar desde backend para que visitadoHoy se calcule por fecha real
-      // (evita que visitas de otros días queden como "visitado hoy")
-      cargar();
+      // ✅ NO se llama cargar() — la actualización optimista es suficiente
     } catch {
       // Revertir si falla
       setData(p => ({
@@ -1126,7 +911,71 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
     }
   };
 
-  // Organizar por cercanía usando los clientes actuales de la vista
+  // ── Cobro rápido ──────────────────────────────────────────────────────────
+  const ejecutarCobroRapido = async (clienteData) => {
+    const rcId = clienteData.rutaClienteId;
+    if (cobrandoIds.has(rcId)) return;
+
+    const infoCuota = getMontoProximaCuota(clienteData);
+    if (!infoCuota) {
+      showToast("No hay cuota pendiente para cobrar", "error");
+      return;
+    }
+
+    const { prestamoId, cuotaId, monto, numero } = infoCuota;
+
+    setCobrandoIds(prev => new Set(prev).add(rcId));
+
+    try {
+      const res = await api.post("/pagos", {
+        prestamoId,
+        cuotaId,
+        montoPagado: monto,
+        metodo: "EFECTIVO",
+      });
+
+      setCobradoOkIds(prev => new Set(prev).add(rcId));
+      setCobradoHoy(prev => prev + monto);
+
+      // Marcar como visitado en backend
+      await api.patch(`/rutas/clientes/${rcId}/visita`, { visitado: true });
+
+      // Guardar recibo
+      if (res.data && Object.keys(res.data).length > 0) {
+        setReciboData(res.data);
+        setShowRecibo(true);
+      }
+
+      // ✅ Actualización local — sin recargar todo
+      setData(prev => {
+        if (!prev) return prev;
+        const nuevosClientes = prev.clientes.map(rc =>
+          rc.rutaClienteId === rcId
+            ? { ...rc, visitadoHoy: true, _debeVisitar: false, _tieneAtrasados: false }
+            : rc
+        );
+        const visitadosHoy = nuevosClientes.filter(c => c.visitadoHoy).length;
+        return {
+          ...prev,
+          clientes: nuevosClientes,
+          resumen: { ...prev.resumen, visitadosHoy },
+        };
+      });
+
+      showToast(`✅ Cobrado Cuota #${numero} · RD$ ${formatCurrency(monto)}`);
+
+    } catch (e) {
+      showToast(e.response?.data?.message ?? "Error al cobrar, intenta nuevamente", "error");
+    } finally {
+      setCobrandoIds(prev => {
+        const n = new Set(prev);
+        n.delete(rcId);
+        return n;
+      });
+    }
+  };
+
+  // ── Organizar por cercanía ────────────────────────────────────────────────
   const handleCercaniaDia = () => {
     const clientes = data?.clientes ?? [];
     const conCoords = clientes.filter(c => c.cliente?.latitud && c.cliente?.longitud);
@@ -1149,9 +998,8 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
   const conCoordsDia = (data?.clientes ?? []).filter(c => c.cliente?.latitud && c.cliente?.longitud).length;
 
   const progreso = data ? Math.round((data.resumen.visitadosHoy / Math.max(data.resumen.aVisitarHoy, 1)) * 100) : 0;
-  const fmt = (n) => new Intl.NumberFormat("es-DO",{style:"currency",currency:"DOP",minimumFractionDigits:0}).format(n);
+  const fmt = (n) => new Intl.NumberFormat("es-DO", { style: "currency", currency: "DOP", minimumFractionDigits: 0 }).format(n);
 
-  // Fecha futura sin sub-ruta generada → bloquear
   const esFechaFutura = fecha > hoy;
   const sinSubRutaFutura = esFechaFutura && !data?.esSubRuta && !loading;
 
@@ -1200,7 +1048,7 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
         </div>
       )}
 
-      {/* Banner: fecha futura sin sub-ruta generada */}
+      {/* Banner: fecha futura sin sub-ruta */}
       {sinSubRutaFutura && (
         <div className="bg-white rounded-2xl border border-amber-100 shadow-sm p-8 text-center anim-fadeup">
           <div className="text-5xl mb-4">📅</div>
@@ -1284,9 +1132,9 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
               </div>
             ) : filtrados.map((c, idx) => (
               <div key={c.rutaClienteId}
-                className={`cliente-item bg-white rounded-2xl border overflow-hidden transition-all ${c.visitadoHoy ? "border-emerald-200" : c.tieneAtrasados ? "border-red-200" : c.debeVisitar ? "border-blue-200" : "border-gray-100"}`}>
+                className={`cliente-item bg-white rounded-2xl border overflow-hidden transition-all ${cobradoOkIds.has(c.rutaClienteId) || c.visitadoHoy ? "border-emerald-200" : c.tieneAtrasados ? "border-red-200" : c.debeVisitar ? "border-blue-200" : "border-gray-100"}`}>
 
-                <div className={`px-4 py-3 flex items-center justify-between gap-3 ${c.visitadoHoy ? "bg-emerald-50" : c.tieneAtrasados ? "bg-red-50" : c.debeVisitar ? "bg-blue-50" : "bg-gray-50"}`}>
+                <div className={`px-4 py-3 flex items-center justify-between gap-3 ${cobradoOkIds.has(c.rutaClienteId) || c.visitadoHoy ? "bg-emerald-50" : c.tieneAtrasados ? "bg-red-50" : c.debeVisitar ? "bg-blue-50" : "bg-gray-50"}`}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${c.visitadoHoy ? "bg-emerald-500 text-white" : "bg-white border border-gray-200 text-gray-500"}`}>
                       {c.visitadoHoy ? "✓" : idx + 1}
@@ -1300,18 +1148,72 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
                       <p className="text-xs text-gray-400 font-mono">{formatCedula(c.cliente.cedula ?? "")}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {c.tienePrestamos && !c.visitadoHoy && (() => {
-                      // Usar el préstamo con la próxima cuota (primer préstamo activo/atrasado)
-                      const prestamoPagar = c.prestamos?.find(p => ["ACTIVO","ATRASADO"].includes(p.estado));
-                      if (!prestamoPagar) return null;
-                      return (
-                        <button
-                          onClick={() => abrirPagoModal(c, c.prestamos)}
-                          className="px-3 py-2 rounded-xl text-xs font-bold border bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-all active:scale-95 whitespace-nowrap">
-                          💵 Pagar
-                        </button>
-                      );
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {(() => {
+                      const estaAtrasado = c.tieneAtrasados;
+                      const enProgreso = cobrandoIds.has(c.rutaClienteId);
+                      const cobroExitoso = cobradoOkIds.has(c.rutaClienteId);
+                      const puedeRapido = puedeCobroRapido(c);
+
+                      if (cobroExitoso || c.visitadoHoy) {
+                        return (
+                          <span className="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-700 whitespace-nowrap">
+                            ✅ Cobrado
+                          </span>
+                        );
+                      }
+
+                      if (enProgreso) {
+                        return (
+                          <span className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-500 whitespace-nowrap flex items-center gap-1.5">
+                            <span className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+                            Cobrando...
+                          </span>
+                        );
+                      }
+
+                      if (puedeRapido) {
+                        const montoCobrar = getMontoCobrar(c);
+                        return (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (!enProgreso) {
+                                  setConfirmCobro({ cliente: c, monto: montoCobrar });
+                                }
+                              }}
+                              disabled={enProgreso}
+                              className={`px-3 py-2 rounded-xl text-xs font-bold border shadow-sm transition-all active:scale-95 whitespace-nowrap flex items-center gap-1.5 disabled:opacity-50 ${estaAtrasado ? "bg-red-600 border-red-600 text-white hover:bg-red-700" : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700"}`}>
+                              <span>💵</span>
+                              <span>Cobrar {formatCurrency(montoCobrar)}</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                const prestamo = c.prestamos?.[0];
+                                if (prestamo) navigate(`/pagos?prestamoId=${prestamo.id}`);
+                              }}
+                              title="Más opciones"
+                              className="px-2 py-2 rounded-xl text-xs font-bold border bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200 transition-all active:scale-95">
+                              ⋯
+                            </button>
+                          </>
+                        );
+                      }
+
+                      if (c.tienePrestamos && !c.visitadoHoy) {
+                        return (
+                          <button
+                            onClick={() => {
+                              const prestamo = c.prestamos?.[0];
+                              if (prestamo) navigate(`/pagos?prestamoId=${prestamo.id}`);
+                            }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold border bg-gray-100 border-gray-200 text-gray-600 hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap">
+                            ⋯ Abrir modal
+                          </button>
+                        );
+                      }
+
+                      return null;
                     })()}
                     <button onClick={() => toggleVisit(c.rutaClienteId, c.visitadoHoy)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 whitespace-nowrap ${c.visitadoHoy ? "bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50" : "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-sm"}`}>
@@ -1362,29 +1264,36 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
                     )}
                   </div>
 
-                  {c.cuotasAVencer.length > 0 && (
-                    <div className="space-y-2 pt-1">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Cuotas a cobrar</p>
-                      {c.cuotasAVencer.map(q => (
-                        <div key={q.cuotaId} className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${q.vencida ? "bg-red-50 border border-red-100" : "bg-blue-50 border border-blue-100"}`}>
-                          <div>
-                            <span className={`text-xs font-bold ${q.vencida ? "text-red-700" : "text-blue-700"}`}>
-                              {q.vencida ? "⚠ Vencida" : "📅 Vence hoy"} · Cuota #{q.numero}
+                  {c.cuotasAVencer.length > 0 && (() => {
+                    const proxCuota = c.cuotasAVencer[0];
+                    const montoProximo = proxCuota?.total ?? 0;
+
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${c.tieneAtrasados ? "bg-red-100 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold ${c.tieneAtrasados ? "text-red-700" : "text-blue-700"}`}>
+                              {c.tieneAtrasados ? "⚠ Cuota(s) vencida(s)" : "📅 Próxima cuota"}
                             </span>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{FREQ[q.frecuencia]} · {formatDate(q.fechaVencimiento)}</p>
+                            {c.cuotasAVencer.length > 1 && (
+                              <span className="text-[10px] bg-white/60 px-1.5 py-0.5 rounded-full text-gray-500">
+                                +{c.cuotasAVencer.length - 1} más
+                              </span>
+                            )}
                           </div>
-                          <div className="text-right">
-                            <p className={`font-bold text-sm ${q.vencida ? "text-red-700" : "text-blue-700"}`}>{formatCurrency(q.total)}</p>
-                            {q.mora > 0 && <p className="text-[10px] text-red-500 font-semibold">mora: {formatCurrency(q.mora)}</p>}
-                          </div>
+                          <span className={`text-sm font-bold ${c.tieneAtrasados ? "text-red-700" : "text-blue-700"}`}>
+                            {formatCurrency(montoProximo)}
+                          </span>
                         </div>
-                      ))}
-                      <div className="flex justify-between items-center px-1 pt-1 border-t border-gray-100">
-                        <span className="text-xs text-gray-400 font-medium">Total a cobrar</span>
-                        <span className="text-base font-bold text-gray-800">{formatCurrency(c.totalACobrar)}</span>
+                        {c.cuotasAVencer.length > 1 && (
+                          <div className="flex items-center justify-between px-1 text-[10px] text-gray-500 bg-gray-50 rounded-lg px-2 py-1">
+                            <span>📊 {c.cuotasAVencer.length} cuotas pendientes</span>
+                            <span className="font-semibold">{formatCurrency(c.totalACobrar)} total</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {c.cuotasAVencer.length === 0 && c.tieneAtrasados &&
                     <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-xs text-red-700 font-semibold">⚠ Préstamos atrasados — visitar para gestionar</div>}
@@ -1399,25 +1308,110 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
         </>
       )}
 
-      {/* Modal de Pago Inline */}
-      {showModalPago && clientePagar && (
-        <ModalPagoRuta
-          cliente={clientePagar}
-          prestamos={prestamosPagar}
-          onPagado={() => {
-            cerrarPagoModal();
-            // Auto-marcar como visitado
-            toggleVisit(clientePagar.rutaClienteId, false);
-            // Recargar datos
-            cargar();
+      {/* Modal Confirmación de Cobro */}
+      {confirmCobro && createPortal(
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0,
+            width: "100vw", height: "100vh",
+            background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 99999, padding: "1rem", boxSizing: "border-box"
           }}
-          onClose={cerrarPagoModal}
-          showToast={showToast}
-        />
+          onClick={(e) => e.target === e.currentTarget && setConfirmCobro(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            style={{ animation: "fadeUp 0.2s ease" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${confirmCobro.cliente.tieneAtrasados ? "bg-red-100" : "bg-emerald-100"}`}>
+                  💵
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Confirmar cobro</h3>
+                  <p className="text-xs text-gray-400">Revisa antes de confirmar</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500">Cliente</span>
+                  <span className="text-sm font-bold text-gray-800">
+                    {confirmCobro.cliente.cliente.nombre} {confirmCobro.cliente.cliente.apellido}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="text-xs text-gray-500">Monto a cobrar</span>
+                  <span className={`text-lg font-bold ${confirmCobro.cliente.tieneAtrasados ? "text-red-600" : "text-emerald-600"}`}>
+                    RD$ {formatCurrency(confirmCobro.monto)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmCobro(null)}
+                  className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold transition-all">
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    const clienteData = confirmCobro.cliente;
+                    setConfirmCobro(null);
+                    await ejecutarCobroRapido(clienteData);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all flex items-center justify-center gap-2 active:scale-95">
+                  ✓ Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Modal Recibo */}
+      {showRecibo && reciboData && createPortal(
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0,
+            width: "100vw", height: "100vh",
+            zIndex: 99999, background: "rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem"
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowRecibo(false);
+              setReciboData(null);
+            }
+          }}
+        >
+          <div style={{
+            background: "white", borderRadius: "16px",
+            width: "100%", maxWidth: "380px",
+            maxHeight: "90vh", overflowY: "auto",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.25)"
+          }}>
+            <ReciboPago
+              data={reciboData}
+              onClose={() => {
+                setShowRecibo(false);
+                setReciboData(null);
+              }}
+            />
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 };
+
+// ─── ModalGenerarDia ──────────────────────────────────────────────────────────
 const ModalGenerarDia = ({ orden, selDia, setSelDia, fechaDia, setFechaDia, generando, onConfirmar, onClose }) => {
   const [busqDia, setBusqDia] = useState("");
   const [filtroEstDia, setFiltroEstDia] = useState("");
@@ -1460,8 +1454,14 @@ const ModalGenerarDia = ({ orden, selDia, setSelDia, fechaDia, setFechaDia, gene
     });
   };
 
-  return (
-    <div className="modal-backdrop" style={{ position:"fixed",inset:0,zIndex:9999,background:"rgba(15,23,42,0.65)",overflowY:"auto" }}>
+  const content = (
+    <div
+      style={{
+        position:"fixed",inset:0,zIndex:99999,
+        background:"rgba(15,23,42,0.65)",overflowY:"auto"
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div style={{ minHeight:"100%",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"1.5rem 1rem" }}>
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden anim-fadeup">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -1580,6 +1580,8 @@ const ModalGenerarDia = ({ orden, selDia, setSelDia, fechaDia, setFechaDia, gene
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 };
 
 // ─── GestionRuta ──────────────────────────────────────────────────────────────
@@ -1604,7 +1606,6 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
       const r = await api.get(`/rutas/${ruta.id}`);
       setDet(r.data);
 
-      // Enriquecer clientes con datos de préstamos para los filtros del modal generar día
       const clientes = r.data.clientes ?? [];
       try {
         const rp = await api.get("/prestamos?limit=2000");
@@ -1705,11 +1706,10 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
   const yaEnRuta = det?.clientes?.map(rc => rc.clienteId) ?? [];
   const paraMap = orden.map(rc => ({ rutaClienteId: rc.id, cliente: rc.cliente, observacion: rc.observacion, tieneAtrasados: false, totalACobrar: 0 }));
 
-  // ── Búsqueda con soporte de cédula con/sin guiones ────────────────────────
   const clientesFiltrados = useMemo(() => {
     const q = busqueda.toLowerCase().trim();
     if (!q) return orden;
-    const qSinGuiones = q.replace(/-/g, ""); // 👈 limpiar guiones para cédula
+    const qSinGuiones = q.replace(/-/g, "");
     return orden.filter(rc =>
       `${rc.cliente.nombre} ${rc.cliente.apellido}`.toLowerCase().includes(q) ||
       (qSinGuiones && (rc.cliente.cedula ?? "").replace(/\D/g, "").includes(qSinGuiones)) ||
@@ -1726,7 +1726,6 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
     showToast(`${n} cliente${n !== 1 ? "s" : ""} agregado${n !== 1 ? "s" : ""} ✓`);
   };
 
-  // ── Organizar por cercanía ─────────────────────────────────────────────────
   const handleOrganizarCercania = async () => {
     if (orden.length < 2) return;
     const conCoords = orden.filter(rc => rc.cliente?.latitud && rc.cliente?.longitud);
@@ -1737,18 +1736,14 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
     showToast(`✓ ${conCoords.length} clientes organizados por cercanía`);
   };
 
-  // ── Generar sub-ruta del día ───────────────────────────────────────────────
   const [modalGenerarDia, setModalGenerarDia] = useState(false);
   const [selDia, setSelDia] = useState(new Set());
   const [fechaDia, setFechaDia] = useState(hoyStr());
   const [generando, setGenerando] = useState(false);
 
   const abrirGenerarDia = () => {
-    // Pre-seleccionar clientes con cuotas o atrasados (los más importantes)
     const presel = new Set(
-      orden
-        .filter(rc => rc._debeVisitar !== false)
-        .map(rc => rc.id)
+      orden.filter(rc => rc._debeVisitar !== false).map(rc => rc.id)
     );
     setSelDia(presel.size > 0 ? presel : new Set(orden.map(rc => rc.id)));
     setFechaDia(hoyStr());
@@ -1775,7 +1770,6 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
       {mEdit && <ModalRuta ruta={det} onConfirm={editarRuta} onClose={() => setMEdit(false)} loading={savEdit} />}
       {modalAgregar && <ModalMasa rutaId={ruta.id} yaEnRuta={yaEnRuta} onDone={handleAgregado} onClose={() => setModalAgregar(false)} />}
 
-      {/* ── Modal Generar Ruta del Día ── */}
       {modalGenerarDia && (
         <ModalGenerarDia
           orden={orden}
@@ -1973,9 +1967,9 @@ export default function Rutas() {
   const [savN, setSavN] = useState(false);
   const [vista, setVista] = useState(null);
   const [modalAgregar, setModalAgregar] = useState(false);
-  const [tabPrincipal, setTabPrincipal] = useState("rutas"); // "rutas" | "cobradores"
+  const [tabPrincipal, setTabPrincipal] = useState("rutas");
   const [usuarios, setUsuarios] = useState([]);
-  const [asignando, setAsignando] = useState({}); // rutaId → loading
+  const [asignando, setAsignando] = useState({});
   const showToast = (msg, type = "success") => setToast({ message: msg, type });
 
   const cargar = useCallback(async () => {
@@ -1986,7 +1980,6 @@ export default function Rutas() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  // Cargar usuarios para el tab cobradores (solo admin)
   useEffect(() => {
     if (!isAdmin) return;
     api.get("/rutas/usuarios").then(r => setUsuarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -2009,9 +2002,6 @@ export default function Rutas() {
     setAsignando(p => ({ ...p, [rutaId]: true }));
     try {
       if (usuarioId === "") {
-        // "Sin cobrador" — el select devuelve "" pero el backend necesita un usuarioId válido
-        // Para quitar el cobrador reasignamos al propio admin (el creador de la ruta)
-        // usando el id del usuario actual del contexto
         const userStr = localStorage.getItem("user");
         const user = userStr ? JSON.parse(userStr) : null;
         const adminId = user?.id;
@@ -2048,7 +2038,6 @@ export default function Rutas() {
       {mNueva && <ModalRuta onConfirm={crear} onClose={() => setMNueva(false)} loading={savN} />}
 
       <div className="space-y-5 anim-fadeup">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900">Rutas</h1>
@@ -2063,7 +2052,6 @@ export default function Rutas() {
           )}
         </div>
 
-        {/* Tabs — solo admin ve el tab de cobradores */}
         {isAdmin && (
           <div className="flex gap-1.5 bg-gray-100 p-1 rounded-2xl w-fit">
             {[["rutas","🗺️ Rutas"],["cobradores","👥 Cobradores"]].map(([k,l]) => (
@@ -2075,7 +2063,6 @@ export default function Rutas() {
           </div>
         )}
 
-        {/* ── TAB RUTAS ── */}
         {tabPrincipal === "rutas" && (
           <>
             {!loading && rutas.length > 0 && (
@@ -2148,7 +2135,6 @@ export default function Rutas() {
           </>
         )}
 
-        {/* ── TAB COBRADORES (solo admin) ── */}
         {tabPrincipal === "cobradores" && isAdmin && (
           <div className="space-y-3">
             <p className="text-xs text-gray-400">Asigna un cobrador responsable a cada ruta. El cobrador solo verá sus rutas asignadas.</p>
@@ -2159,13 +2145,11 @@ export default function Rutas() {
                 <div className="divide-y divide-gray-50">
                   {rutas.map((r, i) => (
                     <div key={r.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50/50 transition-colors">
-                      {/* Color strip */}
                       <div className="w-3 h-10 rounded-full shrink-0" style={{ background: `hsl(${(i * 47 + 210) % 360}, 75%, 55%)` }} />
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-gray-900 truncate">{r.nombre}</p>
                         <p className="text-xs text-gray-400">{r.clientes?.length ?? 0} cliente{(r.clientes?.length ?? 0) !== 1 ? "s" : ""}</p>
                       </div>
-                      {/* Selector de cobrador */}
                       <div className="flex items-center gap-2 shrink-0">
                         <select
                           value={r.usuario?.id ?? ""}

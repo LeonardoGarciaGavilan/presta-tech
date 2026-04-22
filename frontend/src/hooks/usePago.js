@@ -7,6 +7,7 @@ export const usePago = (options = {}) => {
     onSuccess = () => {},
     showToast = () => {},
     requierePrestamo = false,
+    mostrarReciboEnHook = true, // Por defecto muestra el recibo
   } = options;
 
   // Estados principales
@@ -205,7 +206,12 @@ export const usePago = (options = {}) => {
 
       if (res.data && Object.keys(res.data).length > 0) {
         setReciboData(res.data);
-        setMostrarRecibo(true);
+        // Solo mostrar recibo si la opción está habilitada
+        if (mostrarReciboEnHook) {
+          setMostrarRecibo(true);
+        }
+        // Siempre ejecutar onSuccess con los datos
+        onSuccess(res.data);
       } else {
         onSuccess();
       }
