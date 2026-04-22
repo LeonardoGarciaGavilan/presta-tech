@@ -1184,7 +1184,6 @@ const VistaDia = ({ rutaId, rutaNombre, onVolver, showToast }) => {
                               }}
                               disabled={enProgreso}
                               className={`px-3 py-2 rounded-xl text-xs font-bold border shadow-sm transition-all active:scale-95 whitespace-nowrap flex items-center gap-1.5 disabled:opacity-50 ${estaAtrasado ? "bg-red-600 border-red-600 text-white hover:bg-red-700" : "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700"}`}>
-                              <span>💵</span>
                               <span>Cobrar {formatCurrency(montoCobrar)}</span>
                             </button>
                             <button
