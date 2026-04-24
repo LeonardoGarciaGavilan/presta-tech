@@ -259,7 +259,7 @@ export class PagosService {
         nuevoEstado = cuotasVencidas > 0 ? EstadoPrestamo.ATRASADO : EstadoPrestamo.ACTIVO;
       }
 
-      // 9. Actualizar préstamo (NO escribimos saldoPendiente — se calcula desde cuotas)
+// 9. Actualizar préstamo (NO escribimos saldoPendiente — se calcula desde cuotas)
       await tx.prestamo.update({
         where: { id: dto.prestamoId },
         data: { moraAcumulada: nuevaMoraAcumulada, estado: nuevoEstado },
@@ -274,6 +274,24 @@ export class PagosService {
       });
 
       if (!prestamoActualizado) throw new NotFoundException('Préstamo no encontrado');
+
+      // 11. Crear MovimientoFinanciero (registro contable del pago)
+      const clienteNombreTx = `${prestamoActualizado.cliente.nombre} ${prestamoActualizado.cliente.apellido}`.trim();
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'PAGO_RECIBIDO',
+          monto: dto.montoPagado,
+          capital: capitalAplicado + excedente,
+          interes: interesAplicado,
+          mora: moraAplicada,
+          referenciaTipo: 'PAGO',
+          referenciaId: pago.id,
+          cajaId: caja.id,
+          empresaId,
+          usuarioId,
+          descripcion: `Pago de ${clienteNombreTx} - Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}`,
+        },
+      });
 
       return {
         pagoId:          pago.id,

@@ -1,5 +1,5 @@
 import {
-  Injectable, ForbiddenException, NotFoundException,
+  Injectable, ForbiddenException, NotFoundException, BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGastoDto, UpdateGastoDto } from './dto/gastos.dto';
@@ -102,23 +102,41 @@ export class GastosService {
   async create(dto: CreateGastoDto, user: any) {
     this.assertAdmin(user);
 
-    return this.prisma.gasto.create({
-      data: {
-        categoria:     dto.categoria,
-        descripcion:   dto.descripcion,
-        monto:         dto.monto,
-        // El frontend envía "YYYY-MM-DDT12:00:00.000Z" (mediodía UTC).
-        // Guardarlo directo con new Date() es correcto — T12:00Z nunca
-        // cruza la medianoche en ninguna zona, y cae dentro de cualquier
-        // rango de día construido con startOfDay/endOfDay.
-        fecha:         new Date(dto.fecha),
-        proveedor:     dto.proveedor     || null,
-        referencia:    dto.referencia    || null,
-        observaciones: dto.observaciones || null,
-        empresaId:     user.empresaId,
-        usuarioId:     user.userId,
-      },
-      include: { usuario: { select: { nombre: true } } },
+    if (dto.monto <= 0) {
+      throw new BadRequestException('El monto del gasto debe ser mayor a 0');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const gasto = await tx.gasto.create({
+        data: {
+          categoria:     dto.categoria,
+          descripcion:   dto.descripcion,
+          monto:         dto.monto,
+          fecha:         new Date(dto.fecha),
+          proveedor:     dto.proveedor     || null,
+          referencia:    dto.referencia    || null,
+          observaciones: dto.observaciones || null,
+          empresaId:     user.empresaId,
+          usuarioId:     user.userId,
+        },
+      });
+
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'GASTO',
+          monto: dto.monto,
+          capital: 0,
+          interes: 0,
+          mora: 0,
+          referenciaTipo: 'GASTO',
+          referenciaId: gasto.id,
+          empresaId: user.empresaId,
+          usuarioId: user.userId,
+          descripcion: `${dto.categoria}: ${dto.descripcion}`,
+        },
+      });
+
+      return gasto;
     });
   }
 

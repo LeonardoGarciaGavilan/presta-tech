@@ -7,6 +7,98 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Rol {
+  SUPERADMIN
+  ADMIN
+  EMPLEADO
+}
+
+enum EstadoPrestamo {
+  SOLICITADO
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+  ACTIVO
+  PAGADO
+  ATRASADO
+  CANCELADO
+}
+
+enum FrecuenciaPago {
+  DIARIO
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  CHEQUE
+}
+
+enum EstadoCaja {
+  ABIERTA
+  CERRADA
+}
+
+enum TipoAlerta {
+  REFINANCIAMIENTO
+  CAMBIO_FRECUENCIA
+  CAMBIO_TASA
+  CAMBIO_CUOTAS
+  CAMBIO_FECHA_PAGO
+  CANCELACION
+  CAMBIO_ESTADO
+}
+
+enum FrecuenciaPagoEmpleado {
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  AUSENTE
+  TARDANZA
+  MEDIO_DIA
+  FERIADO
+  VACACIONES
+}
+
+enum MetodoPagoEmpleado {
+  EFECTIVO
+  TRANSFERENCIA
+  CHEQUE
+}
+
+enum TipoDescuento {
+  TARDANZA
+  AUSENCIA
+  PRESTAMO
+  OTRO
+}
+
+enum MovimientoFinancieroTipo {
+  INYECCION_CAPITAL
+  PAGO_RECIBIDO
+  DESEMBOLSO
+  GASTO
+  RETIRO_GANANCIAS
+  CIERRE_CAJA
+  CORRECCION
+}
+
+enum ReferenciaTipo {
+  PAGO
+  GASTO
+  DESEMBOLSO
+  INYECCION
+  RETIRO
+}
+
 model Empresa {
   id            String           @id @default(uuid())
   nombre        String
@@ -22,6 +114,10 @@ model Empresa {
   prestamos     Prestamo[]
   rutas         Ruta[]
   usuarios      Usuario[]
+  capital       CapitalEmpresa?
+  inyecciones   InyeccionCapital[]
+  retiros       RetiroGanancias[]
+  movimientos   MovimientoFinanciero[]
 }
 
 model Usuario {
@@ -42,6 +138,9 @@ model Usuario {
   rutas               Ruta[]
   empresa             Empresa?         @relation(fields: [empresaId], references: [id])
   refreshTokens       RefreshToken[]
+  inyecciones         InyeccionCapital[]
+  retiros             RetiroGanancias[]
+  movimientos         MovimientoFinanciero[]
 
   @@index([empresaId])
 }
@@ -213,7 +312,7 @@ model Auditoria {
   referenciaTipo  String?
   ip              String?
   userAgent       String?
-  nivel           String?  // INFO, WARN, ERROR
+  nivel           String?
   empresa         Empresa? @relation(fields: [empresaId], references: [id])
   usuario         Usuario? @relation(fields: [usuarioId], references: [id])
 
@@ -266,7 +365,6 @@ model CajaSesion {
   @@index([empresaId, createdAt])
 }
 
-/// Egreso de caja generado automáticamente al desembolsar un préstamo
 model DesembolsoCaja {
   id         String     @id @default(uuid())
   monto      Float
@@ -417,76 +515,73 @@ model DescuentoEmpleado {
   @@index([empleadoId, aplicado])
 }
 
-enum Rol {
-  SUPERADMIN
-  ADMIN
-  EMPLEADO
+model CapitalEmpresa {
+  id              String    @id @default(uuid())
+  empresaId       String    @unique
+  capitalInicial  Float
+  fechaRegistro   DateTime  @default(now())
+  observaciones   String?
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  empresa         Empresa   @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
 }
 
-enum EstadoPrestamo {
-  SOLICITADO
-  EN_REVISION
-  APROBADO
-  RECHAZADO
-  ACTIVO
-  PAGADO
-  ATRASADO
-  CANCELADO
+model InyeccionCapital {
+  id          String    @id @default(uuid())
+  empresaId   String
+  monto       Float
+  fecha       DateTime  @default(now())
+  concepto    String
+  usuarioId   String
+  createdAt   DateTime  @default(now())
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId])
+  @@index([empresaId, fecha])
+  @@index([usuarioId])
 }
 
-enum FrecuenciaPago {
-  DIARIO
-  SEMANAL
-  QUINCENAL
-  MENSUAL
+model RetiroGanancias {
+  id          String    @id @default(uuid())
+  empresaId   String
+  monto       Float
+  fecha       DateTime  @default(now())
+  concepto    String
+  usuarioId   String
+  createdAt   DateTime  @default(now())
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@index([empresaId])
+  @@index([empresaId, fecha])
+  @@index([usuarioId])
 }
 
-enum MetodoPago {
-  EFECTIVO
-  TRANSFERENCIA
-  TARJETA
-  CHEQUE
-}
+model MovimientoFinanciero {
+  id              String                   @id @default(uuid())
+  empresaId       String
+  tipo            MovimientoFinancieroTipo
+  monto           Float
+  capital         Float                    @default(0)
+  interes         Float                    @default(0)
+  mora            Float                    @default(0)
+  fecha           DateTime                 @default(now())
+  descripcion     String?
+  referenciaTipo  ReferenciaTipo?
+  referenciaId    String?
+  cajaId          String?
+  usuarioId       String?
+  createdAt       DateTime                 @default(now())
+  empresa         Empresa                  @relation(fields: [empresaId], references: [id])
+  usuario         Usuario?                 @relation(fields: [usuarioId], references: [id])
 
-enum EstadoCaja {
-  ABIERTA
-  CERRADA
-}
-
-enum TipoAlerta {
-  REFINANCIAMIENTO
-  CAMBIO_FRECUENCIA
-  CAMBIO_TASA
-  CAMBIO_CUOTAS
-  CAMBIO_FECHA_PAGO
-  CANCELACION
-  CAMBIO_ESTADO
-}
-
-enum FrecuenciaPagoEmpleado {
-  SEMANAL
-  QUINCENAL
-  MENSUAL
-}
-
-enum EstadoAsistencia {
-  PRESENTE
-  AUSENTE
-  TARDANZA
-  MEDIO_DIA
-  FERIADO
-  VACACIONES
-}
-
-enum MetodoPagoEmpleado {
-  EFECTIVO
-  TRANSFERENCIA
-  CHEQUE
-}
-
-enum TipoDescuento {
-  TARDANZA
-  AUSENCIA
-  PRESTAMO
-  OTRO
+  @@index([empresaId])
+  @@index([empresaId, tipo])
+  @@index([empresaId, fecha])
+  @@index([cajaId])
+  @@index([usuarioId])
+  @@index([referenciaTipo, referenciaId])
 }

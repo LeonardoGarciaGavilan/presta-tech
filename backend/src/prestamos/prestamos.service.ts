@@ -614,7 +614,7 @@ export class PrestamosService {
       });
 
       // ─── 7. Registrar desembolso en caja ────────────────────────────────
-      await (tx as any).desembolsoCaja.create({
+      const desembolso = await (tx as any).desembolsoCaja.create({
         data: {
           monto: prestamo.monto,
           concepto: `Desembolso préstamo — ${clienteNombre}`,
@@ -622,6 +622,23 @@ export class PrestamosService {
           prestamoId: id,
           empresaId,
           usuarioId: adminId,
+        },
+      });
+
+      // ─── 8. Registrar movimiento financiero ──────────────────────────────
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'DESEMBOLSO',
+          monto: prestamo.monto,
+          capital: prestamo.monto,
+          interes: 0,
+          mora: 0,
+          referenciaTipo: 'DESEMBOLSO',
+          referenciaId: desembolso.id,
+          cajaId: cajaBloqueada.id,
+          empresaId,
+          usuarioId: adminId,
+          descripcion: `Desembolso préstamo — ${clienteNombre}`,
         },
       });
 
