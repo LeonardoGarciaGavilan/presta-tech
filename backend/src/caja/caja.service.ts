@@ -121,7 +121,63 @@ export class CajaService {
     };
   }
 
-  // ─── ABRIR CAJA ───────────────────────────────────────────────────────────
+// ─── ABRIR CAJA ───────────────────────────────────────────────────────────
+
+  // ─── Helper: Calcular capital total de la empresa ────────────────────────
+  private async calcularCapitalTotal(empresaId: string): Promise<number> {
+    const capital = await this.prisma.capitalEmpresa.findUnique({
+      where: { empresaId },
+    });
+    const inyecciones = await this.prisma.inyeccionCapital.aggregate({
+      where: { empresaId },
+      _sum: { monto: true },
+    });
+    const retiros = await this.prisma.retiroGanancias.aggregate({
+      where: { empresaId },
+      _sum: { monto: true },
+    });
+
+    const capitalBase = capital?.capitalInicial ?? 0;
+    const totalInyectado = inyecciones._sum.monto ?? 0;
+    const totalRetirado = retiros._sum.monto ?? 0;
+
+    return Math.round((capitalBase + totalInyectado - totalRetirado) * 100) / 100;
+  }
+
+  // ─── Helper: Calcular dinero total en cajas abiertas ─────────────────────
+  private async calcularDineroEnCajas(empresaId: string): Promise<number> {
+    const cajas = await this.prisma.cajaSesion.groupBy({
+      by: ['estado'],
+      where: { empresaId },
+      _sum: { montoInicial: true },
+    });
+
+    const abiertas = cajas.find((c) => c.estado === 'ABIERTA');
+    return Math.round((abiertas?._sum?.montoInicial ?? 0) * 100) / 100;
+  }
+
+  // ─── Helper: Calcular dinero en calle (préstamos activos) ─────────────
+  private async calcularDineroEnCalle(empresaId: string): Promise<number> {
+    const prestamos = await this.prisma.prestamo.aggregate({
+      where: {
+        empresaId,
+        estado: { in: ['ACTIVO', 'ATRASADO'] },
+      },
+      _sum: { monto: true },
+    });
+
+    const cobros = await this.prisma.pago.aggregate({
+      where: {
+        prestamo: { empresaId },
+      },
+      _sum: { capital: true },
+    });
+
+    const totalPrestado = prestamos._sum.monto ?? 0;
+    const totalCobrado = cobros._sum.capital ?? 0;
+
+    return Math.max(0, Math.round((totalPrestado - totalCobrado) * 100) / 100);
+  }
 
   async abrirCaja(
     empresaId: string,
@@ -137,14 +193,68 @@ export class CajaService {
     if (cajaExistente) {
       throw new BadRequestException(
         cajaExistente.estado === 'ABIERTA'
-          ? 'Ya tienes una caja abierta para este día'
+          ? 'Ya tienes una cajaabierta para este día'
           : 'Ya cerraste tu caja hoy, no puedes abrir otra',
       );
     }
 
-    const caja = await this.prisma.cajaSesion.create({
-      data: { fecha, montoInicial, estado: 'ABIERTA', empresaId, usuarioId },
-      include: { usuario: { select: { id: true, nombre: true } } },
+    // Validar capital disponible antes de abrir caja (no dineroEnCalle ya que eso NO puede reasignarse)
+    if (montoInicial > 0) {
+      // Capital disponible = CapitalTotal - dineroEnCalle (lo prestado no puede sacarse)
+      const capitalTotal = await this.calcularCapitalTotal(empresaId);
+      const dineroEnCalleVal = await this.calcularDineroEnCalle(empresaId);
+      const capitalDisponible = Math.max(0, capitalTotal - dineroEnCalleVal);
+      
+      // Dinero ya en cajas abiertas
+      const dineroEnCajasVal = await this.calcularDineroEnCajas(empresaId);
+      const disponible = capitalDisponible - dineroEnCajasVal;
+
+      if (montoInicial > disponible) {
+        throw new BadRequestException(
+          `No hay capital disponible suficiente para abrir esta caja. Disponible: RD$${disponible.toLocaleString()}, Solicitado: RD$${montoInicial.toLocaleString()}`
+        );
+      }
+    }
+
+    // Usar transacción para atomicidad
+    const caja = await this.prisma.$transaction(async (tx) => {
+      // Verificar dentro de transacción que no existe caja (evita race condition)
+      const cajaDuplicada = await tx.cajaSesion.findFirst({
+        where: { empresaId, usuarioId, fecha },
+      });
+      if (cajaDuplicada) {
+        throw new BadRequestException(
+          cajaDuplicada.estado === 'ABIERTA'
+            ? 'Ya tienes una cajaabierta para este día'
+            : 'Ya cerraste tu caja hoy, no puedes abrir otra',
+        );
+      }
+
+      const nuevaCaja = await tx.cajaSesion.create({
+        data: { fecha, montoInicial, estado: 'ABIERTA', empresaId, usuarioId },
+        include: { usuario: { select: { id: true, nombre: true } } },
+      });
+
+      // Registrar apertura en ledger (solo si hay monto inicial)
+      if (montoInicial > 0) {
+        await tx.movimientoFinanciero.create({
+          data: {
+            tipo: 'APERTURA_CAJA',
+            monto: montoInicial,
+            capital: montoInicial,
+            interes: 0,
+            mora: 0,
+            descripcion: `Apertura de caja con RD$${montoInicial.toLocaleString()}`,
+            referenciaTipo: 'CAJA',
+            referenciaId: nuevaCaja.id,
+            cajaId: nuevaCaja.id,
+            empresaId,
+            usuarioId,
+          },
+        });
+      }
+
+      return nuevaCaja;
     });
 
     await registrarAuditoria(this.prisma, {
@@ -193,17 +303,39 @@ export class CajaService {
     ) / 100;
     const diferencia = Math.round((efectivoReal - efectivoSistema) * 100) / 100;
 
-    const cajaCerrada = await this.prisma.cajaSesion.update({
-      where: { id: cajaId },
-      data: {
-        estado:          'CERRADA',
-        efectivoSistema,
-        efectivoReal,
-        diferencia,
-        observaciones:   observaciones ?? null,
-        fechaCierre:     new Date(),
-      },
-      include: { usuario: { select: { id: true, nombre: true } } },
+    // Usar transacción para atomicidad
+    const cajaCerrada = await this.prisma.$transaction(async (tx) => {
+      const cajaActualizada = await tx.cajaSesion.update({
+        where: { id: cajaId },
+        data: {
+          estado:          'CERRADA',
+          efectivoSistema,
+          efectivoReal,
+          diferencia,
+          observaciones:   observaciones ?? null,
+          fechaCierre:     new Date(),
+        },
+        include: { usuario: { select: { id: true, nombre: true } } },
+      });
+
+      // Registrar cierre en ledger
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'CIERRE_CAJA',
+          monto: efectivoSistema,
+          capital: efectivoSistema,
+          interes: 0,
+          mora: 0,
+          descripcion: `Cierre caja: Sistema RD$${efectivoSistema.toLocaleString()}, Real RD$${efectivoReal.toLocaleString()}, Diferencia RD$${diferencia.toLocaleString()}`,
+          referenciaTipo: 'CAJA',
+          referenciaId: cajaId,
+          cajaId: cajaId,
+          empresaId,
+          usuarioId,
+        },
+      });
+
+      return cajaActualizada;
     });
 
     await registrarAuditoria(this.prisma, {

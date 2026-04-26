@@ -247,6 +247,14 @@ export class CapitalService {
       );
     }
 
+    // Validar que haya efectivo en caja para el retiro
+    const dineroEnCaja = await this.calcularDineroEnCaja(empresaId);
+    if (dto.monto > dineroEnCaja) {
+      throw new BadRequestException(
+        `No hay suficiente efectivo en caja para retirar. En caja: RD$${dineroEnCaja.toLocaleString()}, Solicitado: RD$${dto.monto.toLocaleString()}`,
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const retiro = await tx.retiroGanancias.create({
         data: {
@@ -388,7 +396,19 @@ export class CapitalService {
       total: dineroTotal,
     };
 
+    // Validar balance contable y agregar alerta si no cuadra
+    const balance = await this.validarBalance(empresaId);
     const alertas = this.generarAlertas(metricas, resumen, dinero);
+
+    if (!balance.cuadra) {
+      alertas.unshift({
+        tipo: 'CRITICAL',
+        mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Capital: RD$${balance.capital.toLocaleString()} vs Esperado: RD$${balance.esperado.toLocaleString()}`,
+        codigo: 'DESCUADRE_CONTABLE',
+        valor: balance.diferencia,
+        umbral: 0,
+      });
+    }
 
     return {
       capital: {
@@ -624,5 +644,102 @@ export class CapitalService {
       take: limite,
       include: { usuario: { select: { nombre: true } } },
     });
+  }
+
+  // ─── VALIDAR BALANCE CONTABLE ─────────────────────────────────────────
+  // Verifica que: Capital = Caja + Calle + Retiros
+  async validarBalance(empresaId: string) {
+    // Calcular capital total
+    const capitalData = await this.getCapitalEmpresa(empresaId);
+    const capitalTotal = capitalData.capitalTotal;
+
+    // Calcular dinero en cajas abiertas
+    const cajas = await this.prisma.cajaSesion.groupBy({
+      by: ['estado'],
+      where: { empresaId, estado: 'ABIERTA' },
+      _sum: { montoInicial: true },
+    });
+    const dineroEnCaja = Math.round((cajas[0]?._sum?.montoInicial ?? 0) * 100) / 100;
+
+    // Calcular dinero en calle (préstamos activos)
+    const prestamos = await this.prisma.prestamo.aggregate({
+      where: {
+        empresaId,
+        estado: { in: ['ACTIVO', 'ATRASADO'] },
+      },
+      _sum: { monto: true },
+    });
+    const cobros = await this.prisma.pago.aggregate({
+      where: {
+        prestamo: { empresaId },
+      },
+      _sum: { capital: true },
+    });
+    const dineroEnCalle = Math.max(0, Math.round(
+      ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
+    ) / 100);
+
+    // Calcular retiros realizados
+    const retiros = await this.prisma.retiroGanancias.aggregate({
+      where: { empresaId },
+      _sum: { monto: true },
+    });
+    const totalRetiros = Math.round((retiros._sum.monto ?? 0) * 100) / 100;
+
+    // Calcular diferencia
+    const esperado = dineroEnCaja + dineroEnCalle + totalRetiros;
+    const diferencia = Math.round((capitalTotal - esperado) * 100) / 100;
+    const cuadra = Math.abs(diferencia) < 1;
+
+    return {
+      capital: capitalTotal,
+      caja: dineroEnCaja,
+      calle: dineroEnCalle,
+      retiros: totalRetiros,
+      esperado,
+      diferencia,
+      cuadra,
+      advertencia: !cuadra
+        ? 'Posible descuadre por datos históricos previos al rediseño. Revisar manualmente.'
+        : null,
+    };
+  }
+
+  // ─── CALCULAR CAPITAL DISPONIBLE (para nuevas cajas) ─────────────────────
+  // Capital disponible = CapitalTotal - DineroEnCalle (lo que ya está prestado no puede reasignarse)
+  async calcularCapitalDisponible(empresaId: string): Promise<number> {
+    const capitalData = await this.getCapitalEmpresa(empresaId);
+    const capitalTotal = capitalData.capitalTotal;
+
+    // Calcular dinero en calle
+    const prestamos = await this.prisma.prestamo.aggregate({
+      where: {
+        empresaId,
+        estado: { in: ['ACTIVO', 'ATRASADO'] },
+      },
+      _sum: { monto: true },
+    });
+    const cobros = await this.prisma.pago.aggregate({
+      where: {
+        prestamo: { empresaId },
+      },
+      _sum: { capital: true },
+    });
+    const dineroEnCalle = Math.max(0, Math.round(
+      ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
+    ) / 100);
+
+    return Math.max(0, Math.round((capitalTotal - dineroEnCalle) * 100) / 100);
+  }
+
+  // ─── CALCULAR DINERO EN CAJA ACTUAL ───────────────────────────────────────────────
+  async calcularDineroEnCaja(empresaId: string): Promise<number> {
+    const cajas = await this.prisma.cajaSesion.groupBy({
+      by: ['estado'],
+      where: { empresaId, estado: 'ABIERTA' },
+      _sum: { montoInicial: true },
+    });
+    const dineroEnCaja = Math.round((cajas[0]?._sum?.montoInicial ?? 0) * 100) / 100;
+    return dineroEnCaja;
   }
 }

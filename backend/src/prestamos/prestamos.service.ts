@@ -581,7 +581,7 @@ export class PrestamosService {
       // ─── 4. Validar que monto ≤ efectivo disponible ───────────────────
       if (prestamo.monto > efectivoEnCaja) {
         throw new BadRequestException(
-          `El monto del préstamo ($${prestamo.monto.toLocaleString()}) excede el efectivo disponible en caja ($${efectivoEnCaja.toLocaleString()}).`,
+          `Fondos insuficientes en caja para desembolso. Disponible: RD$${efectivoEnCaja.toLocaleString()}, Solicitado: RD$${prestamo.monto.toLocaleString()}`,
         );
       }
 

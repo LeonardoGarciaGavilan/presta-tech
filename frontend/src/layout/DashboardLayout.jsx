@@ -88,6 +88,11 @@ const IconFinanzas = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
   </svg>
 );
+const IconAnalisisRutas = () => (
+  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.553 12 4.125 12h15.75c.572 0 1.125.504 1.125 1.125v6.75C20.25 20.496 19.746 21 19.125 21H4.875C4.254 21 3.75 20.496 3.75 19.875v-6.75zM8.25 8.25a1.125 1.125 0 110-2.25 1.125 1.125 0 010 2.25zm6 4.5a1.125 1.125 0 110-2.25 1.125 1.125 0 010 2.25zm6 4.5a1.125 1.125 0 110-2.25 1.125 1.125 0 010 2.25z" />
+  </svg>
+);
 const IconEmpleados = () => (
   <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -122,6 +127,7 @@ const NAV_ITEMS = [
   { to: "/gastos", label: "Gastos", Icon: IconGastos, adminOnly: true },
   { to: "/empleados", label: "Empleados", Icon: IconEmpleados, adminOnly: true },
   { to: "/finanzas", label: "Finanzas", Icon: IconFinanzas, adminOnly: true },
+  { to: "/analisis-rutas", label: "Análisis de Rutas", Icon: IconAnalisisRutas, adminOnly: true },
   { to: "/usuarios", label: "Usuarios", Icon: IconUsuario, adminOnly: true },
   { to: "/auditoria", label: "Auditoría", Icon: IconAuditoria, adminOnly: true },
   { to: "/configuracion", label: "Configuración", Icon: IconConfig, adminOnly: true },

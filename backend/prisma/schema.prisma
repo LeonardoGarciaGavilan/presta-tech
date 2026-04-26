@@ -89,6 +89,7 @@ enum MovimientoFinancieroTipo {
   RETIRO_GANANCIAS
   CIERRE_CAJA
   CORRECCION
+  APERTURA_CAJA
 }
 
 enum ReferenciaTipo {
@@ -97,6 +98,7 @@ enum ReferenciaTipo {
   DESEMBOLSO
   INYECCION
   RETIRO
+  CAJA
 }
 
 model Empresa {

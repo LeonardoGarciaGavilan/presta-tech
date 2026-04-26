@@ -85,4 +85,9 @@ export class CapitalController {
   async getResumen(@Request() req: any) {
     return this.capitalService.getResumenFinanciero(req.user.empresaId);
   }
+
+  @Get('balance')
+  async getBalance(@Request() req: any) {
+    return this.capitalService.validarBalance(req.user.empresaId);
+  }
 }

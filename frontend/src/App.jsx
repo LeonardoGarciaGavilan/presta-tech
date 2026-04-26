@@ -22,6 +22,7 @@ import { useAuth } from "./context/AuthContext";
 import Rutas from "./pages/Rutas";
 import Alertas from "./pages/Alertas";
 import Finanzas from "./pages/Finanzas";
+import AnalisisRutas from "./pages/AnalisisRutas";
 import Empleados from "./pages/Empleados";
 import Auditoria from "./pages/Auditoria";
 import OfflineBanner from "./components/OfflineBanner";
@@ -100,6 +101,9 @@ function App() {
         } />
         <Route path="/finanzas" element={
           <ProtectedRoute><DashboardLayout><Finanzas /></DashboardLayout></ProtectedRoute>
+        } />
+        <Route path="/analisis-rutas" element={
+          <ProtectedRoute><DashboardLayout><AnalisisRutas /></DashboardLayout></ProtectedRoute>
         } />
         <Route path="/empleados" element={
           <ProtectedRoute><DashboardLayout><Empleados /></DashboardLayout></ProtectedRoute>
