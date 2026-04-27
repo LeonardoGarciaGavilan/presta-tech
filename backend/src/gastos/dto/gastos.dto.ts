@@ -1,6 +1,6 @@
 import {
   IsString, IsNumber, IsNotEmpty, IsOptional,
-  IsDateString, Min,
+  IsDateString, Min, IsIn,
 } from 'class-validator';
 
 export class CreateGastoDto {
@@ -30,6 +30,11 @@ export class CreateGastoDto {
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  /** Tipo de gasto: OPERATIVO (de caja) o CAPITAL (directo sin afectar caja) */
+  @IsOptional()
+  @IsIn(['OPERATIVO', 'CAPITAL'])
+  tipo?: 'OPERATIVO' | 'CAPITAL';
 }
 
 export class UpdateGastoDto {

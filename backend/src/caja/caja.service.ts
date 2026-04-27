@@ -436,4 +436,181 @@ export class CajaService {
       take: 30,
     });
   }
+
+  // ─── CALCULAR DINERO EN CAJA (usando MovimientoFinanciero) ───────────────────
+  async calcularDineroEnCaja(cajaId: string): Promise<number> {
+    const caja = await this.prisma.cajaSesion.findUnique({
+      where: { id: cajaId },
+      select: { montoInicial: true },
+    });
+
+    if (!caja) return 0;
+
+    const movimientos = await this.prisma.movimientoFinanciero.findMany({
+      where: { cajaId },
+      select: { tipo: true, monto: true },
+    });
+
+    let entradas = 0;
+    let salidas = 0;
+
+    for (const m of movimientos) {
+      if (m.tipo === 'PAGO_RECIBIDO') entradas += m.monto;
+      else if (m.tipo === 'DESEMBOLSO') salidas += m.monto;
+    }
+
+    return Math.round((caja.montoInicial + entradas - salidas) * 100) / 100;
+  }
+
+  // ─── OBTENER CAJA ACTIVA DEL USUARIO ─────────────────────────────────────
+  async getCajaActiva(empresaId: string, usuarioId: string, fecha: string) {
+    return this.prisma.cajaSesion.findFirst({
+      where: { empresaId, usuarioId, fecha, estado: 'ABIERTA' },
+    });
+  }
+
+  // ─── CALCULAR DINERO ESPERADO EN CAJA ─────────────────────────────────────
+  // esperado = montoInicial + totalIngresos - totalEgresos
+  calcularEsperadoCaja(caja: { montoInicial: number; totalIngresos: number; totalEgresos: number }) {
+    return Math.round(
+      (caja.montoInicial + caja.totalIngresos - caja.totalEgresos) * 100
+    ) / 100;
+  }
+
+  // ─── CERRAR CAJA SIMPLIFICADO ─────────────────────────────────────
+  // Endpoint simple: recibe montoCierre y calcula diferencia
+  async cerrarCajaSimple(
+    empresaId: string,
+    usuarioId: string,
+    montoCierre: number,
+    observaciones?: string,
+  ) {
+    // Buscar caja ABIERTA del usuario
+    const fecha = new Date().toISOString().split('T')[0];
+    const caja = await this.prisma.cajaSesion.findFirst({
+      where: { empresaId, usuarioId, fecha, estado: 'ABIERTA' },
+    });
+
+    if (!caja) {
+      throw new BadRequestException(
+        'No tienes una caja abierta para cerrar. Abre una caja primero.',
+      );
+    }
+
+    if (caja.estado === 'CERRADA') {
+      throw new BadRequestException('Esta caja ya fue cerrada');
+    }
+
+    // Calcular esperado usando los campos de la caja
+    const esperado = this.calcularEsperadoCaja(caja);
+    const diferencia = Math.round((montoCierre - esperado) * 100) / 100;
+
+    // Determinar estado del cuadre
+    let estadoCuadre: 'CUADRADO' | 'SOBRANTE' | 'FALTANTE' = 'CUADRADO';
+    let tieneAlerta = false;
+
+    if (diferencia > 0) {
+      estadoCuadre = 'SOBRANTE';
+    } else if (diferencia < 0) {
+      estadoCuadre = 'FALTANTE';
+      tieneAlerta = true;
+    }
+
+    // Transacción atómica para cierre
+    const cajaCerrada = await this.prisma.$transaction(async (tx) => {
+      // 1. Actualizar caja
+      const cajaActualizada = await tx.cajaSesion.update({
+        where: { id: caja.id },
+        data: {
+          estado: 'CERRADA',
+          montoCierre,
+          diferencia,
+          observaciones: observaciones ?? null,
+          fechaCierre: new Date(),
+        },
+      });
+
+      // 2. Registrar cierre en ledger
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'CIERRE_CAJA',
+          monto: montoCierre,
+          capital: esperado,
+          interes: 0,
+          mora: 0,
+          descripcion: `Cierre caja: Esperado RD$${esperado.toLocaleString()}, Declarado RD$${montoCierre.toLocaleString()}, Diferencia RD$${diferencia.toLocaleString()}`,
+          referenciaTipo: 'CAJA',
+          referenciaId: caja.id,
+          cajaId: caja.id,
+          empresaId,
+          usuarioId,
+        },
+      });
+
+      // 3. Si hay diferencia, registrar ajuste
+      if (diferencia !== 0) {
+        const tipoAjuste = diferencia > 0 ? 'Sobrante de caja' : 'Faltante de caja';
+        await tx.movimientoFinanciero.create({
+          data: {
+            tipo: 'AJUSTE_CAJA',
+            monto: Math.abs(diferencia),
+            capital: 0,
+            interes: 0,
+            mora: 0,
+            descripcion: `${tipoAjuste}: RD$${Math.abs(diferencia).toLocaleString()}`,
+            referenciaTipo: 'CAJA',
+            referenciaId: caja.id,
+            cajaId: caja.id,
+            empresaId,
+            usuarioId,
+          },
+        });
+      }
+
+      return cajaActualizada;
+    });
+
+    await registrarAuditoria(this.prisma, {
+      empresaId,
+      usuarioId,
+      tipo: 'CAJA',
+      accion: 'CIERRE_SIMPLE',
+      descripcion: `Cierre caja: Esperado RD$${esperado.toLocaleString()}, Declarado RD$${montoCierre.toLocaleString()}, Diferencia RD$${diferencia.toLocaleString()}`,
+      monto: montoCierre,
+      referenciaId: caja.id,
+      referenciaTipo: 'CajaSesion',
+      datosAnteriores: { montoInicial: caja.montoInicial, totalIngresos: caja.totalIngresos, totalEgresos: caja.totalEgresos },
+      datosNuevos: { montoCierre, diferencia, estado: 'CERRADA' },
+    });
+
+    return {
+      cajaId: cajaCerrada.id,
+      esperado,
+      montoCierre,
+      diferencia,
+      estado: estadoCuadre,
+      alert: tieneAlerta,
+      mensaje: tieneAlerta
+        ? `Caja con faltante de RD$${Math.abs(diferencia).toLocaleString()}. Revisar inmediatamente.`
+        : null,
+    };
+  }
+
+  // ─── ACTUALIZAR INGRESOS/EGRESOS DE CAJA ─────────────────────────────
+  // Llamar desde pagos y desembolsos dentro de su transacción
+  async actualizarTotalesCaja(
+    tx: any,
+    cajaId: string,
+    tipo: 'INGRESO' | 'EGRESO',
+    monto: number,
+  ) {
+    const data = tipo === 'INGRESO'
+      ? { totalIngresos: { increment: monto } }
+      : { totalEgresos: { increment: monto } };
+
+    await tx.cajaSesion.update({
+      where: { id: cajaId },
+      data,
+    });
+  }
 }

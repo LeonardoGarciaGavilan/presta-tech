@@ -128,6 +128,7 @@ const NAV_ITEMS = [
   { to: "/empleados", label: "Empleados", Icon: IconEmpleados, adminOnly: true },
   { to: "/finanzas", label: "Finanzas", Icon: IconFinanzas, adminOnly: true },
   { to: "/analisis-rutas", label: "Análisis de Rutas", Icon: IconAnalisisRutas, adminOnly: true },
+  { to: "/control-cajas", label: "Control de Cajas", Icon: IconCaja, adminOnly: true },
   { to: "/usuarios", label: "Usuarios", Icon: IconUsuario, adminOnly: true },
   { to: "/auditoria", label: "Auditoría", Icon: IconAuditoria, adminOnly: true },
   { to: "/configuracion", label: "Configuración", Icon: IconConfig, adminOnly: true },

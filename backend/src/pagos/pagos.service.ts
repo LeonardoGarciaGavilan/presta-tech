@@ -293,6 +293,14 @@ export class PagosService {
         },
       });
 
+      // 12. Actualizar totales de caja (solo si es efectivo)
+      if (dto.metodo === 'EFECTIVO' && caja.id) {
+        await tx.cajaSesion.update({
+          where: { id: caja.id },
+          data: { totalIngresos: { increment: dto.montoPagado } },
+        });
+      }
+
       return {
         pagoId:          pago.id,
         pagoCreatedAt:   pago.createdAt,

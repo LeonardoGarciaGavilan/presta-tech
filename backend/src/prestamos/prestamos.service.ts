@@ -625,6 +625,12 @@ export class PrestamosService {
         },
       });
 
+      // ─── 7b. Actualizar totales de caja ────────────────────────────────
+      await tx.cajaSesion.update({
+        where: { id: cajaBloqueada.id },
+        data: { totalEgresos: { increment: prestamo.monto } },
+      });
+
       // ─── 8. Registrar movimiento financiero ──────────────────────────────
       await tx.movimientoFinanciero.create({
         data: {

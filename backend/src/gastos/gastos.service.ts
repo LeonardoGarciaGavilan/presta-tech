@@ -106,29 +106,35 @@ export class GastosService {
       throw new BadRequestException('El monto del gasto debe ser mayor a 0');
     }
 
-    // Validar que haya dinero disponible en cajas
-    const cajas = await this.prisma.cajaSesion.aggregate({
-      where: { empresaId: user.empresaId, estado: 'ABIERTA' },
-      _sum: { montoInicial: true },
-    });
-    const pagos = await this.prisma.pago.aggregate({
-      where: { prestamo: { empresaId: user.empresaId } },
-      _sum: { montoTotal: true },
-    });
-    const desembolsos = await this.prisma.desembolsoCaja.aggregate({
-      where: { empresaId: user.empresaId },
-      _sum: { monto: true },
-    });
+    const tipo = dto.tipo || 'OPERATIVO';
 
-    const dineroEnCaja = Math.round(
-      ((cajas._sum.montoInicial ?? 0) + (pagos._sum.montoTotal ?? 0) - (desembolsos._sum.monto ?? 0)) * 100
-    ) / 100;
+    // Si tipo es OPERATIVO, validar caja abierta y fondos
+    if (tipo === 'OPERATIVO') {
+      // Validar que haya dinero disponible en cajas
+      const cajas = await this.prisma.cajaSesion.aggregate({
+        where: { empresaId: user.empresaId, estado: 'ABIERTA' },
+        _sum: { montoInicial: true },
+      });
+      const pagos = await this.prisma.pago.aggregate({
+        where: { prestamo: { empresaId: user.empresaId } },
+        _sum: { montoTotal: true },
+      });
+      const desembolsos = await this.prisma.desembolsoCaja.aggregate({
+        where: { empresaId: user.empresaId },
+        _sum: { monto: true },
+      });
 
-    if (dto.monto > dineroEnCaja) {
-      throw new BadRequestException(
-        `Fondos insuficientes en caja. Disponible: RD$${dineroEnCaja.toLocaleString()}, Solicitado: RD$${dto.monto.toLocaleString()}`
-      );
+      const dineroEnCaja = Math.round(
+        ((cajas._sum.montoInicial ?? 0) + (pagos._sum.montoTotal ?? 0) - (desembolsos._sum.monto ?? 0)) * 100
+      ) / 100;
+
+      if (dto.monto > dineroEnCaja) {
+        throw new BadRequestException(
+          `Fondos insuficientes en caja. Disponible: RD$${dineroEnCaja.toLocaleString()}, Solicitado: RD$${dto.monto.toLocaleString()}`
+        );
+      }
     }
+    // Si tipo es CAPITAL, no se valida caja (usa capital directo)
 
     return this.prisma.$transaction(async (tx) => {
       const gasto = await tx.gasto.create({
@@ -145,9 +151,12 @@ export class GastosService {
         },
       });
 
+      // Usar GASTO para OPERATIVO, GASTO_CAPITAL para CAPITAL
+      const tipoMovimiento = tipo === 'CAPITAL' ? 'GASTO_CAPITAL' : 'GASTO';
+
       await tx.movimientoFinanciero.create({
         data: {
-          tipo: 'GASTO',
+          tipo: tipoMovimiento,
           monto: dto.monto,
           capital: 0,
           interes: 0,
@@ -159,6 +168,19 @@ export class GastosService {
           descripcion: `${dto.categoria}: ${dto.descripcion}`,
         },
       });
+
+      // Si es gasto OPERATIVO, actualizar totales de caja (buscar caja abierta)
+      if (tipo === 'OPERATIVO') {
+        const caja = await tx.cajaSesion.findFirst({
+          where: { empresaId: user.empresaId, estado: 'ABIERTA' },
+        });
+        if (caja) {
+          await tx.cajaSesion.update({
+            where: { id: caja.id },
+            data: { totalEgresos: { increment: dto.monto } },
+          });
+        }
+      }
 
       return gasto;
     });

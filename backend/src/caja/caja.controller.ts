@@ -83,4 +83,20 @@ export class CajaController {
       user.rol,
     );
   }
+
+  // POST /caja/cerrar (simplificado - cierra la caja abierta actual)
+  @Post('cerrar')
+  @Roles('ADMIN', 'EMPLEADO')
+  cerrarCajaSimple(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { montoCierre: number; observaciones?: string },
+  ) {
+    return this.cajaService.cerrarCajaSimple(
+      empresaId,
+      user.userId,
+      body.montoCierre,
+      body.observaciones,
+    );
+  }
 }

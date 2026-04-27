@@ -25,6 +25,7 @@ import Finanzas from "./pages/Finanzas";
 import AnalisisRutas from "./pages/AnalisisRutas";
 import Empleados from "./pages/Empleados";
 import Auditoria from "./pages/Auditoria";
+import ControlCajas from "./pages/ControlCajas";
 import OfflineBanner from "./components/OfflineBanner";
 import UpdatePrompt from "./components/UpdatePrompt";
 
@@ -110,6 +111,9 @@ function App() {
         } />
         <Route path="/auditoria" element={
           <ProtectedRoute><DashboardLayout><Auditoria /></DashboardLayout></ProtectedRoute>
+        } />
+        <Route path="/control-cajas" element={
+          <ProtectedRoute><DashboardLayout><ControlCajas /></DashboardLayout></ProtectedRoute>
         } />
 
         {/* ── Auditoría Global para SUPERADMIN ── */}

@@ -90,6 +90,8 @@ enum MovimientoFinancieroTipo {
   CIERRE_CAJA
   CORRECCION
   APERTURA_CAJA
+  GASTO_CAPITAL
+  AJUSTE_CAJA
 }
 
 enum ReferenciaTipo {
@@ -358,6 +360,8 @@ model CajaSesion {
   usuarioId       String
   efectivoReal    Float?
   efectivoSistema Float?
+  totalIngresos   Float            @default(0)
+  totalEgresos    Float            @default(0)
   empresa         Empresa          @relation(fields: [empresaId], references: [id])
   usuario         Usuario          @relation(fields: [usuarioId], references: [id])
   desembolsos     DesembolsoCaja[]
