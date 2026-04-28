@@ -613,4 +613,90 @@ export class CajaService {
       data,
     });
   }
+
+  // ─── LISTAR CAJAS (SIN filtro de fecha) ────────────────────────
+  async getCajas(empresaId: string, estado?: string) {
+    const where: any = {
+      ...(empresaId && { empresaId }),
+      ...(estado && { estado: estado as any }),
+    };
+
+    return this.prisma.cajaSesion.findMany({
+      where,
+      include: {
+        usuario: { select: { id: true, nombre: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ─── AUDITORÍA DE CAJA ─────────────────────────────────────────
+  async getAuditoria(cajaId: string, empresaId: string) {
+    const caja = await this.prisma.cajaSesion.findFirst({
+      where: { id: cajaId, empresaId },
+      include: { usuario: { select: { id: true, nombre: true } } },
+    });
+
+    if (!caja) throw new NotFoundException('Caja no encontrada');
+
+    const movimientos = await this.prisma.movimientoFinanciero.findMany({
+      where: { cajaId },
+      orderBy: { fecha: 'asc' },
+    });
+
+    let inicial = 0;
+    let ingresos = 0;
+    let egresos = 0;
+
+    movimientos.forEach((m) => {
+      if (m.tipo === 'APERTURA_CAJA') inicial = m.monto;
+
+      if (['PAGO_RECIBIDO', 'INYECCION_CAPITAL'].includes(m.tipo)) {
+        ingresos += m.monto;
+      }
+
+      if (['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'].includes(m.tipo)) {
+        egresos += m.monto;
+      }
+
+      if (['AJUSTE_CAJA', 'CORRECCION'].includes(m.tipo)) {
+        ingresos += m.monto;
+      }
+    });
+
+    const esperado = Math.round((inicial + ingresos - egresos) * 100) / 100;
+    const real = caja.montoCierre ?? esperado;
+    const diferencia = Math.round((real - esperado) * 100) / 100;
+
+    const aperturaExiste = movimientos.some((m) => m.tipo === 'APERTURA_CAJA');
+    const cierreExiste = movimientos.some((m) => m.tipo === 'CIERRE_CAJA');
+
+    const alertas: string[] = [];
+
+    if (!aperturaExiste) alertas.push('Caja sin apertura registrada');
+    if (caja.estado === 'CERRADA' && !cierreExiste) {
+      alertas.push('Caja cerrada sin movimiento de cierre');
+    }
+    if (Math.abs(diferencia) > 0) {
+      alertas.push(`Diferencia detectada: RD$${diferencia}`);
+    }
+
+    return {
+      caja,
+      timeline: movimientos,
+      reconstruccion: {
+        inicial,
+        ingresos,
+        egresos,
+        esperado,
+        real,
+        diferencia,
+      },
+      validaciones: {
+        secuenciaValida: aperturaExiste,
+        diferenciaJustificada: diferencia === 0,
+        alertas,
+      },
+    };
+  }
 }

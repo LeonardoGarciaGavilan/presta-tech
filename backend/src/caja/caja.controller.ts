@@ -84,19 +84,33 @@ export class CajaController {
     );
   }
 
-  // POST /caja/cerrar (simplificado - cierra la caja abierta actual)
-  @Post('cerrar')
-  @Roles('ADMIN', 'EMPLEADO')
-  cerrarCajaSimple(
-    @Tenant() empresaId: string,
-    @CurrentUser() user: any,
-    @Body() body: { montoCierre: number; observaciones?: string },
-  ) {
-    return this.cajaService.cerrarCajaSimple(
-      empresaId,
-      user.userId,
-      body.montoCierre,
-      body.observaciones,
-    );
-  }
-}
+   // POST /caja/cerrar (simplificado - cierra la caja abierta actual)
+   @Post('cerrar')
+   @Roles('ADMIN', 'EMPLEADO')
+   cerrarCajaSimple(
+     @Tenant() empresaId: string,
+     @CurrentUser() user: any,
+     @Body() body: { montoCierre: number; observaciones?: string },
+   ) {
+     return this.cajaService.cerrarCajaSimple(
+       empresaId,
+       user.userId,
+       body.montoCierre,
+       body.observaciones,
+     );
+   }
+
+   // GET /caja?estado=ABIERTA
+   @Get()
+   @Roles('ADMIN', 'EMPLEADO')
+   getCajas(@Tenant() empresaId: string, @Query('estado') estado?: string) {
+     return this.cajaService.getCajas(empresaId, estado);
+   }
+
+   // GET /caja/:id/auditoria
+   @Get(':id/auditoria')
+   @Roles('ADMIN', 'EMPLEADO')
+   getAuditoria(@Param('id') id: string, @Tenant() empresaId: string) {
+     return this.cajaService.getAuditoria(id, empresaId);
+   }
+ }
