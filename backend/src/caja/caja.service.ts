@@ -211,7 +211,7 @@ export class CajaService {
 
       if (montoInicial > disponible) {
         throw new BadRequestException(
-          `No hay capital disponible suficiente para abrir esta caja. Disponible: RD$${disponible.toLocaleString()}, Solicitado: RD$${montoInicial.toLocaleString()}`
+          `No hay capital disponible suficiente para abrir esta caja. Disponible: RD$${(disponible ?? 0).toLocaleString()}, Solicitado: RD$${(montoInicial ?? 0).toLocaleString()}`
         );
       }
     }
@@ -244,7 +244,7 @@ export class CajaService {
             capital: montoInicial,
             interes: 0,
             mora: 0,
-            descripcion: `Apertura de caja con RD$${montoInicial.toLocaleString()}`,
+            descripcion: `Apertura de caja con RD$${(montoInicial ?? 0).toLocaleString()}`,
             referenciaTipo: 'CAJA',
             referenciaId: nuevaCaja.id,
             cajaId: nuevaCaja.id,
@@ -262,7 +262,7 @@ export class CajaService {
       usuarioId,
       tipo: 'CAJA',
       accion: 'APERTURA',
-      descripcion: `Apertura de caja con monto inicial RD$${montoInicial.toLocaleString()}`,
+      descripcion: `Apertura de caja con monto inicial RD$${(montoInicial ?? 0).toLocaleString()}`,
       monto: montoInicial,
       referenciaId: caja.id,
       referenciaTipo: 'CajaSesion',
@@ -271,87 +271,17 @@ export class CajaService {
     return caja;
   }
 
-  // ─── CERRAR CAJA ──────────────────────────────────────────────────────────
-
+  // ─── CERRAR CAJA (DELEGADO A cerrarCajaSimple) ─────────
+  // Este método ya no tiene lógica propia - solo delega
   async cerrarCaja(
     cajaId: string,
     empresaId: string,
     usuarioId: string,
-    efectivoReal: number,
+    montoCierre: number,
     observaciones?: string,
-    rol?: string,
   ) {
-    const isAdmin = rol === 'ADMIN';
-
-    const caja = isAdmin
-      ? await this.prisma.cajaSesion.findFirst({
-          where: { id: cajaId, empresaId },
-        })
-      : await this.prisma.cajaSesion.findFirst({
-          where: { id: cajaId, empresaId, usuarioId },
-        });
-
-    if (!caja) throw new NotFoundException('Caja no encontrada o no tienes permiso');
-    if (caja.estado === 'CERRADA') throw new BadRequestException('Esta caja ya fue cerrada');
-
-    const usuarioCajaId = isAdmin ? caja.usuarioId : usuarioId;
-    const { totalEfectivo } = await this.resumenPagosDia(empresaId, caja.fecha, usuarioCajaId);
-    const { totalDesembolsado } = await this.desembolsosDia(empresaId, caja.fecha, cajaId);
-
-    const efectivoSistema = Math.round(
-      (caja.montoInicial + totalEfectivo - totalDesembolsado) * 100,
-    ) / 100;
-    const diferencia = Math.round((efectivoReal - efectivoSistema) * 100) / 100;
-
-    // Usar transacción para atomicidad
-    const cajaCerrada = await this.prisma.$transaction(async (tx) => {
-      const cajaActualizada = await tx.cajaSesion.update({
-        where: { id: cajaId },
-        data: {
-          estado:          'CERRADA',
-          efectivoSistema,
-          efectivoReal,
-          diferencia,
-          observaciones:   observaciones ?? null,
-          fechaCierre:     new Date(),
-        },
-        include: { usuario: { select: { id: true, nombre: true } } },
-      });
-
-      // Registrar cierre en ledger
-      await tx.movimientoFinanciero.create({
-        data: {
-          tipo: 'CIERRE_CAJA',
-          monto: efectivoSistema,
-          capital: efectivoSistema,
-          interes: 0,
-          mora: 0,
-          descripcion: `Cierre caja: Sistema RD$${efectivoSistema.toLocaleString()}, Real RD$${efectivoReal.toLocaleString()}, Diferencia RD$${diferencia.toLocaleString()}`,
-          referenciaTipo: 'CAJA',
-          referenciaId: cajaId,
-          cajaId: cajaId,
-          empresaId,
-          usuarioId,
-        },
-      });
-
-      return cajaActualizada;
-    });
-
-    await registrarAuditoria(this.prisma, {
-      empresaId,
-      usuarioId,
-      tipo: 'CAJA',
-      accion: 'CIERRE',
-      descripcion: `Cierre caja: Efectivo sistema RD$${efectivoSistema.toLocaleString()} vs Real RD$${efectivoReal.toLocaleString()} (${diferencia >= 0 ? '+' : ''}RD$${diferencia.toLocaleString()})`,
-      monto: efectivoReal,
-      referenciaId: cajaId,
-      referenciaTipo: 'CajaSesion',
-      datosAnteriores: { montoInicial: caja.montoInicial, estado: 'ABIERTA' },
-      datosNuevos: { efectivoSistema, efectivoReal, diferencia, estado: 'CERRADA' },
-    });
-
-    return cajaCerrada;
+    // Delegar toda la lógica a cerrarCajaSimple (único método de cierre)
+    return this.cerrarCajaSimple(empresaId, usuarioId, montoCierre, observaciones, cajaId);
   }
 
   // ─── MI CAJA DEL DÍA ─────────────────────────────────────────────────────
@@ -471,39 +401,56 @@ export class CajaService {
 
   // ─── CALCULAR DINERO ESPERADO EN CAJA ─────────────────────────────────────
   // esperado = montoInicial + totalIngresos - totalEgresos
-  calcularEsperadoCaja(caja: { montoInicial: number; totalIngresos: number; totalEgresos: number }) {
+  calcularEsperadoCaja(caja: { montoInicial?: number; totalIngresos?: number; totalEgresos?: number }) {
     return Math.round(
-      (caja.montoInicial + caja.totalIngresos - caja.totalEgresos) * 100
+      ((caja.montoInicial ?? 0) + (caja.totalIngresos ?? 0) - (caja.totalEgresos ?? 0)) * 100
     ) / 100;
   }
 
-  // ─── CERRAR CAJA SIMPLIFICADO ─────────────────────────────────────
+  // ─── CERRAR CAJA SIMPLIFICADO ─────────────────────────────
   // Endpoint simple: recibe montoCierre y calcula diferencia
   async cerrarCajaSimple(
     empresaId: string,
     usuarioId: string,
     montoCierre: number,
     observaciones?: string,
+    cajaId?: string, // 👈 opcional: ID específico de caja
   ) {
-    // Buscar caja ABIERTA del usuario
-    const fecha = new Date().toISOString().split('T')[0];
-    const caja = await this.prisma.cajaSesion.findFirst({
-      where: { empresaId, usuarioId, fecha, estado: 'ABIERTA' },
-    });
-
-    if (!caja) {
-      throw new BadRequestException(
-        'No tienes una caja abierta para cerrar. Abre una caja primero.',
-      );
+    // Validación fuerte del monto
+    if (montoCierre === undefined || montoCierre === null || isNaN(montoCierre)) {
+      throw new BadRequestException('Monto de cierre inválido');
     }
 
-    if (caja.estado === 'CERRADA') {
-      throw new BadRequestException('Esta caja ya fue cerrada');
+   // console.log('[DEBUG cierreCaja] montoCierre:', montoCierre);
+
+    // Buscar caja ABIERTA:
+    // 1. Si se proporciona cajaId, buscar por ID (para PATCH /caja/:id/cerrar)
+    // 2. Si no, buscar por usuarioId + fecha (para POST /caja/cerrar)
+    let caja;
+
+    if (cajaId) {
+      caja = await this.prisma.cajaSesion.findFirst({
+        where: { id: cajaId, empresaId, estado: 'ABIERTA' },
+      });
+    } else {
+      const fecha = new Date().toISOString().split('T')[0];
+      caja = await this.prisma.cajaSesion.findFirst({
+        where: { empresaId, usuarioId, fecha, estado: 'ABIERTA' },
+      });
+    }
+
+    // Validación clara
+    if (!caja) {
+      throw new BadRequestException(
+        cajaId
+          ? 'La caja especificada no está abierta o no existe'
+          : 'No tienes una caja abierta para cerrar. Abre una caja primero.',
+      );
     }
 
     // Calcular esperado usando los campos de la caja
     const esperado = this.calcularEsperadoCaja(caja);
-    const diferencia = Math.round((montoCierre - esperado) * 100) / 100;
+    const diferencia = Math.round(((montoCierre ?? 0) - esperado) * 100) / 100;
 
     // Determinar estado del cuadre
     let estadoCuadre: 'CUADRADO' | 'SOBRANTE' | 'FALTANTE' = 'CUADRADO';
@@ -523,7 +470,7 @@ export class CajaService {
         where: { id: caja.id },
         data: {
           estado: 'CERRADA',
-          montoCierre,
+          montoCierre: montoCierre ?? 0,
           diferencia,
           observaciones: observaciones ?? null,
           fechaCierre: new Date(),
@@ -534,11 +481,11 @@ export class CajaService {
       await tx.movimientoFinanciero.create({
         data: {
           tipo: 'CIERRE_CAJA',
-          monto: montoCierre,
-          capital: esperado,
+          monto: montoCierre ?? 0,
+          capital: 0,
           interes: 0,
           mora: 0,
-          descripcion: `Cierre caja: Esperado RD$${esperado.toLocaleString()}, Declarado RD$${montoCierre.toLocaleString()}, Diferencia RD$${diferencia.toLocaleString()}`,
+          descripcion: `Cierre caja: Esperado RD$${(esperado ?? 0).toLocaleString()}, Declarado RD$${(montoCierre ?? 0).toLocaleString()}, Diferencia RD$${(diferencia ?? 0).toLocaleString()}`,
           referenciaTipo: 'CAJA',
           referenciaId: caja.id,
           cajaId: caja.id,
@@ -557,7 +504,7 @@ export class CajaService {
             capital: 0,
             interes: 0,
             mora: 0,
-            descripcion: `${tipoAjuste}: RD$${Math.abs(diferencia).toLocaleString()}`,
+            descripcion: `${tipoAjuste}: RD$${Math.abs(diferencia ?? 0).toLocaleString()}`,
             referenciaTipo: 'CAJA',
             referenciaId: caja.id,
             cajaId: caja.id,
@@ -575,7 +522,7 @@ export class CajaService {
       usuarioId,
       tipo: 'CAJA',
       accion: 'CIERRE_SIMPLE',
-      descripcion: `Cierre caja: Esperado RD$${esperado.toLocaleString()}, Declarado RD$${montoCierre.toLocaleString()}, Diferencia RD$${diferencia.toLocaleString()}`,
+      descripcion: `Cierre caja: Esperado RD$${(esperado ?? 0).toLocaleString()}, Declarado RD$${(montoCierre ?? 0).toLocaleString()}, Diferencia RD$${(diferencia ?? 0).toLocaleString()}`,
       monto: montoCierre,
       referenciaId: caja.id,
       referenciaTipo: 'CajaSesion',
@@ -591,7 +538,7 @@ export class CajaService {
       estado: estadoCuadre,
       alert: tieneAlerta,
       mensaje: tieneAlerta
-        ? `Caja con faltante de RD$${Math.abs(diferencia).toLocaleString()}. Revisar inmediatamente.`
+        ? `Caja con faltante de RD$${Math.abs(diferencia ?? 0).toLocaleString()}. Revisar inmediatamente.`
         : null,
     };
   }
@@ -665,8 +612,10 @@ export class CajaService {
     });
 
     const esperado = Math.round((inicial + ingresos - egresos) * 100) / 100;
-    const real = caja.montoCierre ?? esperado;
-    const diferencia = Math.round((real - esperado) * 100) / 100;
+    const real = caja.montoCierre;
+    const diferencia = real !== null && real !== undefined
+      ? Math.round((real - esperado) * 100) / 100
+      : 0;
 
     const aperturaExiste = movimientos.some((m) => m.tipo === 'APERTURA_CAJA');
     const cierreExiste = movimientos.some((m) => m.tipo === 'CIERRE_CAJA');
@@ -677,7 +626,9 @@ export class CajaService {
     if (caja.estado === 'CERRADA' && !cierreExiste) {
       alertas.push('Caja cerrada sin movimiento de cierre');
     }
-    if (Math.abs(diferencia) > 0) {
+    if (real === null || real === undefined) {
+      alertas.push('Caja cerrada sin montoCierre registrado');
+    } else if (Math.abs(diferencia) > 0) {
       alertas.push(`Diferencia detectada: RD$${diferencia}`);
     }
 

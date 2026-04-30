@@ -545,10 +545,14 @@ export default function CierreCaja() {
     } finally { setActionLoading(false); }
   };
 
-  const handleCerrarCaja = async (efectivoReal, observaciones) => {
+  const handleCerrarCaja = async (monto, observaciones) => {
+    if (!monto || isNaN(monto)) {
+      showToast("Monto de cierre inválido", "error");
+      return;
+    }
     setActionLoading(true);
     try {
-      await api.patch(`/caja/${miCaja.id}/cerrar`, { efectivoReal, observaciones });
+      await api.patch(`/caja/${miCaja.id}/cerrar`, { montoCierre: monto, observaciones });
       setModalCerrar(false);
       showToast("Caja cerrada correctamente");
       cargar();

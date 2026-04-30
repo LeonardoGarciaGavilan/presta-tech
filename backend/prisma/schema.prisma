@@ -358,8 +358,8 @@ model CajaSesion {
   createdAt       DateTime         @default(now())
   empresaId       String
   usuarioId       String
-  efectivoReal    Float?
-  efectivoSistema Float?
+  efectivoReal    Float?  // ⚠️ DEPRECATED: Use montoCierre instead
+  efectivoSistema Float?  // ⚠️ DEPRECATED: Use montoCierre instead
   totalIngresos   Float            @default(0)
   totalEgresos    Float            @default(0)
   empresa         Empresa          @relation(fields: [empresaId], references: [id])

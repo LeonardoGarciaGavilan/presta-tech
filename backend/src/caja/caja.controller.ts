@@ -65,22 +65,21 @@ export class CajaController {
     );
   }
 
-  // PATCH /caja/:id/cerrar
+  // PATCH /caja/:id/cerrar (delegates to cerrarCajaSimple)
   @Patch(':id/cerrar')
   @Roles('ADMIN', 'EMPLEADO')
   cerrar(
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
     @Param('id') id: string,
-    @Body() body: { efectivoReal: number; observaciones?: string },
+    @Body() body: { montoCierre: number; observaciones?: string },
   ) {
     return this.cajaService.cerrarCaja(
       id,
       empresaId,
       user.userId,
-      body.efectivoReal,
+      body.montoCierre,
       body.observaciones,
-      user.rol,
     );
   }
 

@@ -626,7 +626,7 @@ export class PagosService {
     const finHoy    = getFinDiaRD();
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-    console.log('DEBUG RANGO HOY:', { inicio: inicioHoy.toISOString(), fin: finHoy.toISOString() });
+   // console.log('DEBUG RANGO HOY:', { inicio: inicioHoy.toISOString(), fin: finHoy.toISOString() });
 
     const [totalHoy, totalMes, conteoHoy, conteoMes] = await Promise.all([
       this.prisma.pago.aggregate({
