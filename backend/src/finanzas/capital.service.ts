@@ -299,6 +299,11 @@ export class CapitalService {
     const inicioMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
     const inicioMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
 
+    const inicioDia = new Date();
+    inicioDia.setHours(0, 0, 0, 0);
+    const finDia = new Date();
+    finDia.setHours(23, 59, 59, 999);
+
     const [
       capitalData,
       totalesPagos,
@@ -308,15 +313,28 @@ export class CapitalService {
       cajasAbiertas,
       interesEsperado,
       movimientosMensuales,
+      pagosDelDia,
+      desembolsosDelDia,
     ] = await Promise.all([
       this.getCapitalEmpresa(empresaId),
       this.prisma.pago.aggregate({
-        where: { prestamo: { empresaId } },
-        _sum: { montoTotal: true, capital: true, interes: true, mora: true },
+        where: {
+          prestamo: { empresaId },
+        },
+        _sum: {
+          montoTotal: true,
+          capital: true,
+          interes: true,
+          mora: true,
+        },
       }),
       this.prisma.desembolsoCaja.aggregate({
-        where: { empresaId },
-        _sum: { monto: true },
+        where: {
+          empresaId,
+        },
+        _sum: {
+          monto: true,
+        },
       }),
       this.prisma.gasto.aggregate({
         where: { empresaId },
@@ -349,6 +367,31 @@ export class CapitalService {
           mora: true,
         },
       }),
+      this.prisma.pago.aggregate({
+        where: {
+          prestamo: { empresaId },
+          metodo: 'EFECTIVO',
+          createdAt: {
+            gte: inicioDia,
+            lte: finDia,
+          },
+        },
+        _sum: {
+          montoTotal: true,
+        },
+      }),
+      this.prisma.desembolsoCaja.aggregate({
+        where: {
+          empresaId,
+          createdAt: {
+            gte: inicioDia,
+            lte: finDia,
+          },
+        },
+        _sum: {
+          monto: true,
+        },
+      }),
     ]);
 
     const totalInteresCobrado = Math.round(
@@ -365,8 +408,19 @@ export class CapitalService {
     const montoInicialCajas = Math.round((cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
 
     const dineroEnCaja = Math.max(0, Math.round(
-      (montoInicialCajas + (totalesPagos._sum.montoTotal ?? 0) - totalDesembolsado) * 100
+      (
+        montoInicialCajas +
+        (pagosDelDia._sum?.montoTotal ?? 0) -
+        (desembolsosDelDia._sum?.monto ?? 0)
+      ) * 100
     ) / 100);
+
+    console.log('[DEBUG Dashboard FIX]', {
+      pagosHistoricos: totalesPagos._sum?.montoTotal,
+      pagosDelDia: pagosDelDia._sum?.montoTotal,
+      desembolsosHistoricos: totalesDesembolsos._sum?.monto,
+      desembolsosDelDia: desembolsosDelDia._sum?.monto,
+    });
 
     const dineroTotal = Math.round((capitalData.capitalTotal + gananciasAcumuladas) * 100) / 100;
 

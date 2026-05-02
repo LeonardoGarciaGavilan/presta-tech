@@ -371,7 +371,7 @@ function ControlCajas() {
 
     try {
       setCerrando(true);
-      await api.post('/caja/cerrar', {
+      await api.patch(`/caja/${modalCerrar.id}/cerrar`, {
         montoCierre: parseFloat(montoCierre),
       });
       setModalCerrar(null);
