@@ -407,20 +407,16 @@ export class CapitalService {
     const dineroEnCalle = Math.max(0, Math.round((totalDesembolsado - totalCapitalRecuperado) * 100) / 100);
     const montoInicialCajas = Math.round((cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
 
-    const dineroEnCaja = Math.max(0, Math.round(
-      (
-        montoInicialCajas +
-        (pagosDelDia._sum?.montoTotal ?? 0) -
-        (desembolsosDelDia._sum?.monto ?? 0)
-      ) * 100
-    ) / 100);
+    // ⚠️ IMPORTANTE:
+    // dineroEnCaja es MÉTRICA DEL DÍA (operativa)
+    // Usa pagos y desembolsos filtrados por fecha (hoy)
+    // NO usar datos históricos aquí
+    const totalPagosHoy = pagosDelDia._sum?.montoTotal ?? 0;
+    const totalDesembolsosHoy = desembolsosDelDia._sum?.monto ?? 0;
 
-    console.log('[DEBUG Dashboard FIX]', {
-      pagosHistoricos: totalesPagos._sum?.montoTotal,
-      pagosDelDia: pagosDelDia._sum?.montoTotal,
-      desembolsosHistoricos: totalesDesembolsos._sum?.monto,
-      desembolsosDelDia: desembolsosDelDia._sum?.monto,
-    });
+    const dineroEnCaja = Math.max(0, Math.round(
+      (montoInicialCajas + totalPagosHoy - totalDesembolsosHoy) * 100
+    ) / 100);
 
     const dineroTotal = Math.round((capitalData.capitalTotal + gananciasAcumuladas) * 100) / 100;
 
@@ -457,7 +453,7 @@ export class CapitalService {
     if (!balance.cuadra) {
       alertas.unshift({
         tipo: 'CRITICAL',
-        mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Capital: RD$${balance.capital.toLocaleString()} vs Esperado: RD$${balance.esperado.toLocaleString()}`,
+        mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Capital + Ganancias: RD$${balance.ladoIzquierdo.toLocaleString()} vs Activos (Caja + Calle): RD$${balance.ladoDerecho.toLocaleString()}`,
         codigo: 'DESCUADRE_CONTABLE',
         valor: balance.diferencia,
         umbral: 0,
@@ -701,19 +697,55 @@ export class CapitalService {
   }
 
   // ─── VALIDAR BALANCE CONTABLE ─────────────────────────────────────────
-  // Verifica que: Capital = Caja + Calle + Retiros
+  // Verifica que: Capital + Ganancias = Caja + Calle
   async validarBalance(empresaId: string) {
     // Calcular capital total
     const capitalData = await this.getCapitalEmpresa(empresaId);
     const capitalTotal = capitalData.capitalTotal;
 
-    // Calcular dinero en cajas abiertas
-    const cajas = await this.prisma.cajaSesion.groupBy({
-      by: ['estado'],
-      where: { empresaId, estado: 'ABIERTA' },
-      _sum: { montoInicial: true },
+    // Calcular ganancias acumuladas (histórico)
+    const [pagosGanancias, retirosGanancias, gastosQuery] = await Promise.all([
+      this.prisma.pago.aggregate({
+        where: { prestamo: { empresaId } },
+        _sum: { interes: true, mora: true },
+      }),
+      this.prisma.retiroGanancias.aggregate({
+        where: { empresaId },
+        _sum: { monto: true },
+      }),
+      this.prisma.movimientoFinanciero.aggregate({
+        where: {
+          empresaId,
+          tipo: { in: ['GASTO', 'GASTO_CAPITAL'] },
+        },
+        _sum: { monto: true },
+      }),
+    ]);
+    const totalInteresCobrado = (pagosGanancias._sum.interes ?? 0) + (pagosGanancias._sum.mora ?? 0);
+    const totalRetiros = retirosGanancias._sum.monto ?? 0;
+    const totalGastos = gastosQuery._sum.monto ?? 0;
+    const gananciasAcumuladas = Math.round(
+      (totalInteresCobrado - totalGastos - totalRetiros) * 100
+    ) / 100;
+
+    // Calcular dinero en caja (desde MovimientoFinanciero)
+    const efectivo = await this.prisma.movimientoFinanciero.aggregate({
+      where: {
+        empresaId,
+        tipo: { in: ['PAGO_RECIBIDO', 'INYECCION_CAPITAL'] },
+      },
+      _sum: { monto: true },
     });
-    const dineroEnCaja = Math.round((cajas[0]?._sum?.montoInicial ?? 0) * 100) / 100;
+    const salidas = await this.prisma.movimientoFinanciero.aggregate({
+      where: {
+        empresaId,
+        tipo: { in: ['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'] },
+      },
+      _sum: { monto: true },
+    });
+    const dineroEnCaja = Math.max(0, Math.round(
+      ((efectivo._sum.monto ?? 0) - (salidas._sum.monto ?? 0)) * 100
+    ) / 100);
 
     // Calcular dinero en calle (préstamos activos)
     const prestamos = await this.prisma.prestamo.aggregate({
@@ -733,24 +765,19 @@ export class CapitalService {
       ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
     ) / 100);
 
-    // Calcular retiros realizados
-    const retiros = await this.prisma.retiroGanancias.aggregate({
-      where: { empresaId },
-      _sum: { monto: true },
-    });
-    const totalRetiros = Math.round((retiros._sum.monto ?? 0) * 100) / 100;
-
-    // Calcular diferencia
-    const esperado = dineroEnCaja + dineroEnCalle + totalRetiros;
-    const diferencia = Math.round((capitalTotal - esperado) * 100) / 100;
+    // Nueva fórmula contable
+    const ladoIzquierdo = capitalTotal + gananciasAcumuladas;
+    const ladoDerecho = dineroEnCaja + dineroEnCalle;
+    const diferencia = Math.round((ladoIzquierdo - ladoDerecho) * 100) / 100;
     const cuadra = Math.abs(diferencia) < 1;
 
     return {
       capital: capitalTotal,
+      ganancias: gananciasAcumuladas,
       caja: dineroEnCaja,
       calle: dineroEnCalle,
-      retiros: totalRetiros,
-      esperado,
+      ladoIzquierdo,
+      ladoDerecho,
       diferencia,
       cuadra,
       advertencia: !cuadra
