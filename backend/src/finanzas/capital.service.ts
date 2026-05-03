@@ -769,7 +769,7 @@ export class CapitalService {
     const ladoIzquierdo = capitalTotal + gananciasAcumuladas;
     const ladoDerecho = dineroEnCaja + dineroEnCalle;
     const diferencia = Math.round((ladoIzquierdo - ladoDerecho) * 100) / 100;
-    const cuadra = Math.abs(diferencia) < 1;
+    const cuadra = Math.abs(diferencia) < 5;
 
     return {
       capital: capitalTotal,
