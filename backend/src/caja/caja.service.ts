@@ -448,8 +448,27 @@ export class CajaService {
       );
     }
 
-    // Calcular esperado usando los campos de la caja
-    const esperado = this.calcularEsperadoCaja(caja);
+    // Calcular esperado dinámicamente (igual que getCajas)
+    const [ingresos, egresos] = await Promise.all([
+      this.prisma.pago.aggregate({
+        where: { cajaId: caja.id, metodo: 'EFECTIVO' },
+        _sum: { montoTotal: true },
+      }),
+      this.prisma.movimientoFinanciero.aggregate({
+        where: {
+          cajaId: caja.id,
+          tipo: { in: ['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'] },
+        },
+        _sum: { monto: true },
+      }),
+    ]);
+
+    const ingresosCalc = ingresos._sum.montoTotal ?? 0;
+    const egresosCalc = egresos._sum.monto ?? 0;
+    const esperado = Math.round(
+      (caja.montoInicial + ingresosCalc - egresosCalc) * 100
+    ) / 100;
+
     const diferencia = Math.round(((montoCierre ?? 0) - esperado) * 100) / 100;
 
     // Determinar estado del cuadre
@@ -526,13 +545,13 @@ export class CajaService {
       monto: montoCierre,
       referenciaId: caja.id,
       referenciaTipo: 'CajaSesion',
-      datosAnteriores: { montoInicial: caja.montoInicial, totalIngresos: caja.totalIngresos, totalEgresos: caja.totalEgresos },
+      datosAnteriores: { montoInicial: caja.montoInicial, ingresosCalc, egresosCalc },
       datosNuevos: { montoCierre, diferencia, estado: 'CERRADA' },
     });
 
     return {
       cajaId: cajaCerrada.id,
-      esperado,
+      esperado: esperado,
       montoCierre,
       diferencia,
       estado: estadoCuadre,
@@ -568,13 +587,47 @@ export class CajaService {
       ...(estado && { estado: estado as any }),
     };
 
-    return this.prisma.cajaSesion.findMany({
+    const cajas = await this.prisma.cajaSesion.findMany({
       where,
       include: {
         usuario: { select: { id: true, nombre: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Calcular ingresosCalc, egresosCalc, esperadoCalc para cada caja
+    const cajasConCalculos = await Promise.all(
+      cajas.map(async (caja) => {
+        const [ingresosAgg, egresosAgg] = await Promise.all([
+          this.prisma.pago.aggregate({
+            where: { cajaId: caja.id, metodo: 'EFECTIVO' },
+            _sum: { montoTotal: true },
+          }),
+          this.prisma.movimientoFinanciero.aggregate({
+            where: {
+              cajaId: caja.id,
+              tipo: { in: ['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'] },
+            },
+            _sum: { monto: true },
+          }),
+        ]);
+
+        const ingresosCalc = ingresosAgg._sum.montoTotal ?? 0;
+        const egresosCalc = egresosAgg._sum.monto ?? 0;
+        const esperadoCalc = Math.round(
+          (caja.montoInicial + ingresosCalc - egresosCalc) * 100
+        ) / 100;
+
+        return {
+          ...caja,
+          ingresosCalc,
+          egresosCalc,
+          esperadoCalc,
+        };
+      })
+    );
+
+    return cajasConCalculos;
   }
 
   // ─── AUDITORÍA DE CAJA ─────────────────────────────────────────

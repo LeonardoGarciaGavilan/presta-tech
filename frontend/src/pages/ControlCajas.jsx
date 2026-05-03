@@ -23,10 +23,10 @@ function ControlCajas() {
     if (Math.abs(caja.diferencia) > 1000) score += 50;
 
     // Inactividad: sin ingresos por mucho tiempo
-    if (caja.totalIngresos === 0 && horasAbierta > 4) score += 25;
+    if ((caja.ingresosCalc ?? caja.totalIngresos ?? 0) === 0 && horasAbierta > 4) score += 25;
 
     // Baja productividad: ingresos < 5% del monto inicial
-    if (caja.totalIngresos < caja.montoInicial * 0.05) score += 15;
+    if ((caja.ingresosCalc ?? caja.totalIngresos ?? 0) < caja.montoInicial * 0.05) score += 15;
 
     return score;
   };
@@ -59,12 +59,12 @@ function ControlCajas() {
     }
 
     // Prioridad 4: Baja productividad
-    if (caja.totalIngresos < caja.montoInicial * 0.05) {
+    if ((caja.ingresosCalc ?? caja.totalIngresos ?? 0) < caja.montoInicial * 0.05) {
       return { texto: 'Revisar desempeño del cobrador', icono: '⚠️', tipo: 'WARNING', nivel: 'MEDIO' };
     }
 
     // Prioridad 5: Inactividad
-    if (caja.totalIngresos === 0 && horas > 4) {
+    if ((caja.ingresosCalc ?? caja.totalIngresos ?? 0) === 0 && horas > 4) {
       return { texto: 'Verificar ruta o reasignar clientes', icono: '⚠️', tipo: 'WARNING', nivel: 'MEDIO' };
     }
 
@@ -108,7 +108,7 @@ function ControlCajas() {
 
   const cajasCalcular = useMemo(() => {
     const calculadas = cajas.map((caja) => {
-      const esperado = caja.montoInicial + caja.totalIngresos - caja.totalEgresos;
+      const esperado = caja.esperadoCalc ?? (caja.montoInicial + (caja.ingresosCalc ?? caja.totalIngresos ?? 0) - (caja.egresosCalc ?? caja.totalEgresos ?? 0));
       const diferencia = esperado - (caja.montoCierre || esperado);
       let estadoCuadre = 'CUADRADA (SIN DIFERENCIA)';
       if (diferencia < -0.01) estadoCuadre = 'FALTANTE';
@@ -127,7 +127,7 @@ function ControlCajas() {
         horasAbierta,
         scoreRiesgo,
         nivelRiesgo, // objeto completo con label, color, bg, border
-        retenido: esperado, // dinero retenido en caja
+        retenido: caja.esperadoCalc ?? esperado, // dinero retenido en caja
       };
     });
 
@@ -143,8 +143,8 @@ function ControlCajas() {
   const kpis = useMemo(() => {
     const activas = cajasCalcular.filter((c) => c.estado === 'ABIERTA');
     const totalInicial = activas.reduce((sum, c) => sum + c.montoInicial, 0);
-    const totalIngresos = activas.reduce((sum, c) => sum + c.totalIngresos, 0);
-    const totalEgresos = activas.reduce((sum, c) => sum + c.totalEgresos, 0);
+    const totalIngresos = activas.reduce((sum, c) => sum + (c.ingresosCalc ?? c.totalIngresos ?? 0), 0);
+    const totalEgresos = activas.reduce((sum, c) => sum + (c.egresosCalc ?? c.totalEgresos ?? 0), 0);
     const totalEsperado = totalInicial + totalIngresos - totalEgresos;
     const faltantes = activas.filter((c) => c.estadoCuadre === 'FALTANTE');
     const sobrantes = activas.filter((c) => c.estadoCuadre === 'SOBRANTE');
@@ -306,15 +306,15 @@ function ControlCajas() {
           </div>
           <div>
             <p className="text-gray-500 text-xs">Ingresos</p>
-            <p className="font-medium text-emerald-600">+RD${caja.totalIngresos.toLocaleString()}</p>
+            <p className="font-medium text-emerald-600">+RD${(caja.ingresosCalc ?? caja.totalIngresos ?? 0).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-gray-500 text-xs">Egresos</p>
-            <p className="font-medium text-red-600">-RD${caja.totalEgresos.toLocaleString()}</p>
+            <p className="font-medium text-red-600">-RD${(caja.egresosCalc ?? caja.totalEgresos ?? 0).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-gray-500 text-xs">💰 Retenido</p>
-            <p className="font-medium text-blue-600">RD${caja.retenido?.toLocaleString() || '0'}</p>
+            <p className="font-medium text-blue-600">RD${(caja.esperadoCalc ?? caja.retenido ?? 0).toLocaleString()}</p>
           </div>
         </div>
 
@@ -520,7 +520,7 @@ function ControlCajas() {
                 </div>
                 <div>
                   <p className="text-gray-500">Esperado</p>
-                  <p className="font-medium">RD${modalCerrar.esperado.toLocaleString()}</p>
+                  <p className="font-medium">RD${(modalCerrar.esperadoCalc ?? modalCerrar.esperado ?? 0).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -539,14 +539,14 @@ function ControlCajas() {
 
               {montoCierre && (
                 <div className={`p-3 rounded-lg text-center font-medium ${
-                  parseFloat(montoCierre) === modalCerrar.esperado
+                  parseFloat(montoCierre) === (modalCerrar.esperadoCalc ?? modalCerrar.esperado)
                     ? 'bg-emerald-50 text-emerald-700'
-                    : parseFloat(montoCierre) < modalCerrar.esperado
+                    : parseFloat(montoCierre) < (modalCerrar.esperadoCalc ?? modalCerrar.esperado)
                     ? 'bg-red-50 text-red-700'
                     : 'bg-amber-50 text-amber-700'
                 }`}>
-                  Diferencia: {parseFloat(montoCierre) < modalCerrar.esperado ? '-' : '+'}RD$
-                  {Math.abs(parseFloat(montoCierre) - modalCerrar.esperado).toLocaleString()}
+                  Diferencia: {parseFloat(montoCierre) < (modalCerrar.esperadoCalc ?? modalCerrar.esperado ?? 0) ? '-' : '+'}RD$
+                  {Math.abs(parseFloat(montoCierre) - (modalCerrar.esperadoCalc ?? modalCerrar.esperado ?? 0)).toLocaleString()}
                 </div>
               )}
             </div>
