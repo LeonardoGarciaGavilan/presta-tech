@@ -115,9 +115,7 @@ export class CapitalService {
       include: { usuario: { select: { nombre: true } } },
     });
 
-    const capitalTotal = capital
-      ? capital.capitalInicial + inyecciones.reduce((sum, i) => sum + i.monto, 0)
-      : 0;
+    const capitalTotal = (capital?.capitalInicial ?? 0) + inyecciones.reduce((sum, i) => sum + i.monto, 0);
 
     return {
       capitalInicial: capital?.capitalInicial ?? 0,
