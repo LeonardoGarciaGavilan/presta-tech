@@ -1420,7 +1420,7 @@ export class PrestamosService {
       if (desde) where.createdAt.gte = getInicioDiaRD(desde);
       if (hasta) where.createdAt.lte = getFinDiaRD(hasta);
 
-      console.log('DEBUG ALERTAS RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
+     // console.log('DEBUG ALERTAS RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
     }
     return (this.prisma as any).alerta.findMany({
       where,

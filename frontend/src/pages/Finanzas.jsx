@@ -279,7 +279,7 @@ export default function Finanzas() {
   };
 
   const capitalTotal = data?.capital?.total || 0;
-const gananciasDisponibles = data?.ganancias?.disponibles || 0;
+  const gananciasDisponibles = data?.ganancias?.netas ?? 0;
   const dineroEnCaja = data?.dinero?.enCaja || 0;
   const dineroEnCalle = data?.dinero?.enCalle || 0;
   const dineroTotal = data?.dinero?.total || 0;
