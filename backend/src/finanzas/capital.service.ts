@@ -392,16 +392,38 @@ export class CapitalService {
       }),
     ]);
 
-    const totalInteresCobrado = Math.round(
+    const gananciasBrutas = Math.round(
       ((totalesPagos._sum.interes ?? 0) + (totalesPagos._sum.mora ?? 0)) * 100
     ) / 100;
 
+    const gastosTotales = Math.round((totalesGastos._sum.monto ?? 0) * 100) / 100;
     const totalCapitalRecuperado = Math.round((totalesPagos._sum.capital ?? 0) * 100) / 100;
     const totalDesembolsado = Math.round((totalesDesembolsos._sum.monto ?? 0) * 100) / 100;
-    const totalGastado = Math.round((totalesGastos._sum.monto ?? 0) * 100) / 100;
     const totalRetirado = Math.round((totalRetiros._sum.monto ?? 0) * 100) / 100;
 
-    const gananciasAcumuladas = Math.round((totalInteresCobrado - totalRetirado) * 100) / 100;
+    // Resultado operativo real
+    const resultadoOperativo = gananciasBrutas - gastosTotales;
+
+    // Si queda negativo, consume capital
+    const excedenteQueConsumeCapital =
+      resultadoOperativo < 0
+        ? Math.abs(resultadoOperativo)
+        : 0;
+
+    // Nunca mostrar ganancias negativas
+    const gananciasNetas =
+      resultadoOperativo > 0
+        ? resultadoOperativo
+        : 0;
+
+    // Capital ajustado
+    const capitalAjustado =
+      capitalData.capitalTotal - excedenteQueConsumeCapital;
+
+    // Patrimonio real
+    const patrimonioTotal =
+      capitalAjustado + gananciasNetas - totalRetirado;
+
     const dineroEnCalle = Math.max(0, Math.round((totalDesembolsado - totalCapitalRecuperado) * 100) / 100);
     const montoInicialCajas = Math.round((cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
 
@@ -416,13 +438,11 @@ export class CapitalService {
       (montoInicialCajas + totalPagosHoy - totalDesembolsosHoy) * 100
     ) / 100);
 
-    const dineroTotal = Math.round((capitalData.capitalTotal + gananciasAcumuladas) * 100) / 100;
-
     const metricas = this.calcularMetricas(
-      capitalData.capitalTotal,
-      gananciasAcumuladas,
+      capitalAjustado,
+      gananciasNetas,
       dineroEnCaja,
-      totalInteresCobrado,
+      gananciasBrutas,
       interesEsperado._sum.interes ?? 0,
       movimientosMensuales,
       inicioMesActual,
@@ -430,18 +450,18 @@ export class CapitalService {
 
     const resumen = {
       totalCobrado: Math.round((totalesPagos._sum.montoTotal ?? 0) * 100) / 100,
-      totalInteres: totalInteresCobrado,
+      totalInteres: gananciasBrutas,
       totalMora: Math.round((totalesPagos._sum.mora ?? 0) * 100) / 100,
-      totalGastos: totalGastado,
+      totalGastos: gastosTotales,
       totalDesembolsos: totalDesembolsado,
-      balanceNeto: Math.round((totalInteresCobrado - totalGastado - totalRetirado) * 100) / 100,
+      balanceNeto: Math.round((gananciasNetas - totalRetirado) * 100) / 100,
     };
 
     const dinero = {
       enCaja: dineroEnCaja,
       enCajaBase: montoInicialCajas,
       enCalle: dineroEnCalle,
-      total: dineroTotal,
+      total: patrimonioTotal,
     };
 
     // Validar balance contable y agregar alerta si no cuadra
@@ -451,27 +471,48 @@ export class CapitalService {
     if (!balance.cuadra) {
       alertas.unshift({
         tipo: 'CRITICAL',
+<<<<<<< Updated upstream
         mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Capital + Ganancias: RD$${balance.ladoIzquierdo.toLocaleString()} vs Activos (Caja + Calle): RD$${balance.ladoDerecho.toLocaleString()}`,
+=======
+        mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Patrimonio: RD$${balance.patrimonio.toLocaleString()} vs Activos: RD$${balance.activos.toLocaleString()}`,
+>>>>>>> Stashed changes
         codigo: 'DESCUADRE_CONTABLE',
         valor: balance.diferencia,
         umbral: 0,
       });
     }
 
+    // Alert automática si el capital fue reducido por gastos
+    if (excedenteQueConsumeCapital > 0) {
+      alertas.unshift({
+        tipo: 'WARNING',
+        mensaje: `Los gastos excedieron las ganancias. RD$${excedenteQueConsumeCapital.toFixed(2)} fueron descontados del capital.`,
+        codigo: 'CAPITAL_REDUCIDO',
+        valor: excedenteQueConsumeCapital,
+        umbral: 0,
+      });
+    }
+
     return {
       capital: {
+        total: capitalAjustado,
+        original: capitalData.capitalTotal,
+        reducidoPorPerdidas: excedenteQueConsumeCapital,
         inicial: capitalData.capitalInicial,
-        total: capitalData.capitalTotal,
         totalInyecciones: capitalData.totalInyecciones,
         tieneRegistro: capitalData.tieneCapitalRegistrado,
       },
       ganancias: {
-        acumuladas: gananciasAcumuladas,
-        disponibles: gananciasAcumuladas,
-        totalInteresCobrado,
+        netas: gananciasNetas,
+        brutas: gananciasBrutas,
+        gastos: gastosTotales,
+        totalInteresCobrado: gananciasBrutas,
         totalRetiros: totalRetirado,
       },
-      dinero,
+      dinero: {
+        ...dinero,
+        total: patrimonioTotal,
+      },
       resumen,
       metricas,
       alertas,
@@ -480,20 +521,20 @@ export class CapitalService {
   }
 
   private calcularMetricas(
-    capitalTotal: number,
-    gananciasAcumuladas: number,
+    capitalAjustado: number,
+    gananciasNetas: number,
     dineroEnCaja: number,
-    totalInteresCobrado: number,
+    gananciasBrutas: number,
     interesEsperado: number,
     movimientosMensuales: { fecha: Date; interes: number; mora: number }[],
     inicioMesActual: Date,
   ): Metricas {
-    const rentabilidad = capitalTotal > 0
-      ? Math.round((gananciasAcumuladas / capitalTotal) * 10000) / 100
+    const rentabilidad = capitalAjustado > 0
+      ? Math.round((gananciasNetas / capitalAjustado) * 10000) / 100
       : null;
 
     const eficienciaCobranza = interesEsperado > 0
-      ? Math.round((totalInteresCobrado / interesEsperado) * 10000) / 100
+      ? Math.round((gananciasBrutas / interesEsperado) * 10000) / 100
       : null;
 
     const dineroOcioso = Math.max(0, dineroEnCaja - MINIMO_OPERATIVO);
@@ -518,6 +559,7 @@ export class CapitalService {
   private agruparPorMes(
     movimientos: { fecha: Date; interes: number; mora: number }[],
   ): Record<string, number> {
+    // Note: This function calculates gross earnings (interes + mora) by month
     const agrupado: Record<string, number> = {};
 
     for (const mov of movimientos) {
@@ -697,10 +739,11 @@ export class CapitalService {
   // ─── VALIDAR BALANCE CONTABLE ─────────────────────────────────────────
   // Verifica que: Capital + Ganancias = Caja + Calle
   async validarBalance(empresaId: string) {
-    // Calcular capital total
+    // 1. Calcular capital total
     const capitalData = await this.getCapitalEmpresa(empresaId);
     const capitalTotal = capitalData.capitalTotal;
 
+<<<<<<< Updated upstream
     // Calcular ganancias acumuladas (histórico)
     const [pagosGanancias, retirosGanancias, gastosQuery] = await Promise.all([
       this.prisma.pago.aggregate({
@@ -757,12 +800,57 @@ export class CapitalService {
       where: {
         prestamo: { empresaId },
       },
+=======
+    // 2. Calcular ganancias netas: (intereses + mora) - gastos operativos
+    const [ingresos, gastosOperativos] = await Promise.all([
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'PAGO_RECIBIDO' },
+        _sum: { interes: true, mora: true },
+      }),
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'GASTO' },
+        _sum: { interes: true },
+      }),
+    ]);
+    const gananciasNetas = Math.round(
+      ((ingresos._sum.interes ?? 0) + (ingresos._sum.mora ?? 0) - Math.abs(gastosOperativos._sum.interes ?? 0)) * 100
+    ) / 100;
+
+    // 3. Calcular retiros de ganancias
+    const retiros = await this.prisma.retiroGanancias.aggregate({
+      where: { empresaId },
+      _sum: { monto: true },
+    });
+    const totalRetiros = Math.round((retiros._sum.monto ?? 0) * 100) / 100;
+
+    // 4. PATRIMONIO = CapitalTotal + GananciasNetas - Retiros
+    const patrimonio = Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
+
+    // 5. Calcular ACTIVOS: Caja Operativa + Fondo General + En Calle
+    // Caja Operativa = suma de cajas abiertas (montoInicial + ingresos - egresos)
+    const cajasAbiertas = await this.prisma.cajaSesion.findMany({
+      where: { empresaId, estado: 'ABIERTA' },
+      select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
+    });
+    const dineroEnCaja = Math.round(
+      cajasAbiertas.reduce((sum, c) => sum + (c.montoInicial ?? 0) + (c.totalIngresos ?? 0) - (c.totalEgresos ?? 0), 0) * 100
+    ) / 100;
+
+    // En Calle
+    const prestamos = await this.prisma.prestamo.aggregate({
+      where: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+      _sum: { monto: true },
+    });
+    const cobros = await this.prisma.pago.aggregate({
+      where: { prestamo: { empresaId } },
+>>>>>>> Stashed changes
       _sum: { capital: true },
     });
     const dineroEnCalle = Math.max(0, Math.round(
       ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
     ) / 100);
 
+<<<<<<< Updated upstream
     // Nueva fórmula contable
     const ladoIzquierdo = capitalTotal + gananciasAcumuladas;
     const ladoDerecho = dineroEnCaja + dineroEnCalle;
@@ -772,14 +860,34 @@ export class CapitalService {
     return {
       capital: capitalTotal,
       ganancias: gananciasAcumuladas,
+=======
+    // Fondo General = Patrimonio - Caja Operativa - En Calle
+    const fondoGeneral = Math.max(0, Math.round((patrimonio - dineroEnCaja - dineroEnCalle) * 100) / 100);
+
+    // 6. Validar: Activos (Caja + Fondo + Calle) == Patrimonio
+    const activos = Math.round((dineroEnCaja + fondoGeneral + dineroEnCalle) * 100) / 100;
+    const diferencia = Math.round((activos - patrimonio) * 100) / 100;
+    const cuadra = Math.abs(diferencia) < 1;
+
+    return {
+      capital: capitalTotal,
+      gananciasNetas,
+>>>>>>> Stashed changes
       caja: dineroEnCaja,
+      fondoGeneral,
       calle: dineroEnCalle,
+<<<<<<< Updated upstream
       ladoIzquierdo,
       ladoDerecho,
+=======
+      retiros: totalRetiros,
+      patrimonio,
+      activos,
+>>>>>>> Stashed changes
       diferencia,
       cuadra,
       advertencia: !cuadra
-        ? 'Posible descuadre por datos históricos previos al rediseño. Revisar manualmente.'
+        ? 'Descuadre contable detectado. Revisar movimientos financieros.'
         : null,
     };
   }

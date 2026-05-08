@@ -385,8 +385,9 @@ export class CajaService {
     let salidas = 0;
 
     for (const m of movimientos) {
-      if (m.tipo === 'PAGO_RECIBIDO') entradas += m.monto;
+      if (m.tipo === 'PAGO_RECIBIDO' || m.tipo === 'INYECCION_CAPITAL') entradas += m.monto;
       else if (m.tipo === 'DESEMBOLSO') salidas += m.monto;
+      // GASTOS, RETIROS, etc. NO afectan caja operativa (son globales)
     }
 
     return Math.round((caja.montoInicial + entradas - salidas) * 100) / 100;
@@ -655,7 +656,7 @@ export class CajaService {
         ingresos += m.monto;
       }
 
-      if (['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'].includes(m.tipo)) {
+      if (['DESEMBOLSO', 'RETIRO_GANANCIAS'].includes(m.tipo)) {
         egresos += m.monto;
       }
 

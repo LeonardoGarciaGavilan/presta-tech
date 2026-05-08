@@ -107,35 +107,6 @@ export class GastosService {
     }
 
     const tipo = dto.tipo || 'OPERATIVO';
-
-    // Si tipo es OPERATIVO, validar caja abierta y fondos
-    if (tipo === 'OPERATIVO') {
-      // Validar que haya dinero disponible en cajas
-      const cajas = await this.prisma.cajaSesion.aggregate({
-        where: { empresaId: user.empresaId, estado: 'ABIERTA' },
-        _sum: { montoInicial: true },
-      });
-      const pagos = await this.prisma.pago.aggregate({
-        where: { prestamo: { empresaId: user.empresaId } },
-        _sum: { montoTotal: true },
-      });
-      const desembolsos = await this.prisma.desembolsoCaja.aggregate({
-        where: { empresaId: user.empresaId },
-        _sum: { monto: true },
-      });
-
-      const dineroEnCaja = Math.round(
-        ((cajas._sum.montoInicial ?? 0) + (pagos._sum.montoTotal ?? 0) - (desembolsos._sum.monto ?? 0)) * 100
-      ) / 100;
-
-      if (dto.monto > dineroEnCaja) {
-        throw new BadRequestException(
-          `Fondos insuficientes en caja. Disponible: RD$${dineroEnCaja.toLocaleString()}, Solicitado: RD$${dto.monto.toLocaleString()}`
-        );
-      }
-    }
-    // Si tipo es CAPITAL, no se valida caja (usa capital directo)
-
     return this.prisma.$transaction(async (tx) => {
       const gasto = await tx.gasto.create({
         data: {
@@ -154,32 +125,45 @@ export class GastosService {
       // Usar GASTO para OPERATIVO, GASTO_CAPITAL para CAPITAL
       const tipoMovimiento = tipo === 'CAPITAL' ? 'GASTO_CAPITAL' : 'GASTO';
 
+      // Calcular ganancias netas actuales para validar impacto
+      const [totalIntereses, totalGastosPrevios] = await Promise.all([
+        tx.movimientoFinanciero.aggregate({
+          where: { empresaId: user.empresaId, tipo: 'PAGO_RECIBIDO' },
+          _sum: { interes: true, mora: true },
+        }),
+        tx.movimientoFinanciero.aggregate({
+          where: { empresaId: user.empresaId, tipo: 'GASTO' },
+          _sum: { interes: true },
+        }),
+      ]);
+
+      const gananciasNetas = Math.round(
+        ((totalIntereses._sum.interes ?? 0) + (totalIntereses._sum.mora ?? 0) - (totalGastosPrevios._sum.interes ?? 0)) * 100
+      ) / 100;
+
+      const excedeGanancias = tipo === 'OPERATIVO' && dto.monto > gananciasNetas;
+
       await tx.movimientoFinanciero.create({
         data: {
           tipo: tipoMovimiento,
           monto: dto.monto,
-          capital: 0,
-          interes: 0,
+          capital: tipo === 'CAPITAL' ? dto.monto : (excedeGanancias ? Math.max(0, dto.monto - gananciasNetas) : 0),
+          interes: tipo === 'OPERATIVO' ? -dto.monto : 0,
           mora: 0,
           referenciaTipo: 'GASTO',
           referenciaId: gasto.id,
+          cajaId: null, // Gastos nunca afectan caja operativa
           empresaId: user.empresaId,
           usuarioId: user.userId,
-          descripcion: `${dto.categoria}: ${dto.descripcion}`,
+          descripcion: `${dto.categoria}: ${dto.descripcion}${excedeGanancias ? ' (Excede ganancias, reduce capital)' : ''}`,
         },
       });
 
-      // Si es gasto OPERATIVO, actualizar totales de caja (buscar caja abierta)
-      if (tipo === 'OPERATIVO') {
-        const caja = await tx.cajaSesion.findFirst({
-          where: { empresaId: user.empresaId, estado: 'ABIERTA' },
-        });
-        if (caja) {
-          await tx.cajaSesion.update({
-            where: { id: caja.id },
-            data: { totalEgresos: { increment: dto.monto } },
-          });
-        }
+      // Si el gasto excede las ganancias, retornar alerta informativa
+      if (excedeGanancias) {
+        const excedente = Math.round((dto.monto - gananciasNetas) * 100) / 100;
+        // Guardar la alerta en un campo temporal no persistido (se maneja en el return)
+        (gasto as any).alerta = `Este gasto excedió las ganancias disponibles. RD$${excedente.toLocaleString()} fueron descontados del capital.`;
       }
 
       return gasto;
