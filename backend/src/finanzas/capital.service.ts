@@ -471,11 +471,7 @@ export class CapitalService {
     if (!balance.cuadra) {
       alertas.unshift({
         tipo: 'CRITICAL',
-<<<<<<< Updated upstream
-        mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Capital + Ganancias: RD$${balance.ladoIzquierdo.toLocaleString()} vs Activos (Caja + Calle): RD$${balance.ladoDerecho.toLocaleString()}`,
-=======
         mensaje: `Descuadre contable detectado (RD$${balance.diferencia.toLocaleString()}). Revisar inmediatamente. Patrimonio: RD$${balance.patrimonio.toLocaleString()} vs Activos: RD$${balance.activos.toLocaleString()}`,
->>>>>>> Stashed changes
         codigo: 'DESCUADRE_CONTABLE',
         valor: balance.diferencia,
         umbral: 0,
@@ -743,64 +739,6 @@ export class CapitalService {
     const capitalData = await this.getCapitalEmpresa(empresaId);
     const capitalTotal = capitalData.capitalTotal;
 
-<<<<<<< Updated upstream
-    // Calcular ganancias acumuladas (histórico)
-    const [pagosGanancias, retirosGanancias, gastosQuery] = await Promise.all([
-      this.prisma.pago.aggregate({
-        where: { prestamo: { empresaId } },
-        _sum: { interes: true, mora: true },
-      }),
-      this.prisma.retiroGanancias.aggregate({
-        where: { empresaId },
-        _sum: { monto: true },
-      }),
-      this.prisma.movimientoFinanciero.aggregate({
-        where: {
-          empresaId,
-          tipo: { in: ['GASTO', 'GASTO_CAPITAL'] },
-        },
-        _sum: { monto: true },
-      }),
-    ]);
-    const totalInteresCobrado = (pagosGanancias._sum.interes ?? 0) + (pagosGanancias._sum.mora ?? 0);
-    const totalRetiros = retirosGanancias._sum.monto ?? 0;
-    const totalGastos = gastosQuery._sum.monto ?? 0;
-    const gananciasAcumuladas = Math.round(
-      (totalInteresCobrado - totalGastos - totalRetiros) * 100
-    ) / 100;
-
-    // Calcular dinero en caja (desde MovimientoFinanciero)
-    const efectivo = await this.prisma.movimientoFinanciero.aggregate({
-      where: {
-        empresaId,
-        tipo: { in: ['PAGO_RECIBIDO', 'INYECCION_CAPITAL'] },
-      },
-      _sum: { monto: true },
-    });
-    const salidas = await this.prisma.movimientoFinanciero.aggregate({
-      where: {
-        empresaId,
-        tipo: { in: ['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'] },
-      },
-      _sum: { monto: true },
-    });
-    const dineroEnCaja = Math.max(0, Math.round(
-      ((efectivo._sum.monto ?? 0) - (salidas._sum.monto ?? 0)) * 100
-    ) / 100);
-
-    // Calcular dinero en calle (préstamos activos)
-    const prestamos = await this.prisma.prestamo.aggregate({
-      where: {
-        empresaId,
-        estado: { in: ['ACTIVO', 'ATRASADO'] },
-      },
-      _sum: { monto: true },
-    });
-    const cobros = await this.prisma.pago.aggregate({
-      where: {
-        prestamo: { empresaId },
-      },
-=======
     // 2. Calcular ganancias netas: (intereses + mora) - gastos operativos
     const [ingresos, gastosOperativos] = await Promise.all([
       this.prisma.movimientoFinanciero.aggregate({
@@ -843,24 +781,12 @@ export class CapitalService {
     });
     const cobros = await this.prisma.pago.aggregate({
       where: { prestamo: { empresaId } },
->>>>>>> Stashed changes
       _sum: { capital: true },
     });
     const dineroEnCalle = Math.max(0, Math.round(
       ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
     ) / 100);
 
-<<<<<<< Updated upstream
-    // Nueva fórmula contable
-    const ladoIzquierdo = capitalTotal + gananciasAcumuladas;
-    const ladoDerecho = dineroEnCaja + dineroEnCalle;
-    const diferencia = Math.round((ladoIzquierdo - ladoDerecho) * 100) / 100;
-    const cuadra = Math.abs(diferencia) < 5;
-
-    return {
-      capital: capitalTotal,
-      ganancias: gananciasAcumuladas,
-=======
     // Fondo General = Patrimonio - Caja Operativa - En Calle
     const fondoGeneral = Math.max(0, Math.round((patrimonio - dineroEnCaja - dineroEnCalle) * 100) / 100);
 
@@ -872,18 +798,12 @@ export class CapitalService {
     return {
       capital: capitalTotal,
       gananciasNetas,
->>>>>>> Stashed changes
       caja: dineroEnCaja,
       fondoGeneral,
       calle: dineroEnCalle,
-<<<<<<< Updated upstream
-      ladoIzquierdo,
-      ladoDerecho,
-=======
       retiros: totalRetiros,
       patrimonio,
       activos,
->>>>>>> Stashed changes
       diferencia,
       cuadra,
       advertencia: !cuadra
