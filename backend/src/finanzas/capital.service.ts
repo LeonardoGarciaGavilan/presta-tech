@@ -115,12 +115,22 @@ export class CapitalService {
       include: { usuario: { select: { nombre: true } } },
     });
 
-    const capitalTotal = (capital?.capitalInicial ?? 0) + inyecciones.reduce((sum, i) => sum + i.monto, 0);
+    // Obtener total de retiros de capital desde MovimientoFinanciero
+    const retirosCapital = await this.prisma.movimientoFinanciero.aggregate({
+      where: { empresaId, tipo: 'RETIRO_CAPITAL' },
+      _sum: { capital: true },
+    });
+    const totalRetirosCapital = Math.abs(retirosCapital._sum.capital ?? 0);
+
+    const capitalInicial = capital?.capitalInicial ?? 0;
+    const totalInyecciones = inyecciones.reduce((sum, i) => sum + i.monto, 0);
+    const capitalTotal = capitalInicial + totalInyecciones - totalRetirosCapital;
 
     return {
-      capitalInicial: capital?.capitalInicial ?? 0,
+      capitalInicial,
       capitalTotal,
-      totalInyecciones: inyecciones.reduce((sum, i) => sum + i.monto, 0),
+      totalInyecciones,
+      totalRetirosCapital,
       tieneCapitalRegistrado: !!capital,
       fechaRegistro: capital?.fechaRegistro ?? null,
       observaciones: capital?.observaciones ?? null,
@@ -292,6 +302,133 @@ export class CapitalService {
     });
   }
 
+  // ─── CALCULAR CAPITAL RETIRABLE ─────────────────────────────────
+  // Capital que el usuario puede retirar del patrimonio
+  // = Patrimonio - Ganancias - Caja - Calle
+  // Sin afectar la liquidez mínima operativa (RD$5,000)
+  async calcularCapitalRetirable(empresaId: string): Promise<number> {
+    const MINIMO_OPERATIVO = 5000;
+
+    // Obtener componentes del patrimonio
+    const capitalData = await this.getCapitalEmpresa(empresaId);
+    const capitalTotal = capitalData.capitalTotal;
+
+    // Calcular ganancias netas
+    const [ingresos, gastos] = await Promise.all([
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'PAGO_RECIBIDO' },
+        _sum: { interes: true, mora: true },
+      }),
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'GASTO' },
+        _sum: { interes: true },
+      }),
+    ]);
+    const gananciasNetas = Math.max(0, Math.round(
+      ((ingresos._sum.interes ?? 0) + (ingresos._sum.mora ?? 0) - Math.abs(gastos._sum.interes ?? 0)) * 100
+    ) / 100);
+
+    // Calcular dinero en caja
+    const cajas = await this.prisma.cajaSesion.findMany({
+      where: { empresaId, estado: 'ABIERTA' },
+      select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
+    });
+    const dineroEnCaja = Math.round(
+      cajas.reduce((sum, c) => sum + (c.montoInicial ?? 0) + (c.totalIngresos ?? 0) - (c.totalEgresos ?? 0), 0) * 100
+    ) / 100;
+
+    // Calcular dinero en calle
+    const [prestamos, cobros] = await Promise.all([
+      this.prisma.prestamo.aggregate({
+        where: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+        _sum: { monto: true },
+      }),
+      this.prisma.pago.aggregate({
+        where: { prestamo: { empresaId } },
+        _sum: { capital: true },
+      }),
+    ]);
+    const dineroEnCalle = Math.max(0, Math.round(
+      ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
+    ) / 100);
+
+    // Calcular patrimonio total
+    const retiros = await this.prisma.retiroGanancias.aggregate({
+      where: { empresaId },
+      _sum: { monto: true },
+    });
+    const totalRetiros = retiros._sum.monto ?? 0;
+    const patrimonioTotal = Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
+
+    // Capital retirable = Patrimonio - Ganancias - Caja - Calle
+    const capitalRetirable = Math.max(0, Math.round(
+      (patrimonioTotal - gananciasNetas - dineroEnCaja - dineroEnCalle - MINIMO_OPERATIVO) * 100
+    ) / 100);
+
+    return Math.max(0, capitalRetirable);
+  }
+
+  // ─── RETIRAR CAPITAL ───────────────────────────────────────────
+  async retirarCapital(dto: CreateRetiroDto, user: any) {
+    this.assertAdmin(user);
+    const { empresaId } = user;
+
+    // Validar monto
+    if (dto.monto <= 0) {
+      throw new BadRequestException('El monto del retiro debe ser mayor a 0');
+    }
+
+    // Validar que NO haya cajas abiertas
+    const cajaAbierta = await this.prisma.cajaSesion.findFirst({
+      where: { empresaId, estado: 'ABIERTA' },
+    });
+    if (cajaAbierta) {
+      throw new BadRequestException(
+        'No puedes retirar capital mientras existan cajas operativas abiertas. Cierra todas las cajas primero.'
+      );
+    }
+
+    // Validar capital retirable disponible
+    const capitalRetirable = await this.calcularCapitalRetirable(empresaId);
+    if (dto.monto > capitalRetirable) {
+      throw new BadRequestException(
+        `No hay suficiente capital disponible para retirar. Disponible: RD$${capitalRetirable.toLocaleString()}`
+      );
+    }
+
+    // Validar liquidez mínima
+    const MINIMO_OPERATIVO = 5000;
+    if (dto.monto > capitalRetirable - MINIMO_OPERATIVO) {
+      throw new BadRequestException(
+        `No puedes retirar este monto porque compromete la liquidez operativa mínima de RD$${MINIMO_OPERATIVO.toLocaleString()}`
+      );
+    }
+
+    // Crear movimiento financiero (no hay tabla RetiroCapital, solo MovimientoFinanciero)
+    return this.prisma.$transaction(async (tx) => {
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'RETIRO_CAPITAL',
+          monto: dto.monto,
+          capital: -dto.monto,
+          interes: 0,
+          mora: 0,
+          referenciaTipo: 'RETIRO',
+          referenciaId: null,
+          empresaId,
+          usuarioId: user.userId,
+          descripcion: `Retiro de capital: ${dto.concepto}`,
+        },
+      });
+
+      return {
+        mensaje: 'Retiro de capital realizado correctamente',
+        monto: dto.monto,
+        capitalRetirado: dto.monto,
+      };
+    });
+  }
+
   async getDashboard(empresaId: string) {
     const ahora = new Date();
     const inicioMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
@@ -307,7 +444,8 @@ export class CapitalService {
       totalesPagos,
       totalesDesembolsos,
       totalesGastos,
-      totalRetiros,
+      totalRetirosGananciasData,
+      totalRetirosCapitalData,
       cajasAbiertas,
       interesEsperado,
       movimientosMensuales,
@@ -341,6 +479,10 @@ export class CapitalService {
       this.prisma.retiroGanancias.aggregate({
         where: { empresaId },
         _sum: { monto: true },
+      }),
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'RETIRO_CAPITAL' },
+        _sum: { capital: true },
       }),
       this.prisma.cajaSesion.aggregate({
         where: { empresaId, estado: 'ABIERTA' },
@@ -399,7 +541,9 @@ export class CapitalService {
     const gastosTotales = Math.round((totalesGastos._sum.monto ?? 0) * 100) / 100;
     const totalCapitalRecuperado = Math.round((totalesPagos._sum.capital ?? 0) * 100) / 100;
     const totalDesembolsado = Math.round((totalesDesembolsos._sum.monto ?? 0) * 100) / 100;
-    const totalRetirado = Math.round((totalRetiros._sum.monto ?? 0) * 100) / 100;
+    const totalRetiradoGanancias = Math.round((totalRetirosGananciasData._sum.monto ?? 0) * 100) / 100;
+    const totalRetirosCapital = Math.abs(totalRetirosCapitalData._sum.capital ?? 0);
+    const totalRetirosCompleto = totalRetiradoGanancias + totalRetirosCapital;
 
     // Resultado operativo real
     const resultadoOperativo = gananciasBrutas - gastosTotales;
@@ -420,9 +564,9 @@ export class CapitalService {
     const capitalAjustado =
       capitalData.capitalTotal - excedenteQueConsumeCapital;
 
-    // Patrimonio real
+    // Patrimonio real (incluye ambos tipos de retiros)
     const patrimonioTotal =
-      capitalAjustado + gananciasNetas - totalRetirado;
+      capitalAjustado + gananciasNetas - totalRetirosCompleto;
 
     const dineroEnCalle = Math.max(0, Math.round((totalDesembolsado - totalCapitalRecuperado) * 100) / 100);
     const montoInicialCajas = Math.round((cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
@@ -454,7 +598,7 @@ export class CapitalService {
       totalMora: Math.round((totalesPagos._sum.mora ?? 0) * 100) / 100,
       totalGastos: gastosTotales,
       totalDesembolsos: totalDesembolsado,
-      balanceNeto: Math.round((gananciasNetas - totalRetirado) * 100) / 100,
+      balanceNeto: Math.round((gananciasNetas - totalRetirosCompleto) * 100) / 100,
     };
 
     const dinero = {
@@ -489,6 +633,18 @@ export class CapitalService {
       });
     }
 
+    // Alert si la liquidez operativa es baja
+    const capitalRetirable = await this.calcularCapitalRetirable(empresaId);
+    if (capitalRetirable < 10000 && capitalRetirable > 0) {
+      alertas.unshift({
+        tipo: 'WARNING',
+        mensaje: `Liquidez operativa baja. El capital disponible para retiro es de RD$${capitalRetirable.toLocaleString()}.`,
+        codigo: 'LIQUIDEZ_BAJA',
+        valor: capitalRetirable,
+        umbral: 10000,
+      });
+    }
+
     return {
       capital: {
         total: capitalAjustado,
@@ -497,13 +653,14 @@ export class CapitalService {
         inicial: capitalData.capitalInicial,
         totalInyecciones: capitalData.totalInyecciones,
         tieneRegistro: capitalData.tieneCapitalRegistrado,
+        retirable: await this.calcularCapitalRetirable(empresaId),
       },
       ganancias: {
         netas: gananciasNetas,
         brutas: gananciasBrutas,
         gastos: gastosTotales,
         totalInteresCobrado: gananciasBrutas,
-        totalRetiros: totalRetirado,
+        totalRetiros: totalRetirosCompleto,
       },
       dinero: {
         ...dinero,
@@ -755,11 +912,19 @@ export class CapitalService {
     ) / 100;
 
     // 3. Calcular retiros de ganancias
-    const retiros = await this.prisma.retiroGanancias.aggregate({
+    const retirosGanancias = await this.prisma.retiroGanancias.aggregate({
       where: { empresaId },
       _sum: { monto: true },
     });
-    const totalRetiros = Math.round((retiros._sum.monto ?? 0) * 100) / 100;
+    const totalRetirosGanancias = Math.round((retirosGanancias._sum.monto ?? 0) * 100) / 100;
+
+    const retirosCapital = await this.prisma.movimientoFinanciero.aggregate({
+      where: { empresaId, tipo: 'RETIRO_CAPITAL' },
+      _sum: { capital: true },
+    });
+    const totalRetirosCapital = Math.abs(retirosCapital._sum.capital ?? 0);
+
+    const totalRetiros = totalRetirosGanancias + totalRetirosCapital;
 
     // 4. PATRIMONIO = CapitalTotal + GananciasNetas - Retiros
     const patrimonio = Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;

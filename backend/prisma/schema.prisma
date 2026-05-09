@@ -92,6 +92,7 @@ enum MovimientoFinancieroTipo {
   APERTURA_CAJA
   GASTO_CAPITAL
   AJUSTE_CAJA
+  RETIRO_CAPITAL
 }
 
 enum ReferenciaTipo {

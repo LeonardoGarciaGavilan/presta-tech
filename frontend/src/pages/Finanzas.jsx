@@ -169,13 +169,33 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" style={{ animation: "fadeUp 0.2s ease" }}>
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="font-bold text-lg text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-end sm:items-center overflow-y-auto z-50"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="bg-white w-full sm:max-w-lg sm:mx-4 sm:rounded-2xl rounded-t-2xl shadow-2xl"
+        style={{ maxHeight: "95dvh", overflowY: "auto", animation: "slideUp 0.25s ease" }}
+      >
+        {/* Mobile handle */}
+        <div className="flex justify-center pt-3 sm:hidden">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
-        <div className="p-5">{children}</div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 pb-safe">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -189,10 +209,12 @@ export default function Finanzas() {
   // Modal states
   const [showInyeccionModal, setShowInyeccionModal] = useState(false);
   const [showRetiroModal, setShowRetiroModal] = useState(false);
+  const [showRetiroCapitalModal, setShowRetiroCapitalModal] = useState(false);
 
   // Form states
   const [inyeccionForm, setInyeccionForm] = useState({ monto: "", concepto: "" });
   const [retiroForm, setRetiroForm] = useState({ monto: "", concepto: "" });
+  const [retiroCapitalForm, setRetiroCapitalForm] = useState({ monto: "", concepto: "" });
 
   // Submit states
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -218,23 +240,34 @@ export default function Finanzas() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchDashboard();
-    
+  const loadDashboard = useCallback(async () => {
+    // Cargar dashboard
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get("/finanzas/dashboard");
+      setData(res.data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Error al cargar datos financieros");
+    } finally {
+      setLoading(false);
+    }
+
     // Cargar movimientos
-    const fetchMovimientos = async () => {
-      setLoadingMovimientos(true);
-      try {
-        const res = await api.get("/finanzas/movimientos?limite=50");
-        setMovimientos(res.data || []);
-      } catch (err) {
-        console.error("Error al cargar movimientos:", err);
-      } finally {
-        setLoadingMovimientos(false);
-      }
-    };
-    fetchMovimientos();
-  }, [fetchDashboard]);
+    setLoadingMovimientos(true);
+    try {
+      const res = await api.get("/finanzas/movimientos?limite=50");
+      setMovimientos(res.data || []);
+    } catch (err) {
+      console.error("Error al cargar movimientos:", err);
+    } finally {
+      setLoadingMovimientos(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const handleInyeccion = async (e) => {
     e.preventDefault();
@@ -249,7 +282,7 @@ export default function Finanzas() {
       setShowInyeccionModal(false);
       setInyeccionForm({ monto: "", concepto: "" });
       setToast({ message: "Capital inyectado correctamente", type: "success" });
-      fetchDashboard();
+      loadDashboard();
     } catch (err) {
       setErrorSubmit(err.response?.data?.message || "Error al inyectar capital");
     } finally {
@@ -270,7 +303,7 @@ export default function Finanzas() {
       setShowRetiroModal(false);
       setRetiroForm({ monto: "", concepto: "" });
       setToast({ message: "Retiro realizado correctamente", type: "success" });
-      fetchDashboard();
+      loadDashboard();
     } catch (err) {
       setErrorSubmit(err.response?.data?.message || "Error al retirar ganancias");
     } finally {
@@ -278,7 +311,29 @@ export default function Finanzas() {
     }
   };
 
+  const handleRetiroCapital = async (e) => {
+    e.preventDefault();
+    setErrorSubmit(null);
+    setLoadingSubmit(true);
+
+    try {
+      await api.post("/finanzas/retiro-capital", {
+        monto: parseFloat(retiroCapitalForm.monto),
+        concepto: retiroCapitalForm.concepto,
+      });
+      setShowRetiroCapitalModal(false);
+      setRetiroCapitalForm({ monto: "", concepto: "" });
+      setToast({ message: "Retiro de capital realizado correctamente", type: "success" });
+      loadDashboard();
+    } catch (err) {
+      setErrorSubmit(err.response?.data?.message || "Error al retirar capital");
+    } finally {
+      setLoadingSubmit(false);
+    }
+  };
+
   const capitalTotal = data?.capital?.total || 0;
+  const capitalRetirable = data?.capital?.retirable ?? 0;
   const gananciasVisuales = data?.ganancias?.brutas ?? 0;
   const gananciasDisponibles = data?.ganancias?.netas ?? 0;
   const dineroEnCaja = data?.dinero?.enCaja || 0;
@@ -292,7 +347,9 @@ export default function Finanzas() {
 
   const montoInyeccion = parseFloat(inyeccionForm.monto) || 0;
   const montoRetiro = parseFloat(retiroForm.monto) || 0;
+  const montoRetiroCapital = parseFloat(retiroCapitalForm.monto) || 0;
   const esMontoRetiroValido = montoRetiro > 0 && montoRetiro <= gananciasDisponibles;
+  const esMontoRetiroCapitalValido = montoRetiroCapital > 0 && montoRetiroCapital <= capitalRetirable;
 
   if (error) {
     return (
@@ -473,6 +530,93 @@ export default function Finanzas() {
         </form>
       </Modal>
 
+      {/* Modal: Retirar Capital */}
+      <Modal
+        isOpen={showRetiroCapitalModal}
+        onClose={() => { setShowRetiroCapitalModal(false); setRetiroCapitalForm({ monto: "", concepto: "" }); }}
+        title="Retirar Capital"
+      >
+        <form onSubmit={handleRetiroCapital} className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-xs text-amber-600 font-semibold">CAPITAL DISPONIBLE PARA RETIRAR</p>
+            <p className="text-xl font-bold text-amber-700">{formatMoney(capitalRetirable)}</p>
+            <p className="text-xs text-amber-500">Después de reserva operativa</p>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-600">
+            <p>Este retiro reducirá tu capital operativo y patrimonio total. No afectará préstamos activos ni caja operativa.</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Monto a retirar</label>
+            <div className="flex items-center border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-amber-500">
+              <span className="px-3 py-2.5 bg-gray-50 text-gray-500 text-sm font-medium border-r border-gray-200">RD$</span>
+              <input
+                type="number"
+                min="1"
+                step="0.01"
+                value={retiroCapitalForm.monto}
+                onChange={(e) => setRetiroCapitalForm({ ...retiroCapitalForm, monto: e.target.value })}
+                placeholder="0.00"
+                className={`flex-1 px-3 py-2.5 text-sm focus:outline-none font-medium ${
+                  montoRetiroCapital > capitalRetirable && montoRetiroCapital > 0 ? "text-red-600 bg-red-50" : ""
+                }`}
+                autoFocus
+              />
+            </div>
+            {montoRetiroCapital > capitalRetirable && montoRetiroCapital > 0 && (
+              <p className="text-xs text-red-500 mt-1">
+                Máximo disponible: {formatMoney(capitalRetirable)}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Concepto</label>
+            <input
+              type="text"
+              value={retiroCapitalForm.concepto}
+              onChange={(e) => setRetiroCapitalForm({ ...retiroCapitalForm, concepto: e.target.value })}
+              placeholder="Ej: Retiro de capital para uso personal"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          {errorSubmit && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-sm text-red-600">{errorSubmit}</p>
+            </div>
+          )}
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <p className="text-xs text-amber-700 font-medium">
+              ⚠️ Al retirar capital, tu inversión total en el negocio disminuirá.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => { setShowRetiroCapitalModal(false); setRetiroCapitalForm({ monto: "", concepto: "" }); }}
+              className="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loadingSubmit || !esMontoRetiroCapitalValido || !retiroCapitalForm.concepto}
+              className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loadingSubmit ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                "Confirmar Retiro de Capital"
+              )}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -503,6 +647,17 @@ export default function Finanzas() {
             </svg>
             Retirar Ganancias
           </button>
+          {capitalRetirable > 0 && (
+            <button
+              onClick={() => setShowRetiroCapitalModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-semibold border border-amber-200 transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M10 6V4a2 2 0 012-2h4a2 2 0 012 2v2m0 0v6a2 2 0 01-2 2H6" />
+              </svg>
+              Retirar Capital
+            </button>
+          )}
         </div>
       </div>
 
@@ -749,6 +904,7 @@ export default function Finanzas() {
                           GASTO: { icon: "🔴", label: "Gasto", color: "text-red-600", bg: "bg-red-50" },
                           INYECCION_CAPITAL: { icon: "💰", label: "Inyección capital", color: "text-blue-600", bg: "bg-blue-50" },
                           RETIRO_GANANCIAS: { icon: "📤", label: "Retiro ganancias", color: "text-orange-600", bg: "bg-orange-50" },
+                          RETIRO_CAPITAL: { icon: "📉", label: "Retiro capital", color: "text-red-600", bg: "bg-red-50" },
                           CIERRE_CAJA: { icon: "📦", label: "Cierre caja", color: "text-gray-600", bg: "bg-gray-50" },
                           CORRECCION: { icon: "🔧", label: "Corrección", color: "text-purple-600", bg: "bg-purple-50" },
                         };
@@ -771,15 +927,18 @@ export default function Finanzas() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className={`text-sm font-bold ${mov.tipo === "GASTO" || mov.tipo === "RETIRO_GANANCIAS" || mov.tipo === "DESEMBOLSO" ? "text-red-600" : "text-emerald-600"}`}>
-                                  {mov.tipo === "GASTO" || mov.tipo === "RETIRO_GANANCIAS" || mov.tipo === "DESEMBOLSO" ? "-" : "+"}{formatMoney(mov.monto)}
+                                <p className={`text-sm font-bold ${mov.tipo === "GASTO" || mov.tipo === "RETIRO_GANANCIAS" || mov.tipo === "RETIRO_CAPITAL" || mov.tipo === "DESEMBOLSO" ? "text-red-600" : "text-emerald-600"}`}>
+                                  {mov.tipo === "GASTO" || mov.tipo === "RETIRO_GANANCIAS" || mov.tipo === "RETIRO_CAPITAL" || mov.tipo === "DESEMBOLSO" ? "-" : "+"}{formatMoney(mov.monto)}
                                 </p>
                               </div>
                             </div>
-                            {(mov.capital > 0 || mov.interes > 0 || mov.mora > 0) && (
+                            {(mov.capital > 0 || mov.capital < 0 || mov.interes > 0 || mov.mora > 0) && (
                               <div className="flex gap-4 mt-2 ml-11">
                                 {mov.capital > 0 && (
                                   <span className="text-xs text-blue-600">Capital: {formatMoney(mov.capital)}</span>
+                                )}
+                                {mov.capital < 0 && (
+                                  <span className="text-xs text-red-600">Capital: -{formatMoney(Math.abs(mov.capital))}</span>
                                 )}
                                 {mov.interes > 0 && (
                                   <span className="text-xs text-amber-600">Interés: {formatMoney(mov.interes)}</span>

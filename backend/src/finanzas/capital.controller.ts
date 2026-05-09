@@ -73,6 +73,22 @@ export class CapitalController {
     return this.capitalService.retirarGanancias(dto, req.user);
   }
 
+  @Post('retiro-capital')
+  async retirarCapital(
+    @Body() dto: CreateRetiroDto,
+    @Request() req: any,
+  ) {
+    return this.capitalService.retirarCapital(dto, req.user);
+  }
+
+  @Get('capital-retirable')
+  async getCapitalRetirable(@Request() req: any) {
+    const retirable = await this.capitalService.calcularCapitalRetirable(
+      req.user.empresaId,
+    );
+    return { capitalRetirable: retirable };
+  }
+
   @Get('ganancias-disponibles')
   async getGananciasDisponibles(@Request() req: any) {
     const disponibles = await this.capitalService.calcularGananciasDisponibles(
