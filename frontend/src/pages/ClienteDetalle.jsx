@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { formatCurrency, formatDate, formatCedula, EstadoBadge } from "../utils/prestamosUtils";
 import MiniMapa from "../components/MiniMapa";
+import ClienteQuickActions from "../components/ClienteQuickActions";
 
 const Spinner = () => (
   <div className="flex justify-center items-center py-20">
@@ -142,6 +143,9 @@ export default function ClienteDetalle() {
         <KPI label="Saldo pendiente" value={formatCurrency(saldoPendienteTotal)} color="blue" />
         <KPI label="Pagados" value={prestamosPagados.length} color="amber" />
       </div>
+
+      {/* ⚡ Acciones rápidas */}
+      <ClienteQuickActions cliente={cliente} prestamos={prestamos} />
 
       {/* Información del Cliente */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
