@@ -116,7 +116,34 @@ export class ClientesService {
   }
 
   async findOne(id: string, empresaId: string) {
-    return this.assertExists(id, empresaId);
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id, empresaId },
+      include: {
+        prestamos: {
+          include: {
+            cuotas: {
+              where: { pagada: false },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        garantias: {
+          include: {
+            cuotas: {
+              where: { pagada: false },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        rutaClientes: {
+          include: {
+            ruta: true,
+          },
+        },
+      },
+    });
+    if (!cliente) throw new NotFoundException(`Cliente ${id} no encontrado`);
+    return cliente;
   }
 
   async update(id: string, updateClienteDto: UpdateClienteDto, empresaId: string) {

@@ -1151,7 +1151,10 @@ export class PrestamosService {
     }, 0);
 
     const montoTotalPrestado = await this.prisma.prestamo.aggregate({
-      where: { empresaId },
+      where: {
+        empresaId,
+        estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
+      },
       _sum: { monto: true },
     });
 

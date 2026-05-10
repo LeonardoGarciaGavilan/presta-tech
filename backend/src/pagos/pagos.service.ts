@@ -127,7 +127,7 @@ export class PagosService {
       cuotaObjetivo = cuotaEspecifica;
     }
 
-    const montoExacto = cuotaObjetivo.monto + cuotaObjetivo.mora;
+    const montoExacto = Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
 
     // ── Calcular distribución del pago ─────────────────────────────────────
     let montoPagado     = dto.montoPagado;
@@ -150,7 +150,7 @@ export class PagosService {
     }
 
     excedente = Math.round(montoPagado * 100) / 100;
-    const pagoCompleto = dto.montoPagado >= montoExacto;
+    const pagoCompleto = Math.round(dto.montoPagado * 100) / 100 >= montoExacto;
 
     // ── Transacción — SOLO operaciones de escritura y lectura crítica ──────
     // FUERA: usuario.findUnique, registrarAuditoria (no son críticos para atomicidad)

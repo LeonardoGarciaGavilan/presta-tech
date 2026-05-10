@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import DashboardLayout from "./layout/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Clientes from "./pages/Clientes";
+import ClienteDetalle from "./pages/ClienteDetalle";
 import Prestamos from "./pages/Prestamos";
 import NuevoPrestamo from "./pages/NuevoPrestamo";
 import DetallePrestamo from "./pages/DetallePrestamo";
@@ -60,6 +61,9 @@ function App() {
         } />
         <Route path="/clientes" element={
           <ProtectedRoute><DashboardLayout><Clientes /></DashboardLayout></ProtectedRoute>
+        } />
+        <Route path="/clientes/:id" element={
+          <ProtectedRoute><DashboardLayout><ClienteDetalle /></DashboardLayout></ProtectedRoute>
         } />
         <Route path="/prestamos" element={
           <ProtectedRoute><DashboardLayout><Prestamos /></DashboardLayout></ProtectedRoute>

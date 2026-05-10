@@ -1,5 +1,6 @@
 // src/pages/Clientes.jsx
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import EstadoCuenta from "../components/EstadoCuenta";
 import api from "../services/api";
 import { PROVINCIAS_MUNICIPIOS, PROVINCIAS } from "../utils/provincias-municipios";
@@ -231,7 +232,7 @@ const Paginacion = ({ pagina, totalPaginas, total, porPagina, onChange, loading 
 };
 
 // ─── Tarjeta móvil ────────────────────────────────────────────────────────────
-const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelete, onReactivar }) => (
+const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelete, onReactivar, onPerfil }) => (
   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
     <div className="flex items-start justify-between gap-2">
       <div>
@@ -251,6 +252,7 @@ const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelet
     <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
       {!verInactivos ? (
         <>
+          <button onClick={() => onPerfil(cliente.id)} className="flex-1 min-w-[70px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">Perfil</button>
           <button onClick={() => onEstadoCuenta(cliente.id)} className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200">Estado</button>
           <button onClick={() => onEdit(cliente)} className="flex-1 min-w-[80px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>
           <button onClick={() => onDelete(cliente)} className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>
@@ -264,6 +266,8 @@ const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelet
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Clientes() {
+  const navigate = useNavigate();
+
   // ── Estado paginación server-side ──
   const [clientes,       setClientes]       = useState([]);
   const [totalClientes,  setTotalClientes]  = useState(0);
@@ -618,6 +622,7 @@ export default function Clientes() {
                           <div className="flex justify-end gap-2 flex-wrap">
                             {!verInactivos ? (
                               <>
+                                <button onClick={() => navigate(`/clientes/${c.id}`)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">Perfil</button>
                                 <button onClick={() => setEstadoCuentaId(c.id)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200"><span className="hidden lg:inline">Estado de Cuenta</span><span className="lg:hidden">Estado</span></button>
                                 <button onClick={() => handleEdit(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>
                                 <button onClick={() => handleDelete(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>
@@ -639,7 +644,8 @@ export default function Clientes() {
                   <div key={c.id} className="p-3">
                     <TarjetaCliente cliente={c} verInactivos={verInactivos}
                       onEstadoCuenta={setEstadoCuentaId} onEdit={handleEdit}
-                      onDelete={handleDelete} onReactivar={handleReactivar} />
+                      onDelete={handleDelete} onReactivar={handleReactivar}
+                      onPerfil={(id) => navigate(`/clientes/${id}`)} />
                   </div>
                 ))}
               </div>

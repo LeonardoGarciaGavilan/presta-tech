@@ -51,7 +51,10 @@ export class DashboardService {
 
       // Monto total prestado
       this.prisma.prestamo.aggregate({
-        where: { empresaId },
+        where: {
+          empresaId,
+          estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
+        },
         _sum: { monto: true },
       }),
 

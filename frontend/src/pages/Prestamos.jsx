@@ -354,7 +354,7 @@ export default function Prestamos() {
             <StatCard label="Cuotas vencidas"   value={resumen.cuotasVencidasHoy} sub="Sin pagar hoy" color="red" />
             {isAdmin && solicitudes.length > 0
               ? <StatCard label="Solicitudes" value={solicitudes.length} sub="Pendientes de gestión" color="sky" />
-              : <StatCard label="Total prestado" value={formatCurrency(resumen.montoTotalPrestado)} sub="Histórico acumulado" color="amber" />}
+              : <StatCard label="Total prestado" value={formatCurrency(resumen.montoTotalPrestado)} sub="Capital en cartera" color="amber" />}
           </div>
         )}
 

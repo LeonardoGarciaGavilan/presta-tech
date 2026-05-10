@@ -56,6 +56,26 @@ const DIAS_FRECUENCIA = {
 // ─── Estado badge config ──────────────────────────────────────────────────────
 
 export const ESTADO_CONFIG = {
+  SOLICITADO: {
+    label: "Solicitado",
+    classes: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    dot: "bg-yellow-500",
+  },
+  EN_REVISION: {
+    label: "En Revisión",
+    classes: "bg-purple-100 text-purple-700 border-purple-200",
+    dot: "bg-purple-500",
+  },
+  APROBADO: {
+    label: "Aprobado",
+    classes: "bg-sky-100 text-sky-700 border-sky-200",
+    dot: "bg-sky-500",
+  },
+  RECHAZADO: {
+    label: "Rechazado",
+    classes: "bg-red-100 text-red-700 border-red-200",
+    dot: "bg-red-500",
+  },
   ACTIVO: {
     label: "Activo",
     classes: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -79,7 +99,7 @@ export const ESTADO_CONFIG = {
 };
 
 export const EstadoBadge = ({ estado }) => {
-  const cfg = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.CANCELADO;
+  const cfg = ESTADO_CONFIG[estado] ?? { label: estado || "Desconocido", classes: "bg-gray-100 text-gray-500 border-gray-200", dot: "bg-gray-400" };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.classes}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />

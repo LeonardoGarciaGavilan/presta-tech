@@ -341,7 +341,7 @@ export default function DetallePrestamo() {
               <InfoItem label="Teléfono" value={cliente?.telefono} />
               <InfoItem label="Celular"  value={cliente?.celular} />
             </div>
-            <button onClick={() => navigate("/clientes")} className="mt-3 text-xs text-blue-600 hover:underline">
+            <button onClick={() => navigate(`/clientes/${cliente.id}`)} className="mt-3 text-xs text-blue-600 hover:underline">
               Ver perfil completo →
             </button>
           </div>
@@ -358,6 +358,9 @@ export default function DetallePrestamo() {
                 <InfoItem label="Teléfono" value={prestamo.garante.telefono} />
                 <InfoItem label="Celular"  value={prestamo.garante.celular} />
               </div>
+              <button onClick={() => navigate(`/clientes/${prestamo.garante.id}`)} className="mt-3 text-xs text-blue-600 hover:underline">
+                Ver perfil completo →
+              </button>
             </div>
           )}
 
