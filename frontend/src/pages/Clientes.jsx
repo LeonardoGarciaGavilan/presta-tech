@@ -1,28 +1,11 @@
 // src/pages/Clientes.jsx
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import EstadoCuenta from "../components/EstadoCuenta";
+import MiniMapa from "../components/MiniMapa";
 import api from "../services/api";
 import { PROVINCIAS_MUNICIPIOS, PROVINCIAS } from "../utils/provincias-municipios";
 import { getSectores } from "../utils/sectores-municipios";
-
-// ─── Leaflet dinámico ─────────────────────────────────────────────────────────
-let lfReady = false;
-const loadLeaflet = () => new Promise((resolve) => {
-  if (window.L && lfReady) { resolve(window.L); return; }
-  if (!document.getElementById("lf-css")) {
-    const l = document.createElement("link"); l.id = "lf-css"; l.rel = "stylesheet";
-    l.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
-    document.head.appendChild(l);
-  }
-  if (document.getElementById("lf-js")) {
-    const t = setInterval(() => { if (window.L) { clearInterval(t); lfReady = true; resolve(window.L); } }, 80);
-  } else {
-    const s = document.createElement("script"); s.id = "lf-js";
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
-    s.onload = () => { lfReady = true; resolve(window.L); }; document.head.appendChild(s);
-  }
-});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCedula = (v) => { const d = v.replace(/\D/g, "").slice(0, 11); if (d.length <= 3) return d; if (d.length <= 10) return `${d.slice(0, 3)}-${d.slice(3)}`; return `${d.slice(0, 3)}-${d.slice(3, 10)}-${d.slice(10)}`; };
@@ -39,17 +22,6 @@ const INITIAL_FORM = {
   latitud: null, longitud: null, rutaId: "",
 };
 
-if (typeof document !== "undefined" && !document.getElementById("clientes-styles")) {
-  const s = document.createElement("style"); s.id = "clientes-styles";
-  s.textContent = `
-    @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-    .modal-enter{animation:fadeUp 0.2s ease}
-    .leaflet-container{z-index:0}
-  `;
-  document.head.appendChild(s);
-}
-
 const POR_PAGINA = 20;
 
 // ─── Hook de debounce ─────────────────────────────────────────────────────────
@@ -61,104 +33,6 @@ function useDebounce(value, delay = 400) {
   }, [value, delay]);
   return debounced;
 }
-
-// ─── Mapa interactivo ─────────────────────────────────────────────────────────
-const MapaUbicacion = ({ lat, lng, onCoordsChange }) => {
-  const divRef = useRef(null);
-  const mapRef = useRef(null);
-  const markRef = useRef(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let dead = false;
-    loadLeaflet().then(L => {
-      if (dead || !divRef.current || mapRef.current) return;
-      const map = L.map(divRef.current, { zoomControl: true })
-        .setView([lat ?? 18.74, lng ?? -70.16], lat ? 15 : 8);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom: 19,
-      }).addTo(map);
-      if (lat && lng) {
-        const mk = L.marker([lat, lng], { draggable: true }).addTo(map);
-        mk.on("dragend", e => { const p = e.target.getLatLng(); onCoordsChange(p.lat, p.lng); });
-        markRef.current = mk;
-      }
-      map.on("click", e => {
-        const { lat: clat, lng: clng } = e.latlng;
-        if (markRef.current) { markRef.current.setLatLng([clat, clng]); }
-        else {
-          const mk = L.marker([clat, clng], { draggable: true }).addTo(map);
-          mk.on("dragend", ev => { const p = ev.target.getLatLng(); onCoordsChange(p.lat, p.lng); });
-          markRef.current = mk;
-        }
-        onCoordsChange(clat, clng);
-      });
-      mapRef.current = map;
-      setReady(true);
-    });
-    return () => { dead = true; };
-  }, []);
-
-  useEffect(() => {
-    const L = window.L;
-    if (!L || !mapRef.current || !ready) return;
-    if (lat && lng) {
-      if (markRef.current) { markRef.current.setLatLng([lat, lng]); }
-      else {
-        const mk = L.marker([lat, lng], { draggable: true }).addTo(mapRef.current);
-        mk.on("dragend", e => { const p = e.target.getLatLng(); onCoordsChange(p.lat, p.lng); });
-        markRef.current = mk;
-      }
-      mapRef.current.setView([lat, lng], Math.max(mapRef.current.getZoom(), 15));
-    } else if (!lat && markRef.current) {
-      mapRef.current.removeLayer(markRef.current);
-      markRef.current = null;
-    }
-  }, [lat, lng, ready]);
-
-  const limpiar = () => {
-    if (markRef.current && mapRef.current) { mapRef.current.removeLayer(markRef.current); markRef.current = null; }
-    onCoordsChange(null, null);
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-        <div ref={divRef} style={{ height: "280px", width: "100%" }} />
-        {!ready && (
-          <div className="absolute inset-0 bg-white flex items-center justify-center gap-2">
-            <div className="w-5 h-5 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            <span className="text-sm text-gray-400">Cargando mapa…</span>
-          </div>
-        )}
-        {ready && !lat && (
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center pointer-events-none">
-            <span className="bg-black/65 text-white text-[11px] font-medium px-3 py-1.5 rounded-full shadow">
-              👆 Haz clic en el mapa para marcar la ubicación
-            </span>
-          </div>
-        )}
-      </div>
-      {lat && lng ? (
-        <div className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-emerald-500 shrink-0">📍</span>
-            <div className="min-w-0">
-              <p className="text-xs text-emerald-700 font-semibold">Ubicación guardada</p>
-              <p className="text-[10px] text-emerald-500 font-mono truncate">{lat.toFixed(6)}, {lng.toFixed(6)}</p>
-            </div>
-          </div>
-          <button type="button" onClick={limpiar}
-            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-red-50 text-red-500 hover:text-red-700 text-xs font-semibold border border-red-200 transition-all">
-            ✕ Limpiar pin
-          </button>
-        </div>
-      ) : ready && (
-        <p className="text-[10px] text-gray-400 text-center">También puedes arrastrar el pin para ajustar la posición exacta</p>
-      )}
-    </div>
-  );
-};
 
 // ─── UI atoms ─────────────────────────────────────────────────────────────────
 const Toast = ({ message, type, onClose }) => {
@@ -791,7 +665,8 @@ export default function Clientes() {
                   </div>
                 )}
                 {mostrarMapa && (
-                  <MapaUbicacion lat={form.latitud} lng={form.longitud}
+                  <MiniMapa lat={form.latitud} lng={form.longitud}
+                    readOnly={false} height="280px"
                     onCoordsChange={(lat, lng) => setForm(p => ({ ...p, latitud: lat, longitud: lng }))} />
                 )}
                 {!mostrarMapa && form.latitud && (

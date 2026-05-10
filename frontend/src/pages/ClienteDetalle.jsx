@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { formatCurrency, formatDate, formatCedula, EstadoBadge } from "../utils/prestamosUtils";
+import MiniMapa from "../components/MiniMapa";
 
 const Spinner = () => (
   <div className="flex justify-center items-center py-20">
@@ -47,6 +48,16 @@ export default function ClienteDetalle() {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
+  const copiarCoordenadas = () => {
+    if (cliente?.latitud && cliente?.longitud) {
+      navigator.clipboard.writeText(`${cliente.latitud},${cliente.longitud}`);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -152,6 +163,83 @@ export default function ClienteDetalle() {
             <InfoItem label="Dirección" value={cliente.direccion} />
           </div>
         </div>
+      </div>
+
+      {/* 🗺️ Ubicación */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">🗺️ Ubicación</h2>
+          <div className="flex items-center gap-2">
+            {cliente.latitud && cliente.longitud && (
+              <>
+                <button onClick={() => setMostrarMapa(m => !m)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    mostrarMapa
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  }`}>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  {mostrarMapa ? 'Ocultar mapa' : 'Mostrar mapa'}
+                </button>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+                  cliente.coordsAproximadas
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cliente.coordsAproximadas ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                  📍 Ubicación {cliente.coordsAproximadas ? 'aproximada' : 'exacta'}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {cliente.latitud && cliente.longitud ? (
+          <>
+            {mostrarMapa && (
+              <MiniMapa
+                lat={cliente.latitud}
+                lng={cliente.longitud}
+                readOnly
+              />
+            )}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mt-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">📍 Coordenadas registradas</span>
+                <button onClick={copiarCoordenadas}
+                  className="text-xs font-semibold transition-colors text-blue-600 hover:text-blue-800">
+                  {copiado ? '✓ Copiado' : 'Copiar coordenadas'}
+                </button>
+              </div>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${cliente.latitud},${cliente.longitud}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 transition-all"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Abrir en Google Maps
+              </a>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-6">
+            <p className="text-sm text-gray-400">📍 Este cliente no tiene ubicación registrada</p>
+            <button disabled
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 cursor-not-allowed">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Actualizar ubicación
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Información Financiera */}

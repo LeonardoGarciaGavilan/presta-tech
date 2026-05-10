@@ -58,3 +58,24 @@ body.modal-open {
 .pb-safe {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
+
+/* Leaflet container z-index fix for modals */
+.leaflet-container {
+  z-index: 0;
+}
+
+/* Toast animation */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Modal animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-enter {
+  animation: fadeUp 0.2s ease;
+}
