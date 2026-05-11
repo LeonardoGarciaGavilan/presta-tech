@@ -9,7 +9,6 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      injectManifest: true,
       manifest: {
         id: '/',
         name: 'Presta Tech',
@@ -71,7 +70,8 @@ export default defineConfig({
             handler: 'NetworkOnly'
           }
         ],
-        navigateFallback: 'offline.html'
+        navigateFallback: 'index.html',
+        navigateFallbackAllowlist: [/^\/[^.]*$/]
       },
       devOptions: {
         enabled: false
