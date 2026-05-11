@@ -9,11 +9,10 @@ import { getSectores } from "../utils/sectores-municipios";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCedula = (v) => { const d = v.replace(/\D/g, "").slice(0, 11); if (d.length <= 3) return d; if (d.length <= 10) return `${d.slice(0, 3)}-${d.slice(3)}`; return `${d.slice(0, 3)}-${d.slice(3, 10)}-${d.slice(10)}`; };
-const formatTelefono = (v) => { const d = v.replace(/\D/g, "").slice(0, 10); if (d.length <= 3) return d; if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`; return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`; };
+const formatTelefono = (v) => { const d = v.replace(/\D/g, ""); if (d.length === 10 && ["809","829","849"].includes(d.slice(0, 3))) { if (d.length <= 3) return d; if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`; return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`; } return v.replace(/[^\d+]/g, ""); };
 const formatIngresos = (v) => { const r = v.replace(/[^\d.]/g, ""); const p = r.split("."); p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ","); return p.slice(0, 2).join("."); };
 const stripIngresos = (v) => v.replace(/,/g, "");
-const PREFIJOS_RD = ["809", "829", "849"];
-const validateTel = (v) => { const d = v.replace(/\D/g, ""); if (!d) return true; return d.length === 10 && PREFIJOS_RD.includes(d.slice(0, 3)); };
+const validateTel = (v) => { const d = v.replace(/[^\d]/g, ""); if (!d) return true; return d.length >= 7 && d.length <= 15; };
 
 const INITIAL_FORM = {
   nombre: "", apellido: "", cedula: "", telefono: "", celular: "", email: "",
@@ -120,7 +119,7 @@ const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelet
     </div>
     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
       <div><span className="text-gray-400">Cédula</span><p className="font-mono font-medium text-gray-700">{formatCedula(cliente.cedula || "")}</p></div>
-      <div><span className="text-gray-400">Teléfono</span><p className="font-medium text-gray-700">{formatTelefono(cliente.telefono || "") || "—"}</p></div>
+      <div><span className="text-gray-400">Celular</span><p className="font-medium text-gray-700">{formatTelefono(cliente.celular || "") || "—"}</p></div>
       {cliente.provincia && <div className="col-span-2"><span className="text-gray-400">Ubicación</span><p className="font-medium text-gray-700">{[cliente.provincia, cliente.municipio, cliente.sector].filter(Boolean).join(" › ")}</p></div>}
     </div>
     <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
@@ -312,7 +311,7 @@ export default function Clientes() {
   const handleBlur = (e) => {
     const { name, value } = e.target; const ne = { ...errors };
     if (name === "cedula" && value) { const d = value.replace(/\D/g, ""); if (d.length !== 11) ne.cedula = "La cédula debe tener 11 dígitos."; else delete ne.cedula; }
-    if ((name === "telefono" || name === "celular") && value) { if (!validateTel(value)) ne[name] = "Número inválido (809, 829 o 849)."; else delete ne[name]; }
+    if ((name === "telefono" || name === "celular") && value) { if (!validateTel(value)) ne[name] = "Número inválido. Debe contener entre 7 y 15 dígitos."; else delete ne[name]; }
     if (name === "email" && value) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) ne.email = "Correo inválido."; else delete ne.email; }
     setErrors(ne);
   };
@@ -322,8 +321,9 @@ export default function Clientes() {
     const d = form.cedula.replace(/\D/g, "");
     if (!d) ne.cedula = "La cédula es obligatoria.";
     else if (d.length !== 11) ne.cedula = "La cédula debe tener 11 dígitos.";
-    if (form.telefono && !validateTel(form.telefono)) ne.telefono = "Número inválido.";
-    if (form.celular && !validateTel(form.celular)) ne.celular = "Número inválido.";
+    if (form.telefono && !validateTel(form.telefono)) ne.telefono = "Número inválido. Debe contener entre 7 y 15 dígitos.";
+    if (!form.celular) ne.celular = "El celular es obligatorio.";
+    else if (!validateTel(form.celular)) ne.celular = "Número inválido. Debe contener entre 7 y 15 dígitos.";
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) ne.email = "Correo inválido.";
     return ne;
   };
@@ -364,9 +364,10 @@ export default function Clientes() {
       const { rutaId, ...formSinRuta } = form;
       const payload = {
         ...formSinRuta,
+        email: form.email?.trim() || undefined,
         cedula: form.cedula.replace(/\D/g, ""),
-        telefono: form.telefono.replace(/\D/g, ""),
-        celular: form.celular.replace(/\D/g, ""),
+        telefono: form.telefono.replace(/[^\d+]/g, ""),
+        celular: form.celular.replace(/[^\d+]/g, ""),
         ingresos: form.ingresos ? parseFloat(stripIngresos(form.ingresos)) : null,
         latitud: form.latitud ?? undefined,
         longitud: form.longitud ?? undefined,
@@ -467,7 +468,7 @@ export default function Clientes() {
                     <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
                       <th className="px-4 py-3 text-left font-semibold">Cliente</th>
                       <th className="px-4 py-3 text-left font-semibold">Cédula</th>
-                      <th className="px-4 py-3 text-left font-semibold hidden md:table-cell">Teléfono</th>
+                      <th className="px-4 py-3 text-left font-semibold hidden md:table-cell">Celular</th>
                       <th className="px-4 py-3 text-left font-semibold hidden lg:table-cell">Ubicación</th>
                       <th className="px-4 py-3 text-left font-semibold">Estado</th>
                       <th className="px-4 py-3 text-right font-semibold">Acciones</th>
@@ -481,7 +482,7 @@ export default function Clientes() {
                           {c.email && <div className="text-xs text-gray-400 font-normal">{c.email}</div>}
                         </td>
                         <td className="px-4 py-3 text-gray-600 font-mono text-xs">{formatCedula(c.cedula || "")}</td>
-                        <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{formatTelefono(c.telefono || "") || "—"}</td>
+                        <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{formatTelefono(c.celular || "") || "—"}</td>
                         <td className="px-4 py-3 hidden lg:table-cell">
                           {c.provincia ? (
                             <div>
@@ -562,8 +563,8 @@ export default function Clientes() {
                     { name: "apellido", ph: "Apellido" },
                     { name: "cedula", ph: "Cédula (001-0000000-0)", req: true, hint: "Formato: 001-0000000-0" },
                     { name: "email", ph: "Correo Electrónico", type: "email" },
-                    { name: "telefono", ph: "Teléfono (809) 000-0000", hint: "Prefijos: 809, 829, 849" },
-                    { name: "celular", ph: "Celular (809) 000-0000", hint: "Prefijos: 809, 829, 849" },
+                    { name: "telefono", ph: "Teléfono (opcional)" },
+                    { name: "celular", ph: "+1 809 000 0000", hint: "+ y código de país para internacional" },
                   ].map(f => (
                     <div key={f.name}>
                       <input name={f.name} type={f.type || "text"} value={form[f.name]} placeholder={f.ph}

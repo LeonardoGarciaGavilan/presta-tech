@@ -3,15 +3,20 @@ import { formatCurrency } from '../utils/prestamosUtils';
 
 function normalizarCelular(num) {
   if (!num) return null;
-  const d = String(num).replace(/\D/g, '').slice(0, 10);
-  return d.length === 10 ? d : null;
+  const d = String(num).replace(/[^\d+]/g, '');
+  const digits = d.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) return null;
+  return d;
 }
 
 function formatearNumero(num) {
   if (!num) return '';
-  const d = String(num).replace(/\D/g, '');
-  if (d.length !== 10) return num;
-  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  const d = String(num).replace(/[^\d+]/g, '');
+  const digits = d.replace(/\D/g, '');
+  if (digits.length === 10 && ["809","829","849"].includes(digits.slice(0, 3))) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return d;
 }
 
 function obtenerPrestamoPrioritario(prestamos) {
@@ -55,7 +60,7 @@ export default function ClienteQuickActions({ cliente, prestamos }) {
         </button>
 
         {celular && (
-          <a href={`https://wa.me/1${celular}`} target="_blank" rel="noopener noreferrer"
+          <a href={`https://wa.me/${(() => { const d = celular.replace(/\D/g, ''); return !celular.startsWith('+') && d.length === 10 ? '1' + d : d; })()}`} target="_blank" rel="noopener noreferrer"
             className="flex flex-col items-start gap-1.5 p-3 rounded-xl border border-gray-200 bg-white hover:bg-emerald-50 hover:border-emerald-200 active:scale-[0.98] transition-all cursor-pointer">
             <span className="text-lg leading-none">💬</span>
             <span className="text-sm font-semibold text-gray-800">WhatsApp</span>
