@@ -8,9 +8,10 @@ import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 
-const ACCESS_TOKEN_EXPIRY = '15m';
+const ACCESS_TOKEN_EXPIRY = '1h';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
+const TOKEN_REUSE_GRACE_MS = 10_000;
 
 const MAX_INTENTOS_FALLIDOS = 5;
 const BLOQUEO_MINUTOS = 10;
@@ -323,9 +324,23 @@ export class AuthService {
 
     // Validación: token no ha sido revocado
     if (storedToken.revoked || storedToken.revokedAt) {
-      // 🚨 SECURITY: Posible robo de token - invalidar todas las sesiones
-      await this.handleTokenReuse(storedToken.usuarioId);
-      throw new UnauthorizedException('Sesión comprometida. Por favor inicia sesión nuevamente.');
+      if (storedToken.revokedAt && Date.now() - storedToken.revokedAt.getTime() < TOKEN_REUSE_GRACE_MS) {
+        // ⚡ Race condition: el token se rotó hace <10s (F5 durante refresh, tabs múltiples)
+        // En vez de invalidar todo, emitimos tokens nuevos normalmente
+        // El rotate subsecuente revocará este intento de reuso benigno
+        await registrarAuditoria(this.prisma, {
+          empresaId: storedToken.usuario?.empresaId ?? 'sistema',
+          usuarioId: storedToken.usuarioId,
+          tipo: 'AUTH',
+          accion: 'TOKEN_REUSE_GRACE',
+          descripcion: `Race condition en refresh token (${Math.round((Date.now() - storedToken.revokedAt.getTime()) / 1000)}s desde revocación)`,
+          nivel: 'WARN',
+        });
+      } else {
+        // 🚨 SECURITY: Token revocado hace tiempo - posible robo de token
+        await this.handleTokenReuse(storedToken.usuarioId);
+        throw new UnauthorizedException('Sesión comprometida. Por favor inicia sesión nuevamente.');
+      }
     }
 
     // Validación: token no ha expirado

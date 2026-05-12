@@ -43,7 +43,7 @@ function isTokenExpiringSoon(token) {
   if (!payload || !payload.exp) return true;
   
   const now = Math.floor(Date.now() / 1000);
-  const bufferSeconds = 30;
+  const bufferSeconds = 60;
   
   return payload.exp <= (now + bufferSeconds);
 }
