@@ -101,9 +101,12 @@ const exportarExcel = (sheets, filename) => {
 
 // ─── Exportar PDF ─────────────────────────────────────────────────────────────
 const exportarPDF = (contenidoRef, titulo) => {
-  const html = contenidoRef.current.innerHTML;
-  const ventana = window.open("", "_blank", "width=1000,height=700");
-  ventana.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+  try {
+    const html = contenidoRef.current?.innerHTML;
+    if (!html) return;
+    const ventana = window.open("", "_blank", "width=1000,height=700");
+    if (!ventana) return;
+    ventana.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
     <title>${titulo}</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
@@ -121,8 +124,13 @@ const exportarPDF = (contenidoRef, titulo) => {
       tfoot td{font-weight:700;background:#f1f5f9}
       @media print{@page{margin:12mm}}
     </style></head><body>${html}</body></html>`);
-  ventana.document.close(); ventana.focus();
-  setTimeout(() => { ventana.print(); ventana.close(); }, 400);
+    ventana.document.close();
+    ventana.onafterprint = () => ventana.close();
+    setTimeout(() => { ventana.focus(); ventana.print(); }, 400);
+    setTimeout(() => { try { if (!ventana.closed) ventana.close(); } catch (e) { console.error(e); } }, 15000);
+  } catch (err) {
+    console.error("Error al exportar PDF:", err);
+  }
 };
 
 const TABS = [

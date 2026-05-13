@@ -23,8 +23,12 @@ const FRECUENCIA_LABEL = { DIARIO:"Diario", SEMANAL:"Semanal", QUINCENAL:"Quince
 const METODO_LABEL     = { EFECTIVO:"Efectivo", TRANSFERENCIA:"Transferencia", TARJETA:"Tarjeta", CHEQUE:"Cheque" };
 
 const imprimirPDF = (ref, titulo) => {
-  const ventana = window.open("", "_blank", "width=900,height=700");
-  ventana.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+  try {
+    const html = ref.current?.innerHTML;
+    if (!html) return;
+    const ventana = window.open("", "_blank", "width=900,height=700");
+    if (!ventana) return;
+    ventana.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
   <title>${titulo}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;color:#1e293b;padding:20px;font-size:11px}
@@ -44,9 +48,14 @@ const imprimirPDF = (ref, titulo) => {
     td{padding:5px 8px;border-bottom:1px solid #f8fafc}.right{text-align:right}.text-red{color:#dc2626}.text-green{color:#059669}
     .footer{margin-top:16px;padding-top:8px;border-top:1px dashed #e2e8f0;text-align:center;font-size:9px;color:#94a3b8}
     @media print{@page{margin:10mm}}
-  </style></head><body>${ref.current.innerHTML}</body></html>`);
-  ventana.document.close(); ventana.focus();
-  setTimeout(() => { ventana.print(); ventana.close(); }, 400);
+  </style></head><body>${html}</body></html>`);
+    ventana.document.close();
+    ventana.onafterprint = () => ventana.close();
+    setTimeout(() => { ventana.focus(); ventana.print(); }, 400);
+    setTimeout(() => { try { if (!ventana.closed) ventana.close(); } catch (e) { console.error(e); } }, 15000);
+  } catch (err) {
+    console.error("Error al imprimir PDF:", err);
+  }
 };
 
 if (typeof document !== "undefined" && !document.getElementById("ec-styles")) {

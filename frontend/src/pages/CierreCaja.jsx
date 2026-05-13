@@ -297,7 +297,11 @@ const imprimirCierre = (caja, resumenDia, empresa, isAdmin) => {
       ${diferencia===0?"✓ Cuadre exacto":diferencia>0?`Sobrante: ${fmtC(diferencia)}`:`Faltante: ${fmtC(Math.abs(diferencia))}`}
     </div>` : "";
 
+  try {
+    if (typeof empresa !== "string" && empresa?.nombre) empresa = empresa.nombre;
+  } catch (_) {}
   const ventana = window.open("","_blank","width=800,height=900");
+  if (!ventana) return;
   ventana.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
     <title>Cierre de Caja — ${fmtFechaCorta(fecha)}</title>
     <style>
@@ -366,8 +370,9 @@ const imprimirCierre = (caja, resumenDia, empresa, isAdmin) => {
     <div class="footer">${empresa} · Generado el ${new Intl.DateTimeFormat("es-DO",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date())}</div>
   </body></html>`);
   ventana.document.close();
-  ventana.focus();
-  setTimeout(() => { ventana.print(); ventana.close(); }, 400);
+  ventana.onafterprint = () => ventana.close();
+  setTimeout(() => { ventana.focus(); ventana.print(); }, 400);
+  setTimeout(() => { try { if (!ventana.closed) ventana.close(); } catch (e) { console.error(e); } }, 15000);
 };
 
 // ─── Historial ────────────────────────────────────────────────────────────────

@@ -57,9 +57,12 @@ export default function ReciboPago({ data, empresa, onClose }) {
   const tieneAbono    = abonoCapital > 0;
 
   const handlePrint = () => {
-    const contenido = reciboRef.current.innerHTML;
-    const ventana = window.open("", "_blank", "width=400,height=700");
-    ventana.document.write(`
+    try {
+      const contenido = reciboRef.current?.innerHTML;
+      if (!contenido) return;
+      const ventana = window.open("", "_blank", "width=400,height=700");
+      if (!ventana) return;
+      ventana.document.write(`
       <!DOCTYPE html>
       <html lang="es">
       <head>
@@ -77,16 +80,20 @@ export default function ReciboPago({ data, empresa, onClose }) {
           }
           @media print {
             body { width: 80mm; }
-            @page { margin: 4mm; size: 80mm auto; }
+            @page { margin: 4mm; }
           }
         </style>
       </head>
       <body>${contenido}</body>
       </html>
     `);
-    ventana.document.close();
-    ventana.focus();
-    setTimeout(() => { ventana.print(); ventana.close(); }, 400);
+      ventana.document.close();
+      ventana.onafterprint = () => ventana.close();
+      setTimeout(() => { ventana.focus(); ventana.print(); }, 400);
+      setTimeout(() => { try { if (!ventana.closed) ventana.close(); } catch (e) { console.error(e); } }, 15000);
+    } catch (err) {
+      console.error("Error al imprimir recibo:", err);
+    }
   };
 
   // ─── Estilos inline (para que funcionen en la ventana de impresión) ────────
