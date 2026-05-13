@@ -114,26 +114,72 @@ const IconX = () => (
   </svg>
 );
 
+// ─── DEFINICIÓN DE SECCIONES DEL SIDEBAR ─────────────────────────────
+// Cada sección agrupa rutas relacionadas con un encabezado visual.
+// El orden aquí determina el orden en el sidebar.
+const NAV_SECTIONS = [
+  {
+    label: 'PANEL',
+    routes: ['/dashboard'],
+  },
+  {
+    label: 'OPERACIONES',
+    routes: ['/clientes', '/prestamos', '/pagos', '/caja', '/rutas'],
+  },
+  {
+    label: 'FINANZAS',
+    routes: ['/finanzas', '/control-cajas', '/gastos', '/reportes'],
+  },
+  {
+    label: 'HERRAMIENTAS',
+    routes: ['/amortizacion'],
+  },
+  {
+    label: 'ADMINISTRACIÓN',
+    routes: ['/analisis-rutas', '/usuarios', '/alertas', '/empleados', '/auditoria'],
+  },
+  {
+    label: 'CONFIGURACIÓN',
+    routes: ['/perfil', '/configuracion'],
+  },
+];
+
+// ─── ITEMS DEL SIDEBAR (ordenados por sección) ───────────────────────
+// Los items se renderizan agrupados según NAV_SECTIONS más arriba.
+// adminOnly: solo ADMIN/SUPERADMIN ven el item.
+// superAdminOnly: solo SUPERADMIN ve el item.
+// badge: habilita contador de alertas vía WebSocket.
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", Icon: IconDashboard },
-  { to: "/clientes", label: "Clientes", Icon: IconClientes },
-  { to: "/prestamos", label: "Préstamos", Icon: IconPrestamos },
-  { to: "/pagos", label: "Pagos", Icon: IconPagos },
-  { to: "/caja", label: "Cierre de Caja", Icon: IconCaja },
-  { to: "/amortizacion", label: "Amortización", Icon: IconAmortizacion },
-  { to: "/rutas", label: "Rutas", Icon: IconRuta },
-  { to: "/alertas", label: "Alertas", Icon: IconAlertas, adminOnly: true, badge: true },
-  { to: "/reportes", label: "Reportes", Icon: IconReportes, adminOnly: true },
-  { to: "/gastos", label: "Gastos", Icon: IconGastos, adminOnly: true },
-  { to: "/empleados", label: "Empleados", Icon: IconEmpleados, adminOnly: true },
-  { to: "/finanzas", label: "Finanzas", Icon: IconFinanzas, adminOnly: true },
-  { to: "/analisis-rutas", label: "Análisis de Rutas", Icon: IconAnalisisRutas, adminOnly: true },
-  { to: "/control-cajas", label: "Control de Cajas", Icon: IconCaja, adminOnly: true },
-  { to: "/usuarios", label: "Usuarios", Icon: IconUsuario, adminOnly: true },
-  { to: "/auditoria", label: "Auditoría", Icon: IconAuditoria, adminOnly: true },
-  { to: "/configuracion", label: "Configuración", Icon: IconConfig, adminOnly: true },
-  { to: "/perfil", label: "Perfil", Icon: IconPerfil },
-  { to: "/superadmin/auditoria", label: "Auditoría del Sistema", Icon: IconAuditoria, superAdminOnly: true },
+  // PANEL
+  { to: "/dashboard",              label: "Dashboard",                Icon: IconDashboard },
+
+  // OPERACIONES
+  { to: "/clientes",               label: "Clientes",                 Icon: IconClientes },
+  { to: "/prestamos",              label: "Préstamos",                Icon: IconPrestamos },
+  { to: "/pagos",                  label: "Pagos",                    Icon: IconPagos },
+  { to: "/caja",                   label: "Caja",                     Icon: IconCaja },
+  { to: "/rutas",                  label: "Rutas de Cobro",           Icon: IconRuta },
+
+  // FINANZAS
+  { to: "/finanzas",               label: "Estado Financiero",        Icon: IconFinanzas,       adminOnly: true },
+  { to: "/control-cajas",          label: "Control de Caja",          Icon: IconCaja,           adminOnly: true },
+  { to: "/gastos",                 label: "Gastos",                   Icon: IconGastos,         adminOnly: true },
+  { to: "/reportes",               label: "Reportes",                 Icon: IconReportes,       adminOnly: true },
+
+  // HERRAMIENTAS
+  { to: "/amortizacion",           label: "Simulador de Amortización", Icon: IconAmortizacion },
+
+  // ADMINISTRACIÓN
+  { to: "/analisis-rutas",         label: "Análisis de Rutas",        Icon: IconAnalisisRutas,  adminOnly: true },
+  { to: "/usuarios",               label: "Usuarios",                 Icon: IconUsuario,        adminOnly: true },
+  { to: "/alertas",                label: "Buzón de Alertas",         Icon: IconAlertas,        adminOnly: true, badge: true },
+  { to: "/empleados",              label: "Empleados",                Icon: IconEmpleados,      adminOnly: true },
+  { to: "/auditoria",              label: "Auditoría",                Icon: IconAuditoria,      adminOnly: true },
+
+  // CONFIGURACIÓN
+  { to: "/perfil",                 label: "Perfil",                   Icon: IconPerfil },
+  { to: "/configuracion",          label: "Configuración",            Icon: IconConfig,         adminOnly: true },
+  { to: "/superadmin/auditoria",   label: "Auditoría del Sistema",    Icon: IconAuditoria,      superAdminOnly: true },
 ];
 
 const NavItem = ({ to, label, Icon, collapsed, onClick, badgeCount }) => (
@@ -141,15 +187,15 @@ const NavItem = ({ to, label, Icon, collapsed, onClick, badgeCount }) => (
     to={to}
     onClick={onClick}
     className={({ isActive }) => `
-      flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+      flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium
       transition-all duration-150 group relative
-      ${isActive ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40" : "text-slate-400 hover:bg-white/8 hover:text-white"}
+      ${isActive ? "bg-blue-600 text-white shadow-md shadow-blue-900/30" : "text-slate-400 hover:bg-white/[0.07] hover:text-white"}
       ${collapsed ? "justify-center" : ""}
     `}
   >
     {({ isActive }) => (
       <>
-        {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-blue-300 rounded-r-full" />}
+        {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-blue-300/80 rounded-r-full" />}
         <div className="relative">
           <Icon />
           {/* Badge en ícono cuando está colapsado */}
@@ -237,21 +283,21 @@ export default function DashboardLayout({ children }) {
   const SidebarInner = ({ onNav }) => (
     <>
       {/* Logo */}
-      <div className={`flex items-center gap-3 px-4 py-5 border-b border-white/8 ${collapsed && !onNav ? "justify-center" : ""}`}>
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-xs font-bold shrink-0 shadow-lg shadow-blue-900/40">
+      <div className={`flex items-center gap-3 px-3 py-4 border-b border-white/10 ${collapsed && !onNav ? "justify-center" : ""}`}>
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-xs font-bold shrink-0 shadow-lg shadow-blue-900/40">
           {initials}
         </div>
         {(!collapsed || onNav) && (
           <div className="overflow-hidden">
             <p className="text-sm font-bold text-white truncate leading-tight">{user?.empresa || "Mi Empresa"}</p>
-            <p className="text-[10px] text-blue-400 font-medium uppercase tracking-widest">Sistema de Préstamos</p>
+            <p className="text-[10px] text-blue-400/60 font-medium uppercase tracking-[0.12em]">Sistema de Préstamos</p>
           </div>
         )}
       </div>
 
       {/* Badge rol */}
       {(!collapsed || onNav) && (
-        <div className="px-4 pt-3 pb-1">
+        <div className="px-3 pt-2 pb-2">
           <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isSuperAdmin ? "bg-purple-500/20 text-purple-300 border border-purple-500/30" : isAdmin ? "bg-blue-500/20 text-blue-300 border border-blue-500/30" : "bg-slate-500/20 text-slate-400 border border-slate-500/30"}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${isSuperAdmin ? "bg-purple-400" : isAdmin ? "bg-blue-400" : "bg-slate-400"}`} />
             {isSuperAdmin ? "Super Admin" : isAdmin ? "Administrador" : "Empleado"}
@@ -260,32 +306,48 @@ export default function DashboardLayout({ children }) {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ to, label, Icon, badge }) => (
-          <NavItem
-            key={to} to={to} label={label} Icon={Icon}
-            collapsed={collapsed && !onNav}
-            onClick={onNav}
-            badgeCount={badge && isAdmin ? alertasBadge : 0}
-          />
-        ))}
+      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        {NAV_SECTIONS.map((section) => {
+          const sectionItems = navItems.filter(item => section.routes.includes(item.to));
+          if (sectionItems.length === 0) return null;
+
+          return (
+            <div key={section.label} className="mb-5 last:mb-0">
+              {(!collapsed || onNav) && (
+                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {sectionItems.map(({ to, label, Icon, badge }) => (
+                  <NavItem
+                    key={to} to={to} label={label} Icon={Icon}
+                    collapsed={collapsed && !onNav}
+                    onClick={onNav}
+                    badgeCount={badge && isAdmin ? alertasBadge : 0}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </nav>
 
       {/* Usuario + logout */}
-      <div className="px-3 pb-4 space-y-2 border-t border-white/8 pt-3">
+      <div className="px-3 pb-3 space-y-1.5 border-t border-white/10 pt-3">
         {(!collapsed || onNav) && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
-            <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.04]">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center text-[11px] font-bold shrink-0 shadow-inner">
               {user?.nombre?.[0]?.toUpperCase() || "U"}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs text-white font-medium truncate">{user?.nombre || "Usuario"}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
+              <p className="text-xs font-semibold text-white truncate">{user?.nombre || "Usuario"}</p>
+              <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
             </div>
           </div>
         )}
         <button onClick={handleLogout}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-500/15 hover:text-red-400 transition-all group relative ${collapsed && !onNav ? "justify-center" : ""}`}>
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all group relative ${collapsed && !onNav ? "justify-center" : ""}`}>
           <IconLogout />
           {(!collapsed || onNav) && <span>Cerrar sesión</span>}
           {collapsed && !onNav && (
