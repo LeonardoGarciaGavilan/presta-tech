@@ -1,5 +1,6 @@
 //recibopago.jsx
 import { useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { formatCurrency, formatCedula, FRECUENCIA_LABEL } from "../utils/prestamosUtils";
 
 const formatDateLong = (date) => {
@@ -57,43 +58,7 @@ export default function ReciboPago({ data, empresa, onClose }) {
   const tieneAbono    = abonoCapital > 0;
 
   const handlePrint = () => {
-    try {
-      const contenido = reciboRef.current?.innerHTML;
-      if (!contenido) return;
-      const ventana = window.open("", "_blank", "width=400,height=700");
-      if (!ventana) return;
-      ventana.document.write(`
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8" />
-        <title>Recibo #${numeroRecibo}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: #fff;
-            color: #1e293b;
-            width: 80mm;
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          @media print {
-            body { width: 80mm; }
-            @page { margin: 4mm; }
-          }
-        </style>
-      </head>
-      <body>${contenido}</body>
-      </html>
-    `);
-      ventana.document.close();
-      ventana.onafterprint = () => ventana.close();
-      setTimeout(() => { ventana.focus(); ventana.print(); }, 400);
-      setTimeout(() => { try { if (!ventana.closed) ventana.close(); } catch (e) { console.error(e); } }, 15000);
-    } catch (err) {
-      console.error("Error al imprimir recibo:", err);
-    }
+    window.print();
   };
 
   // ─── Estilos inline (para que funcionen en la ventana de impresión) ────────
@@ -117,6 +82,209 @@ export default function ReciboPago({ data, empresa, onClose }) {
   const nombreEmpresa = typeof empresa?.nombre === "string"
     ? empresa.nombre
     : empresa?.nombre?.nombre ?? empresa?.nombreEmpresa ?? "Sistema de Préstamos";
+
+  const renderReceiptContent = () => (
+    <div style={reciboStyle}>
+
+      {/* ── Encabezado empresa ── */}
+      <div style={{ textAlign: "center", marginBottom: "12px" }}>
+        <div style={{
+          width: "40px", height: "40px",
+          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+          borderRadius: "10px", display: "inline-flex",
+          alignItems: "center", justifyContent: "center",
+          color: "white", fontWeight: "800", fontSize: "16px",
+          marginBottom: "6px",
+        }}>
+          {(nombreEmpresa ?? "SP").slice(0, 2).toUpperCase()}
+        </div>
+        <p style={{ fontSize: "14px", fontWeight: "800", color: "#0f172a", margin: "0 0 1px" }}>
+          {nombreEmpresa}
+        </p>
+        <p style={{ fontSize: "10px", color: "#94a3b8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          Recibo de Pago
+        </p>
+      </div>
+
+      <div style={dividerDashed} />
+
+      {/* ── Nº recibo y fecha ── */}
+      <div style={rowStyle}>
+        <div>
+          <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Recibo Nº</p>
+          <p style={{ fontSize: "15px", fontWeight: "800", color: "#2563eb" }}>#{numeroRecibo}</p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: "10px", color: "#94a3b8" }}>{formatDateLong(pago.createdAt || pago.fecha)}</p>
+        </div>
+      </div>
+
+      <div style={dividerDashed} />
+
+      {/* ── Cliente ── */}
+      <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "5px" }}>Cliente</p>
+      <p style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", marginBottom: "2px" }}>
+        {cliente?.nombre} {cliente?.apellido}
+      </p>
+      <p style={{ fontSize: "11px", color: "#64748b", fontFamily: "monospace" }}>
+        {formatCedula(cliente?.cedula || "")}
+      </p>
+
+      <div style={dividerDashed} />
+
+      {/* ── Datos del préstamo ── */}
+      <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>Préstamo</p>
+      <div style={rowStyle}>
+        <span style={labelStyle}>Monto original</span>
+        <span style={valueStyle}>{formatCurrency(prestamo?.monto)}</span>
+      </div>
+      <div style={rowStyle}>
+        <span style={labelStyle}>Frecuencia</span>
+        <span style={valueStyle}>{FRECUENCIA_LABEL[prestamo?.frecuenciaPago] || "—"}</span>
+      </div>
+      <div style={rowStyle}>
+        <span style={labelStyle}>Total cuotas</span>
+        <span style={valueStyle}>{prestamo?.numeroCuotas} cuotas</span>
+      </div>
+      <div style={rowStyle}>
+        <span style={labelStyle}>Tasa de interés</span>
+        <span style={valueStyle}>{prestamo?.tasaInteres}%</span>
+      </div>
+
+      <div style={dividerDashed} />
+
+      {/* ── Cuota que se paga ── */}
+      {cuota && (
+        <>
+          <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+            Cuota Pagada
+          </p>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Número de cuota</span>
+            <span style={{ ...valueStyle, color: "#2563eb" }}>#{cuota.numero} de {prestamo?.numeroCuotas}</span>
+          </div>
+          <div style={rowStyle}>
+            <span style={labelStyle}>Fecha vencimiento</span>
+            <span style={valueStyle}>{formatDateShort(cuota.fechaVencimiento)}</span>
+          </div>
+          <div style={dividerDashed} />
+        </>
+      )}
+
+      {/* ── Detalle del Pago ── */}
+      <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
+        Detalle del Pago
+      </p>
+
+      {/* Capital de cuota */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Capital</span>
+        <span style={valueStyle}>{formatCurrency(capitalCuota)}</span>
+      </div>
+
+      {/* Interés */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Interés</span>
+        <span style={{ ...valueStyle, color: "#b45309" }}>{formatCurrency(pago?.interes ?? 0)}</span>
+      </div>
+
+      {/* Mora (solo si aplica) */}
+      {(pago?.mora ?? 0) > 0 && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Mora</span>
+          <span style={{ ...valueStyle, color: "#dc2626" }}>{formatCurrency(pago?.mora ?? 0)}</span>
+        </div>
+      )}
+
+      {/* Abono a capital (excedente) — solo si aplica */}
+      {tieneAbono && (
+        <div style={{ ...rowStyle, marginTop: "4px" }}>
+          <span style={{ ...labelStyle, color: "#0369a1" }}>Abono a capital</span>
+          <span style={{ ...valueStyle, color: "#0369a1" }}>+ {formatCurrency(abonoCapital)}</span>
+        </div>
+      )}
+
+      {/* Nota de abono */}
+      {tieneAbono && (
+        <div style={{
+          background: "#eff6ff", border: "1px solid #bfdbfe",
+          borderRadius: "6px", padding: "6px 8px", margin: "6px 0",
+        }}>
+          <p style={{ fontSize: "10px", color: "#1d4ed8", margin: 0 }}>
+            💡 Se aplicó un abono de {formatCurrency(abonoCapital)} al capital pendiente de las próximas cuotas.
+          </p>
+        </div>
+      )}
+
+      {/* Método de pago */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Método</span>
+        <span style={valueStyle}>{METODO_LABEL[pago?.metodo] || pago?.metodo || "—"}</span>
+      </div>
+
+      {/* Referencia */}
+      {pago?.referencia && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>Referencia</span>
+          <span style={valueStyle}>{pago.referencia}</span>
+        </div>
+      )}
+
+      <div style={dividerSolid} />
+
+      {/* ── Total pagado ── */}
+      <div style={{
+        background: "linear-gradient(135deg, #059669, #047857)",
+        borderRadius: "8px", padding: "12px",
+        textAlign: "center", margin: "10px 0",
+      }}>
+        <p style={{ fontSize: "10px", color: "#a7f3d0", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px" }}>
+          Total Pagado
+        </p>
+        <p style={{ fontSize: "24px", fontWeight: "800", color: "#ffffff", margin: 0 }}>
+          {formatCurrency(pago?.montoTotal ?? 0)}
+        </p>
+      </div>
+
+      {/* ── Saldo restante ── */}
+      <div style={rowStyle}>
+        <span style={labelStyle}>Saldo restante</span>
+        <span style={{
+          ...valueStyle,
+          color: estaSaldado ? "#059669" : "#0f172a",
+        }}>
+          {formatCurrency(saldoRestante)}
+        </span>
+      </div>
+
+      {/* ── Observación ── */}
+      {pago?.observacion && (
+        <>
+          <div style={dividerDashed} />
+          <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Observación</p>
+          <p style={{ fontSize: "11px", color: "#64748b" }}>{pago.observacion}</p>
+        </>
+      )}
+
+      <div style={dividerDashed} />
+
+      {/* ── Footer ── */}
+      <div style={{ textAlign: "center" }}>
+        {estaSaldado && (
+          <p style={{ fontSize: "12px", fontWeight: "700", color: "#059669", marginBottom: "4px" }}>
+            🎉 ¡Préstamo completamente pagado!
+          </p>
+        )}
+        <p style={{ fontSize: "10px", color: "#94a3b8" }}>
+          Registrado por: {usuario?.nombre ?? "—"}
+        </p>
+        <p style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
+          {nombreEmpresa} · {formatDateShort(new Date())}
+        </p>
+      </div>
+
+    </div>
+  );
 
   return (
     <>
@@ -168,210 +336,18 @@ export default function ReciboPago({ data, empresa, onClose }) {
           {/* Recibo */}
           <div className="p-4 bg-gray-50">
             <div ref={reciboRef}>
-              <div style={reciboStyle}>
-
-                {/* ── Encabezado empresa ── */}
-                <div style={{ textAlign: "center", marginBottom: "12px" }}>
-                  <div style={{
-                    width: "40px", height: "40px",
-                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                    borderRadius: "10px", display: "inline-flex",
-                    alignItems: "center", justifyContent: "center",
-                    color: "white", fontWeight: "800", fontSize: "16px",
-                    marginBottom: "6px",
-                  }}>
-                    {(nombreEmpresa ?? "SP").slice(0, 2).toUpperCase()}
-                  </div>
-                  <p style={{ fontSize: "14px", fontWeight: "800", color: "#0f172a", margin: "0 0 1px" }}>
-                    {nombreEmpresa}
-                  </p>
-                  <p style={{ fontSize: "10px", color: "#94a3b8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                    Recibo de Pago
-                  </p>
-                </div>
-
-                <div style={dividerDashed} />
-
-                {/* ── Nº recibo y fecha ── */}
-                <div style={rowStyle}>
-                  <div>
-                    <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>Recibo Nº</p>
-                    <p style={{ fontSize: "15px", fontWeight: "800", color: "#2563eb" }}>#{numeroRecibo}</p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ fontSize: "10px", color: "#94a3b8" }}>{formatDateLong(pago.createdAt || pago.fecha)}</p>
-                  </div>
-                </div>
-
-                <div style={dividerDashed} />
-
-                {/* ── Cliente ── */}
-                <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "5px" }}>Cliente</p>
-                <p style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", marginBottom: "2px" }}>
-                  {cliente?.nombre} {cliente?.apellido}
-                </p>
-                <p style={{ fontSize: "11px", color: "#64748b", fontFamily: "monospace" }}>
-                  {formatCedula(cliente?.cedula || "")}
-                </p>
-
-                <div style={dividerDashed} />
-
-                {/* ── Datos del préstamo ── */}
-                <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>Préstamo</p>
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Monto original</span>
-                  <span style={valueStyle}>{formatCurrency(prestamo?.monto)}</span>
-                </div>
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Frecuencia</span>
-                  <span style={valueStyle}>{FRECUENCIA_LABEL[prestamo?.frecuenciaPago] || "—"}</span>
-                </div>
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Total cuotas</span>
-                  <span style={valueStyle}>{prestamo?.numeroCuotas} cuotas</span>
-                </div>
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Tasa de interés</span>
-                  <span style={valueStyle}>{prestamo?.tasaInteres}%</span>
-                </div>
-
-                <div style={dividerDashed} />
-
-                {/* ── Cuota que se paga ── */}
-                {cuota && (
-                  <>
-                    <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
-                      Cuota Pagada
-                    </p>
-                    <div style={rowStyle}>
-                      <span style={labelStyle}>Número de cuota</span>
-                      <span style={{ ...valueStyle, color: "#2563eb" }}>#{cuota.numero} de {prestamo?.numeroCuotas}</span>
-                    </div>
-                    <div style={rowStyle}>
-                      <span style={labelStyle}>Fecha vencimiento</span>
-                      <span style={valueStyle}>{formatDateShort(cuota.fechaVencimiento)}</span>
-                    </div>
-                    <div style={dividerDashed} />
-                  </>
-                )}
-
-                {/* ── Detalle del Pago ── */}
-                <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "6px" }}>
-                  Detalle del Pago
-                </p>
-
-                {/* Capital de cuota */}
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Capital</span>
-                  <span style={valueStyle}>{formatCurrency(capitalCuota)}</span>
-                </div>
-
-                {/* Interés */}
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Interés</span>
-                  <span style={{ ...valueStyle, color: "#b45309" }}>{formatCurrency(pago?.interes ?? 0)}</span>
-                </div>
-
-                {/* Mora (solo si aplica) */}
-                {(pago?.mora ?? 0) > 0 && (
-                  <div style={rowStyle}>
-                    <span style={labelStyle}>Mora</span>
-                    <span style={{ ...valueStyle, color: "#dc2626" }}>{formatCurrency(pago?.mora ?? 0)}</span>
-                  </div>
-                )}
-
-                {/* Abono a capital (excedente) — solo si aplica */}
-                {tieneAbono && (
-                  <div style={{ ...rowStyle, marginTop: "4px" }}>
-                    <span style={{ ...labelStyle, color: "#0369a1" }}>Abono a capital</span>
-                    <span style={{ ...valueStyle, color: "#0369a1" }}>+ {formatCurrency(abonoCapital)}</span>
-                  </div>
-                )}
-
-                {/* Nota de abono */}
-                {tieneAbono && (
-                  <div style={{
-                    background: "#eff6ff", border: "1px solid #bfdbfe",
-                    borderRadius: "6px", padding: "6px 8px", margin: "6px 0",
-                  }}>
-                    <p style={{ fontSize: "10px", color: "#1d4ed8", margin: 0 }}>
-                      💡 Se aplicó un abono de {formatCurrency(abonoCapital)} al capital pendiente de las próximas cuotas.
-                    </p>
-                  </div>
-                )}
-
-                {/* Método de pago */}
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Método</span>
-                  <span style={valueStyle}>{METODO_LABEL[pago?.metodo] || pago?.metodo || "—"}</span>
-                </div>
-
-                {/* Referencia */}
-                {pago?.referencia && (
-                  <div style={rowStyle}>
-                    <span style={labelStyle}>Referencia</span>
-                    <span style={valueStyle}>{pago.referencia}</span>
-                  </div>
-                )}
-
-                <div style={dividerSolid} />
-
-                {/* ── Total pagado ── */}
-                <div style={{
-                  background: "linear-gradient(135deg, #059669, #047857)",
-                  borderRadius: "8px", padding: "12px",
-                  textAlign: "center", margin: "10px 0",
-                }}>
-                  <p style={{ fontSize: "10px", color: "#a7f3d0", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px" }}>
-                    Total Pagado
-                  </p>
-                  <p style={{ fontSize: "24px", fontWeight: "800", color: "#ffffff", margin: 0 }}>
-                    {formatCurrency(pago?.montoTotal ?? 0)}
-                  </p>
-                </div>
-
-                {/* ── Saldo restante ── */}
-                <div style={rowStyle}>
-                  <span style={labelStyle}>Saldo restante</span>
-                  <span style={{
-                    ...valueStyle,
-                    color: estaSaldado ? "#059669" : "#0f172a",
-                  }}>
-                    {formatCurrency(saldoRestante)}
-                  </span>
-                </div>
-
-                {/* ── Observación ── */}
-                {pago?.observacion && (
-                  <>
-                    <div style={dividerDashed} />
-                    <p style={{ fontSize: "10px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Observación</p>
-                    <p style={{ fontSize: "11px", color: "#64748b" }}>{pago.observacion}</p>
-                  </>
-                )}
-
-                <div style={dividerDashed} />
-
-                {/* ── Footer ── */}
-                <div style={{ textAlign: "center" }}>
-                  {estaSaldado && (
-                    <p style={{ fontSize: "12px", fontWeight: "700", color: "#059669", marginBottom: "4px" }}>
-                      🎉 ¡Préstamo completamente pagado!
-                    </p>
-                  )}
-                  <p style={{ fontSize: "10px", color: "#94a3b8" }}>
-                    Registrado por: {usuario?.nombre ?? "—"}
-                  </p>
-                  <p style={{ fontSize: "10px", color: "#cbd5e1", marginTop: "3px" }}>
-                    {nombreEmpresa} · {formatDateShort(new Date())}
-                  </p>
-                </div>
-
-              </div>
+              {renderReceiptContent()}
             </div>
           </div>
         </div>
       </div>
+
+      {data && createPortal(
+        <div className="receipt-print-target">
+          {renderReceiptContent()}
+        </div>,
+        document.body
+      )}
 
       <style>{`
         @keyframes fadeUp {

@@ -79,3 +79,59 @@ body.modal-open {
 .modal-enter {
   animation: fadeUp 0.2s ease;
 }
+
+/* ───────────────── PRINT RECEIPT ───────────────── */
+
+.receipt-print-target {
+  display: none;
+  visibility: hidden;
+}
+
+@media print {
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body > :not(.receipt-print-target) {
+    display: none !important;
+  }
+
+  .receipt-print-target {
+    display: block !important;
+    visibility: visible !important;
+
+    position: static !important;
+
+    width: 58mm;
+    max-width: 58mm;
+
+    margin: 0 auto !important;
+    padding: 2mm !important;
+
+    background: #fff !important;
+    color: #1e293b !important;
+
+    font-family: 'Segoe UI', system-ui, sans-serif !important;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .receipt-print-target * {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+  }
+
+  @page {
+    margin: 0;
+  }
+}
