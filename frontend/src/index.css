@@ -129,9 +129,78 @@ body.modal-open {
     animation: none !important;
     transition: none !important;
     box-shadow: none !important;
+    letter-spacing: normal !important;
   }
 
   @page {
+    size: 58mm auto;
     margin: 0;
+  }
+
+  /* ─── Thermal Print: Compact Layout ─── */
+
+  .receipt-print-target {
+    padding: 1mm !important;
+    line-height: 1.2 !important;
+  }
+
+  .receipt-print-target > div {
+    max-width: 54mm !important;
+    padding: 1px 0 !important;
+  }
+
+  .receipt-print-target [style*="font-size"] {
+    font-size: 9px !important;
+  }
+
+  .receipt-print-target [style*="border-top"] {
+    margin-top: 1.5px !important;
+    margin-bottom: 1.5px !important;
+  }
+
+  .receipt-print-target [style*="space-between"] {
+    margin-bottom: 0 !important;
+  }
+
+  .receipt-print-target [style*="text-transform: uppercase"][style*="color: #94a3b8"] {
+    font-size: 7px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .receipt-print-target [style*="font-size: 15px"],
+  .receipt-print-target [style*="font-size: 14px"] {
+    font-size: 10px !important;
+  }
+
+  .receipt-print-target [style*="font-size: 24px"] {
+    font-size: 15px !important;
+  }
+
+  .receipt-print-target [style*="width: 40px"] {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 8px !important;
+    margin-bottom: 1px !important;
+    border-radius: 4px !important;
+  }
+
+  .receipt-print-target [style*="linear-gradient"] {
+    padding: 4px 6px !important;
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+    border-radius: 3px !important;
+  }
+
+  .receipt-print-target [style*="background: #eff6ff"] {
+    padding: 2px 4px !important;
+    margin: 1.5px 0 !important;
+  }
+
+  .receipt-print-target [style*="background: #eff6ff"] p {
+    font-size: 7px !important;
+  }
+
+  .receipt-print-target [style*="margin-bottom: 12px"] {
+    margin-bottom: 4px !important;
   }
 }
