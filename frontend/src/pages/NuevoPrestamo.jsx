@@ -8,6 +8,8 @@ import {
   formatDate,
   calcularAmortizacion,
   FRECUENCIA_OPTIONS,
+  CONFIG_FRECUENCIAS,
+  FRECUENCIA_TASA_LABEL,
 } from "../utils/prestamosUtils";
 
 const inputBase =
@@ -36,7 +38,7 @@ export default function NuevoPrestamo() {
     monto: "",
     tasaInteres: "",
     numeroCuotas: "",
-    frecuenciaPago: "MENSUAL",
+    frecuenciaPago: "SEMANAL",
     fechaInicio: new Date().toISOString().split("T")[0],
   });
   const [errors, setErrors] = useState({});
@@ -148,6 +150,16 @@ export default function NuevoPrestamo() {
       setPreview(null);
     }
   }, [form.monto, form.tasaInteres, form.numeroCuotas, form.frecuenciaPago, form.fechaInicio]);
+
+  // Ajustar cuotas automáticamente si están fuera del rango permitido
+  useEffect(() => {
+    const cfg = CONFIG_FRECUENCIAS[form.frecuenciaPago];
+    if (!cfg) return;
+    const cuotas = parseInt(form.numeroCuotas, 10);
+    if (!isNaN(cuotas) && (cuotas < cfg.min || cuotas > cfg.max)) {
+      setForm((prev) => ({ ...prev, numeroCuotas: String(cfg.sugeridas[0]) }));
+    }
+  }, [form.frecuenciaPago]);
 
   const seleccionarCliente = (cliente) => {
     setClienteSeleccionado(cliente);
@@ -410,7 +422,7 @@ export default function NuevoPrestamo() {
 
                 {/* Tasa */}
                 <div>
-                  <label className={labelCls}>Tasa de interés mensual</label>
+                  <label className={labelCls}>Tasa de interés {FRECUENCIA_TASA_LABEL[form.frecuenciaPago]}</label>
                   <div className={`flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition ${errors.tasaInteres ? "border-red-400" : "border-gray-200"}`}>
                     <input name="tasaInteres" value={form.tasaInteres} onChange={handleChange} placeholder="0.00"
                       className="flex-1 px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none transition" inputMode="decimal" />
@@ -447,6 +459,34 @@ export default function NuevoPrestamo() {
                     ))}
                   </div>
                   {errors.frecuenciaPago && <p className={errorMsg}>{errors.frecuenciaPago}</p>}
+                  {/* Cuotas sugeridas */}
+                  {(() => {
+                    const cfg = CONFIG_FRECUENCIAS[form.frecuenciaPago];
+                    return (
+                      <div className="mt-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {cfg.sugeridas.map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => {
+                                setForm((p) => ({ ...p, numeroCuotas: String(n) }));
+                                if (errors.numeroCuotas) setErrors((p) => ({ ...p, numeroCuotas: null }));
+                              }}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                                parseInt(form.numeroCuotas) === n
+                                  ? "bg-blue-100 text-blue-700 border-blue-300"
+                                  : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                              }`}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2 italic">{cfg.descripcion}</p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Fecha */}
@@ -512,6 +552,9 @@ export default function NuevoPrestamo() {
                   <ResumenItem title="Monto total a pagar" value={formatCurrency(preview.montoTotal)} highlight />
                   <ResumenItem title="Primera cuota"       value={formatCurrency(preview.cuotaInicial)} />
                   <ResumenItem title="N° de cuotas"        value={`${form.numeroCuotas} cuotas`} />
+                  {preview.cuotas.length > 0 && (
+                    <ResumenItem title="Fecha última cuota" value={formatDate(preview.cuotas[preview.cuotas.length - 1].fechaVencimiento)} />
+                  )}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
                       <span>Capital</span><span>Intereses</span>

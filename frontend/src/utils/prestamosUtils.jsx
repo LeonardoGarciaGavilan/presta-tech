@@ -45,6 +45,40 @@ export const FRECUENCIA_LABEL = {
   MENSUAL:   "Mensual",
 };
 
+export const FRECUENCIA_TASA_LABEL = {
+  DIARIO:    "diaria",
+  SEMANAL:   "semanal",
+  QUINCENAL: "quincenal",
+  MENSUAL:   "mensual",
+};
+
+export const CONFIG_FRECUENCIAS = {
+  DIARIO: {
+    min: 5,
+    max: 90,
+    sugeridas: [10, 15, 20, 30],
+    descripcion: "Cobro diario para préstamos pequeños y de corto plazo.",
+  },
+  SEMANAL: {
+    min: 4,
+    max: 52,
+    sugeridas: [8, 12, 16, 20, 24],
+    descripcion: "Cobro cada 7 días. Ideal para préstamos informales.",
+  },
+  QUINCENAL: {
+    min: 2,
+    max: 24,
+    sugeridas: [2, 4, 6, 8, 10, 12],
+    descripcion: "Cobro cada 15 días. Ideal para empleados.",
+  },
+  MENSUAL: {
+    min: 1,
+    max: 60,
+    sugeridas: [3, 6, 9, 12, 18, 24],
+    descripcion: "Cobro mensual para préstamos grandes.",
+  },
+};
+
 // Días entre cuotas según frecuencia
 const DIAS_FRECUENCIA = {
   DIARIO:    1,
@@ -132,11 +166,12 @@ export const calcularAmortizacion = (
   tasaInteres,          // % mensual (ej: 5)
   numeroCuotas,
   frecuenciaPago = "MENSUAL",
+  fechaInicio,
 ) => {
   const tasaMensual  = tasaInteres / 100;
   const diasPeriodo  = DIAS_FRECUENCIA[frecuenciaPago] ?? 30;
   const tasaPeriodo  = tasaMensual * (diasPeriodo / 30);
-  const fechaInicio  = new Date();
+  const fechaBase    = fechaInicio ? new Date(fechaInicio) : new Date();
 
   // Cuota fija PMT
   let cuotaFija;
@@ -160,7 +195,7 @@ export const calcularAmortizacion = (
 
     cuotas.push({
       numero: i,
-      fechaVencimiento: siguienteFecha(fechaInicio, frecuenciaPago, i),
+      fechaVencimiento: siguienteFecha(fechaBase, frecuenciaPago, i),
       capital,
       interes,
       monto: montoCuota,
