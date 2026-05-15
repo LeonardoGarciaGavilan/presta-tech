@@ -7,6 +7,8 @@ import {
   formatCedula,
   formatDate,
   calcularAmortizacion,
+  calcularTasaDesdePago,
+  FRECUENCIA_LABEL,
   FRECUENCIA_OPTIONS,
   CONFIG_FRECUENCIAS,
   FRECUENCIA_TASA_LABEL,
@@ -17,6 +19,13 @@ const inputBase =
 const inputErr = "border-red-400 bg-red-50 focus:ring-red-400";
 const labelCls = "block text-xs font-semibold text-gray-600 mb-1";
 const errorMsg = "text-red-500 text-xs mt-1";
+
+const DURACION_LABEL = {
+  DIARIO: "días",
+  SEMANAL: "semanas",
+  QUINCENAL: "quincenas",
+  MENSUAL: "meses",
+};
 
 const ResumenItem = ({ title, value, highlight = false }) => (
   <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
@@ -65,6 +74,15 @@ export default function NuevoPrestamo() {
 
   const [preview, setPreview] = useState(null);
   const [showTabla, setShowTabla] = useState(false);
+
+  // Modo rápido informal
+  const [modoRapido, setModoRapido] = useState(false);
+  const [modoCalculoRapido, setModoCalculoRapido] = useState("PAGO");
+  const [pagoPorPeriodo, setPagoPorPeriodo] = useState("");
+  const [gananciaDeseada, setGananciaDeseada] = useState("");
+  const [duracion, setDuracion] = useState("");
+  const [warnings, setWarnings] = useState({});
+  const solverRef = useRef(null);
 
   useEffect(() => {
     const monto      = searchParams.get("monto");
@@ -151,15 +169,89 @@ export default function NuevoPrestamo() {
     }
   }, [form.monto, form.tasaInteres, form.numeroCuotas, form.frecuenciaPago, form.fechaInicio]);
 
-  // Ajustar cuotas automáticamente si están fuera del rango permitido
+  // Ajustar cuotas automáticamente si están fuera del rango permitido (solo modo normal)
   useEffect(() => {
+    if (modoRapido) return;
     const cfg = CONFIG_FRECUENCIAS[form.frecuenciaPago];
     if (!cfg) return;
     const cuotas = parseInt(form.numeroCuotas, 10);
     if (!isNaN(cuotas) && (cuotas < cfg.min || cuotas > cfg.max)) {
       setForm((prev) => ({ ...prev, numeroCuotas: String(cfg.sugeridas[0]) }));
     }
-  }, [form.frecuenciaPago]);
+  }, [form.frecuenciaPago, modoRapido]);
+
+  // Derivar tasa automática en modo rápido (con debounce)
+  useEffect(() => {
+    if (!modoRapido) {
+      setWarnings({});
+      return;
+    }
+
+    if (solverRef.current) clearTimeout(solverRef.current);
+
+    const montoVal = parseFloat(form.monto);
+    const duracionVal = parseInt(duracion, 10);
+    let pagoVal;
+
+    if (modoCalculoRapido === "GANANCIA") {
+      const gananciaVal = parseFloat(gananciaDeseada);
+      if (montoVal > 0 && gananciaVal >= 0 && duracionVal > 0) {
+        const totalCobrar = montoVal + gananciaVal;
+        if (totalCobrar <= montoVal) {
+          setWarnings((p) => ({ ...p, gananciaInvalida: "El total a cobrar debe ser mayor al monto prestado." }));
+          return;
+        }
+        setWarnings((p) => {
+          const next = { ...p };
+          delete next.gananciaInvalida;
+          return next;
+        });
+        pagoVal = totalCobrar / duracionVal;
+      } else {
+        return;
+      }
+    } else {
+      pagoVal = parseFloat(pagoPorPeriodo);
+    }
+
+    if (montoVal > 0 && pagoVal > 0 && duracionVal > 0 && form.frecuenciaPago) {
+      solverRef.current = setTimeout(() => {
+        const pagoMinimo = montoVal / duracionVal;
+
+        if (pagoVal < pagoMinimo) {
+          setWarnings((p) => ({ ...p, pagoBajo: `El pago es demasiado bajo para cubrir el monto prestado. Mínimo: ${formatCurrency(pagoMinimo)}` }));
+          return;
+        }
+        setWarnings((p) => {
+          const next = { ...p };
+          delete next.pagoBajo;
+          return next;
+        });
+
+        setForm((prev) => ({ ...prev, numeroCuotas: String(duracionVal) }));
+
+        const tasa = calcularTasaDesdePago(montoVal, pagoVal, duracionVal, form.frecuenciaPago);
+
+        if (tasa !== null && tasa >= 0) {
+          setForm((prev) => ({ ...prev, tasaInteres: String(Math.round(tasa * 100) / 100) }));
+
+          if (tasa > 50) {
+            setWarnings((p) => ({ ...p, tasaAlta: "La tasa equivalente calculada es alta." }));
+          } else {
+            setWarnings((p) => {
+              const next = { ...p };
+              delete next.tasaAlta;
+              return next;
+            });
+          }
+        }
+      }, 300);
+    }
+
+    return () => {
+      if (solverRef.current) clearTimeout(solverRef.current);
+    };
+  }, [modoRapido, modoCalculoRapido, form.monto, pagoPorPeriodo, gananciaDeseada, duracion, form.frecuenciaPago]);
 
   const seleccionarCliente = (cliente) => {
     setClienteSeleccionado(cliente);
@@ -405,6 +497,33 @@ export default function NuevoPrestamo() {
               )}
             </div>
 
+            {/* Modo rápido toggle */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Modo</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button"
+                  onClick={() => { setModoRapido(false); setWarnings({}); }}
+                  className={`py-2 rounded-lg text-sm font-semibold border transition-all ${
+                    !modoRapido
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                  }`}>
+                  Normal
+                </button>
+                <button type="button"
+                  onClick={() => setModoRapido(true)}
+                  className={`py-2 rounded-lg text-sm font-semibold border transition-all ${
+                    modoRapido
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                  }`}>
+                  Rápido informal
+                </button>
+              </div>
+            </div>
+
             {/* Condiciones */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Condiciones del Préstamo</h2>
@@ -420,15 +539,115 @@ export default function NuevoPrestamo() {
                   {errors.monto && <p className={errorMsg}>{errors.monto}</p>}
                 </div>
 
+                {/* Campos rápidos informales */}
+                {modoRapido && (
+                  <>
+                    {/* Sub-toggle: Pago vs Ganancia */}
+                    <div className="col-span-2">
+                      <label className={labelCls}>Calcular por</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button"
+                          onClick={() => { setModoCalculoRapido("PAGO"); setWarnings({}); }}
+                          className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            modoCalculoRapido === "PAGO"
+                              ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                              : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                          }`}>
+                          Pago por período
+                        </button>
+                        <button type="button"
+                          onClick={() => { setModoCalculoRapido("GANANCIA"); setWarnings({}); }}
+                          className={`py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            modoCalculoRapido === "GANANCIA"
+                              ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                              : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                          }`}>
+                          Ganancia deseada
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Pago por período o Ganancia deseada */}
+                    {modoCalculoRapido === "PAGO" ? (
+                      <div>
+                        <label className={labelCls}>Pago {FRECUENCIA_LABEL[form.frecuenciaPago].toLowerCase()}</label>
+                        <div className="flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition border-gray-200">
+                          <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-r border-gray-200 shrink-0 select-none">RD$</span>
+                          <input value={pagoPorPeriodo}
+                            onChange={(e) => setPagoPorPeriodo(e.target.value)}
+                            placeholder="0.00" inputMode="decimal"
+                            className="flex-1 px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none transition" />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className={labelCls}>Ganancia deseada</label>
+                          <div className="flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition border-gray-200">
+                            <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-r border-gray-200 shrink-0 select-none">RD$</span>
+                            <input value={gananciaDeseada}
+                              onChange={(e) => setGananciaDeseada(e.target.value)}
+                              placeholder="0.00" inputMode="decimal"
+                              className="flex-1 px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none transition" />
+                          </div>
+                          {warnings.gananciaInvalida && (
+                            <p className="text-amber-600 text-xs mt-1">{warnings.gananciaInvalida}</p>
+                          )}
+                        </div>
+                        {/* Pago calculado (readonly) */}
+                        {(() => {
+                          const mVal = parseFloat(form.monto);
+                          const gVal = parseFloat(gananciaDeseada);
+                          const dVal = parseInt(duracion, 10);
+                          if (mVal > 0 && gVal >= 0 && dVal > 0) {
+                            const total = mVal + gVal;
+                            const pagoCalc = total / dVal;
+                            return (
+                              <div>
+                                <label className={labelCls}>Pago {FRECUENCIA_LABEL[form.frecuenciaPago].toLowerCase()} calculado</label>
+                                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                  <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-r border-gray-200 shrink-0 select-none">RD$</span>
+                                  <span className="flex-1 px-3 py-2 text-sm font-semibold text-blue-700 bg-gray-50">
+                                    {formatCurrency(pagoCalc)}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </>
+                    )}
+                    {/* Duración */}
+                    <div>
+                      <label className={labelCls}>{DURACION_LABEL[form.frecuenciaPago]?.charAt(0).toUpperCase() + DURACION_LABEL[form.frecuenciaPago]?.slice(1)}</label>
+                      <div className="flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition border-gray-200">
+                        <input value={duracion}
+                          onChange={(e) => setDuracion(e.target.value)}
+                          placeholder="12" inputMode="numeric"
+                          className="flex-1 px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none transition" />
+                        <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-l border-gray-200 shrink-0 select-none">
+                          {DURACION_LABEL[form.frecuenciaPago]}
+                        </span>
+                      </div>
+                      {warnings.pagoBajo && (
+                        <p className="text-amber-600 text-xs mt-1">{warnings.pagoBajo}</p>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 {/* Tasa */}
                 <div>
-                  <label className={labelCls}>Tasa de interés {FRECUENCIA_TASA_LABEL[form.frecuenciaPago]}</label>
+                  <label className={labelCls}>{modoRapido ? "Tasa equivalente" : `Tasa de interés ${FRECUENCIA_TASA_LABEL[form.frecuenciaPago]}`}</label>
                   <div className={`flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition ${errors.tasaInteres ? "border-red-400" : "border-gray-200"}`}>
                     <input name="tasaInteres" value={form.tasaInteres} onChange={handleChange} placeholder="0.00"
-                      className="flex-1 px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none transition" inputMode="decimal" />
+                      readOnly={modoRapido}
+                      className={`flex-1 px-3 py-2 text-sm transition ${modoRapido ? "bg-gray-100 text-gray-500" : "bg-gray-50 focus:bg-white focus:outline-none"}`} inputMode="decimal" />
                     <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-l border-gray-200 shrink-0 select-none">%</span>
                   </div>
                   {errors.tasaInteres && <p className={errorMsg}>{errors.tasaInteres}</p>}
+                  {modoRapido && <p className="text-xs text-gray-400 mt-1 italic">Tasa equivalente calculada automáticamente.</p>}
                 </div>
 
                 {/* Cuotas */}
@@ -436,7 +655,8 @@ export default function NuevoPrestamo() {
                   <label className={labelCls}>Número de cuotas</label>
                   <div className={`flex items-center border rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition ${errors.numeroCuotas ? "border-red-400" : "border-gray-200"}`}>
                     <input name="numeroCuotas" value={form.numeroCuotas} onChange={handleChange} placeholder="12"
-                      className="flex-1 px-3 py-2 text-sm bg-gray-50 focus:bg-white focus:outline-none transition" inputMode="numeric" />
+                      readOnly={modoRapido}
+                      className={`flex-1 px-3 py-2 text-sm transition ${modoRapido ? "bg-gray-100 text-gray-500" : "bg-gray-50 focus:bg-white focus:outline-none"}`} inputMode="numeric" />
                     <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-l border-gray-200 shrink-0 select-none">cuotas</span>
                   </div>
                   {errors.numeroCuotas && <p className={errorMsg}>{errors.numeroCuotas}</p>}
@@ -459,8 +679,8 @@ export default function NuevoPrestamo() {
                     ))}
                   </div>
                   {errors.frecuenciaPago && <p className={errorMsg}>{errors.frecuenciaPago}</p>}
-                  {/* Cuotas sugeridas */}
-                  {(() => {
+                  {/* Cuotas sugeridas (solo modo normal) */}
+                  {!modoRapido && (() => {
                     const cfg = CONFIG_FRECUENCIAS[form.frecuenciaPago];
                     return (
                       <div className="mt-3">
@@ -548,16 +768,27 @@ export default function NuevoPrestamo() {
               {preview ? (
                 <>
                   <ResumenItem title="Monto prestado"      value={formatCurrency(parseFloat(form.monto))} />
-                  <ResumenItem title="Total intereses"     value={formatCurrency(preview.totalIntereses)} />
-                  <ResumenItem title="Monto total a pagar" value={formatCurrency(preview.montoTotal)} highlight />
-                  <ResumenItem title="Primera cuota"       value={formatCurrency(preview.cuotaInicial)} />
+                  {modoRapido && modoCalculoRapido === "GANANCIA" && (
+                    <ResumenItem title="Ganancia deseada" value={formatCurrency(parseFloat(gananciaDeseada || 0))} />
+                  )}
+                  {modoRapido ? (
+                    <ResumenItem title="Ganancia total"   value={formatCurrency(preview.totalIntereses)} />
+                  ) : (
+                    <ResumenItem title="Total intereses"  value={formatCurrency(preview.totalIntereses)} />
+                  )}
+                  <ResumenItem title={modoRapido ? "Total a cobrar" : "Monto total a pagar"} value={formatCurrency(preview.montoTotal)} highlight />
+                  <ResumenItem title={modoRapido ? `Pago ${FRECUENCIA_LABEL[form.frecuenciaPago].toLowerCase()}` : "Primera cuota"} value={formatCurrency(preview.cuotaInicial)} />
                   <ResumenItem title="N° de cuotas"        value={`${form.numeroCuotas} cuotas`} />
+                  {modoRapido && duracion && (
+                    <ResumenItem title="Duración"         value={`${duracion} ${DURACION_LABEL[form.frecuenciaPago]}`} />
+                  )}
                   {preview.cuotas.length > 0 && (
                     <ResumenItem title="Fecha última cuota" value={formatDate(preview.cuotas[preview.cuotas.length - 1].fechaVencimiento)} />
                   )}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Capital</span><span>Intereses</span>
+                      <span>{modoRapido ? "Capital recuperado" : "Capital"}</span>
+                      <span>{modoRapido ? "Ganancia" : "Intereses"}</span>
                     </div>
                     <div className="flex h-2 rounded-full overflow-hidden bg-gray-100">
                       <div className="bg-blue-500 transition-all duration-500"
@@ -573,6 +804,12 @@ export default function NuevoPrestamo() {
               ) : (
                 <div className="text-center py-8 text-gray-400">
                   <p className="text-sm">Completa monto, tasa y cuotas para ver el resumen</p>
+                </div>
+              )}
+
+              {warnings.tasaAlta && (
+                <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs text-amber-700">{warnings.tasaAlta}</p>
                 </div>
               )}
 

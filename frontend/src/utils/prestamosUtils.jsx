@@ -171,7 +171,13 @@ export const calcularAmortizacion = (
   const tasaMensual  = tasaInteres / 100;
   const diasPeriodo  = DIAS_FRECUENCIA[frecuenciaPago] ?? 30;
   const tasaPeriodo  = tasaMensual * (diasPeriodo / 30);
-  const fechaBase    = fechaInicio ? new Date(fechaInicio) : new Date();
+  const fechaBase    = fechaInicio
+    ? (
+        typeof fechaInicio === "string" && fechaInicio.length === 10
+          ? new Date(`${fechaInicio}T00:00:00`)
+          : new Date(fechaInicio)
+      )
+    : new Date();
 
   // Cuota fija PMT
   let cuotaFija;
@@ -215,4 +221,61 @@ export const calcularAmortizacion = (
     cuotaInicial: cuotas[0]?.monto ?? 0,
     cuotaFinal:   cuotas[cuotas.length - 1]?.monto ?? 0,
   };
+};
+
+// ─── Solver de tasa equivalente (bisección) ──────────────────────────────────
+// Dado monto, pagoDeseado, cuotas y frecuencia, encuentra la tasa mensual %
+// que hace que el PMT del sistema actual produzca ≈ pagoDeseado.
+// Retorna null si no es posible (pago menor al mínimo).
+
+export const calcularTasaDesdePago = (
+  monto,
+  pagoDeseado,
+  numeroCuotas,
+  frecuenciaPago = "SEMANAL",
+) => {
+  const diasPeriodo = DIAS_FRECUENCIA[frecuenciaPago] ?? 30;
+  const pagoMinimo = monto / numeroCuotas;
+
+  if (pagoDeseado < pagoMinimo - 0.0001) return null;
+
+  if (Math.abs(pagoDeseado - pagoMinimo) < 0.0001) return 0;
+
+  if (numeroCuotas === 1) {
+    const tasaPeriodo = pagoDeseado / monto - 1;
+    if (tasaPeriodo <= 0) return 0;
+    return Math.round(tasaPeriodo * (30 / diasPeriodo) * 100 * 10000) / 10000;
+  }
+
+  const calcularPMT = (tasaPeriodo) => {
+    if (tasaPeriodo < 1e-12) return monto / numeroCuotas;
+    const factor = Math.pow(1 + tasaPeriodo, numeroCuotas);
+    return monto * (tasaPeriodo * factor) / (factor - 1);
+  };
+
+  let low = 1e-10;
+  let high = 0.5;
+
+  let pmtHigh = calcularPMT(high);
+  while (pmtHigh < pagoDeseado && high < 10) {
+    high *= 2;
+    pmtHigh = calcularPMT(high);
+  }
+
+  for (let i = 0; i < 100; i++) {
+    const mid = (low + high) / 2;
+    const pmtMid = calcularPMT(mid);
+
+    if (Math.abs(pmtMid - pagoDeseado) < 0.001) {
+      const tasaMensual = mid * (30 / diasPeriodo);
+      return Math.round(tasaMensual * 100 * 10000) / 10000;
+    }
+
+    if (pmtMid < pagoDeseado) low = mid;
+    else high = mid;
+  }
+
+  const tasaPeriodo = (low + high) / 2;
+  const tasaMensual = tasaPeriodo * (30 / diasPeriodo);
+  return Math.round(tasaMensual * 100 * 10000) / 10000;
 };
