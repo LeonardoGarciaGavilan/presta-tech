@@ -8,6 +8,14 @@ export const formatCurrency = (value) =>
     minimumFractionDigits: 2,
   }).format(value ?? 0);
 
+export const formatThousands = (value) => {
+  if (!value && value !== 0) return '';
+  const str = String(value).replace(/,/g, '');
+  const parts = str.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+};
+
 export const formatDate = (date) => {
   if (!date) return "—";
   // Si es un string tipo "2026-03-01" (solo fecha, 10 chars), añadir T00:00:00
@@ -220,6 +228,73 @@ export const calcularAmortizacion = (
     montoTotal: Math.round((monto + totalInteresesRedondeado) * 100) / 100,
     cuotaInicial: cuotas[0]?.monto ?? 0,
     cuotaFinal:   cuotas[cuotas.length - 1]?.monto ?? 0,
+  };
+};
+
+// ─── Cálculo de cuotas para modo Rápido Informal ─────────────────────────────
+// NO usa PMT. Calcula cuotas fijas enteras con última cuota ajustada.
+
+export const calcularCuotasRapidas = (
+  monto,
+  totalCobrar,
+  cuotaFija,
+  numeroCuotas,
+  frecuenciaPago = "SEMANAL",
+  fechaInicio,
+) => {
+  const fechaBase = fechaInicio
+    ? (
+        typeof fechaInicio === "string" && fechaInicio.length === 10
+          ? new Date(`${fechaInicio}T00:00:00`)
+          : new Date(fechaInicio)
+      )
+    : new Date();
+
+  if (totalCobrar < monto) {
+    throw new Error("El total a cobrar no puede ser menor al monto prestado.");
+  }
+
+  const ultimaCuota = Math.round((totalCobrar - cuotaFija * (numeroCuotas - 1)) * 100) / 100;
+  const gananciaTotal = Math.round((totalCobrar - monto) * 100) / 100;
+
+  if (ultimaCuota <= 0) {
+    throw new Error("La última cuota sería menor o igual a cero. Reduce la ganancia o aumenta las cuotas.");
+  }
+
+  const gananciaPorCuota = numeroCuotas > 0
+    ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
+    : 0;
+
+  let saldo = monto;
+  let totalIntereses = 0;
+  const cuotas = [];
+
+  for (let i = 1; i <= numeroCuotas; i++) {
+    const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
+    const interes = i === numeroCuotas
+      ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+      : gananciaPorCuota;
+    const capital = Math.max(0, Math.round((montoCuota - interes) * 100) / 100);
+
+    cuotas.push({
+      numero: i,
+      fechaVencimiento: siguienteFecha(fechaBase, frecuenciaPago, i),
+      capital,
+      interes,
+      monto: Math.round(montoCuota * 100) / 100,
+      saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
+    });
+
+    totalIntereses += interes;
+    saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+  }
+
+  return {
+    cuotas,
+    totalIntereses: Math.round(gananciaTotal * 100) / 100,
+    montoTotal: Math.round(totalCobrar * 100) / 100,
+    cuotaInicial: cuotas[0]?.monto ?? 0,
+    cuotaFinal: cuotas[cuotas.length - 1]?.monto ?? 0,
   };
 };
 
