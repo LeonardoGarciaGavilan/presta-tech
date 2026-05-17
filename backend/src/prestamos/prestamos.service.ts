@@ -100,6 +100,105 @@ export class PrestamosService {
     }
   }
 
+  private calcularAmortizacionRapida(
+    monto: number,
+    numeroCuotas: number,
+    montoTotal: number,
+    frecuenciaPago: FrecuenciaPago,
+    fechaInicio: Date,
+  ): ResumenAmortizacion {
+    if (typeof monto !== 'number' || !isFinite(monto) || monto <= 0) {
+      throw new BadRequestException('Monto inválido para modo rápido.');
+    }
+    if (typeof numeroCuotas !== 'number' || !isFinite(numeroCuotas) || numeroCuotas < 1 || !Number.isInteger(numeroCuotas)) {
+      throw new BadRequestException('Número de cuotas inválido para modo rápido.');
+    }
+    if (typeof montoTotal !== 'number' || !isFinite(montoTotal) || montoTotal <= 0) {
+      throw new BadRequestException('Monto total inválido para modo rápido.');
+    }
+    if (montoTotal <= monto) {
+      throw new BadRequestException('El total a cobrar debe ser mayor al monto prestado.');
+    }
+
+    const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
+
+    if (gananciaTotal <= 0) {
+      throw new BadRequestException('La ganancia total debe ser mayor a cero en modo rápido.');
+    }
+
+    const cuotaFija = Math.round(montoTotal / numeroCuotas);
+
+    if (cuotaFija <= 0 || !isFinite(cuotaFija)) {
+      throw new BadRequestException('Cuota fija inválida en modo rápido.');
+    }
+
+    const ultimaCuota = Math.round(montoTotal - cuotaFija * (numeroCuotas - 1));
+
+    if (ultimaCuota <= 0 || !isFinite(ultimaCuota)) {
+      throw new BadRequestException('La última cuota sería menor o igual a cero en modo rápido.');
+    }
+
+    const gananciaPorCuota = numeroCuotas > 0
+      ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
+      : 0;
+
+    let saldo = monto;
+    let totalIntereses = 0;
+    const cuotas: CuotaCalculada[] = [];
+
+    for (let i = 1; i <= numeroCuotas; i++) {
+      const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
+      const interes = i === numeroCuotas
+        ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+        : gananciaPorCuota;
+      const capital = Math.max(0, Math.round((montoCuota - interes) * 100) / 100);
+
+      cuotas.push({
+        numero: i,
+        fechaVencimiento: this.siguienteFecha(fechaInicio, frecuenciaPago, i),
+        capital,
+        interes,
+        monto: Math.round(montoCuota),
+        saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
+      });
+
+      totalIntereses += interes;
+      saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+    }
+
+    const montoTotalRounded = Math.round(montoTotal * 100) / 100;
+    const sumaCuotas = cuotas.reduce((sum, c) => sum + c.monto, 0);
+
+    if (sumaCuotas !== montoTotalRounded) {
+      throw new BadRequestException(
+        `Inconsistencia financiera en modo rápido: suma cuotas (${sumaCuotas}) !== total a cobrar (${montoTotalRounded}).`,
+      );
+    }
+
+    for (const c of cuotas) {
+      if (!Number.isInteger(c.monto) || c.monto <= 0) {
+        throw new BadRequestException(`Cuota #${c.numero} inválida en modo rápido: ${c.monto}.`);
+      }
+    }
+
+    console.warn('[MODO_RAPIDO] cuotas calculadas', {
+      monto,
+      montoTotal: montoTotalRounded,
+      numeroCuotas,
+      cuotaFija,
+      ultimaCuota,
+      gananciaTotal,
+      sumaCuotas,
+    });
+
+    return {
+      cuotaInicial: cuotas[0]?.monto ?? 0,
+      montoTotal: montoTotalRounded,
+      totalIntereses: gananciaTotal,
+      cuotas,
+    };
+  }
+
   private calcularAmortizacion(
     monto: number,
     tasaMensual: number,
@@ -371,13 +470,35 @@ export class PrestamosService {
       ? new Date(dto.fechaInicio)
       : new Date();
     const tasaMensual = dto.tasaInteres / 100;
-    const amortizacion = this.calcularAmortizacion(
-      dto.monto,
-      tasaMensual,
-      dto.numeroCuotas,
-      dto.frecuenciaPago,
-      fechaInicio,
-    );
+    let amortizacion: ResumenAmortizacion;
+    if (dto.modoRapido === true) {
+      if (dto.montoTotal == null || typeof dto.montoTotal !== 'number' || !isFinite(dto.montoTotal) || dto.montoTotal <= 0) {
+        throw new BadRequestException('montoTotal inválido o ausente para modo rápido.');
+      }
+      amortizacion = this.calcularAmortizacionRapida(
+        dto.monto,
+        dto.numeroCuotas,
+        dto.montoTotal,
+        dto.frecuenciaPago,
+        fechaInicio,
+      );
+      console.warn('[MODO_RAPIDO] préstamo creado', {
+        monto: dto.monto,
+        montoTotal: dto.montoTotal,
+        numeroCuotas: dto.numeroCuotas,
+        frecuenciaPago: dto.frecuenciaPago,
+        clienteId: dto.clienteId,
+        cuotasPreview: amortizacion.cuotas.length,
+      });
+    } else {
+      amortizacion = this.calcularAmortizacion(
+        dto.monto,
+        tasaMensual,
+        dto.numeroCuotas,
+        dto.frecuenciaPago,
+        fechaInicio,
+      );
+    }
 
     const fechaVencimiento = this.siguienteFecha(
       fechaInicio,
@@ -392,6 +513,7 @@ export class PrestamosService {
         numeroCuotas: dto.numeroCuotas,
         frecuenciaPago: dto.frecuenciaPago,
         montoTotal: amortizacion.montoTotal,
+        modoRapido: dto.modoRapido === true,
         // NO escribimos saldoPendiente - se calcula desde cuotas
         cuotaMensual: amortizacion.cuotaInicial,
         fechaInicio,
@@ -516,13 +638,34 @@ export class PrestamosService {
       );
     }
 
-    const amortizacion = this.calcularAmortizacion(
-      prestamo.monto,
-      prestamo.tasaInteres / 100,
-      prestamo.numeroCuotas,
-      prestamo.frecuenciaPago,
-      prestamo.fechaInicio,
-    );
+    let amortizacion: ResumenAmortizacion;
+    if (prestamo.modoRapido === true) {
+      amortizacion = this.calcularAmortizacionRapida(
+        prestamo.monto,
+        prestamo.numeroCuotas,
+        prestamo.montoTotal,
+        prestamo.frecuenciaPago,
+        prestamo.fechaInicio,
+      );
+      console.warn('[MODO_RAPIDO] préstamo desembolsado', {
+        prestamoId: prestamo.id,
+        monto: prestamo.monto,
+        montoTotal: prestamo.montoTotal,
+        numeroCuotas: prestamo.numeroCuotas,
+        cuotasGeneradas: amortizacion.cuotas.length,
+        cuotaFija: amortizacion.cuotas[0]?.monto,
+        ultimaCuota: amortizacion.cuotas[amortizacion.cuotas.length - 1]?.monto,
+        sumaCuotas: amortizacion.cuotas.reduce((s, c) => s + c.monto, 0),
+      });
+    } else {
+      amortizacion = this.calcularAmortizacion(
+        prestamo.monto,
+        prestamo.tasaInteres / 100,
+        prestamo.numeroCuotas,
+        prestamo.frecuenciaPago,
+        prestamo.fechaInicio,
+      );
+    }
 
     const fechaVencimiento = this.siguienteFecha(
       prestamo.fechaInicio,

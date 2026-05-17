@@ -209,6 +209,7 @@ model Prestamo {
   tasaInteres               Float
   numeroCuotas              Int
   montoTotal                Float
+  modoRapido                Boolean         @default(false)
   saldoPendiente            Float           @default(0)
   cuotaMensual              Float
   frecuenciaPago            FrecuenciaPago  @default(MENSUAL)

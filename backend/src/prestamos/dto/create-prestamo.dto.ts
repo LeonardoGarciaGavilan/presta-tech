@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsDateString,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { FrecuenciaPago } from '@prisma/client';
 
@@ -42,4 +43,13 @@ export class CreatePrestamoDto {
   @IsOptional()
   @IsDateString()
   fechaInicio?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  modoRapido?: boolean;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  montoTotal?: number;
 }

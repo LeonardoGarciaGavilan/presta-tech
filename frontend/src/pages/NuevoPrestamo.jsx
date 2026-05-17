@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import {
   formatCurrency,
+  formatCurrencyFlexible,
   formatThousands,
   formatCedula,
   formatDate,
@@ -78,13 +79,15 @@ export default function NuevoPrestamo() {
   const [showTabla, setShowTabla] = useState(false);
 
   // Modo rápido informal
-  const [modoRapido, setModoRapido] = useState(false);
+  const [modoRapido, setModoRapido] = useState(true);
   const [modoCalculoRapido, setModoCalculoRapido] = useState("PAGO");
   const [pagoPorPeriodo, setPagoPorPeriodo] = useState("");
   const [gananciaDeseada, setGananciaDeseada] = useState("");
   const [duracion, setDuracion] = useState("");
   const [warnings, setWarnings] = useState({});
   const solverRef = useRef(null);
+
+  const fmt = modoRapido ? formatCurrencyFlexible : formatCurrency;
 
   useEffect(() => {
     const monto      = searchParams.get("monto");
@@ -262,7 +265,7 @@ export default function NuevoPrestamo() {
         const pagoMinimo = montoVal / duracionVal;
 
         if (pagoVal < pagoMinimo) {
-          setWarnings((p) => ({ ...p, pagoBajo: `El pago es demasiado bajo para cubrir el monto prestado. Mínimo: ${formatCurrency(pagoMinimo)}` }));
+          setWarnings((p) => ({ ...p, pagoBajo: `El pago es demasiado bajo para cubrir el monto prestado. Mínimo: ${formatCurrencyFlexible(pagoMinimo)}` }));
           return;
         }
         setWarnings((p) => {
@@ -367,6 +370,14 @@ export default function NuevoPrestamo() {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    if (modoRapido) {
+      if (!preview || !preview.montoTotal || !preview.cuotas || preview.cuotas.length === 0) {
+        setErrors({ submit: 'El resumen del préstamo rápido no está disponible. Verifica los datos ingresados.' });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -377,6 +388,10 @@ export default function NuevoPrestamo() {
         frecuenciaPago: form.frecuenciaPago,
         fechaInicio:    form.fechaInicio,
         garanteId:      form.garanteId || undefined,
+        ...(modoRapido && {
+          modoRapido: true,
+          montoTotal: preview?.montoTotal,
+        }),
       };
       const res = await api.post("/prestamos", payload);
       navigate(`/prestamos/${res.data.id}`);
@@ -683,7 +698,7 @@ export default function NuevoPrestamo() {
                                 <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
                                   <span className="px-3 py-2 bg-gray-100 text-gray-500 text-sm font-medium border-r border-gray-200 shrink-0 select-none">RD$</span>
                                   <span className="flex-1 px-3 py-2 text-sm font-semibold text-blue-700 bg-gray-50">
-                                    {formatCurrency(pagoCalc)}
+                                    {formatCurrencyFlexible(pagoCalc)}
                                   </span>
                                 </div>
                               </div>
@@ -838,10 +853,10 @@ export default function NuevoPrestamo() {
                           <tr key={c.numero} className="hover:bg-blue-50/30 transition-colors">
                             <td className="px-3 py-2 font-medium text-gray-700">#{c.numero}</td>
                             <td className="px-3 py-2 text-gray-500">{formatDate(c.fechaVencimiento)}</td>
-                            <td className="px-3 py-2 text-right text-gray-600">{formatCurrency(c.capital)}</td>
-                            <td className="px-3 py-2 text-right text-amber-600">{formatCurrency(c.interes)}</td>
-                            <td className="px-3 py-2 text-right font-semibold text-gray-800">{formatCurrency(c.monto)}</td>
-                            <td className="px-3 py-2 text-right text-gray-500">{formatCurrency(c.saldoRestante)}</td>
+                            <td className="px-3 py-2 text-right text-gray-600">{fmt(c.capital)}</td>
+                            <td className="px-3 py-2 text-right text-amber-600">{fmt(c.interes)}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-gray-800">{fmt(c.monto)}</td>
+                            <td className="px-3 py-2 text-right text-gray-500">{fmt(c.saldoRestante)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -858,17 +873,17 @@ export default function NuevoPrestamo() {
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Resumen</h2>
               {preview ? (
                 <>
-                  <ResumenItem title="Monto prestado"      value={formatCurrency(parseFloat(form.monto))} />
+                  <ResumenItem title="Monto prestado"      value={fmt(parseFloat(form.monto))} />
                   {modoRapido && modoCalculoRapido === "GANANCIA" && (
-                    <ResumenItem title="Ganancia deseada" value={formatCurrency(parseFloat(gananciaDeseada || 0))} />
+                    <ResumenItem title="Ganancia deseada" value={formatCurrencyFlexible(parseFloat(gananciaDeseada || 0))} />
                   )}
                   {modoRapido ? (
-                    <ResumenItem title="Ganancia total"   value={formatCurrency(preview.totalIntereses)} />
+                    <ResumenItem title="Ganancia total"   value={formatCurrencyFlexible(preview.totalIntereses)} />
                   ) : (
                     <ResumenItem title="Total intereses"  value={formatCurrency(preview.totalIntereses)} />
                   )}
-                  <ResumenItem title={modoRapido ? "Total a cobrar" : "Monto total a pagar"} value={formatCurrency(preview.montoTotal)} highlight />
-                  <ResumenItem title={modoRapido ? `Pago ${FRECUENCIA_LABEL[form.frecuenciaPago].toLowerCase()}` : "Primera cuota"} value={formatCurrency(preview.cuotaInicial)} />
+                  <ResumenItem title={modoRapido ? "Total a cobrar" : "Monto total a pagar"} value={fmt(preview.montoTotal)} highlight />
+                  <ResumenItem title={modoRapido ? `Pago ${FRECUENCIA_LABEL[form.frecuenciaPago].toLowerCase()}` : "Primera cuota"} value={fmt(preview.cuotaInicial)} />
                   <ResumenItem title="N° de cuotas"        value={`${form.numeroCuotas} cuotas`} />
                   {modoRapido && duracion && (
                     <ResumenItem title="Duración"         value={`${duracion} ${DURACION_LABEL[form.frecuenciaPago]}`} />

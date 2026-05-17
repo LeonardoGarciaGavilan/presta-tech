@@ -8,6 +8,20 @@ export const formatCurrency = (value) =>
     minimumFractionDigits: 2,
   }).format(value ?? 0);
 
+export const formatCurrencyFlexible = (value) => {
+  const num = Number(value ?? 0);
+  if (isNaN(num)) return 'RD$0';
+  if (Number.isInteger(num)) {
+    return new Intl.NumberFormat("es-DO", {
+      style: "currency",
+      currency: "DOP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(num);
+  }
+  return formatCurrency(value);
+};
+
 export const formatThousands = (value) => {
   if (!value && value !== 0) return '';
   const str = String(value).replace(/,/g, '');
