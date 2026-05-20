@@ -62,16 +62,16 @@ const fmtShort = (date) => {
 
 // ─── Constantes de layout ─────────────────────────────────────────────────────
 
-const PAGE_W    = 58;   // mm — ancho del papel
-const MARGIN    = 3;    // mm — margen lateral
-const COL_W     = PAGE_W - MARGIN * 2;  // 52 mm útiles
-const LINE_H    = 4.2;  // mm — alto de línea normal
-const LINE_SM   = 3.6;  // mm — alto de línea pequeña
-const FONT_SM   = 6;    // pt
-const FONT_NOR  = 7;    // pt
-const FONT_MED  = 8;    // pt
-const FONT_LG   = 10;   // pt
-const FONT_XL   = 14;   // pt
+const PAGE_W    = 58;
+const MARGIN    = 3;
+const COL_W     = PAGE_W - MARGIN * 2;
+const LINE_H    = 5.0;   // era 4.2 — más espacio entre líneas
+const LINE_SM   = 4.2;   // era 3.6
+const FONT_SM   = 7.5;   // era 6   — el más crítico: etiquetas antes ilegibles
+const FONT_NOR  = 8.5;   // era 7
+const FONT_MED  = 10;    // era 8
+const FONT_LG   = 12;    // era 10
+const FONT_XL   = 16;    // era 14  — total pagado
 
 // ─── Función principal ────────────────────────────────────────────────────────
 
@@ -136,9 +136,9 @@ export function generarReciboPDF(data, empresa, fileName) {
   const resetColor = () => doc.setTextColor(0, 0, 0);
 
   const dashedLine = () => {
-    doc.setLineDashPattern([1, 1], 0);
+    doc.setLineDashPattern([1.5, 1], 0);
     doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.4);
     doc.line(x, y, xR, y);
     doc.setLineDashPattern([], 0);
     y += 2.5;
@@ -147,7 +147,7 @@ export function generarReciboPDF(data, empresa, fileName) {
   const solidLine = () => {
     doc.setLineDashPattern([], 0);
     doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.3);
+    doc.setLineWidth(0.5);
     doc.line(x, y, xR, y);
     y += 2.5;
   };
@@ -410,11 +410,11 @@ function _buildPDF(data, empresa, C) {
   const resetColor = () => doc.setTextColor(0,0,0);
 
   const dashedLine = () => {
-    doc.setLineDashPattern([1,1],0); doc.setDrawColor(180,180,180); doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1.5,1],0); doc.setDrawColor(180,180,180); doc.setLineWidth(0.4);
     doc.line(x,y,xR,y); doc.setLineDashPattern([],0); y += 2.5;
   };
   const solidLine = () => {
-    doc.setLineDashPattern([],0); doc.setDrawColor(220,220,220); doc.setLineWidth(0.3);
+    doc.setLineDashPattern([],0); doc.setDrawColor(220,220,220); doc.setLineWidth(0.5);
     doc.line(x,y,xR,y); y += 2.5;
   };
   const row = (label, value, colorValue = "#0f172a") => {
