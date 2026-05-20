@@ -1,4 +1,3 @@
-//pagos.service.ts
 import {
   Injectable,
   NotFoundException,
@@ -130,7 +129,8 @@ export class PagosService {
     const montoExacto = Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
 
     // ── Calcular distribución del pago ─────────────────────────────────────
-    let montoPagado     = dto.montoPagado;
+    // Orden de aplicación: mora → interés → capital
+    let montoPagado     = Math.round(dto.montoPagado * 100) / 100;
     let moraAplicada    = 0;
     let interesAplicado = 0;
     let capitalAplicado = 0;
@@ -138,29 +138,31 @@ export class PagosService {
 
     if (cuotaObjetivo.mora > 0) {
       moraAplicada = Math.min(montoPagado, cuotaObjetivo.mora);
-      montoPagado -= moraAplicada;
+      montoPagado  = Math.round((montoPagado - moraAplicada) * 100) / 100;
     }
     if (montoPagado > 0) {
       interesAplicado = Math.min(montoPagado, cuotaObjetivo.interes);
-      montoPagado -= interesAplicado;
+      montoPagado     = Math.round((montoPagado - interesAplicado) * 100) / 100;
     }
     if (montoPagado > 0) {
       capitalAplicado = Math.min(montoPagado, cuotaObjetivo.capital);
-      montoPagado -= capitalAplicado;
+      montoPagado     = Math.round((montoPagado - capitalAplicado) * 100) / 100;
     }
 
+    // Lo que sobra tras cubrir la cuota objetivo es excedente para cuotas siguientes
     excedente = Math.round(montoPagado * 100) / 100;
+
+    // ── ¿Cubre el pago el total exacto de la cuota? ────────────────────────
     const pagoCompleto = Math.round(dto.montoPagado * 100) / 100 >= montoExacto;
 
-    // ── Transacción — SOLO operaciones de escritura y lectura crítica ──────
-    // FUERA: usuario.findUnique, registrarAuditoria (no son críticos para atomicidad)
+    // ── Transacción ────────────────────────────────────────────────────────
     const resultadoTx = await this.prisma.$transaction(async (tx) => {
 
       // 1. Calcular saldo REAL desde cuotas (no usar saldoPendiente almacenado)
       const saldoReal = await this.calcularSaldoDesdeCuotas(tx, dto.prestamoId);
 
       // 2. Validar contra saldo real
-      if (dto.montoPagado > saldoReal) {
+      if (dto.montoPagado > saldoReal + 0.001) {
         throw new BadRequestException(
           `El monto del pago ($${dto.montoPagado.toLocaleString()}) excede el saldo pendiente ($${saldoReal.toLocaleString()}).`,
         );
@@ -179,7 +181,7 @@ export class PagosService {
           prestamoId:  dto.prestamoId,
           usuarioId,
           montoTotal:  dto.montoPagado,
-          capital:     capitalAplicado + excedente,
+          capital:     Math.round((capitalAplicado + excedente) * 100) / 100,
           interes:     interesAplicado,
           mora:        moraAplicada,
           metodo:      dto.metodo,
@@ -189,15 +191,38 @@ export class PagosService {
         },
       });
 
-      // 5. Marcar cuota como pagada si el pago es completo
+      // 5. Actualizar cuota objetivo según si el pago fue completo o parcial
       if (pagoCompleto) {
+        // ── Pago completo: marcar la cuota como pagada ─────────────────────
         await tx.cuota.update({
           where: { id: cuotaObjetivo.id },
-          data: { pagada: true, fechaPago: new Date(), mora: cuotaObjetivo.mora },
+          data: {
+            pagada:    true,
+            fechaPago: new Date(),
+            mora:      cuotaObjetivo.mora, // preservar mora registrada
+          },
+        });
+      } else {
+        // ── PAGO PARCIAL: reducir los saldos de la cuota ───────────────────
+        // BUG FIX: antes esta rama no existía — el pago se registraba
+        // pero la cuota no se actualizaba, perdiendo el abono.
+        const nuevaMora     = Math.max(0, Math.round((cuotaObjetivo.mora    - moraAplicada)    * 100) / 100);
+        const nuevoInteres  = Math.max(0, Math.round((cuotaObjetivo.interes - interesAplicado) * 100) / 100);
+        const nuevoCapital  = Math.max(0, Math.round((cuotaObjetivo.capital - capitalAplicado) * 100) / 100);
+        const nuevoMonto    = Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+
+        await tx.cuota.update({
+          where: { id: cuotaObjetivo.id },
+          data: {
+            mora:    nuevaMora,
+            interes: nuevoInteres,
+            capital: nuevoCapital,
+            monto:   nuevoMonto,
+          },
         });
       }
 
-      // 6. Aplicar excedente a cuotas siguientes
+      // 6. Aplicar excedente a cuotas siguientes (solo si el pago fue completo)
       if (excedente > 0) {
         const cuotasRestantes = cuotasPendientes.filter((c) => c.id !== cuotaObjetivo.id);
         let abonoRestante = excedente;
@@ -259,13 +284,13 @@ export class PagosService {
         nuevoEstado = cuotasVencidas > 0 ? EstadoPrestamo.ATRASADO : EstadoPrestamo.ACTIVO;
       }
 
-// 9. Actualizar préstamo (NO escribimos saldoPendiente — se calcula desde cuotas)
+      // 9. Actualizar préstamo
       await tx.prestamo.update({
         where: { id: dto.prestamoId },
         data: { moraAcumulada: nuevaMoraAcumulada, estado: nuevoEstado },
       });
 
-      // 10. Leer datos del cliente y préstamo actualizado (dentro del TX para consistencia)
+      // 10. Leer datos del cliente y préstamo actualizado
       const prestamoActualizado = await tx.prestamo.findUnique({
         where: { id: dto.prestamoId },
         include: {
@@ -275,25 +300,25 @@ export class PagosService {
 
       if (!prestamoActualizado) throw new NotFoundException('Préstamo no encontrado');
 
-      // 11. Crear MovimientoFinanciero (registro contable del pago)
+      // 11. Crear MovimientoFinanciero
       const clienteNombreTx = `${prestamoActualizado.cliente.nombre} ${prestamoActualizado.cliente.apellido}`.trim();
       await tx.movimientoFinanciero.create({
         data: {
-          tipo: 'PAGO_RECIBIDO',
-          monto: dto.montoPagado,
-          capital: capitalAplicado + excedente,
-          interes: interesAplicado,
-          mora: moraAplicada,
+          tipo:           'PAGO_RECIBIDO',
+          monto:          dto.montoPagado,
+          capital:        Math.round((capitalAplicado + excedente) * 100) / 100,
+          interes:        interesAplicado,
+          mora:           moraAplicada,
           referenciaTipo: 'PAGO',
-          referenciaId: pago.id,
-          cajaId: caja.id,
+          referenciaId:   pago.id,
+          cajaId:         caja.id,
           empresaId,
           usuarioId,
-          descripcion: `Pago de ${clienteNombreTx} - Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}`,
+          descripcion:    `Pago${pagoCompleto ? '' : ' parcial'} de ${clienteNombreTx} — Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}`,
         },
       });
 
-      // 12. Actualizar totales de caja (solo si es efectivo)
+      // 12. Actualizar totales de caja (solo efectivo)
       if (dto.metodo === 'EFECTIVO' && caja.id) {
         await tx.cajaSesion.update({
           where: { id: caja.id },
@@ -309,6 +334,7 @@ export class PagosService {
         pagoObservacion: pago.observacion,
         saldoReal,
         saldoPendiente:  nuevoSaldo,
+        pagoCompleto,
         cliente: {
           nombre:   prestamoActualizado.cliente.nombre,
           apellido: prestamoActualizado.cliente.apellido,
@@ -324,7 +350,7 @@ export class PagosService {
       };
     }); // ── FIN $transaction ──────────────────────────────────────────────
 
-    // ✅ FUERA de la transacción — ya no bloquean el TX ni provocan timeout
+    // ✅ FUERA de la transacción
     const clienteNombre = `${resultadoTx.cliente.nombre} ${resultadoTx.cliente.apellido}`.trim();
 
     const [usuario] = await Promise.all([
@@ -332,28 +358,27 @@ export class PagosService {
         where: { id: usuarioId },
         select: { nombre: true },
       }),
-      // Auditoría también fuera del TX
       registrarAuditoria(this.prisma, {
         empresaId,
         usuarioId,
-        tipo: 'PAGO',
-        accion: 'PAGO',
-        descripcion: `Pago RD$${dto.montoPagado.toLocaleString()} (Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}) - Cliente: ${clienteNombre}`,
-        monto: dto.montoPagado,
+        tipo:        'PAGO',
+        accion:      resultadoTx.pagoCompleto ? 'PAGO' : 'PAGO_PARCIAL',
+        descripcion: `Pago${resultadoTx.pagoCompleto ? '' : ' parcial'} RD$${dto.montoPagado.toLocaleString()} (Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}) — Cliente: ${clienteNombre}`,
+        monto:        dto.montoPagado,
         referenciaId: dto.prestamoId,
         datosAnteriores: { saldoAntes: resultadoTx.saldoReal },
         datosNuevos: {
-          capital:       capitalAplicado,
-          interes:       interesAplicado,
-          mora:          moraAplicada,
-          saldoDespues:  resultadoTx.saldoPendiente,
-          cuotaPagada:   pagoCompleto,
-          cuotaId:       cuotaObjetivo.id,
+          capital:      capitalAplicado,
+          interes:      interesAplicado,
+          mora:         moraAplicada,
+          saldoDespues: resultadoTx.saldoPendiente,
+          cuotaPagada:  resultadoTx.pagoCompleto,
+          cuotaId:      cuotaObjetivo.id,
+          pagoCompleto: resultadoTx.pagoCompleto,
         },
-      }).catch(() => {}), // Auditoría nunca debe bloquear el retorno del pago
+      }).catch(() => {}),
     ]);
 
-    // ✅ Invalidar cache fuera del TX
     await this.invalidarCache(empresaId);
 
     return {
@@ -365,6 +390,7 @@ export class PagosService {
         interes:      interesAplicado,
         mora:         moraAplicada,
         abonoCapital: excedente,
+        pagoCompleto: resultadoTx.pagoCompleto,
         metodo:       resultadoTx.pagoMetodo,
         referencia:   resultadoTx.pagoReferencia,
         observacion:  resultadoTx.pagoObservacion,
@@ -382,6 +408,7 @@ export class PagosService {
         interes:          cuotaObjetivo.interes,
         mora:             cuotaObjetivo.mora,
         fechaVencimiento: cuotaObjetivo.fechaVencimiento,
+        pagoCompleto:     resultadoTx.pagoCompleto,
       },
       usuario: { nombre: usuario?.nombre ?? 'Sistema' },
     };
@@ -418,13 +445,12 @@ export class PagosService {
     if (cuotasPendientes.length === 0)
       throw new BadRequestException('No hay cuotas pendientes en este préstamo');
 
-    // Calcular totales exactos
+    // Calcular totales exactos desde las cuotas (respeta pagos parciales previos)
     const totalCapital = Math.round(cuotasPendientes.reduce((s, c) => s + c.capital, 0) * 100) / 100;
     const totalInteres = Math.round(cuotasPendientes.reduce((s, c) => s + c.interes, 0) * 100) / 100;
     const totalMora    = Math.round(cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0) * 100) / 100;
     const montoTotal   = Math.round((totalCapital + totalInteres + totalMora) * 100) / 100;
 
-    // ── Transacción — SOLO escrituras críticas ─────────────────────────────
     const pagoCreado = await this.prisma.$transaction(async (tx) => {
       const pago = await tx.pago.create({
         data: {
@@ -446,19 +472,39 @@ export class PagosService {
         data:  { pagada: true, fechaPago: new Date() },
       });
 
-      // NO escribimos saldoPendiente — se calcula desde cuotas
       await tx.prestamo.update({
         where: { id: prestamoId },
+        data: { moraAcumulada: 0, estado: EstadoPrestamo.PAGADO },
+      });
+
+      // Movimiento financiero
+      const clienteNombreTx = `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}`.trim();
+      await tx.movimientoFinanciero.create({
         data: {
-          moraAcumulada: 0,
-          estado: EstadoPrestamo.PAGADO,
+          tipo:           'PAGO_RECIBIDO',
+          monto:          montoTotal,
+          capital:        totalCapital,
+          interes:        totalInteres,
+          mora:           totalMora,
+          referenciaTipo: 'PAGO',
+          referenciaId:   pago.id,
+          cajaId:         caja.id,
+          empresaId,
+          usuarioId,
+          descripcion:    `Saldo total de ${clienteNombreTx} — Capital: RD$${totalCapital.toLocaleString()}, Interés: RD$${totalInteres.toLocaleString()}, Mora: RD$${totalMora.toLocaleString()}`,
         },
       });
 
-      return pago;
-    }); // ── FIN $transaction ──────────────────────────────────────────────
+      if (metodoPago === 'EFECTIVO' && caja.id) {
+        await tx.cajaSesion.update({
+          where: { id: caja.id },
+          data: { totalIngresos: { increment: montoTotal } },
+        });
+      }
 
-    // ✅ FUERA del TX — ya no provoca timeout
+      return pago;
+    });
+
     const clienteNombre = `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}`.trim();
 
     const [usuario] = await Promise.all([
@@ -469,17 +515,16 @@ export class PagosService {
       registrarAuditoria(this.prisma, {
         empresaId,
         usuarioId,
-        tipo: 'PAGO',
-        accion: 'SALDADO',
-        descripcion: `Préstamo saldado RD$${montoTotal.toLocaleString()} (Capital: RD$${totalCapital.toLocaleString()}, Interés: RD$${totalInteres.toLocaleString()}, Mora: RD$${totalMora.toLocaleString()}) - Cliente: ${clienteNombre}`,
-        monto: montoTotal,
+        tipo:        'PAGO',
+        accion:      'SALDADO',
+        descripcion: `Préstamo saldado RD$${montoTotal.toLocaleString()} (Capital: RD$${totalCapital.toLocaleString()}, Interés: RD$${totalInteres.toLocaleString()}, Mora: RD$${totalMora.toLocaleString()}) — Cliente: ${clienteNombre}`,
+        monto:        montoTotal,
         referenciaId: prestamoId,
         datosAnteriores: { cuotasPendientes: cuotasPendientes.length },
-        datosNuevos: { estado: 'PAGADO', cuotasPagadas: cuotasPendientes.length },
+        datosNuevos:     { estado: 'PAGADO', cuotasPagadas: cuotasPendientes.length },
       }).catch(() => {}),
     ]);
 
-    // ✅ Invalidar cache SIEMPRE (antes estaba después de un return — nunca se ejecutaba)
     await this.invalidarCache(empresaId);
 
     return {
@@ -507,7 +552,7 @@ export class PagosService {
         apellido: prestamo.cliente.apellido,
         cedula:   prestamo.cliente.cedula,
       },
-      cuota: null,
+      cuota:   null,
       usuario: { nombre: usuario?.nombre ?? 'Sistema' },
     };
   }
@@ -563,14 +608,12 @@ export class PagosService {
 
     if (!pago) throw new NotFoundException('Pago no encontrado');
 
-    // Calcular saldo desde cuotas NO pagadas
     const saldoPendiente = Math.max(0, Math.round(
       pago.prestamo.cuotas
         .filter(c => !c.pagada)
         .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100
     ) / 100);
 
-    // Encontrar cuota correspondiente al pago (por fechaPago cercana a createdAt)
     const cuotaDelPago = pago.prestamo?.cuotas?.find((c) => {
       if (!c.fechaPago) return false;
       const diffMs = Math.abs(
@@ -613,9 +656,7 @@ export class PagosService {
         mora:             cuotaDelPago.mora,
         fechaVencimiento: cuotaDelPago.fechaVencimiento,
       } : null,
-      usuario: {
-        nombre: pago.usuario?.nombre ?? 'Sistema',
-      },
+      usuario: { nombre: pago.usuario?.nombre ?? 'Sistema' },
     };
   }
 
@@ -625,8 +666,6 @@ export class PagosService {
     const inicioHoy = getInicioDiaRD();
     const finHoy    = getFinDiaRD();
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-
-   // console.log('DEBUG RANGO HOY:', { inicio: inicioHoy.toISOString(), fin: finHoy.toISOString() });
 
     const [totalHoy, totalMes, conteoHoy, conteoMes] = await Promise.all([
       this.prisma.pago.aggregate({
