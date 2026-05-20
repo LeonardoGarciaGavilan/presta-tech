@@ -68,9 +68,9 @@ export default function ReciboPago({ data, empresa, onClose }) {
     : capitalPagado;
 
   // ── Reemplaza window.print() ───────────────────────────────────────────────
-  const handleDescargarPDF = () => {
-    generarReciboPDF(data, empresa, `recibo-${numeroRecibo}`);
-  };
+const handleDescargarPDF = async () => {
+  await generarReciboPDF(data, empresa, `recibo-${numeroRecibo}`);
+};
 
   // ── Estilos inline (sin cambios) ───────────────────────────────────────────
   const reciboStyle = {
