@@ -113,12 +113,12 @@ function _buildPDF(data, empresa, C) {
   yCalc += LINE_SM + LINE_SM + 1 + LINE_H + 3.5; // cliente
   yCalc += LINE_SM + LINE_H * 3 + 3.5;           // prestamo (monto + frecuencia + cuotas; tasa=comentada)
   if (cuota && pagoCompleto)  yCalc += LINE_SM + LINE_H * 2 + 3.5;
-  if (cuota && !pagoCompleto) yCalc += LINE_SM + LINE_H * 2 + LINE_SM + 3.5;
+  if (cuota && !pagoCompleto) yCalc += LINE_SM + LINE_H * 2 + LINE_SM * 2 + 3.5;
   yCalc += LINE_SM;
   if (capitalDeCuota > 0) yCalc += LINE_H;
   if (interesPagado   > 0) yCalc += LINE_H;
   if (moraPagada      > 0) yCalc += LINE_H;
-  if (tieneAbono)           yCalc += LINE_H + LINE_SM + 3;
+  if (tieneAbono)           yCalc += LINE_H + LINE_SM + LINE_SM + 3;
   yCalc += LINE_H * 2;   // metodo + referencia
   yCalc += 3.5;          // solidLine
   yCalc += LINE_H + LINE_H + 2; // total pagado label + monto
@@ -176,8 +176,8 @@ function _buildPDF(data, empresa, C) {
 
   const infoBox = (msg) => {
     setFont("normal", FONT_SM);
-    text(`> ${msg}`, x, y);
-    y += LINE_SM;
+    const lines = doc.splitTextToSize(`> ${msg}`, COL_W);
+    lines.forEach(line => { text(line, x, y); y += LINE_SM; });
   };
 
   // ── RENDERIZADO ───────────────────────────────────────────────────────────
