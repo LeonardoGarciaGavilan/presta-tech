@@ -271,6 +271,8 @@ export function AuthProvider({ children }) {
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return;
 
+      resetInactividad();
+
       const token = getAccessToken();
       if (!token) return;
 
@@ -289,7 +291,7 @@ export function AuthProvider({ children }) {
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [resetInactividad]);
 
   const login = useCallback((userData, accessToken = null) => {
     clearAllDashboardCache();

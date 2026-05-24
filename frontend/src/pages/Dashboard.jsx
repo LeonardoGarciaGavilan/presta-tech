@@ -12,7 +12,7 @@ const saludar = () => {
   const h = new Date().getHours();
   if (h < 12) return "Buenos días";
   if (h < 18) return "Buenas tardes";
-  return "Buenas";
+  return "Buenas noches";
 };
 
 const Skeleton = ({ className }) => (
