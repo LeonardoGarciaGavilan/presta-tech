@@ -267,6 +267,30 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+
+      const token = getAccessToken();
+      if (!token) return;
+
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp > now + 300) return;
+      } catch {
+        return;
+      }
+
+      api.get("/auth/me").catch(() => {});
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   const login = useCallback((userData, accessToken = null) => {
     clearAllDashboardCache();
     localStorage.setItem("user", JSON.stringify(userData));

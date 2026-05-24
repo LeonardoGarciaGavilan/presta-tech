@@ -16,6 +16,11 @@ const AUTH_PUBLIC_ROUTES = [
   '/auth/logout-all',
 ];
 
+const MAX_REFRESH_RETRIES = 3;
+const REFRESH_RETRY_DELAYS = [1000, 3000, 7000];
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILIDADES JWT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -77,20 +82,33 @@ async function getValidToken() {
 
   refreshPromise = (async () => {
     try {
-      const res = await api.post("/auth/refresh");
-      const newToken = res.data?.access_token;
+      for (let attempt = 0; attempt <= MAX_REFRESH_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            await sleep(REFRESH_RETRY_DELAYS[attempt - 1]);
+          }
 
-      if (!newToken) {
-        throw new Error("No access token returned");
-      }
+          const res = await api.post("/auth/refresh");
+          const newToken = res.data?.access_token;
 
-      setAccessTokenGlobal(newToken);
-      return newToken;
-    } catch (error) {
-      if (error.response?.status === 401) {
-        clearSession();
+          if (!newToken) {
+            throw new Error("No access token returned");
+          }
+
+          setAccessTokenGlobal(newToken);
+          return newToken;
+        } catch (error) {
+          const isLastAttempt = attempt === MAX_REFRESH_RETRIES;
+          const isRetryable = !error.response || error.response.status >= 500;
+
+          if (isLastAttempt || !isRetryable) {
+            if (error.response?.status === 401) {
+              clearSession();
+            }
+            throw error;
+          }
+        }
       }
-      throw error;
     } finally {
       refreshPromise = null;
     }
