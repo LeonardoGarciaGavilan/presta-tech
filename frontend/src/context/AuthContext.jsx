@@ -34,13 +34,13 @@ function LogoutModal({ isOpen, onClose, onLogoutSingle, onLogoutAll, isLoading, 
         <p className="text-slate-400 mb-4">
           ¿Qué acción deseas realizar?
         </p>
-        
+
         {error && (
           <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
             {error}
           </div>
         )}
-        
+
         <div className="space-y-3">
           <button
             onClick={onLogoutSingle}
@@ -59,7 +59,7 @@ function LogoutModal({ isOpen, onClose, onLogoutSingle, onLogoutAll, isLoading, 
             )}
             Cerrar solo esta sesión
           </button>
-          
+
           <button
             onClick={onLogoutAll}
             disabled={isLoading}
@@ -78,7 +78,7 @@ function LogoutModal({ isOpen, onClose, onLogoutSingle, onLogoutAll, isLoading, 
             Cerrar todas las sesiones
           </button>
         </div>
-        
+
         <button
           onClick={onClose}
           disabled={isLoading}
@@ -121,6 +121,7 @@ export function AuthProvider({ children }) {
     window.location.href = "/";
   }, []);
 
+  // ─── VALIDAR SESIÓN (solo lectura, sin side-effects destructivos) ─────────
   const validarSesion = useCallback(async (showErrors = false) => {
     try {
       const res = await api.get("/auth/me");
@@ -132,9 +133,14 @@ export function AuthProvider({ children }) {
 
       return userData;
     } catch (err) {
-      localStorage.removeItem("user");
-      setUser(null);
-      isAuthenticatedRef.current = false;
+      // FIX: Solo limpiar sesión si el servidor confirma 401 (token inválido definitivo).
+      // Errores de red (sin err.response) NO deben destruir la sesión — puede ser
+      // un problema temporal de conectividad o que el refresh aún no completó.
+      if (err.response?.status === 401) {
+        localStorage.removeItem("user");
+        setUser(null);
+        isAuthenticatedRef.current = false;
+      }
 
       if (showErrors) {
         setError("Error de conexión o sesión inválida");
@@ -156,12 +162,12 @@ export function AuthProvider({ children }) {
     const token = getAccessToken();
     try {
       await api.post("/auth/logout", {}, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       clearSession();
     } catch (err) {
       console.error("Logout error:", err);
-      const errorMessage = err.response?.data?.message || 'Error al cerrar sesión. Intenta de nuevo.';
+      const errorMessage = err.response?.data?.message || "Error al cerrar sesión. Intenta de nuevo.";
       setLogoutError(errorMessage);
       setLogoutLoading(false);
     }
@@ -174,12 +180,12 @@ export function AuthProvider({ children }) {
     const token = getAccessToken();
     try {
       await api.post("/auth/logout-all", {}, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       clearSession();
     } catch (err) {
       console.error("Logout all error:", err);
-      const errorMessage = err.response?.data?.message || 'Error al cerrar todas las sesiones. Intenta de nuevo.';
+      const errorMessage = err.response?.data?.message || "Error al cerrar todas las sesiones. Intenta de nuevo.";
       setLogoutError(errorMessage);
       setLogoutLoading(false);
     }
@@ -210,7 +216,7 @@ export function AuthProvider({ children }) {
     inactividadRef.current = setTimeout(() => {
       const token = getAccessToken();
       api.post("/auth/logout", {}, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       }).catch(() => {});
       clearSession();
     }, INACTIVIDAD_MS);
@@ -230,6 +236,7 @@ export function AuthProvider({ children }) {
     };
   }, [resetInactividad]);
 
+  // ─── INICIALIZACIÓN DE SESIÓN ──────────────────────────────────────────────
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -237,22 +244,58 @@ export function AuthProvider({ children }) {
     const initAuth = async () => {
       const cachedUser = localStorage.getItem("user");
 
-      if (cachedUser) {
+      if (!cachedUser) {
+        // No hay usuario en caché — intentar refresh silencioso por si hay
+        // cookie activa (usuario que recarga sin datos en localStorage)
         try {
-          const parsed = JSON.parse(cachedUser);
-          setUser(parsed);
-          isAuthenticatedRef.current = true;
-
-          try {
-            await api.get("/auth/me");
-          } catch (err) {
-            localStorage.removeItem("user");
-            setUser(null);
-            isAuthenticatedRef.current = false;
+          const res = await api.post("/auth/refresh");
+          const newToken = res.data?.access_token;
+          if (newToken) {
+            setAccessTokenGlobal(newToken);
+            // Con el token fresco, obtener datos del usuario
+            const meRes = await api.get("/auth/me");
+            const userData = meRes.data;
+            setUser(userData);
+            isAuthenticatedRef.current = true;
+            localStorage.setItem("user", JSON.stringify(userData));
           }
         } catch {
-          localStorage.removeItem("user");
+          // No hay cookie válida — usuario genuinamente no autenticado, no hacer nada
         }
+        setLoading(false);
+        return;
+      }
+
+      // Hay usuario en caché: mostrarlo inmediatamente para evitar parpadeo
+      try {
+        const parsed = JSON.parse(cachedUser);
+        setUser(parsed);
+        isAuthenticatedRef.current = true;
+      } catch {
+        localStorage.removeItem("user");
+        setLoading(false);
+        return;
+      }
+
+      // FIX CLAVE: Verificar sesión en background SIN destruirla ante errores de red.
+      // El interceptor de api.js ya maneja el refresh automático antes de /auth/me,
+      // así que si el access token expiró, se renovará transparentemente.
+      try {
+        const res = await api.get("/auth/me");
+        const freshUser = res.data;
+        setUser(freshUser);
+        isAuthenticatedRef.current = true;
+        localStorage.setItem("user", JSON.stringify(freshUser));
+      } catch (err) {
+        if (err.response?.status === 401) {
+          // El servidor confirmó que la sesión es inválida (refresh también falló)
+          localStorage.removeItem("user");
+          setUser(null);
+          isAuthenticatedRef.current = false;
+        }
+        // Cualquier otro error (red, timeout, 5xx) → conservar sesión cacheada.
+        // El usuario puede seguir navegando; el interceptor reintentará el refresh
+        // en la próxima petición protegida.
       }
 
       setLoading(false);
@@ -267,30 +310,43 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // ─── VISIBILIDAD: al volver a la pestaña, refrescar si el token está por vencer ──
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState !== 'visible') return;
+    const handleVisibility = async () => {
+      if (document.visibilityState !== "visible") return;
+      if (!isAuthenticatedRef.current) return;
 
       resetInactividad();
 
       const token = getAccessToken();
-      if (!token) return;
 
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(atob(base64));
-        const now = Math.floor(Date.now() / 1000);
-        if (payload.exp > now + 300) return;
-      } catch {
+      // Si no hay token en memoria (ej: tab inactiva mucho tiempo), hacer refresh
+      if (!token) {
+        try {
+          await api.get("/auth/me");
+        } catch {
+          // Si falla con 401, el interceptor de response limpiará la sesión
+        }
         return;
       }
 
-      api.get("/auth/me").catch(() => {});
+      // Si el token expira en menos de 5 minutos, refrescarlo proactivamente
+      try {
+        const base64Url = token.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(base64));
+        const now = Math.floor(Date.now() / 1000);
+
+        if (payload.exp <= now + 300) {
+          await api.get("/auth/me");
+        }
+      } catch {
+        // Error parseando el token o en la petición — ignorar silenciosamente
+      }
     };
 
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [resetInactividad]);
 
   const login = useCallback((userData, accessToken = null) => {
@@ -323,7 +379,7 @@ export function AuthProvider({ children }) {
         error={logoutError}
       />
       {mostrarAviso && user && (
-        <div> { /* AvisoInactividad */ } </div>
+        <div>{/* AvisoInactividad */}</div>
       )}
     </AuthContext.Provider>
   );
