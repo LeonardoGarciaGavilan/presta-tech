@@ -28,7 +28,7 @@ import Empleados from "./pages/Empleados";
 import Auditoria from "./pages/Auditoria";
 import ControlCajas from "./pages/ControlCajas";
 import OfflineBanner from "./components/OfflineBanner";
-import UpdatePrompt from "./components/UpdatePrompt";
+import useSWUpdate from './hooks/useSWUpdate';
 
 // ─── Guard exclusivo para SUPERADMIN ─────────────────────────────────────────
 function SuperAdminRoute({ children }) {
@@ -42,10 +42,11 @@ function SuperAdminRoute({ children }) {
 }
 
 function App() {
+  useSWUpdate();
+
   return (
     <BrowserRouter>
       <OfflineBanner />
-      <UpdatePrompt />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/cambiar-password" element={<CambiarPassword />} />

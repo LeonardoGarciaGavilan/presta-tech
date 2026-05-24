@@ -1,35 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function useSWUpdate() {
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [registration, setRegistration] = useState(null);
+  const pendingUpdate = useRef(false);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && pendingUpdate.current) {
+        window.location.reload();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
 
     const checkUpdate = async () => {
       try {
         const registration = await navigator.serviceWorker.getRegistration();
         if (registration) {
-          setRegistration(registration);
-          
+          const onStateChange = () => {
+            if (registration.installing?.state === 'installed' && navigator.serviceWorker.controller) {
+              pendingUpdate.current = true;
+            }
+          };
+
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  setUpdateAvailable(true);
+                  pendingUpdate.current = true;
                 }
               });
             }
           });
 
           if (registration.installing) {
-            registration.installing.addEventListener('statechange', (e) => {
-              if (e.target.state === 'installed' && navigator.serviceWorker.controller) {
-                setUpdateAvailable(true);
-              }
-            });
+            registration.installing.addEventListener('statechange', onStateChange);
           }
         }
       } catch (err) {
@@ -38,25 +45,9 @@ export default function useSWUpdate() {
     };
 
     checkUpdate();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
-
-  const updateApp = async () => {
-    if (!registration) return false;
-
-    try {
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-      window.location.reload();
-      return true;
-    } catch (err) {
-      console.error('Update error:', err);
-      return false;
-    }
-  };
-
-  return {
-    updateAvailable,
-    updateApp
-  };
 }
