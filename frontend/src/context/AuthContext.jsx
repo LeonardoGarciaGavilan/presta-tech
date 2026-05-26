@@ -100,6 +100,8 @@ export function AuthProvider({ children }) {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState(null);
+  const [extendiendo, setExtendiendo] = useState(false);
+  const [errorExtender, setErrorExtender] = useState(null);
 
   const inactividadRef = useRef(null);
   const avisoRef = useRef(null);
@@ -221,6 +223,27 @@ export function AuthProvider({ children }) {
       clearSession();
     }, INACTIVIDAD_MS);
   }, [clearSession]);
+
+  // ─── EXTENDER SESIÓN ─────────────────────────────────────────────────────
+  const extenderSesion = useCallback(async () => {
+    setExtendiendo(true);
+    setErrorExtender(null);
+    try {
+      const res = await api.post("/auth/refresh");
+      const newToken = res.data?.access_token;
+      if (!newToken) {
+        throw new Error("No se recibió token");
+      }
+      setAccessTokenGlobal(newToken);
+      resetInactividad();
+    } catch {
+      setErrorExtender("No se pudo extender la sesión. Verifica tu conexión.");
+    } finally {
+      if (isAuthenticatedRef.current) {
+        setExtendiendo(false);
+      }
+    }
+  }, [resetInactividad]);
 
   useEffect(() => {
     const handleActividad = () => resetInactividad();
@@ -379,7 +402,46 @@ export function AuthProvider({ children }) {
         error={logoutError}
       />
       {mostrarAviso && user && (
-        <div>{/* AvisoInactividad */}</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-slate-800 rounded-xl shadow-2xl border border-slate-700 p-6 w-full max-w-md mx-4 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+              <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              Tu sesión está por expirar
+            </h3>
+            <p className="text-slate-400 mb-1">
+              por inactividad
+            </p>
+            <p className="text-slate-300 mb-2">
+              La sesión se cerrará automáticamente en{" "}
+              <span className="font-bold text-amber-400">{segsRestantes}</span>{" "}
+              segundos
+            </p>
+            {errorExtender && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
+                {errorExtender}
+              </div>
+            )}
+            <button
+              onClick={extenderSesion}
+              disabled={extendiendo}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {extendiendo ? (
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                "Extender sesión"
+              )}
+            </button>
+          </div>
+        </div>
       )}
     </AuthContext.Provider>
   );
