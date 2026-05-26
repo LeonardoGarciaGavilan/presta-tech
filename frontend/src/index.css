@@ -80,6 +80,54 @@ body.modal-open {
   animation: fadeUp 0.2s ease;
 }
 
+/* ───────────────── AUTH / LOGIN PAGES ───────────────── */
+
+@keyframes authFadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes authStagger {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+.auth-card-enter {
+  animation: authFadeUp 0.4s ease both;
+}
+
+.auth-stagger-1 {
+  animation: authStagger 0.3s ease 0.1s both;
+}
+
+.auth-stagger-2 {
+  animation: authStagger 0.3s ease 0.2s both;
+}
+
+.auth-stagger-3 {
+  animation: authStagger 0.3s ease 0.3s both;
+}
+
+.error-shake {
+  animation: shake 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card-enter,
+  .auth-stagger-1,
+  .auth-stagger-2,
+  .auth-stagger-3,
+  .error-shake {
+    animation: none;
+  }
+}
+
 /* ───────────────── PRINT RECEIPT ───────────────── */
 
 .receipt-print-target {
@@ -203,4 +251,119 @@ body.modal-open {
   .receipt-print-target [style*="margin-bottom: 12px"] {
     margin-bottom: 4px !important;
   }
+}
+
+/* ───────────────── THEME: AUTH (CSS CUSTOM PROPERTIES) ──────────── */
+
+:root {
+  /* Background */
+  --auth-bg-from: #f8fafc;
+  --auth-bg-via: #eff6ff;
+  --auth-bg-to: #ffffff;
+
+  /* Card */
+  --auth-card-bg: rgba(255, 255, 255, 0.8);
+  --auth-card-border: rgba(255, 255, 255, 0.6);
+  --auth-card-shadow: 0 25px 50px -12px rgba(219, 234, 254, 0.4);
+
+  /* Input */
+  --auth-input-bg: #ffffff;
+  --auth-input-border: #e5e7eb;
+  --auth-input-text: #111827;
+  --auth-input-placeholder: #9ca3af;
+  --auth-input-ring: rgba(59, 130, 246, 0.2);
+  --auth-input-focus-border: #60a5fa;
+
+  /* Text */
+  --auth-text-primary: #111827;
+  --auth-text-secondary: #6b7280;
+  --auth-label: #4b5563;
+
+  /* Decorative blur */
+  --auth-blur-1: rgba(191, 219, 254, 0.3);
+  --auth-blur-2: rgba(219, 234, 254, 0.4);
+  --auth-blur-center: rgba(219, 234, 254, 0.2);
+}
+
+/* FUTURE DARK MODE SUPPORT — just add data-theme="dark" to <html> */
+[data-theme="dark"] {
+  --auth-bg-from: #0f172a;
+  --auth-bg-via: #172554;
+  --auth-bg-to: #0f172a;
+
+  --auth-card-bg: rgba(255, 255, 255, 0.05);
+  --auth-card-border: rgba(255, 255, 255, 0.1);
+  --auth-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+
+  --auth-input-bg: rgba(255, 255, 255, 0.05);
+  --auth-input-border: rgba(255, 255, 255, 0.1);
+  --auth-input-text: #ffffff;
+  --auth-input-placeholder: #6b7280;
+  --auth-input-ring: rgba(59, 130, 246, 0.3);
+  --auth-input-focus-border: #3b82f6;
+
+  --auth-text-primary: #ffffff;
+  --auth-text-secondary: #94a3b8;
+  --auth-label: #94a3b8;
+
+  --auth-blur-1: rgba(37, 99, 235, 0.1);
+  --auth-blur-2: rgba(96, 165, 250, 0.1);
+  --auth-blur-center: rgba(59, 130, 246, 0.05);
+}
+
+/* Semantic classes */
+.auth-bg-gradient {
+  background: linear-gradient(
+    to bottom right,
+    var(--auth-bg-from),
+    var(--auth-bg-via),
+    var(--auth-bg-to)
+  );
+}
+
+.auth-card-surface {
+  background: var(--auth-card-bg);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--auth-card-border);
+  box-shadow: var(--auth-card-shadow);
+}
+
+.auth-input-base {
+  background: var(--auth-input-bg);
+  border: 1px solid var(--auth-input-border);
+  color: var(--auth-input-text);
+}
+
+.auth-input-base::placeholder {
+  color: var(--auth-input-placeholder);
+}
+
+.auth-input-base:focus {
+  --tw-ring-color: var(--auth-input-ring);
+  border-color: var(--auth-input-focus-border);
+  outline: none;
+}
+
+.auth-text-primary {
+  color: var(--auth-text-primary);
+}
+
+.auth-text-secondary {
+  color: var(--auth-text-secondary);
+}
+
+.auth-label {
+  color: var(--auth-label);
+}
+
+.auth-blur-1 {
+  background: var(--auth-blur-1);
+}
+
+.auth-blur-2 {
+  background: var(--auth-blur-2);
+}
+
+.auth-blur-center {
+  background: var(--auth-blur-center);
 }
