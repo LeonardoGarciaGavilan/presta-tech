@@ -1056,7 +1056,7 @@ export class PrestamosService {
   }
 
   async actualizarMoras(empresaId: string) {
-    const hoy = startOfDay(new Date());
+    const hoy = getInicioDiaRD();
     const cacheKey = `config:${empresaId}`;
 
     // 1. Obtener configuración (con cache)
