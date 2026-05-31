@@ -182,16 +182,6 @@ export default function DetallePrestamo() {
     }
   };
 
-  const handleActualizarMoras = async () => {
-    try {
-      await api.post("/prestamos/moras/actualizar");
-      showToast("Moras actualizadas correctamente");
-      fetchPrestamo();
-    } catch {
-      showToast("Error al actualizar moras", "error");
-    }
-  };
-
   if (loading) return <Spinner />;
   if (!prestamo) return (
     <div className="text-center py-20 text-gray-400">
@@ -297,14 +287,6 @@ export default function DetallePrestamo() {
               </button>
             )}
 
-            <button onClick={handleActualizarMoras}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors whitespace-nowrap shrink-0">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Actualizar moras
-            </button>
-
             {puedeRefinanciar && (
               <button onClick={() => setRefinanciarOpen(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 transition-colors whitespace-nowrap shrink-0">
@@ -390,6 +372,7 @@ export default function DetallePrestamo() {
                   : "—"}
               />
             </div>
+            <p className="text-xs text-gray-400 mt-2">Las moras se calculan automáticamente por el sistema.</p>
             <div className="mt-4">
               <div className="flex justify-between text-xs text-gray-500 mb-1.5">
                 <span>{cuotasPagadas.length} cuotas pagadas</span>
