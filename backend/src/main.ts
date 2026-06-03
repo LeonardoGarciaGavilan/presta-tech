@@ -25,6 +25,16 @@ expressApp.set('trust proxy', 1);
   }
   console.log('🔒 JWT_SECRET validado correctamente en startup');
 
+  // 🔒 VALIDAR SUPABASE EN STARTUP
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('🔒 ERROR CRÍTICO: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY deben estar configurados');
+    console.error('🔒 La aplicación no puede iniciar sin conexión a Supabase Storage');
+    process.exit(1);
+  }
+  console.log('🔒 Supabase Storage configurado correctamente en startup');
+
   // 🔒 Cookie parser - NECESARIO para leer cookies httpOnly
   app.use(cookieParser());
 

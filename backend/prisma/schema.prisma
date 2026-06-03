@@ -3,150 +3,53 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-enum Rol {
-  SUPERADMIN
-  ADMIN
-  EMPLEADO
-}
-
-enum EstadoPrestamo {
-  SOLICITADO
-  EN_REVISION
-  APROBADO
-  RECHAZADO
-  ACTIVO
-  PAGADO
-  ATRASADO
-  CANCELADO
-}
-
-enum FrecuenciaPago {
-  DIARIO
-  SEMANAL
-  QUINCENAL
-  MENSUAL
-}
-
-enum MetodoPago {
-  EFECTIVO
-  TRANSFERENCIA
-  TARJETA
-  CHEQUE
-}
-
-enum EstadoCaja {
-  ABIERTA
-  CERRADA
-}
-
-enum TipoAlerta {
-  REFINANCIAMIENTO
-  CAMBIO_FRECUENCIA
-  CAMBIO_TASA
-  CAMBIO_CUOTAS
-  CAMBIO_FECHA_PAGO
-  CANCELACION
-  CAMBIO_ESTADO
-}
-
-enum FrecuenciaPagoEmpleado {
-  SEMANAL
-  QUINCENAL
-  MENSUAL
-}
-
-enum EstadoAsistencia {
-  PRESENTE
-  AUSENTE
-  TARDANZA
-  MEDIO_DIA
-  FERIADO
-  VACACIONES
-}
-
-enum MetodoPagoEmpleado {
-  EFECTIVO
-  TRANSFERENCIA
-  CHEQUE
-}
-
-enum TipoDescuento {
-  TARDANZA
-  AUSENCIA
-  PRESTAMO
-  OTRO
-}
-
-enum MovimientoFinancieroTipo {
-  INYECCION_CAPITAL
-  PAGO_RECIBIDO
-  DESEMBOLSO
-  GASTO
-  RETIRO_GANANCIAS
-  CIERRE_CAJA
-  CORRECCION
-  APERTURA_CAJA
-  GASTO_CAPITAL
-  AJUSTE_CAJA
-  RETIRO_CAPITAL
-}
-
-enum ReferenciaTipo {
-  PAGO
-  GASTO
-  DESEMBOLSO
-  INYECCION
-  RETIRO
-  CAJA
-}
-
 model Empresa {
-  id            String           @id @default(uuid())
+  id            String                 @id @default(uuid())
   nombre        String
-  activa        Boolean          @default(true)
-  createdAt     DateTime         @default(now())
+  activa        Boolean                @default(true)
+  createdAt     DateTime               @default(now())
   alertas       Alerta[]
   auditorias    Auditoria[]
   cajas         CajaSesion[]
+  capital       CapitalEmpresa?
   clientes      Cliente[]
   configuracion Configuracion?
   desembolsos   DesembolsoCaja[]
   gastos        Gasto[]
+  inyecciones   InyeccionCapital[]
+  movimientos   MovimientoFinanciero[]
   prestamos     Prestamo[]
+  retiros       RetiroGanancias[]
   rutas         Ruta[]
   usuarios      Usuario[]
-  capital       CapitalEmpresa?
-  inyecciones   InyeccionCapital[]
-  retiros       RetiroGanancias[]
-  movimientos   MovimientoFinanciero[]
 }
 
 model Usuario {
-  id                  String           @id @default(uuid())
+  id                  String                 @id @default(uuid())
   nombre              String
-  email               String           @unique
+  email               String                 @unique
   password            String
-  rol                 Rol              @default(EMPLEADO)
-  activo              Boolean          @default(true)
-  debeCambiarPassword Boolean          @default(true)
-  createdAt           DateTime         @default(now())
+  rol                 Rol                    @default(EMPLEADO)
+  activo              Boolean                @default(true)
+  debeCambiarPassword Boolean                @default(true)
+  createdAt           DateTime               @default(now())
   empresaId           String?
   auditorias          Auditoria[]
   cajas               CajaSesion[]
   desembolsos         DesembolsoCaja[]
   gastos              Gasto[]
-  pagos               Pago[]
-  rutas               Ruta[]
-  empresa             Empresa?         @relation(fields: [empresaId], references: [id])
-  refreshTokens       RefreshToken[]
   inyecciones         InyeccionCapital[]
-  retiros             RetiroGanancias[]
   movimientos         MovimientoFinanciero[]
+  pagos               Pago[]
+  refreshTokens       RefreshToken[]
+  retiros             RetiroGanancias[]
+  rutas               Ruta[]
+  empresa             Empresa?               @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
 }
@@ -162,7 +65,6 @@ model RefreshToken {
   revokedAt     DateTime?
   revokedReason String?
   createdAt     DateTime  @default(now())
-
   usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
@@ -191,6 +93,8 @@ model Cliente {
   latitud           Float?
   longitud          Float?
   coordsAproximadas Boolean       @default(false)
+  cedulaFrontalPath String?
+  cedulaTraseraPath String?
   empresa           Empresa       @relation(fields: [empresaId], references: [id])
   prestamos         Prestamo[]
   garantias         Prestamo[]    @relation("GarantePrestamos")
@@ -210,7 +114,6 @@ model Prestamo {
   tasaInteres               Float
   numeroCuotas              Int
   montoTotal                Float
-  modoRapido                Boolean         @default(false)
   saldoPendiente            Float           @default(0)
   cuotaMensual              Float
   frecuenciaPago            FrecuenciaPago  @default(MENSUAL)
@@ -230,6 +133,7 @@ model Prestamo {
   empresaId                 String
   clienteId                 String
   garanteId                 String?
+  modoRapido                Boolean         @default(false)
   alertas                   Alerta[]
   cuotas                    Cuota[]
   desembolso                DesembolsoCaja?
@@ -310,16 +214,16 @@ model Auditoria {
   descripcion     String?
   createdAt       DateTime @default(now())
   empresaId       String?
-  monto           Float?
-  referenciaId    String?
-  tipo            String
-  usuarioId       String?
   datosAnteriores Json?
   datosNuevos     Json?
-  referenciaTipo  String?
   ip              String?
-  userAgent       String?
+  monto           Float?
   nivel           String?
+  referenciaId    String?
+  referenciaTipo  String?
+  tipo            String
+  userAgent       String?
+  usuarioId       String?
   empresa         Empresa? @relation(fields: [empresaId], references: [id])
   usuario         Usuario? @relation(fields: [usuarioId], references: [id])
 
@@ -361,10 +265,10 @@ model CajaSesion {
   createdAt       DateTime         @default(now())
   empresaId       String
   usuarioId       String
-  efectivoReal    Float?  // ⚠️ DEPRECATED: Use montoCierre instead
-  efectivoSistema Float?  // ⚠️ DEPRECATED: Use montoCierre instead
-  totalIngresos   Float            @default(0)
+  efectivoReal    Float?
+  efectivoSistema Float?
   totalEgresos    Float            @default(0)
+  totalIngresos   Float            @default(0)
   empresa         Empresa          @relation(fields: [empresaId], references: [id])
   usuario         Usuario          @relation(fields: [usuarioId], references: [id])
   desembolsos     DesembolsoCaja[]
@@ -525,28 +429,28 @@ model DescuentoEmpleado {
 }
 
 model CapitalEmpresa {
-  id              String    @id @default(uuid())
-  empresaId       String    @unique
-  capitalInicial  Float
-  fechaRegistro   DateTime  @default(now())
-  observaciones   String?
-  activo          Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  empresa         Empresa   @relation(fields: [empresaId], references: [id])
+  id             String   @id @default(uuid())
+  empresaId      String   @unique
+  capitalInicial Float
+  fechaRegistro  DateTime @default(now())
+  observaciones  String?
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  empresa        Empresa  @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
 }
 
 model InyeccionCapital {
-  id          String    @id @default(uuid())
-  empresaId   String
-  monto       Float
-  fecha       DateTime  @default(now())
-  concepto    String
-  usuarioId   String
-  createdAt   DateTime  @default(now())
-  empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  id        String   @id @default(uuid())
+  empresaId String
+  monto     Float
+  fecha     DateTime @default(now())
+  concepto  String
+  usuarioId String
+  createdAt DateTime @default(now())
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@index([empresaId])
   @@index([empresaId, fecha])
@@ -554,15 +458,15 @@ model InyeccionCapital {
 }
 
 model RetiroGanancias {
-  id          String    @id @default(uuid())
-  empresaId   String
-  monto       Float
-  fecha       DateTime  @default(now())
-  concepto    String
-  usuarioId   String
-  createdAt   DateTime  @default(now())
-  empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  id        String   @id @default(uuid())
+  empresaId String
+  monto     Float
+  fecha     DateTime @default(now())
+  concepto  String
+  usuarioId String
+  createdAt DateTime @default(now())
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@index([empresaId])
   @@index([empresaId, fecha])
@@ -570,22 +474,22 @@ model RetiroGanancias {
 }
 
 model MovimientoFinanciero {
-  id              String                   @id @default(uuid())
-  empresaId       String
-  tipo            MovimientoFinancieroTipo
-  monto           Float
-  capital         Float                    @default(0)
-  interes         Float                    @default(0)
-  mora            Float                    @default(0)
-  fecha           DateTime                 @default(now())
-  descripcion     String?
-  referenciaTipo  ReferenciaTipo?
-  referenciaId    String?
-  cajaId          String?
-  usuarioId       String?
-  createdAt       DateTime                 @default(now())
-  empresa         Empresa                  @relation(fields: [empresaId], references: [id])
-  usuario         Usuario?                 @relation(fields: [usuarioId], references: [id])
+  id             String                   @id @default(uuid())
+  empresaId      String
+  tipo           MovimientoFinancieroTipo
+  monto          Float
+  capital        Float                    @default(0)
+  interes        Float                    @default(0)
+  mora           Float                    @default(0)
+  fecha          DateTime                 @default(now())
+  descripcion    String?
+  referenciaTipo ReferenciaTipo?
+  referenciaId   String?
+  cajaId         String?
+  usuarioId      String?
+  createdAt      DateTime                 @default(now())
+  empresa        Empresa                  @relation(fields: [empresaId], references: [id])
+  usuario        Usuario?                 @relation(fields: [usuarioId], references: [id])
 
   @@index([empresaId])
   @@index([empresaId, tipo])
@@ -593,4 +497,101 @@ model MovimientoFinanciero {
   @@index([cajaId])
   @@index([usuarioId])
   @@index([referenciaTipo, referenciaId])
+}
+
+enum Rol {
+  SUPERADMIN
+  ADMIN
+  EMPLEADO
+}
+
+enum EstadoPrestamo {
+  SOLICITADO
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+  ACTIVO
+  PAGADO
+  ATRASADO
+  CANCELADO
+}
+
+enum FrecuenciaPago {
+  DIARIO
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
+  CHEQUE
+}
+
+enum EstadoCaja {
+  ABIERTA
+  CERRADA
+}
+
+enum TipoAlerta {
+  REFINANCIAMIENTO
+  CAMBIO_FRECUENCIA
+  CAMBIO_TASA
+  CAMBIO_CUOTAS
+  CAMBIO_FECHA_PAGO
+  CANCELACION
+  CAMBIO_ESTADO
+}
+
+enum FrecuenciaPagoEmpleado {
+  SEMANAL
+  QUINCENAL
+  MENSUAL
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  AUSENTE
+  TARDANZA
+  MEDIO_DIA
+  FERIADO
+  VACACIONES
+}
+
+enum MetodoPagoEmpleado {
+  EFECTIVO
+  TRANSFERENCIA
+  CHEQUE
+}
+
+enum TipoDescuento {
+  TARDANZA
+  AUSENCIA
+  PRESTAMO
+  OTRO
+}
+
+enum MovimientoFinancieroTipo {
+  INYECCION_CAPITAL
+  PAGO_RECIBIDO
+  DESEMBOLSO
+  GASTO
+  RETIRO_GANANCIAS
+  CIERRE_CAJA
+  CORRECCION
+  APERTURA_CAJA
+  GASTO_CAPITAL
+  AJUSTE_CAJA
+  RETIRO_CAPITAL
+}
+
+enum ReferenciaTipo {
+  PAGO
+  GASTO
+  DESEMBOLSO
+  INYECCION
+  RETIRO
+  CAJA
 }

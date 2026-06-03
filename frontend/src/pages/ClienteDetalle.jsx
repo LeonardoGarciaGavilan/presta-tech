@@ -4,6 +4,7 @@ import api from "../services/api";
 import { formatCurrency, formatDate, formatCedula, EstadoBadge } from "../utils/prestamosUtils";
 import MiniMapa from "../components/MiniMapa";
 import ClienteQuickActions from "../components/ClienteQuickActions";
+import CedulaUploader from "../components/clientes/CedulaUploader";
 
 const Spinner = () => (
   <div className="flex justify-center items-center py-20">
@@ -50,6 +51,7 @@ export default function ClienteDetalle() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [mostrarDocumentos, setMostrarDocumentos] = useState(false);
   const [copiado, setCopiado] = useState(false);
 
   const copiarCoordenadas = () => {
@@ -167,6 +169,30 @@ export default function ClienteDetalle() {
             <InfoItem label="Dirección" value={cliente.direccion} />
           </div>
         </div>
+      </div>
+
+      {/* 📄 Documentos */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">📄 Documentos</h2>
+          <button onClick={() => setMostrarDocumentos(m => !m)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              mostrarDocumentos
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            {mostrarDocumentos ? 'Ocultar documentos' : 'Mostrar documentos'}
+          </button>
+        </div>
+        {mostrarDocumentos && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CedulaUploader clienteId={id} tipo="cedula-frontal" />
+            <CedulaUploader clienteId={id} tipo="cedula-trasera" />
+          </div>
+        )}
       </div>
 
       {/* 🗺️ Ubicación */}

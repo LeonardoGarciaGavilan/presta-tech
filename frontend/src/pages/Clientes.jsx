@@ -1,11 +1,13 @@
 // src/pages/Clientes.jsx
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import EstadoCuenta from "../components/EstadoCuenta";
 import MiniMapa from "../components/MiniMapa";
 import api from "../services/api";
 import { PROVINCIAS_MUNICIPIOS, PROVINCIAS } from "../utils/provincias-municipios";
 import { getSectores } from "../utils/sectores-municipios";
+import CedulaUploader from "../components/clientes/CedulaUploader";
+import compressImage from "../utils/compressImage";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCedula = (v) => { const d = v.replace(/\D/g, "").slice(0, 11); if (d.length <= 3) return d; if (d.length <= 10) return `${d.slice(0, 3)}-${d.slice(3)}`; return `${d.slice(0, 3)}-${d.slice(3, 10)}-${d.slice(10)}`; };
@@ -162,6 +164,12 @@ export default function Clientes() {
   const [mostrarMapa,    setMostrarMapa]    = useState(false);
   const [sectorLibre,    setSectorLibre]    = useState("");
   const [sectorSelect,   setSectorSelect]   = useState("");
+  const [mostrarDocumentosEdit, setMostrarDocumentosEdit] = useState(false);
+  const [cedulaFrontal, setCedulaFrontal] = useState(null);
+  const [cedulaTrasera, setCedulaTrasera] = useState(null);
+  const [previewFrontal, setPreviewFrontal] = useState(null);
+  const [previewTrasera, setPreviewTrasera] = useState(null);
+  const [mostrarDocumentosCrear, setMostrarDocumentosCrear] = useState(false);
 
   // ── Estado rutas ──
   const [rutas,          setRutas]          = useState([]);
@@ -169,6 +177,15 @@ export default function Clientes() {
   // ── Estado geolocalización ──
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState(null);
+
+  // ── Cleanup object URLs al desmontar ──
+  useEffect(() => {
+    return () => {
+      if (previewFrontal) URL.revokeObjectURL(previewFrontal);
+      if (previewTrasera) URL.revokeObjectURL(previewTrasera);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Debounce del search para no disparar una petición por cada tecla
   const searchDebounced = useDebounce(search, 400);
@@ -231,7 +248,13 @@ export default function Clientes() {
     setClienteSeleccionado(null); setMostrarMapa(false);
     setSectorLibre(""); setSectorSelect("");
     setGeoError(null);
-  }, []);
+    setMostrarDocumentosEdit(false);
+    if (previewFrontal) { URL.revokeObjectURL(previewFrontal); setPreviewFrontal(null); }
+    if (previewTrasera) { URL.revokeObjectURL(previewTrasera); setPreviewTrasera(null); }
+    setCedulaFrontal(null);
+    setCedulaTrasera(null);
+    setMostrarDocumentosCrear(false);
+  }, [previewFrontal, previewTrasera]);
 
   const openNewModal = () => { resetForm(); setShowModal(true); };
 
@@ -356,6 +379,40 @@ export default function Clientes() {
     setShowModal(true);
   };
 
+  // ── File handlers for creation documents ──
+  const frontalCameraRef = useRef(null);
+  const frontalGalleryRef = useRef(null);
+  const traseraCameraRef = useRef(null);
+  const traseraGalleryRef = useRef(null);
+
+  const processFrontalFile = async (file) => {
+    if (!file) return;
+    if (previewFrontal) URL.revokeObjectURL(previewFrontal);
+    try {
+      const compressed = await compressImage(file);
+      setCedulaFrontal(compressed);
+      setPreviewFrontal(URL.createObjectURL(compressed));
+    } catch {
+      showToast("Error al procesar imagen frontal", "error");
+      setCedulaFrontal(null);
+      setPreviewFrontal(null);
+    }
+  };
+
+  const processTraseraFile = async (file) => {
+    if (!file) return;
+    if (previewTrasera) URL.revokeObjectURL(previewTrasera);
+    try {
+      const compressed = await compressImage(file);
+      setCedulaTrasera(compressed);
+      setPreviewTrasera(URL.createObjectURL(compressed));
+    } catch {
+      showToast("Error al procesar imagen trasera", "error");
+      setCedulaTrasera(null);
+      setPreviewTrasera(null);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const ve = validate(); if (Object.keys(ve).length > 0) { setErrors(ve); return; }
@@ -378,18 +435,54 @@ export default function Clientes() {
         await api.patch(`/clientes/${clienteSeleccionado.id}`, payload);
         clienteId = clienteSeleccionado.id;
         showToast("Cliente actualizado");
+        // Asignar ruta si se seleccionó (o quitar si se dejó vacío)
+        if (rutaId !== undefined) {
+          api.patch(`/rutas/cliente/${clienteId}/asignar`, { rutaId: rutaId || null })
+            .catch(() => {});
+        }
+        resetForm(); setShowModal(false);
+        fetchClientes(pagina);
       } else {
         const res = await api.post("/clientes", payload);
-        clienteId = res.data.id;
-        showToast("Cliente creado");
+        const newId = res.data.id;
+        let uploadError = null;
+        if (cedulaFrontal) {
+          try {
+            const form = new FormData();
+            form.append('tipo', 'cedula-frontal');
+            form.append('file', cedulaFrontal, 'cedula-frontal.jpg');
+            await api.post(`/clientes/${newId}/cedula`, form, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          } catch {
+            uploadError = "Error al subir cédula frontal";
+          }
+        }
+        if (cedulaTrasera) {
+          try {
+            const form = new FormData();
+            form.append('tipo', 'cedula-trasera');
+            form.append('file', cedulaTrasera, 'cedula-trasera.jpg');
+            await api.post(`/clientes/${newId}/cedula`, form, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+          } catch {
+            uploadError = "Error al subir cédula trasera";
+          }
+        }
+        if (rutaId !== undefined) {
+          api.patch(`/rutas/cliente/${newId}/asignar`, { rutaId: rutaId || null })
+            .catch(() => {});
+        }
+        if (uploadError) {
+          showToast(uploadError, "error");
+        } else {
+          showToast("Cliente creado");
+        }
+        resetForm();
+        setShowModal(false);
+        fetchClientes(1);
       }
-      // Asignar ruta si se seleccionó (o quitar si se dejó vacío)
-      if (rutaId !== undefined) {
-        api.patch(`/rutas/cliente/${clienteId}/asignar`, { rutaId: rutaId || null })
-          .catch(() => {}); // silencioso — no bloquea el guardado
-      }
-      resetForm(); setShowModal(false);
-      fetchClientes(isEditing ? pagina : 1);
     } catch { showToast("Error al guardar", "error"); }
     finally { setSubmitting(false); }
   };
@@ -544,10 +637,14 @@ export default function Clientes() {
       {/* ── Modal ── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex justify-center items-start overflow-y-auto py-4 sm:py-8 z-50 px-3 sm:px-4"
-          onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); resetForm(); } }}>
+          onClick={e => {
+            if (e.target === e.currentTarget) { setShowModal(false); resetForm(); }
+          }}>
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl modal-enter">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">{isEditing ? "Editar Cliente" : "Nuevo Cliente"}</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                {isEditing ? "Editar Cliente" : "Nuevo Cliente"}
+              </h2>
               <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-1.5 transition-colors">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
@@ -677,6 +774,92 @@ export default function Clientes() {
                   </div>
                 )}
               </section>
+
+              {/* 📄 Documentos (Opcional) — crear */}
+              {!isEditing && (
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">📄 Documentos <span className="text-gray-400 font-normal">(Opcional)</span></h3>
+                    <button type="button" onClick={() => setMostrarDocumentosCrear(s => !s)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${mostrarDocumentosCrear ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      {mostrarDocumentosCrear ? 'Ocultar documentos' : 'Mostrar documentos'}
+                    </button>
+                  </div>
+                  {mostrarDocumentosCrear && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Cédula Frontal */}
+                      <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cédula Frontal</h3>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => frontalCameraRef.current?.click()}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all">
+                            📷 Tomar foto
+                          </button>
+                          <button type="button" onClick={() => frontalGalleryRef.current?.click()}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all">
+                            🖼️ Seleccionar foto
+                          </button>
+                        </div>
+                        {previewFrontal && (
+                          <img src={previewFrontal} alt="Cédula Frontal"
+                            className="w-full rounded-lg border border-gray-200 object-cover max-h-48" />
+                        )}
+                        <input ref={frontalCameraRef} type="file" accept="image/*" capture="environment" onChange={(e) => { processFrontalFile(e.target.files?.[0]); e.target.value = ''; }} hidden />
+                        <input ref={frontalGalleryRef} type="file" accept="image/*" onChange={(e) => { processFrontalFile(e.target.files?.[0]); e.target.value = ''; }} hidden />
+                      </div>
+                      {/* Cédula Trasera */}
+                      <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cédula Trasera</h3>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => traseraCameraRef.current?.click()}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all">
+                            📷 Tomar foto
+                          </button>
+                          <button type="button" onClick={() => traseraGalleryRef.current?.click()}
+                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all">
+                            🖼️ Seleccionar foto
+                          </button>
+                        </div>
+                        {previewTrasera && (
+                          <img src={previewTrasera} alt="Cédula Trasera"
+                            className="w-full rounded-lg border border-gray-200 object-cover max-h-48" />
+                        )}
+                        <input ref={traseraCameraRef} type="file" accept="image/*" capture="environment" onChange={(e) => { processTraseraFile(e.target.files?.[0]); e.target.value = ''; }} hidden />
+                        <input ref={traseraGalleryRef} type="file" accept="image/*" onChange={(e) => { processTraseraFile(e.target.files?.[0]); e.target.value = ''; }} hidden />
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* 📄 Documentos (edit) */}
+              {isEditing && (
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">📄 Documentos</h3>
+                    <button type="button" onClick={() => setMostrarDocumentosEdit(s => !s)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                        mostrarDocumentosEdit
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      {mostrarDocumentosEdit ? 'Ocultar documentos' : 'Mostrar documentos'}
+                    </button>
+                  </div>
+                  {mostrarDocumentosEdit && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <CedulaUploader clienteId={clienteSeleccionado.id} tipo="cedula-frontal" />
+                      <CedulaUploader clienteId={clienteSeleccionado.id} tipo="cedula-trasera" />
+                    </div>
+                  )}
+                </section>
+              )}
 
               {/* Info financiera */}
               <section>

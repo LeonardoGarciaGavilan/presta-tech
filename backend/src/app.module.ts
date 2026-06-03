@@ -25,14 +25,16 @@ import { FinanzasModule } from './finanzas/finanzas.module';
 import { EmpleadosModule } from './empleados/empleados.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { DashboardModule } from './dashboard/dashboard.module';
-import jwtConfig from './config/jwt.config';   // 👈 agregar
+import jwtConfig from './config/jwt.config';
+import supabaseConfig from './config/supabase.config';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
     // ─── Configuración global ─────────────────────────────────────────────
     ConfigModule.forRoot({
       isGlobal: true,          // disponible en toda la app sin importarlo
-      load: [jwtConfig],       // carga tu config centralizada
+      load: [jwtConfig, supabaseConfig],
     }),
 
     // ─── Caché global con Redis (opcional) ───────────────────────────────────
@@ -68,6 +70,7 @@ import jwtConfig from './config/jwt.config';   // 👈 agregar
     ]),
 
     PrismaModule,
+    SupabaseModule,
     AuthModule,
     UsuarioModule,
     ClientesModule,

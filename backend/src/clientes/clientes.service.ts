@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 
@@ -13,7 +15,11 @@ export interface PaginatedResult<T> {
 
 @Injectable()
 export class ClientesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+    private readonly config: ConfigService,
+  ) {}
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -168,5 +174,52 @@ export class ClientesService {
       where: { id },
       data: { activo: true },
     });
+  }
+
+  // ─── Documentos ─────────────────────────────────────────────────────────────
+
+  async uploadCedula(
+    clienteId: string,
+    empresaId: string,
+    tipo: 'cedula-frontal' | 'cedula-trasera',
+    fileBuffer: Buffer,
+    contentType: string,
+  ) {
+    await this.assertExists(clienteId, empresaId);
+
+    const bucket = this.config.get<string>('supabase.bucket') ?? 'documentos';
+    const path = this.supabase.buildClienteDocumentPath(empresaId, clienteId, tipo);
+
+    await this.supabase.uploadFile(bucket, path, fileBuffer, contentType);
+
+    const fieldName = tipo === 'cedula-frontal' ? 'cedulaFrontalPath' : 'cedulaTraseraPath';
+    await this.prisma.cliente.update({
+      where: { id: clienteId },
+      data: { [fieldName]: path },
+    });
+
+    const signed = await this.supabase.createSignedUrl(bucket, path);
+
+    return {
+      path,
+      signedUrl: signed.signedUrl,
+      expiresAt: signed.expiresAt,
+    };
+  }
+
+  async getCedulaSignedUrl(
+    clienteId: string,
+    empresaId: string,
+    tipo: 'cedula-frontal' | 'cedula-trasera',
+  ) {
+    const cliente = await this.assertExists(clienteId, empresaId);
+
+    const path = tipo === 'cedula-frontal' ? cliente.cedulaFrontalPath : cliente.cedulaTraseraPath;
+    if (!path) {
+      throw new NotFoundException(`El cliente no tiene ${tipo} registrada`);
+    }
+
+    const bucket = this.config.get<string>('supabase.bucket') ?? 'documentos';
+    return this.supabase.createSignedUrl(bucket, path);
   }
 }
