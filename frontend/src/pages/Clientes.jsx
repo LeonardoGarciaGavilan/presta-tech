@@ -114,26 +114,90 @@ const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelet
         <p className="font-semibold text-gray-900">{cliente.nombre} {cliente.apellido}</p>
         {cliente.email && <p className="text-xs text-gray-400 mt-0.5">{cliente.email}</p>}
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 shrink-0">
         {cliente.latitud && <span title="Tiene ubicación en mapa" className="text-xs">📍</span>}
         <Badge activo={!verInactivos} />
       </div>
     </div>
+
     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-      <div><span className="text-gray-400">Cédula</span><p className="font-mono font-medium text-gray-700">{formatCedula(cliente.cedula || "")}</p></div>
-      <div><span className="text-gray-400">Celular</span><p className="font-medium text-gray-700">{formatTelefono(cliente.celular || "") || "—"}</p></div>
-      {cliente.provincia && <div className="col-span-2"><span className="text-gray-400">Ubicación</span><p className="font-medium text-gray-700">{[cliente.provincia, cliente.municipio, cliente.sector].filter(Boolean).join(" › ")}</p></div>}
+      <div>
+        <span className="text-gray-400">Cédula</span>
+        <p className="font-mono font-medium text-gray-700">{formatCedula(cliente.cedula || "")}</p>
+      </div>
+      <div>
+        <span className="text-gray-400">Celular</span>
+        <p className="font-medium text-gray-700">{formatTelefono(cliente.celular || "") || "—"}</p>
+      </div>
+      {cliente.provincia && (
+        <div className="col-span-2">
+          <span className="text-gray-400">Ubicación</span>
+          <p className="font-medium text-gray-700">{[cliente.provincia, cliente.municipio, cliente.sector].filter(Boolean).join(" › ")}</p>
+        </div>
+      )}
     </div>
-    <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
+
+    <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
       {!verInactivos ? (
         <>
-          <button onClick={() => onPerfil(cliente.id)} className="flex-1 min-w-[70px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">Perfil</button>
-          <button onClick={() => onEstadoCuenta(cliente.id)} className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200">Estado</button>
-          <button onClick={() => onEdit(cliente)} className="flex-1 min-w-[80px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>
-          <button onClick={() => onDelete(cliente)} className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>
+          {/* Perfil */}
+          <button
+            onClick={() => onPerfil(cliente.id)}
+            title="Ver perfil"
+            className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+           {/* <span className="text-[10px] font-medium">Perfil</span> */}
+          </button>
+
+          {/* Estado de Cuenta */}
+          <button
+            onClick={() => onEstadoCuenta(cliente.id)}
+            title="Estado de cuenta"
+            className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+            </svg>
+            {/* <span className="text-[10px] font-medium">Estado</span> */}
+          </button>
+
+          {/* Editar */}
+          <button
+            onClick={() => onEdit(cliente)}
+            title="Editar cliente"
+            className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+            </svg>
+            {/* <span className="text-[10px] font-medium">Editar</span> */}
+          </button>
+
+          {/* Desactivar */}
+          <button
+            onClick={() => onDelete(cliente)}
+            title="Desactivar cliente"
+            className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            {/* <span className="text-[10px] font-medium">Desactivar</span> */}
+          </button>
         </>
       ) : (
-        <button onClick={() => onReactivar(cliente)} className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
+        <button
+          onClick={() => onReactivar(cliente)}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          Reactivar
+        </button>
       )}
     </div>
   </div>

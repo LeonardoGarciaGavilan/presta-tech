@@ -1,3 +1,4 @@
+//CedulaUploader.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../services/api';
 import compressImage from '../../utils/compressImage';
