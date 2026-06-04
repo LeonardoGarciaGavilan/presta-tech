@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateInyeccionDto } from './dto/create-inyeccion.dto';
 import { CreateRetiroDto } from './dto/create-retiro.dto';
 import { CreateCapitalInicialDto } from './dto/create-capital.dto';
+import { calcularSaldoDesdeCuotas } from '../common/utils/prestamo.utils';
 
 export interface Alerta {
   tipo: 'INFO' | 'WARNING' | 'CRITICAL';
@@ -774,7 +775,6 @@ export class CapitalService {
       select: {
         id: true,
         monto: true,
-        saldoPendiente: true,
         clienteId: true,
         cliente: {
           select: {
@@ -783,6 +783,10 @@ export class CapitalService {
               select: { rutaId: true },
             },
           },
+        },
+        cuotas: {
+          where: { pagada: false },
+          select: { capital: true, interes: true, mora: true, pagada: true },
         },
       },
     });
@@ -833,7 +837,7 @@ export class CapitalService {
       const totalCobrado = pagosRuta.reduce((sum, p) => sum + p.montoTotal, 0);
       const totalInteres = pagosRuta.reduce((sum, p) => sum + p.interes + p.mora, 0);
       const capitalRecuperado = pagosRuta.reduce((sum, p) => sum + p.capital, 0);
-      const dineroEnCalleRuta = prestamosActivos.reduce((sum, p) => sum + p.saldoPendiente, 0);
+      const dineroEnCalleRuta = prestamosActivos.reduce((sum, p) => sum + calcularSaldoDesdeCuotas(p.cuotas), 0);
 
       return {
         rutaId: ruta.id,
