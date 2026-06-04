@@ -4,7 +4,7 @@ import api from "../services/api";
 import { formatCurrency, formatDate, formatCedula, EstadoBadge } from "../utils/prestamosUtils";
 import MiniMapa from "../components/MiniMapa";
 import ClienteQuickActions from "../components/ClienteQuickActions";
-import CedulaUploader from "../components/clientes/CedulaUploader";
+import CedulaViewer from "../components/clientes/CedulaViewer";
 
 const Spinner = () => (
   <div className="flex justify-center items-center py-20">
@@ -95,6 +95,8 @@ export default function ClienteDetalle() {
   const prestamos = cliente.prestamos || [];
   const garantias = cliente.garantias || [];
   const rutaAsignada = cliente.rutaClientes?.[0]?.ruta?.nombre;
+  const tieneFrontal = !!cliente.cedulaFrontalPath;
+  const tieneTrasera = !!cliente.cedulaTraseraPath;
   const totalPrestamos = prestamos.length;
   const prestamosActivos = prestamos.filter((p) => p.estado === "ACTIVO" || p.estado === "ATRASADO");
   const prestamosPagados = prestamos.filter((p) => p.estado === "PAGADO");
@@ -174,7 +176,23 @@ export default function ClienteDetalle() {
       {/* 📄 Documentos */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">📄 Documentos</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">📄 Documentos</h2>
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="text-[10px] text-gray-400 font-medium">Frontal</span>
+              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                tieneFrontal ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {tieneFrontal ? '✅ Cargada' : '❌ No cargada'}
+              </span>
+              <span className="text-[10px] text-gray-400 font-medium ml-1">Trasera</span>
+              <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                tieneTrasera ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {tieneTrasera ? '✅ Cargada' : '❌ No cargada'}
+              </span>
+            </div>
+          </div>
           <button onClick={() => setMostrarDocumentos(m => !m)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               mostrarDocumentos
@@ -187,10 +205,23 @@ export default function ClienteDetalle() {
             {mostrarDocumentos ? 'Ocultar documentos' : 'Mostrar documentos'}
           </button>
         </div>
+        {/* Indicadores móvil (siempre visibles) */}
+        <div className="sm:hidden flex items-center gap-3 mb-3">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+            tieneFrontal ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {tieneFrontal ? '✅ Frontal' : '❌ Frontal'}
+          </span>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+            tieneTrasera ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {tieneTrasera ? '✅ Trasera' : '❌ Trasera'}
+          </span>
+        </div>
         {mostrarDocumentos && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <CedulaUploader clienteId={id} tipo="cedula-frontal" />
-            <CedulaUploader clienteId={id} tipo="cedula-trasera" />
+            <CedulaViewer clienteId={id} tipo="cedula-frontal" />
+            <CedulaViewer clienteId={id} tipo="cedula-trasera" />
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-export default function compressImage(file, maxDimension = 2048, quality = 0.8) {
+export default function compressImage(file, maxDimension = 1600, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {

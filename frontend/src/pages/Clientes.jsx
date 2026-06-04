@@ -839,7 +839,23 @@ export default function Clientes() {
               {isEditing && (
                 <section>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">📄 Documentos</h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">📄 Documentos</h3>
+                      <div className="hidden sm:flex items-center gap-2">
+                        <span className="text-[10px] text-gray-400 font-medium">Frontal</span>
+                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                          clienteSeleccionado?.cedulaFrontalPath ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {clienteSeleccionado?.cedulaFrontalPath ? '✅ Cargada' : '❌ No cargada'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium ml-1">Trasera</span>
+                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                          clienteSeleccionado?.cedulaTraseraPath ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {clienteSeleccionado?.cedulaTraseraPath ? '✅ Cargada' : '❌ No cargada'}
+                        </span>
+                      </div>
+                    </div>
                     <button type="button" onClick={() => setMostrarDocumentosEdit(s => !s)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                         mostrarDocumentosEdit
@@ -851,6 +867,19 @@ export default function Clientes() {
                       </svg>
                       {mostrarDocumentosEdit ? 'Ocultar documentos' : 'Mostrar documentos'}
                     </button>
+                  </div>
+                  {/* Indicadores móvil (siempre visibles) */}
+                  <div className="sm:hidden flex items-center gap-3 mb-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      clienteSeleccionado?.cedulaFrontalPath ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {clienteSeleccionado?.cedulaFrontalPath ? '✅ Frontal' : '❌ Frontal'}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      clienteSeleccionado?.cedulaTraseraPath ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {clienteSeleccionado?.cedulaTraseraPath ? '✅ Trasera' : '❌ Trasera'}
+                    </span>
                   </div>
                   {mostrarDocumentosEdit && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
