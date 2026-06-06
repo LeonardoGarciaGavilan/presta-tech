@@ -27,16 +27,31 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+
+        // Cachear solo assets estáticos del app shell
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+
         runtimeCaching: [
+          // Assets estáticos: CacheFirst (no cambian entre deploys)
           {
-            urlPattern: /\.(js|css|ico|png|svg|woff2|html)$/,
+            urlPattern: /\.(js|css|ico|png|svg|woff2)$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'assets-cache',
               expiration: { maxEntries: 50, maxAgeSeconds: 86400 }
             }
           },
+
+          // Rutas de API de auth: NUNCA cachear
+          // El SW las deja pasar directo a la red siempre.
+          // Si se cachean, un /auth/refresh puede devolver una
+          // respuesta vieja y romper la rotación de tokens.
+          {
+            urlPattern: /\/auth\//,
+            handler: 'NetworkOnly'
+          },
+
+          // Datos del dashboard: NetworkFirst con fallback a cache
           {
             urlPattern: /\/(prestamos\/resumen|pagos\/resumen)(\?.*)?$/,
             handler: 'NetworkFirst',
@@ -45,6 +60,8 @@ export default defineConfig({
               expiration: { maxEntries: 10, maxAgeSeconds: 120 }
             }
           },
+
+          // Configuración: StaleWhileRevalidate
           {
             urlPattern: /\/configuracion(\?.*)?$/,
             handler: 'StaleWhileRevalidate',
@@ -53,13 +70,22 @@ export default defineConfig({
               expiration: { maxEntries: 5, maxAgeSeconds: 1800 }
             }
           },
+
+          // Resto de rutas de API: NetworkOnly (nunca cachear datos sensibles)
           {
-            urlPattern: /\/(clientes|prestamos|pagos|auth|reportes|auditoria|usuarios|empleados|superadmin|rutas|caja)(?!\/resumen)/,
+            urlPattern: /\/(clientes|prestamos|pagos|reportes|auditoria|usuarios|empleados|superadmin|rutas|caja)/,
             handler: 'NetworkOnly'
           }
         ],
+
+        // Sirve index.html para cualquier ruta de navegación (SPA)
         navigateFallback: 'index.html',
-        navigateFallbackAllowlist: [/^\/[^.]*$/]
+        navigateFallbackAllowlist: [/^\/[^.]*$/],
+
+        // Excluir rutas de API del navigateFallback
+        // Si el SW recibe una petición fetch a /auth/refresh no debe
+        // responder con index.html — debe dejarla pasar a la red
+        navigateFallbackDenylist: [/^\/auth\//, /^\/api\//]
       },
       devOptions: {
         enabled: false

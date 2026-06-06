@@ -14,10 +14,6 @@ const clearAllDashboardCache = () => {
 
 const AuthContext = createContext();
 
-const INACTIVIDAD_MS = 15 * 60 * 1000;
-const AVISO_ANTES_MS = 2 * 60 * 1000;
-const EVENTOS_ACTIVIDAD = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
-
 // ═══════════════════════════════════════════════════════════════════════════
 // MODAL DE LOGOUT REUTILIZABLE
 // ═══════════════════════════════════════════════════════════════════════════
@@ -95,17 +91,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [mostrarAviso, setMostrarAviso] = useState(false);
-  const [segsRestantes, setSegsRestantes] = useState(120);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [logoutError, setLogoutError] = useState(null);
-  const [extendiendo, setExtendiendo] = useState(false);
-  const [errorExtender, setErrorExtender] = useState(null);
 
-  const inactividadRef = useRef(null);
-  const avisoRef = useRef(null);
-  const countdownRef = useRef(null);
   const initializedRef = useRef(false);
   const isAuthenticatedRef = useRef(false);
 
@@ -115,11 +104,6 @@ export function AuthProvider({ children }) {
     setUser(null);
     isAuthenticatedRef.current = false;
     setAccessTokenGlobal(null);
-
-    clearTimeout(inactividadRef.current);
-    clearTimeout(avisoRef.current);
-    clearInterval(countdownRef.current);
-
     window.location.href = "/";
   }, []);
 
@@ -128,26 +112,20 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.get("/auth/me");
       const userData = res.data;
-
       setUser(userData);
       isAuthenticatedRef.current = true;
       localStorage.setItem("user", JSON.stringify(userData));
-
       return userData;
     } catch (err) {
-      // FIX: Solo limpiar sesión si el servidor confirma 401 (token inválido definitivo).
-      // Errores de red (sin err.response) NO deben destruir la sesión — puede ser
-      // un problema temporal de conectividad o que el refresh aún no completó.
+      // Solo limpiar si el servidor confirma 401 — errores de red no destruyen la sesión
       if (err.response?.status === 401) {
         localStorage.removeItem("user");
         setUser(null);
         isAuthenticatedRef.current = false;
       }
-
       if (showErrors) {
         setError("Error de conexión o sesión inválida");
       }
-
       return null;
     }
   }, []);
@@ -160,7 +138,6 @@ export function AuthProvider({ children }) {
   const handleLogoutSingle = useCallback(async () => {
     setLogoutLoading(true);
     setLogoutError(null);
-
     const token = getAccessToken();
     try {
       await api.post("/auth/logout", {}, {
@@ -178,7 +155,6 @@ export function AuthProvider({ children }) {
   const handleLogoutAll = useCallback(async () => {
     setLogoutLoading(true);
     setLogoutError(null);
-
     const token = getAccessToken();
     try {
       await api.post("/auth/logout-all", {}, {
@@ -198,67 +174,6 @@ export function AuthProvider({ children }) {
     setLogoutError(null);
   }, []);
 
-  const resetInactividad = useCallback(() => {
-    if (!isAuthenticatedRef.current) return;
-
-    setMostrarAviso(false);
-    clearTimeout(inactividadRef.current);
-    clearTimeout(avisoRef.current);
-    clearInterval(countdownRef.current);
-
-    avisoRef.current = setTimeout(() => {
-      setSegsRestantes(120);
-      setMostrarAviso(true);
-
-      countdownRef.current = setInterval(() => {
-        setSegsRestantes((s) => (s <= 1 ? 0 : s - 1));
-      }, 1000);
-    }, INACTIVIDAD_MS - AVISO_ANTES_MS);
-
-    inactividadRef.current = setTimeout(() => {
-      const token = getAccessToken();
-      api.post("/auth/logout", {}, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      }).catch(() => {});
-      clearSession();
-    }, INACTIVIDAD_MS);
-  }, [clearSession]);
-
-  // ─── EXTENDER SESIÓN ─────────────────────────────────────────────────────
-  const extenderSesion = useCallback(async () => {
-    setExtendiendo(true);
-    setErrorExtender(null);
-    try {
-      const res = await api.post("/auth/refresh");
-      const newToken = res.data?.access_token;
-      if (!newToken) {
-        throw new Error("No se recibió token");
-      }
-      setAccessTokenGlobal(newToken);
-      resetInactividad();
-    } catch {
-      setErrorExtender("No se pudo extender la sesión. Verifica tu conexión.");
-    } finally {
-      if (isAuthenticatedRef.current) {
-        setExtendiendo(false);
-      }
-    }
-  }, [resetInactividad]);
-
-  useEffect(() => {
-    const handleActividad = () => resetInactividad();
-
-    EVENTOS_ACTIVIDAD.forEach((ev) =>
-      window.addEventListener(ev, handleActividad, { passive: true })
-    );
-
-    return () => {
-      EVENTOS_ACTIVIDAD.forEach((ev) =>
-        window.removeEventListener(ev, handleActividad)
-      );
-    };
-  }, [resetInactividad]);
-
   // ─── INICIALIZACIÓN DE SESIÓN ──────────────────────────────────────────────
   useEffect(() => {
     if (initializedRef.current) return;
@@ -268,14 +183,13 @@ export function AuthProvider({ children }) {
       const cachedUser = localStorage.getItem("user");
 
       if (!cachedUser) {
-        // No hay usuario en caché — intentar refresh silencioso por si hay
-        // cookie activa (usuario que recarga sin datos en localStorage)
+        // Sin caché: intentar refresh silencioso por si hay cookie activa
+        // (ej: usuario que instaló la PWA y vuelve días después)
         try {
           const res = await api.post("/auth/refresh");
           const newToken = res.data?.access_token;
           if (newToken) {
             setAccessTokenGlobal(newToken);
-            // Con el token fresco, obtener datos del usuario
             const meRes = await api.get("/auth/me");
             const userData = meRes.data;
             setUser(userData);
@@ -283,13 +197,13 @@ export function AuthProvider({ children }) {
             localStorage.setItem("user", JSON.stringify(userData));
           }
         } catch {
-          // No hay cookie válida — usuario genuinamente no autenticado, no hacer nada
+          // No hay cookie válida — usuario genuinamente no autenticado
         }
         setLoading(false);
         return;
       }
 
-      // Hay usuario en caché: mostrarlo inmediatamente para evitar parpadeo
+      // Hay caché: mostrar al usuario inmediatamente para evitar parpadeo
       try {
         const parsed = JSON.parse(cachedUser);
         setUser(parsed);
@@ -300,9 +214,13 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // FIX CLAVE: Verificar sesión en background SIN destruirla ante errores de red.
-      // El interceptor de api.js ya maneja el refresh automático antes de /auth/me,
-      // así que si el access token expiró, se renovará transparentemente.
+      // IMPORTANTE: setLoading(false) va ANTES de la verificación en background.
+      // Así el usuario ve su pantalla de inmediato (con los datos cacheados)
+      // mientras se verifica la sesión silenciosamente detrás.
+      setLoading(false);
+
+      // Verificar sesión en background — el interceptor de api.js hace
+      // el refresh automático si el access token expiró antes de llamar /auth/me
       try {
         const res = await api.get("/auth/me");
         const freshUser = res.data;
@@ -311,49 +229,45 @@ export function AuthProvider({ children }) {
         localStorage.setItem("user", JSON.stringify(freshUser));
       } catch (err) {
         if (err.response?.status === 401) {
-          // El servidor confirmó que la sesión es inválida (refresh también falló)
+          // Servidor confirmó sesión inválida (refresh también falló)
           localStorage.removeItem("user");
           setUser(null);
           isAuthenticatedRef.current = false;
+          // No hace falta redirigir aquí: el ProtectedRoute reacciona al user=null
         }
-        // Cualquier otro error (red, timeout, 5xx) → conservar sesión cacheada.
-        // El usuario puede seguir navegando; el interceptor reintentará el refresh
-        // en la próxima petición protegida.
+        // Error de red o 5xx → conservar sesión cacheada, el usuario sigue navegando
       }
-
-      setLoading(false);
     };
 
     initAuth();
-
-    return () => {
-      clearTimeout(inactividadRef.current);
-      clearTimeout(avisoRef.current);
-      clearInterval(countdownRef.current);
-    };
   }, []);
 
-  // ─── VISIBILIDAD: al volver a la pestaña, refrescar si el token está por vencer ──
+  // ─── VISIBILIDAD: al volver a la pestaña/app, verificar token ─────────────
+  // Cubre el caso principal del bug: usuario minimiza la PWA, vuelve,
+  // y el access token en memoria ya no existe (JS reiniciado por el OS).
   useEffect(() => {
     const handleVisibility = async () => {
       if (document.visibilityState !== "visible") return;
       if (!isAuthenticatedRef.current) return;
 
-      resetInactividad();
-
       const token = getAccessToken();
 
-      // Si no hay token en memoria (ej: tab inactiva mucho tiempo), hacer refresh
+      // Sin token en memoria: el OS reinició el JS (PWA en background por mucho tiempo)
+      // Intentar recuperar la sesión via /auth/me — el interceptor hará el refresh
       if (!token) {
         try {
-          await api.get("/auth/me");
+          const res = await api.get("/auth/me");
+          const freshUser = res.data;
+          setUser(freshUser);
+          isAuthenticatedRef.current = true;
+          localStorage.setItem("user", JSON.stringify(freshUser));
         } catch {
-          // Si falla con 401, el interceptor de response limpiará la sesión
+          // Si falla con 401, el interceptor de response ya llama clearSession
         }
         return;
       }
 
-      // Si el token expira en menos de 5 minutos, refrescarlo proactivamente
+      // Hay token: verificar si expira en menos de 5 minutos y refrescar proactivamente
       try {
         const base64Url = token.split(".")[1];
         const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
@@ -370,7 +284,7 @@ export function AuthProvider({ children }) {
 
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [resetInactividad]);
+  }, []);
 
   const login = useCallback((userData, accessToken = null) => {
     clearAllDashboardCache();
@@ -378,13 +292,10 @@ export function AuthProvider({ children }) {
     setUser(userData);
     isAuthenticatedRef.current = true;
     setError(null);
-
     if (accessToken) {
       setAccessTokenGlobal(accessToken);
     }
-
-    resetInactividad();
-  }, [resetInactividad]);
+  }, []);
 
   const refreshUser = useCallback(async () => {
     return await validarSesion(true);
@@ -401,48 +312,6 @@ export function AuthProvider({ children }) {
         isLoading={logoutLoading}
         error={logoutError}
       />
-      {mostrarAviso && user && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative bg-slate-800 rounded-xl shadow-2xl border border-slate-700 p-6 w-full max-w-md mx-4 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
-              <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">
-              Tu sesión está por expirar
-            </h3>
-            <p className="text-slate-400 mb-1">
-              por inactividad
-            </p>
-            <p className="text-slate-300 mb-2">
-              La sesión se cerrará automáticamente en{" "}
-              <span className="font-bold text-amber-400">{segsRestantes}</span>{" "}
-              segundos
-            </p>
-            {errorExtender && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">
-                {errorExtender}
-              </div>
-            )}
-            <button
-              onClick={extenderSesion}
-              disabled={extendiendo}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {extendiendo ? (
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                "Extender sesión"
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </AuthContext.Provider>
   );
 }

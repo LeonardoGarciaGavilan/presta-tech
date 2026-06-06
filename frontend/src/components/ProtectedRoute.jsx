@@ -2,8 +2,11 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading, error } = useAuth();
+  const { user, loading } = useAuth();
 
+  // Mientras initAuth verifica la sesión, mostrar loading
+  // Esto evita la condición de carrera donde loading=false
+  // llega antes de que user se setee, botando al usuario al login
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -15,19 +18,6 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (error === 'backend_offline') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-white text-center p-8">
-          <div className="text-red-500 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold mb-2">Backend no disponible</h2>
-          <p className="text-gray-400">Verifica que el servidor esté corriendo en http://localhost:3000</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Solo redirigir si NO hay usuario (no por loading o error)
   if (!user) {
     return <Navigate to="/" replace />;
   }
