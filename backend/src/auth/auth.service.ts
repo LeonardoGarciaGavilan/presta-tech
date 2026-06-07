@@ -68,7 +68,11 @@ export class AuthService {
       sameSite: isProduction ? 'none' : 'lax',
       path: '/',
       maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+      partitioned: false,
     });
+      // Forzar el header explícitamente — Railway a veces lo necesita
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Expose-Headers', 'Set-Cookie');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
