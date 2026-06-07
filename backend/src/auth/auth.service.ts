@@ -1,5 +1,9 @@
 // src/auth/auth.service.ts
-import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -45,7 +49,9 @@ export class AuthService {
   }
 
   private getRefreshTokenExpiry(): Date {
-    return new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    return new Date(
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -55,7 +61,7 @@ export class AuthService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setRefreshTokenCookie(res: Response, token: string): void {
     const isProduction = process.env.NODE_ENV === 'production';
-    
+
     res.cookie(REFRESH_TOKEN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: isProduction,
@@ -82,11 +88,12 @@ export class AuthService {
 
   private obtenerIntento(ip: string): IntentoLogin | undefined {
     const intento = this.intentosLogin.get(ip);
-    
+
     if (!intento) return undefined;
 
     const ahora = new Date();
-    const horasDesdePrimerIntento = (ahora.getTime() - intento.primerIntento.getTime()) / (1000 * 60 * 60);
+    const horasDesdePrimerIntento =
+      (ahora.getTime() - intento.primerIntento.getTime()) / (1000 * 60 * 60);
 
     if (horasDesdePrimerIntento >= VENTANA_HORAS) {
       this.intentosLogin.delete(ip);
@@ -104,22 +111,22 @@ export class AuthService {
   private estaBloqueada(ip: string): boolean {
     const intento = this.obtenerIntento(ip);
     if (!intento) return false;
-    
+
     if (intento.bloqueadoHasta) {
       return new Date() < intento.bloqueadoHasta;
     }
-    
+
     return false;
   }
 
   private getMinutosRestantes(ip: string): number | null {
     const intento = this.obtenerIntento(ip);
     if (!intento || !intento.bloqueadoHasta) return null;
-    
+
     const minutosRestantes = Math.ceil(
-      (intento.bloqueadoHasta.getTime() - Date.now()) / 60000
+      (intento.bloqueadoHasta.getTime() - Date.now()) / 60000,
     );
-    
+
     return minutosRestantes > 0 ? minutosRestantes : null;
   }
 
@@ -133,7 +140,9 @@ export class AuthService {
     intento.intentos += 1;
 
     if (intento.intentos >= MAX_INTENTOS_FALLIDOS) {
-      intento.bloqueadoHasta = new Date(Date.now() + BLOQUEO_MINUTOS * 60 * 1000);
+      intento.bloqueadoHasta = new Date(
+        Date.now() + BLOQUEO_MINUTOS * 60 * 1000,
+      );
     }
 
     this.intentosLogin.set(ip, intento);
@@ -156,7 +165,8 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
 
     const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) throw new UnauthorizedException('Credenciales inválidas');
+    if (!passwordMatch)
+      throw new UnauthorizedException('Credenciales inválidas');
 
     if (!user.activo) {
       throw new UnauthorizedException(
@@ -172,11 +182,17 @@ export class AuthService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async login(email: string, password: string, ip: string, userAgent?: string, res?: any) {
+  async login(
+    email: string,
+    password: string,
+    ip: string,
+    userAgent?: string,
+    res?: any,
+  ) {
     // ─── VERIFICAR SI IP ESTÁ BLOQUEADA ───
     if (this.estaBloqueada(ip)) {
       const minutosRestantes = this.getMinutosRestantes(ip);
-      
+
       // Registrar intento bloqueado
       await registrarAuditoria(this.prisma, {
         empresaId: 'sistema',
@@ -237,15 +253,17 @@ export class AuthService {
     await this.cleanupExpiredTokens(user.id);
 
     const payload = {
-      sub:       user.id,
-      userId:    user.id,
-      email:     user.email,
-      nombre:    user.nombre,
-      rol:       user.rol,
+      sub: user.id,
+      userId: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      rol: user.rol,
       empresaId: user.empresaId ?? null,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
     const refreshToken = this.generateRefreshToken();
     const tokenHash = this.hashToken(refreshToken);
 
@@ -258,11 +276,11 @@ export class AuthService {
     });
 
     const usuarioResponse = {
-      id:        user.id,
-      email:     user.email,
-      nombre:    user.nombre,
-      rol:       user.rol,
-      empresa:   user.empresa?.nombre || null,
+      id: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      rol: user.rol,
+      empresa: user.empresa?.nombre || null,
       empresaId: user.empresaId,
     };
 
@@ -275,7 +293,7 @@ export class AuthService {
       return {
         access_token: accessToken,
         esSuperAdmin: true,
-        usuario:      usuarioResponse,
+        usuario: usuarioResponse,
       };
     }
 
@@ -288,8 +306,8 @@ export class AuthService {
       return {
         access_token: tokenTemporal,
         requiereCambioPassword: true,
-        mensaje:                'Debe cambiar su contraseña antes de continuar',
-        usuario:                usuarioResponse,
+        mensaje: 'Debe cambiar su contraseña antes de continuar',
+        usuario: usuarioResponse,
       };
     }
 
@@ -311,7 +329,7 @@ export class AuthService {
     }
 
     const tokenHash = this.hashToken(refreshToken);
-    
+
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
       include: { usuario: { include: { empresa: true } } },
@@ -324,7 +342,10 @@ export class AuthService {
 
     // Validación: token no ha sido revocado
     if (storedToken.revoked || storedToken.revokedAt) {
-      if (storedToken.revokedAt && Date.now() - storedToken.revokedAt.getTime() < TOKEN_REUSE_GRACE_MS) {
+      if (
+        storedToken.revokedAt &&
+        Date.now() - storedToken.revokedAt.getTime() < TOKEN_REUSE_GRACE_MS
+      ) {
         // ⚡ Race condition: el token se rotó hace <10s (F5 durante refresh, tabs múltiples)
         // En vez de invalidar todo, emitimos tokens nuevos normalmente
         // El rotate subsecuente revocará este intento de reuso benigno
@@ -339,7 +360,9 @@ export class AuthService {
       } else {
         // 🚨 SECURITY: Token revocado hace tiempo - posible robo de token
         await this.handleTokenReuse(storedToken.usuarioId);
-        throw new UnauthorizedException('Sesión comprometida. Por favor inicia sesión nuevamente.');
+        throw new UnauthorizedException(
+          'Sesión comprometida. Por favor inicia sesión nuevamente.',
+        );
       }
     }
 
@@ -351,7 +374,9 @@ export class AuthService {
     // Validación: usuario activo
     if (!storedToken.usuario.activo) {
       await this.revokeToken(storedToken.id);
-      throw new ForbiddenException('Usuario inactivo. Contacte al administrador.');
+      throw new ForbiddenException(
+        'Usuario inactivo. Contacte al administrador.',
+      );
     }
 
     // 🚨 ROTACIÓN OBLIGATORIA: Revocar el token usado
@@ -371,19 +396,22 @@ export class AuthService {
 
     // Generar nuevo access token
     const payload = {
-      sub:       storedToken.usuario.id,
-      userId:    storedToken.usuario.id,
-      email:     storedToken.usuario.email,
-      nombre:    storedToken.usuario.nombre,
-      rol:       storedToken.usuario.rol,
+      sub: storedToken.usuario.id,
+      userId: storedToken.usuario.id,
+      email: storedToken.usuario.email,
+      nombre: storedToken.usuario.nombre,
+      rol: storedToken.usuario.rol,
       empresaId: storedToken.usuario.empresaId ?? null,
     };
 
-    const newAccessToken = this.jwtService.sign(payload, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const newAccessToken = this.jwtService.sign(payload, {
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+    });
 
+    console.log('Setting cookie with new refresh token:',newRefreshToken.substring(0, 10) + '...', );
     // Set cookie con nuevo refresh token
     this.setRefreshTokenCookie(res, newRefreshToken);
-
+    console.log('Cookie set, returning access token');
     return { access_token: newAccessToken };
   }
 
@@ -392,7 +420,14 @@ export class AuthService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async logout(refreshToken: string | undefined, res?: any, userId?: string, empresaId?: string, ip?: string, userAgent?: string) {
+  async logout(
+    refreshToken: string | undefined,
+    res?: any,
+    userId?: string,
+    empresaId?: string,
+    ip?: string,
+    userAgent?: string,
+  ) {
     if (refreshToken) {
       const tokenHash = this.hashToken(refreshToken);
       const storedToken = await this.prisma.refreshToken.findUnique({
@@ -473,18 +508,20 @@ export class AuthService {
 
     // Eliminar tokens expirados o revocados antiguos
     await this.prisma.refreshToken.deleteMany({
-      where: userId ? {
-        usuarioId: userId,
-        OR: [
-          { expiresAt: { lt: new Date() } },
-          { revoked: true, revokedAt: { lt: thirtyDaysAgo } },
-        ],
-      } : {
-        OR: [
-          { expiresAt: { lt: new Date() } },
-          { revoked: true, revokedAt: { lt: thirtyDaysAgo } },
-        ],
-      },
+      where: userId
+        ? {
+            usuarioId: userId,
+            OR: [
+              { expiresAt: { lt: new Date() } },
+              { revoked: true, revokedAt: { lt: thirtyDaysAgo } },
+            ],
+          }
+        : {
+            OR: [
+              { expiresAt: { lt: new Date() } },
+              { revoked: true, revokedAt: { lt: thirtyDaysAgo } },
+            ],
+          },
     });
   }
 
@@ -522,10 +559,10 @@ export class AuthService {
     }
 
     return {
-      id:      user.id,
-      email:   user.email,
-      nombre:  user.nombre,
-      rol:     user.rol,
+      id: user.id,
+      email: user.email,
+      nombre: user.nombre,
+      rol: user.rol,
       empresa: user.empresa?.nombre || null,
       empresaId: user.empresaId,
     };
