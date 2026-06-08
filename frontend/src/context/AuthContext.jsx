@@ -170,77 +170,82 @@ export function AuthProvider({ children }) {
 
   // ─── INICIALIZACIÓN DE SESIÓN ──────────────────────────────────────────────
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+if (initializedRef.current) return;
+initializedRef.current = true;
 
-    const initAuth = async () => {
-      const cachedUser = localStorage.getItem("user");
-      const hasRefreshToken = !!getRefreshToken();
+const initAuth = async () => {
+  const cachedUser = localStorage.getItem("user");
+  const hasRefreshToken = !!getRefreshToken();
 
-      if (!cachedUser && !hasRefreshToken) {
-        // No hay nada guardado — usuario genuinamente no autenticado
-        setLoading(false);
-        return;
-      }
+  console.log('[initAuth] cachedUser:', !!cachedUser, '| hasRefreshToken:', hasRefreshToken);
 
-      if (!cachedUser && hasRefreshToken) {
-        // Hay refresh token pero no caché de usuario — recuperar sesión
-        try {
-          const newAccessToken = await getValidToken();
-          if (newAccessToken) {
-            const meRes = await api.get("/auth/me");
-            const userData = meRes.data;
-            setUser(userData);
-            isAuthenticatedRef.current = true;
-            localStorage.setItem("user", JSON.stringify(userData));
-          }
-        } catch {
-          // Refresh token inválido o expirado — limpiar todo
-          clearRefreshToken();
-        }
-        setLoading(false);
-        return;
-      }
+  if (!cachedUser && !hasRefreshToken) {
+    console.log('[initAuth] sin datos — usuario no autenticado');
+    setLoading(false);
+    return;
+  }
 
-      // Hay caché de usuario: mostrar inmediatamente para evitar parpadeo
-      try {
-        const parsed = JSON.parse(cachedUser);
-        setUser(parsed);
+  if (!cachedUser && hasRefreshToken) {
+    console.log('[initAuth] sin caché pero con rt — recuperando sesión...');
+    try {
+      const newAccessToken = await getValidToken();
+      console.log('[initAuth] getValidToken OK:', !!newAccessToken);
+      if (newAccessToken) {
+        const meRes = await api.get("/auth/me");
+        console.log('[initAuth] /auth/me OK:', meRes.data);
+        const userData = meRes.data;
+        setUser(userData);
         isAuthenticatedRef.current = true;
-      } catch {
-        localStorage.removeItem("user");
-        setLoading(false);
-        return;
+        localStorage.setItem("user", JSON.stringify(userData));
       }
+    } catch (err) {
+      console.log('[initAuth] ERROR recuperando sesión:', err.response?.status, err.message);
+      clearRefreshToken();
+    }
+    setLoading(false);
+    return;
+  }
 
-      // loading=false antes de verificar en background
-      // El usuario ve su pantalla de inmediato con datos cacheados
-      setLoading(false);
+  // Hay caché de usuario: mostrar inmediatamente para evitar parpadeo
+  try {
+    const parsed = JSON.parse(cachedUser);
+    setUser(parsed);
+    isAuthenticatedRef.current = true;
+    console.log('[initAuth] usuario cacheado seteado:', parsed.email);
+  } catch {
+    console.log('[initAuth] ERROR parseando caché');
+    localStorage.removeItem("user");
+    setLoading(false);
+    return;
+  }
 
-      // Verificar sesión en background — getValidToken hace el refresh si es necesario
-      try {
-        // Asegurarse de tener un access token válido primero
-        await getValidToken();
-        // Luego verificar con el servidor
-        const res = await api.get("/auth/me");
-        const freshUser = res.data;
-        setUser(freshUser);
-        isAuthenticatedRef.current = true;
-        localStorage.setItem("user", JSON.stringify(freshUser));
-      } catch (err) {
-        if (err.response?.status === 401) {
-          // Sesión definitivamente inválida — limpiar todo
-          localStorage.removeItem("user");
-          clearRefreshToken();
-          setUser(null);
-          isAuthenticatedRef.current = false;
-        }
-        // Error de red → conservar sesión cacheada, el usuario sigue navegando
-      }
-    };
+  // loading=false antes de verificar en background
+  setLoading(false);
+  console.log('[initAuth] loading=false, verificando en background...');
 
-    initAuth();
-  }, []);
+  try {
+    console.log('[initAuth] llamando getValidToken...');
+    await getValidToken();
+    console.log('[initAuth] getValidToken OK, llamando /auth/me...');
+    const res = await api.get("/auth/me");
+    console.log('[initAuth] /auth/me OK');
+    const freshUser = res.data;
+    setUser(freshUser);
+    isAuthenticatedRef.current = true;
+    localStorage.setItem("user", JSON.stringify(freshUser));
+  } catch (err) {
+    console.log('[initAuth] ERROR background:', err.response?.status, err.message);
+    if (err.response?.status === 401) {
+      localStorage.removeItem("user");
+      clearRefreshToken();
+      setUser(null);
+      isAuthenticatedRef.current = false;
+    }
+  }
+};
+
+initAuth();
+}, []);
 
   // ─── VISIBILIDAD: recuperar sesión al volver a la app ─────────────────────
   useEffect(() => {
