@@ -1,9 +1,7 @@
+// build: 2026-06-07
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-// vite.config.js
-// build: 2026-06-07
-import { defineConfig } from 'vite'
 
 export default defineConfig({
   base: '/',
