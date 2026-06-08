@@ -1,10 +1,11 @@
 // frontend/src/utils/token.js
-// Token storage en memoria - SIN localStorage para mayor seguridad
-// Este archivo es independiente y NO tiene dependencias circulares
+// Access token: en memoria (más seguro, no persiste entre recargas)
+// Refresh token: en localStorage (necesario porque Railway elimina Set-Cookie cross-origin)
 
 let accessTokenGlobal = null;
 let accessTokenSubscribers = [];
 
+// ─── ACCESS TOKEN (memoria) ───────────────────────────────────────────────
 export const getAccessToken = () => accessTokenGlobal;
 
 export const setAccessTokenGlobal = (token) => {
@@ -17,4 +18,31 @@ export const subscribeToAccessToken = (callback) => {
   return () => {
     accessTokenSubscribers = accessTokenSubscribers.filter(cb => cb !== callback);
   };
+};
+
+// ─── REFRESH TOKEN (localStorage) ────────────────────────────────────────
+const REFRESH_TOKEN_KEY = 'rt';
+
+export const getRefreshToken = () => {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setRefreshToken = (token) => {
+  try {
+    if (token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    }
+  } catch {}
+};
+
+export const clearRefreshToken = () => {
+  try {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {}
 };

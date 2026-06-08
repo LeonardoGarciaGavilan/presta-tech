@@ -35,7 +35,7 @@ export default function Login() {
 
     try {
       const res = await api.post("/auth/login", { email, password });
-      const { usuario, access_token, requiereCambioPassword } = res.data;
+      const { usuario, access_token, refresh_token, requiereCambioPassword } = res.data;
 
       if (recordar) {
         try { localStorage.setItem("emailRecordado", email); } catch {}
@@ -43,7 +43,7 @@ export default function Login() {
         try { localStorage.removeItem("emailRecordado"); } catch {}
       }
 
-      login(usuario, access_token || null);
+      login(usuario, access_token || null, refresh_token || null);
 
       if (usuario.rol === "SUPERADMIN") {
         navigate("/superadmin");

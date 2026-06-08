@@ -296,6 +296,7 @@ export class AuthService {
     if (user.rol === 'SUPERADMIN') {
       return {
         access_token: accessToken,
+        refresh_token: refreshToken,
         esSuperAdmin: true,
         usuario: usuarioResponse,
       };
@@ -309,6 +310,7 @@ export class AuthService {
       );
       return {
         access_token: tokenTemporal,
+        refresh_token: refreshToken, 
         requiereCambioPassword: true,
         mensaje: 'Debe cambiar su contraseña antes de continuar',
         usuario: usuarioResponse,
@@ -318,6 +320,7 @@ export class AuthService {
     // ── Login normal ──────────────────────────────────────────────────────
     return {
       access_token: accessToken,
+      refresh_token: refreshToken,
       usuario: usuarioResponse,
     };
   }
@@ -412,11 +415,11 @@ export class AuthService {
       expiresIn: ACCESS_TOKEN_EXPIRY,
     });
 
-    console.log('Setting cookie with new refresh token:',newRefreshToken.substring(0, 10) + '...', );
     // Set cookie con nuevo refresh token
     this.setRefreshTokenCookie(res, newRefreshToken);
-    console.log('Cookie set, returning access token');
-    return { access_token: newAccessToken };
+    return { access_token: newAccessToken, 
+      refresh_token: newRefreshToken, 
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

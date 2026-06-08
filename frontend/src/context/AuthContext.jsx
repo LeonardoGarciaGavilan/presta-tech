@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import api from "../services/api";
-import { setAccessTokenGlobal, getAccessToken } from "../utils/token";
+import { setAccessTokenGlobal, getAccessToken, setRefreshToken, clearRefreshToken } from "../utils/token";
 
 const clearAllDashboardCache = () => {
   try {
@@ -104,10 +104,10 @@ export function AuthProvider({ children }) {
     setUser(null);
     isAuthenticatedRef.current = false;
     setAccessTokenGlobal(null);
+    clearRefreshToken();
     window.location.href = "/";
   }, []);
 
-  // ─── VALIDAR SESIÓN (solo lectura, sin side-effects destructivos) ─────────
   const validarSesion = useCallback(async (showErrors = false) => {
     try {
       const res = await api.get("/auth/me");
@@ -117,7 +117,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem("user", JSON.stringify(userData));
       return userData;
     } catch (err) {
-      // Solo limpiar si el servidor confirma 401 — errores de red no destruyen la sesión
       if (err.response?.status === 401) {
         localStorage.removeItem("user");
         setUser(null);
@@ -183,13 +182,14 @@ export function AuthProvider({ children }) {
       const cachedUser = localStorage.getItem("user");
 
       if (!cachedUser) {
-        // Sin caché: intentar refresh silencioso por si hay cookie activa
-        // (ej: usuario que instaló la PWA y vuelve días después)
+        // Sin caché: intentar refresh silencioso si hay refresh token guardado
         try {
           const res = await api.post("/auth/refresh");
-          const newToken = res.data?.access_token;
-          if (newToken) {
-            setAccessTokenGlobal(newToken);
+          const newAccessToken = res.data?.access_token;
+          const newRefreshToken = res.data?.refresh_token;
+          if (newAccessToken) {
+            setAccessTokenGlobal(newAccessToken);
+            if (newRefreshToken) setRefreshToken(newRefreshToken);
             const meRes = await api.get("/auth/me");
             const userData = meRes.data;
             setUser(userData);
@@ -197,13 +197,13 @@ export function AuthProvider({ children }) {
             localStorage.setItem("user", JSON.stringify(userData));
           }
         } catch {
-          // No hay cookie válida — usuario genuinamente no autenticado
+          // No hay sesión activa — usuario debe loguearse
         }
         setLoading(false);
         return;
       }
 
-      // Hay caché: mostrar al usuario inmediatamente para evitar parpadeo
+      // Hay caché: mostrar inmediatamente para evitar parpadeo
       try {
         const parsed = JSON.parse(cachedUser);
         setUser(parsed);
@@ -214,13 +214,11 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // IMPORTANTE: setLoading(false) va ANTES de la verificación en background.
-      // Así el usuario ve su pantalla de inmediato (con los datos cacheados)
-      // mientras se verifica la sesión silenciosamente detrás.
+      // loading=false antes de verificar en background
+      // El usuario ve su pantalla de inmediato
       setLoading(false);
 
-      // Verificar sesión en background — el interceptor de api.js hace
-      // el refresh automático si el access token expiró antes de llamar /auth/me
+      // Verificar sesión en background — el interceptor hace el refresh automático
       try {
         const res = await api.get("/auth/me");
         const freshUser = res.data;
@@ -229,22 +227,19 @@ export function AuthProvider({ children }) {
         localStorage.setItem("user", JSON.stringify(freshUser));
       } catch (err) {
         if (err.response?.status === 401) {
-          // Servidor confirmó sesión inválida (refresh también falló)
+          // Sesión definitivamente inválida
           localStorage.removeItem("user");
           setUser(null);
           isAuthenticatedRef.current = false;
-          // No hace falta redirigir aquí: el ProtectedRoute reacciona al user=null
         }
-        // Error de red o 5xx → conservar sesión cacheada, el usuario sigue navegando
+        // Error de red → conservar sesión cacheada
       }
     };
 
     initAuth();
   }, []);
 
-  // ─── VISIBILIDAD: al volver a la pestaña/app, verificar token ─────────────
-  // Cubre el caso principal del bug: usuario minimiza la PWA, vuelve,
-  // y el access token en memoria ya no existe (JS reiniciado por el OS).
+  // ─── VISIBILIDAD: recuperar sesión al volver a la app ─────────────────────
   useEffect(() => {
     const handleVisibility = async () => {
       if (document.visibilityState !== "visible") return;
@@ -252,8 +247,8 @@ export function AuthProvider({ children }) {
 
       const token = getAccessToken();
 
-      // Sin token en memoria: el OS reinició el JS (PWA en background por mucho tiempo)
-      // Intentar recuperar la sesión via /auth/me — el interceptor hará el refresh
+      // Sin token en memoria: JS se reinició (PWA cerrada o suspendida por el OS)
+      // El interceptor usará el refresh token de localStorage automáticamente
       if (!token) {
         try {
           const res = await api.get("/auth/me");
@@ -262,23 +257,22 @@ export function AuthProvider({ children }) {
           isAuthenticatedRef.current = true;
           localStorage.setItem("user", JSON.stringify(freshUser));
         } catch {
-          // Si falla con 401, el interceptor de response ya llama clearSession
+          // 401 → el interceptor ya llama clearSession
         }
         return;
       }
 
-      // Hay token: verificar si expira en menos de 5 minutos y refrescar proactivamente
+      // Token existe: refrescar proactivamente si expira en menos de 5 minutos
       try {
         const base64Url = token.split(".")[1];
         const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
         const payload = JSON.parse(atob(base64));
         const now = Math.floor(Date.now() / 1000);
-
         if (payload.exp <= now + 300) {
           await api.get("/auth/me");
         }
       } catch {
-        // Error parseando el token o en la petición — ignorar silenciosamente
+        // Ignorar silenciosamente
       }
     };
 
@@ -286,7 +280,7 @@ export function AuthProvider({ children }) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
-  const login = useCallback((userData, accessToken = null) => {
+  const login = useCallback((userData, accessToken = null, refreshToken = null) => {
     clearAllDashboardCache();
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
@@ -294,6 +288,9 @@ export function AuthProvider({ children }) {
     setError(null);
     if (accessToken) {
       setAccessTokenGlobal(accessToken);
+    }
+    if (refreshToken) {
+      setRefreshToken(refreshToken);
     }
   }, []);
 
