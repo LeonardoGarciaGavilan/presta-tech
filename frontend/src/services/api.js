@@ -1,4 +1,3 @@
-// frontend/src/services/api.js
 import axios from 'axios';
 import { getAccessToken, setAccessTokenGlobal, getRefreshToken, setRefreshToken, clearRefreshToken } from '../utils/token';
 
@@ -50,7 +49,7 @@ function isTokenExpiringSoon(token) {
   return payload.exp <= (now + 60);
 }
 
-function clearSession() {
+export function clearSession() {
   localStorage.removeItem('user');
   setAccessTokenGlobal(null);
   clearRefreshToken();
@@ -58,10 +57,38 @@ function clearSession() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// REFRESH CENTRALIZADO CON PROMESA COMPARTIDA
+// FUNCIÓN PURA DE REFRESH — llama al backend directamente sin pasar
+// por los interceptores para evitar recursión infinita
 // ═══════════════════════════════════════════════════════════════════════════
 
 let refreshPromise = null;
+
+async function doRefresh() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw Object.assign(new Error('No refresh token'), { response: { status: 401 } });
+  }
+
+  // Usar fetch nativo en lugar de api (axios) para evitar pasar por los interceptores
+  const res = await fetch(`${API_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-refresh-token': refreshToken,
+    },
+  });
+
+  if (!res.ok) {
+    const err = new Error('Refresh failed');
+    // @ts-ignore
+    err.response = { status: res.status };
+    throw err;
+  }
+
+  const data = await res.json();
+  return data;
+}
 
 async function getValidToken() {
   const currentToken = getAccessToken();
@@ -82,27 +109,16 @@ async function getValidToken() {
             await sleep(REFRESH_RETRY_DELAYS[attempt - 1]);
           }
 
-          // Enviar el refresh token en el header x-refresh-token
-          // (las cookies no funcionan cross-origin con Railway)
-          const refreshToken = getRefreshToken();
-          if (!refreshToken) {
-            throw Object.assign(new Error('No refresh token'), { response: { status: 401 } });
-          }
+          const data = await doRefresh();
 
-          const res = await api.post('/auth/refresh', {}, {
-            headers: { 'x-refresh-token': refreshToken }
-          });
-
-          const newAccessToken = res.data?.access_token;
-          const newRefreshToken = res.data?.refresh_token;
+          const newAccessToken = data?.access_token;
+          const newRefreshToken = data?.refresh_token;
 
           if (!newAccessToken) {
             throw new Error('No access token returned');
           }
 
           setAccessTokenGlobal(newAccessToken);
-
-          // Guardar el nuevo refresh token si el backend lo devuelve
           if (newRefreshToken) {
             setRefreshToken(newRefreshToken);
           }
@@ -125,6 +141,9 @@ async function getValidToken() {
 
   return refreshPromise;
 }
+
+// Exportar para que AuthContext pueda usarla directamente
+export { getValidToken };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // REQUEST INTERCEPTOR

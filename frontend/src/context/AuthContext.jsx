@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import api from "../services/api";
-import { setAccessTokenGlobal, getAccessToken, setRefreshToken, clearRefreshToken } from "../utils/token";
+import api, { getValidToken, clearSession as apiClearSession } from "../services/api";
+import { setAccessTokenGlobal, getAccessToken, setRefreshToken, clearRefreshToken, getRefreshToken } from "../utils/token";
 
 const clearAllDashboardCache = () => {
   try {
@@ -100,12 +100,7 @@ export function AuthProvider({ children }) {
 
   const clearSession = useCallback(() => {
     clearAllDashboardCache();
-    localStorage.removeItem("user");
-    setUser(null);
-    isAuthenticatedRef.current = false;
-    setAccessTokenGlobal(null);
-    clearRefreshToken();
-    window.location.href = "/";
+    apiClearSession();
   }, []);
 
   const validarSesion = useCallback(async (showErrors = false) => {
@@ -180,16 +175,19 @@ export function AuthProvider({ children }) {
 
     const initAuth = async () => {
       const cachedUser = localStorage.getItem("user");
+      const hasRefreshToken = !!getRefreshToken();
 
-      if (!cachedUser) {
-        // Sin caché: intentar refresh silencioso si hay refresh token guardado
+      if (!cachedUser && !hasRefreshToken) {
+        // No hay nada guardado — usuario genuinamente no autenticado
+        setLoading(false);
+        return;
+      }
+
+      if (!cachedUser && hasRefreshToken) {
+        // Hay refresh token pero no caché de usuario — recuperar sesión
         try {
-          const res = await api.post("/auth/refresh");
-          const newAccessToken = res.data?.access_token;
-          const newRefreshToken = res.data?.refresh_token;
+          const newAccessToken = await getValidToken();
           if (newAccessToken) {
-            setAccessTokenGlobal(newAccessToken);
-            if (newRefreshToken) setRefreshToken(newRefreshToken);
             const meRes = await api.get("/auth/me");
             const userData = meRes.data;
             setUser(userData);
@@ -197,13 +195,14 @@ export function AuthProvider({ children }) {
             localStorage.setItem("user", JSON.stringify(userData));
           }
         } catch {
-          // No hay sesión activa — usuario debe loguearse
+          // Refresh token inválido o expirado — limpiar todo
+          clearRefreshToken();
         }
         setLoading(false);
         return;
       }
 
-      // Hay caché: mostrar inmediatamente para evitar parpadeo
+      // Hay caché de usuario: mostrar inmediatamente para evitar parpadeo
       try {
         const parsed = JSON.parse(cachedUser);
         setUser(parsed);
@@ -215,11 +214,14 @@ export function AuthProvider({ children }) {
       }
 
       // loading=false antes de verificar en background
-      // El usuario ve su pantalla de inmediato
+      // El usuario ve su pantalla de inmediato con datos cacheados
       setLoading(false);
 
-      // Verificar sesión en background — el interceptor hace el refresh automático
+      // Verificar sesión en background — getValidToken hace el refresh si es necesario
       try {
+        // Asegurarse de tener un access token válido primero
+        await getValidToken();
+        // Luego verificar con el servidor
         const res = await api.get("/auth/me");
         const freshUser = res.data;
         setUser(freshUser);
@@ -227,12 +229,13 @@ export function AuthProvider({ children }) {
         localStorage.setItem("user", JSON.stringify(freshUser));
       } catch (err) {
         if (err.response?.status === 401) {
-          // Sesión definitivamente inválida
+          // Sesión definitivamente inválida — limpiar todo
           localStorage.removeItem("user");
+          clearRefreshToken();
           setUser(null);
           isAuthenticatedRef.current = false;
         }
-        // Error de red → conservar sesión cacheada
+        // Error de red → conservar sesión cacheada, el usuario sigue navegando
       }
     };
 
@@ -247,17 +250,18 @@ export function AuthProvider({ children }) {
 
       const token = getAccessToken();
 
-      // Sin token en memoria: JS se reinició (PWA cerrada o suspendida por el OS)
-      // El interceptor usará el refresh token de localStorage automáticamente
+      // Sin access token en memoria: JS se reinició
+      // getValidToken usará el refresh token de localStorage automáticamente
       if (!token) {
         try {
+          await getValidToken(); // renueva el access token
           const res = await api.get("/auth/me");
           const freshUser = res.data;
           setUser(freshUser);
           isAuthenticatedRef.current = true;
           localStorage.setItem("user", JSON.stringify(freshUser));
         } catch {
-          // 401 → el interceptor ya llama clearSession
+          // 401 → sesión expirada, clearSession se llama desde el interceptor
         }
         return;
       }
@@ -269,7 +273,7 @@ export function AuthProvider({ children }) {
         const payload = JSON.parse(atob(base64));
         const now = Math.floor(Date.now() / 1000);
         if (payload.exp <= now + 300) {
-          await api.get("/auth/me");
+          await getValidToken();
         }
       } catch {
         // Ignorar silenciosamente
