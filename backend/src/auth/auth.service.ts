@@ -70,9 +70,9 @@ export class AuthService {
       maxAge: REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
       partitioned: false,
     });
-      // Forzar el header explícitamente — Railway a veces lo necesita
-      res.header('Access-Control-Allow-Credentials', 'true');
-      res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+    // Forzar el header explícitamente — Railway a veces lo necesita
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -296,7 +296,6 @@ export class AuthService {
     if (user.rol === 'SUPERADMIN') {
       return {
         access_token: accessToken,
-        refresh_token: refreshToken,
         esSuperAdmin: true,
         usuario: usuarioResponse,
       };
@@ -310,7 +309,6 @@ export class AuthService {
       );
       return {
         access_token: tokenTemporal,
-        refresh_token: refreshToken, 
         requiereCambioPassword: true,
         mensaje: 'Debe cambiar su contraseña antes de continuar',
         usuario: usuarioResponse,
@@ -320,7 +318,6 @@ export class AuthService {
     // ── Login normal ──────────────────────────────────────────────────────
     return {
       access_token: accessToken,
-      refresh_token: refreshToken,
       usuario: usuarioResponse,
     };
   }
@@ -417,9 +414,7 @@ export class AuthService {
 
     // Set cookie con nuevo refresh token
     this.setRefreshTokenCookie(res, newRefreshToken);
-    return { access_token: newAccessToken, 
-      refresh_token: newRefreshToken, 
-    };
+    return { access_token: newAccessToken };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
