@@ -41,8 +41,8 @@ export class AuthController {
  @Post('refresh')
  // eslint-disable-next-line @typescript-eslint/no-explicit-any
  refresh(@Req() req: any, @Res({ passthrough: true }) res: any) {
-   const refreshToken = req.cookies?.refresh_token;
-   return this.authService.refresh(refreshToken, res);
+    const refreshToken = req.cookies?.refresh_token ?? req.body?.refresh_token;
+    return this.authService.refresh(refreshToken, res);
  }
 
 
@@ -51,8 +51,8 @@ export class AuthController {
  @Post('logout')
  // eslint-disable-next-line @typescript-eslint/no-explicit-any
  logout(@Req() req: any, @Res({ passthrough: true }) res: any) {
-   const refreshToken = req.cookies?.refresh_token;
-   const user = req.user;
+    const refreshToken = req.cookies?.refresh_token ?? req.body?.refresh_token;
+    const user = req.user;
    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
    const userAgent = req.headers['user-agent'] || null;
    return this.authService.logout(refreshToken, res, user?.userId, user?.empresaId, ip, userAgent);

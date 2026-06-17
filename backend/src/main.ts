@@ -58,7 +58,11 @@ expressApp.set('trust proxy', 1);
 
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        /^https?:\/\/localhost(:\d+)?$/.test(origin)
+      ) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -68,7 +72,7 @@ expressApp.set('trust proxy', 1);
   });
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`🚀 Backend corriendo en http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Backend corriendo en http://0.0.0.0:${port}`);
 }
 bootstrap();
