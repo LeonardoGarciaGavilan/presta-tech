@@ -19,14 +19,15 @@ export class CajaService {
   }
 
   // ─── Resumen de pagos del día ─────────────────────────────────────────────
-  private async resumenPagosDia(empresaId: string, fecha: string, usuarioId?: string) {
+  private async resumenPagosDia(empresaId: string, fecha: string, usuarioId?: string, cajaId?: string) {
     const { inicioDia, finDia } = this.rangoDia(fecha);
 
-    const where = {
+    const where: any = {
       createdAt: { gte: inicioDia, lte: finDia },
       prestamo:  { empresaId },
-      ...(usuarioId && { usuarioId }),
     };
+    if (usuarioId) where.usuarioId = usuarioId;
+    if (cajaId) where.cajaId = cajaId;
 
     // OPTIMIZACIÓN: Usar aggregate para cálculos en DB
     const [totales, pagos] = await Promise.all([
@@ -317,15 +318,15 @@ export class CajaService {
 
   // ─── RESUMEN COMPLETO DEL DÍA (admin) ────────────────────────────────────
 
-  async getResumenDia(empresaId: string, fecha: string) {
+  async getResumenDia(empresaId: string, fecha: string, cajaId?: string) {
     const cajas = await this.prisma.cajaSesion.findMany({
-      where:   { empresaId, fecha },
+      where:   { empresaId, fecha, ...(cajaId && { id: cajaId }) },
       include: { usuario: { select: { id: true, nombre: true } } },
       orderBy: { createdAt: 'asc' },
     });
 
-    const resumenPagos    = await this.resumenPagosDia(empresaId, fecha);
-    const resumenDesembol = await this.desembolsosDia(empresaId, fecha);
+    const resumenPagos    = await this.resumenPagosDia(empresaId, fecha, undefined, cajaId);
+    const resumenDesembol = await this.desembolsosDia(empresaId, fecha, cajaId);
 
     const efectivoSistema = Math.round(
       (cajas.reduce((s, c) => s + c.montoInicial, 0) + resumenPagos.totalEfectivo - resumenDesembol.totalDesembolsado) * 100,

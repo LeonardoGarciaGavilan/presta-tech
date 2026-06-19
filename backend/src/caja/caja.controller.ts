@@ -16,12 +16,12 @@ import { getFechaRD } from '../common/utils/fecha.utils';
 export class CajaController {
   constructor(private readonly cajaService: CajaService) {}
 
-  // GET /caja/resumen?fecha=2026-02-26
+  // GET /caja/resumen?fecha=2026-02-26&cajaId=xxx
   @Get('resumen')
   @Roles('ADMIN', 'EMPLEADO')
-  getResumen(@Tenant() empresaId: string, @Query('fecha') fecha: string) {
+  getResumen(@Tenant() empresaId: string, @Query('fecha') fecha: string, @Query('cajaId') cajaId?: string) {
     const fechaConsulta = fecha ?? getFechaRD();
-    return this.cajaService.getResumenDia(empresaId, fechaConsulta);
+    return this.cajaService.getResumenDia(empresaId, fechaConsulta, cajaId);
   }
 
   // GET /caja/activa?fecha=2026-02-26
