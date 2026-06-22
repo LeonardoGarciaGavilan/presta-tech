@@ -126,6 +126,7 @@ export class DashboardMobileService {
         row_to_json(mora_critica.*) AS mora_critica,
         (SELECT json_agg(row_to_json(pc.*)) FROM proximos_cobros pc) AS proximos_cobros,
         (SELECT row_to_json(ca.*) FROM caja_activa ca) AS caja_activa
+      FROM portfolio, saldo_real, pagos_del_dia, pagos_del_mes, cuotas_hoy, mora_critica
     `;
 
     const rows: unknown[] = await this.prisma.$queryRawUnsafe(sql, empresaId, hoy, finHoy, inicioMes, hace30Dias, usuarioId, fechaRD);
