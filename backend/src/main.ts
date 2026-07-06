@@ -38,6 +38,9 @@ expressApp.set('trust proxy', 1);
   // 🔒 Cookie parser - NECESARIO para leer cookies httpOnly
   app.use(cookieParser());
 
+  // 🔒 Prefix global de API (versionado)
+  app.setGlobalPrefix('api/v1');
+
   // 🔒 Headers HTTP de seguridad (XSS, clickjacking, MIME sniffing, etc.)
   app.use(helmet());
 

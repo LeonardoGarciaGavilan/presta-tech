@@ -1,12 +1,11 @@
 // src/auth/auth.controller.ts
 import { Controller, Post, Body, Get, Request, Res, UseGuards, Req } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 
 
-@UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
  constructor(
