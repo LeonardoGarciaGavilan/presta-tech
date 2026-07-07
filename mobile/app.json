@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "SAS Préstamos",
+    "slug": "sas-prestamos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "sas-prestamos",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sasprestamos.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "SAS Préstamos necesita acceso a la cámara para escanear documentos de identidad y tomar fotos de los clientes.",
+        "NSPhotoLibraryUsageDescription": "SAS Préstamos necesita acceso a la galería para adjuntar fotos de clientes y documentos.",
+        "NSLocationWhenInUseUsageDescription": "SAS Préstamos necesita tu ubicación para registrar direcciones y optimizar las rutas de cobro."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sasprestamos.app"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/03855d5c-c62f-4350-9f3e-f019cf8412f6"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "@sentry/react-native"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4ae285f9-e669-4ada-b76a-824a1724c888"
+      }
+    },
+    "owner": "the_gavilan018"
+  }
+}
