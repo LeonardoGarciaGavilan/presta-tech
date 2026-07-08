@@ -1,39 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, {
-  Marker,
-  Polyline,
-  UrlTile,
-  type LatLng,
-  type MapPressEvent,
-  type Region,
-} from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
 import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
-const DEFAULT_REGION: Region = {
-  latitude: 18.74,
-  longitude: -70.16,
-  latitudeDelta: 8,
-  longitudeDelta: 8,
-};
+// NOTE: MapView requires Google Maps API key on Android for production builds.
+// To enable the map: add android.config.googleMaps.apiKey in app.json,
+// then uncomment the MapView section below and remove this placeholder.
 
-const ZOOM_REGION: Region = {
-  latitude: 18.74,
-  longitude: -70.16,
-  latitudeDelta: 0.02,
-  longitudeDelta: 0.02,
-};
-
-const MARKER_COLORS = {
-  default: '#2563EB',
-  visited: '#16A34A',
-  overdue: '#DC2626',
-  goldBorder: '#FBBF24',
-} as const;
+// import MapView, { Marker, Polyline, UrlTile, type LatLng, type MapPressEvent, type Region } from 'react-native-maps';
 
 export interface MapViewMarker {
   id: string;
@@ -74,74 +51,15 @@ export default function AppMapView({
   onMarkerPress,
 }: MapViewProps) {
   const { colorScheme, colors } = useTheme();
-  const mapRef = useRef<MapView>(null);
   const hasSingleCoord = latitude != null && longitude != null;
   const hasMultiple = markers != null && markers.length > 0;
   const hasAnyCoords = hasSingleCoord || hasMultiple;
   const [gpsLoading, setGpsLoading] = useState(false);
-
-  const allCoords: LatLng[] = hasMultiple
-    ? markers.filter((m) => m.latitude != null && m.longitude != null).map((m) => ({ latitude: m.latitude, longitude: m.longitude }))
-    : hasSingleCoord
-      ? [{ latitude, longitude } as LatLng]
-      : [];
-
-  const coordsKey = hasMultiple
-    ? (markers ?? []).map((m) => `${m.latitude},${m.longitude}`).join('|')
-    : `${latitude},${longitude}`;
-
-  const computedInitialRegion: Region =
-    hasSingleCoord && !hasMultiple
-      ? {
-          latitude: latitude!,
-          longitude: longitude!,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        }
-      : DEFAULT_REGION;
-
-  useEffect(() => {
-    if (allCoords.length === 0 || !mapRef.current) return;
-    const timeout = setTimeout(() => {
-      if (fitToMarkers && allCoords.length > 1) {
-        mapRef.current?.fitToCoordinates(allCoords, {
-          edgePadding: { top: 60, right: 60, bottom: 60, left: 60 },
-          animated: true,
-        });
-      } else if (allCoords.length === 1) {
-        const coord = allCoords[0];
-        mapRef.current?.animateToRegion(
-          {
-            latitude: coord.latitude,
-            longitude: coord.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          },
-          500,
-        );
-      }
-    }, 300);
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitToMarkers, coordsKey]);
-
-  const handleMapPress = useCallback(
-    (e: MapPressEvent) => {
-      if (readOnly) return;
-      const { coordinate } = e.nativeEvent;
-      onCoordsChange?.(coordinate.latitude, coordinate.longitude);
-    },
-    [readOnly, onCoordsChange],
-  );
-
-  const handleMarkerDragEnd = useCallback(
-    (e: { nativeEvent: { coordinate: LatLng } }) => {
-      if (readOnly) return;
-      const { coordinate } = e.nativeEvent;
-      onCoordsChange?.(coordinate.latitude, coordinate.longitude);
-    },
-    [readOnly, onCoordsChange],
-  );
+  const coordsLabel = hasSingleCoord
+    ? `${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`
+    : hasMultiple
+      ? `${markers.length} ubicaciones`
+      : null;
 
   const handleGetCurrentLocation = useCallback(async () => {
     try {
@@ -155,16 +73,6 @@ export default function AppMapView({
 
       const { latitude: lat, longitude: lng } = location.coords;
       onCoordsChange?.(lat, lng);
-
-      mapRef.current?.animateToRegion(
-        {
-          latitude: lat,
-          longitude: lng,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        },
-        500,
-      );
     } catch {
       // Silently fail
     } finally {
@@ -176,61 +84,6 @@ export default function AppMapView({
     onCoordsChange?.(null, null);
   }, [onCoordsChange]);
 
-  const getMarkerColor = (m: MapViewMarker): string => {
-    if (m.isVisited) return MARKER_COLORS.visited;
-    if (m.isOverdue) return MARKER_COLORS.overdue;
-    return m.color ?? MARKER_COLORS.default;
-  };
-
-  const renderSingleMarker = () => {
-    if (!hasSingleCoord) return null;
-    return (
-      <Marker
-        coordinate={{ latitude: latitude!, longitude: longitude! }}
-        draggable={!readOnly}
-        onDragEnd={handleMarkerDragEnd}
-        pinColor={readOnly ? undefined : MARKER_COLORS.default}
-        title={readOnly ? undefined : 'Arrastra para ajustar'}
-      />
-    );
-  };
-
-  const renderMultipleMarkers = () => {
-    if (!hasMultiple) return null;
-    const validMarkers = markers.filter((m) => m.latitude != null && m.longitude != null);
-    return (
-      <>
-        {showPolyline && validMarkers.length > 1 && (
-          <Polyline
-            coordinates={validMarkers.map((m) => ({
-              latitude: m.latitude,
-              longitude: m.longitude,
-            }))}
-            strokeColor={colors.primary}
-            strokeWidth={3}
-            lineDashPattern={[8, 10]}
-          />
-        )}
-        {validMarkers.map((m, idx) => (
-          <Marker
-            key={m.id}
-            coordinate={{ latitude: m.latitude, longitude: m.longitude }}
-            pinColor={getMarkerColor(m)}
-            title={m.title}
-            description={m.description}
-            onPress={() => onMarkerPress?.(m)}
-          >
-            {m.order != null && (
-              <View style={[styles.orderBadge, { backgroundColor: getMarkerColor(m) }]}>
-                <Text style={styles.orderText}>{m.order}</Text>
-              </View>
-            )}
-          </Marker>
-        ))}
-      </>
-    );
-  };
-
   return (
     <View style={styles.wrapper}>
       <View
@@ -239,31 +92,20 @@ export default function AppMapView({
           { height, borderColor: colors.border },
         ]}
       >
-        {readOnly && !hasAnyCoords ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-              📍 Sin coordenadas
-            </Text>
-          </View>
-        ) : (
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            initialRegion={computedInitialRegion}
-            onPress={handleMapPress}
-            showsCompass={false}
-            showsScale={false}
-            toolbarEnabled={false}
-            moveOnMarkerPress={false}
-          >
-            <UrlTile
-              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maximumZ={19}
-              tileSize={256}
-            />
-            {hasMultiple ? renderMultipleMarkers() : renderSingleMarker()}
-          </MapView>
-        )}
+        <View style={[styles.placeholder, { backgroundColor: colors.surface }]}>
+          <Ionicons name="map-outline" size={32} color={colors.textTertiary} />
+          <Text style={[styles.placeholderTitle, { color: colors.textSecondary }]}>
+            Mapa no disponible
+          </Text>
+          <Text style={[styles.placeholderSub, { color: colors.textTertiary }]}>
+            {hasAnyCoords
+              ? coordsLabel
+              : 'Sin coordenadas registradas'}
+          </Text>
+          <Text style={[styles.placeholderHint, { color: colors.textTertiary }]}>
+            Configura Google Maps API para habilitar el mapa
+          </Text>
+        </View>
       </View>
 
       {hasSingleCoord && !readOnly && (
@@ -275,7 +117,7 @@ export default function AppMapView({
                 Ubicación guardada
               </Text>
               <Text style={[styles.coordsBarValue, { color: colors.textSecondary }]}>
-                {Number(latitude).toFixed(6)}, {Number(longitude).toFixed(6)}
+                {coordsLabel}
               </Text>
             </View>
           </View>
@@ -314,19 +156,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  map: {
-    flex: 1,
-  },
-  emptyState: {
+  placeholder: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
   },
-  emptyText: {
+  placeholderTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  placeholderSub: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
     textAlign: 'center',
-    paddingHorizontal: Spacing.md,
+  },
+  placeholderHint: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   coordsBar: {
     flexDirection: 'row',
@@ -364,19 +213,5 @@ const styles = StyleSheet.create({
   gpsBtnText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-  },
-  orderBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  orderText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
   },
 });

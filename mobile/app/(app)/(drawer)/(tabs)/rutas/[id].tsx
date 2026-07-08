@@ -203,6 +203,7 @@ export default function VistaDiaScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
+        nestedScrollEnabled
         refreshControl={
           <RefreshControl
             refreshing={isFetching}
@@ -423,7 +424,7 @@ export default function VistaDiaScreen() {
       >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
         <Pressable style={styles.modalOverlay} onPress={() => setCobroCliente(null)}>
           <Pressable style={[styles.cobroModal, { backgroundColor: colors.surfaceElevated }]} onPress={() => {}}>

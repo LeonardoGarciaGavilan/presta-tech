@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,41 +74,33 @@ export default function CrearClienteScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScreenContainer style={styles.flex}>
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerInfo}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Nuevo Cliente
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Complete la información del cliente
-            </Text>
-          </View>
+    <ScreenContainer style={styles.flex}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </Pressable>
+        <View style={styles.headerInfo}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Nuevo Cliente
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Complete la información del cliente
+          </Text>
         </View>
-        <ClienteForm
-          onSubmit={handleSubmit}
-          isSubmitting={isPending}
-          submitLabel="Crear cliente"
-          initialRutaId={rutaId}
-          onRutaChange={setRutaId}
-          onPendingUpload={handlePendingUpload}
-        />
-      </ScreenContainer>
-    </KeyboardAvoidingView>
+      </View>
+      <ClienteForm
+        onSubmit={handleSubmit}
+        isSubmitting={isPending}
+        submitLabel="Crear cliente"
+        initialRutaId={rutaId}
+        onRutaChange={setRutaId}
+        onPendingUpload={handlePendingUpload}
+      />
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   flex: {
     flex: 1,
   },

@@ -88,7 +88,7 @@ export default function ClientesListScreen() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const handleEdit = useCallback((id: number) => {
+  const handleEdit = useCallback((id: string) => {
     router.push(`/clientes/${id}?edit=true`);
   }, []);
 

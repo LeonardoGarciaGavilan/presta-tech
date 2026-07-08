@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sentry from '@sentry/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -24,6 +24,10 @@ import { Colors, FontSize, FontWeight, Spacing } from '@/constants/theme';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+
+// Disable font scaling globally for consistent text sizing across devices
+(Text as any).defaultProps = { ...(Text as any).defaultProps, allowFontScaling: false };
+(TextInput as any).defaultProps = { ...(TextInput as any).defaultProps, allowFontScaling: false };
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
