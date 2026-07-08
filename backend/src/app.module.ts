@@ -63,12 +63,7 @@ import { SupabaseModule } from './supabase/supabase.module';
       },
     }),
 
-    ThrottlerModule.forRoot([
-      { name: 'short', ttl: 60_000, limit: 100 },
-      { name: 'login', ttl: 300_000, limit: 10 },
-      { name: 'refresh', ttl: 60_000, limit: 100 },
-      { name: 'password', ttl: 300_000, limit: 3 },
-    ]),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
 
     PrismaModule,
     SupabaseModule,
