@@ -383,7 +383,7 @@ export default function EstadoFinancieroScreen() {
 
       {/* Modal Inyectar */}
       <Modal visible={showInyectar} transparent animationType="slide" onRequestClose={() => setShowInyectar(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowInyectar(false)}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.modalHeader}>
@@ -423,7 +423,7 @@ export default function EstadoFinancieroScreen() {
 
       {/* Modal Retirar */}
       <Modal visible={!!showRetirar} transparent animationType="slide" onRequestClose={() => setShowRetirar(null)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowRetirar(null)}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.modalHeader}>

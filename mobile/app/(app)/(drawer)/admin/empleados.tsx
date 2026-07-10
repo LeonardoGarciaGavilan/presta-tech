@@ -700,7 +700,7 @@ export default function EmpleadosScreen() {
 
       {/* ─── Modal: Crear/Editar Empleado ──────────────────────── */}
       <Modal visible={showForm} transparent animationType="slide" onRequestClose={closeForm}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.overlay, { backgroundColor: colors.overlay }]} onPress={closeForm}>
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
@@ -738,7 +738,7 @@ export default function EmpleadosScreen() {
 
       {/* ─── Modal: Detalle Asistencia ─────────────────────────── */}
       <Modal visible={!!asiDetalleTarget} transparent animationType="slide" onRequestClose={() => setAsiDetalleTarget(null)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.overlay, { backgroundColor: colors.overlay }]} onPress={() => setAsiDetalleTarget(null)}>
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
@@ -772,7 +772,7 @@ export default function EmpleadosScreen() {
 
       {/* ─── Modal: Registrar Pago ─────────────────────────────── */}
       <Modal visible={showPagoForm} transparent animationType="slide" onRequestClose={() => setShowPagoForm(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.overlay, { backgroundColor: colors.overlay }]} onPress={() => setShowPagoForm(false)}>
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
@@ -836,7 +836,7 @@ export default function EmpleadosScreen() {
 
       {/* ─── Modal: Crear Descuento ────────────────────────────── */}
       <Modal visible={showDescForm} transparent animationType="slide" onRequestClose={() => setShowDescForm(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.overlay, { backgroundColor: colors.overlay }]} onPress={() => setShowDescForm(false)}>
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>

@@ -50,7 +50,7 @@ export default function ActionConfirmModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>

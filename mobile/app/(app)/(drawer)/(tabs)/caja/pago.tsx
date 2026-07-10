@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import PaymentForm from '@/components/pagos/payment-form';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
@@ -187,16 +188,9 @@ function SearchPaymentMode() {
   // Search screen
   return (
     <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Nuevo Pago',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <PageHeader title="Nuevo Pago" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
       <FlatList

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getEstadoCuenta } from '@/api/clientes.api';
 import KpiCard from '@/components/clientes/kpi-card';
 import EmptyState from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { BorderRadius, FontSize, FontWeight, Shadows, Spacing } from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateShort } from '@/utils/formatters';
@@ -23,18 +24,27 @@ export default function EstadoCuentaScreen() {
     enabled: !!id,
   });
 
-  if (isLoading) return <LoadingScreen />;
+  if (isLoading)
+    return (
+      <View style={[styles.screen, { backgroundColor: colors.background }]}>
+        <PageHeader title="Estado de Cuenta" />
+        <LoadingScreen />
+      </View>
+    );
 
   if (error) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <EmptyState
-          icon="alert-circle-outline"
-          title="Error al cargar"
-          subtitle={(error as any)?.message || 'No se pudo obtener el estado de cuenta'}
-          actionLabel="Reintentar"
-          onAction={() => refetch()}
-        />
+        <PageHeader title="Estado de Cuenta" />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Error al cargar"
+            subtitle={(error as any)?.message || 'No se pudo obtener el estado de cuenta'}
+            actionLabel="Reintentar"
+            onAction={() => refetch()}
+          />
+        </View>
       </View>
     );
   }
@@ -42,38 +52,43 @@ export default function EstadoCuentaScreen() {
   if (!data || data.prestamos.length === 0) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
-        <EmptyState
-          icon="receipt-outline"
-          title="Sin préstamos"
-          subtitle="Este cliente no tiene préstamos registrados"
-          actionLabel="Volver"
-          onAction={() => router.back()}
-        />
+        <PageHeader title="Estado de Cuenta" />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState
+            icon="receipt-outline"
+            title="Sin préstamos"
+            subtitle="Este cliente no tiene préstamos registrados"
+            actionLabel="Volver"
+            onAction={() => router.back()}
+          />
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={isFetching}
-          onRefresh={() => refetch()}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-    >
-      <ClienteSummary data={data} colors={colors} />
-      <GeneratedDate date={data.fechaGenerado} colors={colors} />
-      <KpiGrid data={data} colors={colors} />
-      {data.prestamos.map((p) => (
-        <PrestamoCard key={p.id} prestamo={p} colors={colors} />
-      ))}
-      <View style={{ height: Spacing.xl }} />
-    </ScrollView>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <PageHeader title="Estado de Cuenta" />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={() => refetch()}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        <ClienteSummary data={data} colors={colors} />
+        <GeneratedDate date={data.fechaGenerado} colors={colors} />
+        <KpiGrid data={data} colors={colors} />
+        {data.prestamos.map((p) => (
+          <PrestamoCard key={p.id} prestamo={p} colors={colors} />
+        ))}
+        <View style={{ height: Spacing.xl }} />
+      </ScrollView>
+    </View>
   );
 }
 

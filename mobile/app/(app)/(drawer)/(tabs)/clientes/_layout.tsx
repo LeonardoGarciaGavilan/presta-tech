@@ -15,16 +15,7 @@ export default function ClientesLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="crear" />
       <Stack.Screen name="[id]" />
-      <Stack.Screen
-        name="estado-cuenta"
-        options={{
-          headerShown: true,
-          title: 'Estado de Cuenta',
-          headerBackButtonDisplayMode: 'minimal',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <Stack.Screen name="estado-cuenta" />
     </Stack>
   );
 }

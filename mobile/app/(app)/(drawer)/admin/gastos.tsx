@@ -462,7 +462,7 @@ export default function GastosScreen() {
 
       {/* Create/Edit Modal */}
       <Modal visible={showForm} transparent animationType="slide" onRequestClose={closeForm}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={closeForm}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.modalHeader}>

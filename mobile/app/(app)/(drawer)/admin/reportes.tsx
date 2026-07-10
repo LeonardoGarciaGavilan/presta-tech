@@ -683,7 +683,7 @@ export default function ReportesScreen() {
 
       {/* Cliente search modal */}
       <Modal visible={showClienteModal} transparent animationType="slide" onRequestClose={() => setShowClienteModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setShowClienteModal(false)}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.modalHeader}>

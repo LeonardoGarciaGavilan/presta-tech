@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme } from '@/components/ui/theme-provider';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRuta, useVistaDia, useGenerarDia } from '@/hooks/use-rutas';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import DatePickerField from '@/components/ui/date-picker-field';
 import EmptyState from '@/components/ui/empty-state';
@@ -107,16 +108,9 @@ export default function GenerarDiaScreen() {
 
   return (
     <ScreenContainer>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Generar Ruta del Día',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <PageHeader title="Generar Ruta del Día" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.kav}
       >
         <View style={styles.content}>

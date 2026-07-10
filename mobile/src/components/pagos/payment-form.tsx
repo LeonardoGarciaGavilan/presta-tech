@@ -180,7 +180,7 @@ export default function PaymentForm({
   return (
     <ScreenContainer style={[styles.screen, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         {/* Header */}
@@ -393,7 +393,7 @@ export default function PaymentForm({
       <Modal visible={showSaldarModal} transparent animationType="fade" onRequestClose={() => setShowSaldarModal(false)}>
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>

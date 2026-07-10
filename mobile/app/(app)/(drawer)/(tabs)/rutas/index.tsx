@@ -201,7 +201,7 @@ export default function RutasListScreen() {
       {showCreate && (
         <Pressable style={styles.overlay} onPress={() => setShowCreate(false)}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardAvoid}
           >
             <Pressable style={[styles.modal, { backgroundColor: colors.surfaceElevated }]} onPress={() => {}}>

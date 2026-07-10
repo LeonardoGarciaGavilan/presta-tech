@@ -303,7 +303,7 @@ export default function NuevoPrestamoScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScreenContainer style={{ flex: 1 }}>
         {/* Header */}

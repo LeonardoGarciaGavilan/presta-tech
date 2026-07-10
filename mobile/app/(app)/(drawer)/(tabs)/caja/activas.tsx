@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
-import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import LoadingScreen from '@/components/ui/loading-screen';
@@ -263,14 +263,7 @@ export default function CajasActivasScreen() {
 
   return (
     <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Cajas activas',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <PageHeader title="Cajas activas" />
 
       <FlatList
         data={cajasConRiesgo}
@@ -308,7 +301,7 @@ export default function CajasActivasScreen() {
         animationType="fade"
         onRequestClose={() => setCloseTarget(null)}
       >
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>

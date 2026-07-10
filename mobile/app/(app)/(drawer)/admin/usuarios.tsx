@@ -400,7 +400,7 @@ export default function UsuariosScreen() {
       <Modal visible={showCrear} transparent animationType="slide" onRequestClose={closeCrear}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={closeCrear}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
@@ -483,7 +483,7 @@ export default function UsuariosScreen() {
       <Modal visible={!!editUser} transparent animationType="slide" onRequestClose={() => setEditUser(null)}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setEditUser(null)}>
             <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>

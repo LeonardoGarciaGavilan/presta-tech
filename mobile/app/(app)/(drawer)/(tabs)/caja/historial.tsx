@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import DetalleSesionModal from '@/components/caja/detalle-sesion-modal';
@@ -133,14 +133,7 @@ export default function HistorialScreen() {
 
   return (
     <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Historial de Caja',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <PageHeader title="Historial de Caja" />
 
       <FlatList
         data={historial || []}

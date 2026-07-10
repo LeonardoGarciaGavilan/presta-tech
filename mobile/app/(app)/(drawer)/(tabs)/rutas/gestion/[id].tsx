@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useTheme } from '@/components/ui/theme-provider';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRuta,
@@ -11,6 +11,7 @@ import { useRuta,
 import { listar } from '@/api/clientes.api';
 import { agregarClienteRuta } from '@/api/rutas.api';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -218,14 +219,7 @@ export default function GestionRutaScreen() {
 
   return (
     <ScreenContainer>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Gestión de Ruta',
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <PageHeader title="Gestión de Ruta" />
 
       <FlatList
         data={clientes}
@@ -248,7 +242,7 @@ export default function GestionRutaScreen() {
       <Modal visible={showAdd} transparent animationType="slide" onRequestClose={() => setShowAdd(false)}>
         <KeyboardAvoidingView
           style={styles.addKav}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <Pressable style={styles.addBackdrop} onPress={() => setShowAdd(false)} />
           <Pressable style={[styles.addModal, { backgroundColor: colors.surfaceElevated }]} onPress={() => {}}>

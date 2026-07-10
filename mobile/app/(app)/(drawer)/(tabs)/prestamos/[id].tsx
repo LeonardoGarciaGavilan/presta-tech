@@ -57,7 +57,7 @@ const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: any) => {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={refiStyles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={[refiStyles.overlay, { backgroundColor: colors.overlay }]}>
           <View style={[refiStyles.card, { backgroundColor: colors.surfaceElevated }]}>
@@ -695,7 +695,7 @@ export default function PrestamoDetalleScreen() {
       <Modal visible={showDesembolsoModal} transparent animationType="fade" onRequestClose={() => setShowDesembolsoModal(false)}>
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>

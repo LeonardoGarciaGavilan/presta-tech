@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useVistaDia,
@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/toast';
 import AppMapView from '@/components/clientes/map-view';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
@@ -192,14 +193,7 @@ export default function VistaDiaScreen() {
 
   return (
     <ScreenContainer>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: ruta.nombre,
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <PageHeader title={ruta.nombre} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}

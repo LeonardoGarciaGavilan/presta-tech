@@ -326,7 +326,7 @@ export default function CajaScreen() {
 
       {/* Modal Abrir Caja */}
       <Modal visible={showAbrirModal} transparent animationType="fade" onRequestClose={() => setShowAbrirModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#16A34A' }]}>
@@ -357,7 +357,7 @@ export default function CajaScreen() {
 
       {/* Modal Cerrar Caja */}
       <Modal visible={showCerrarModal} transparent animationType="fade" onRequestClose={() => setShowCerrarModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
