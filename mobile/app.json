@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "SAS Préstamos",
+    "name": "PrestaTech",
     "slug": "sas-prestamos",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,9 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.sasprestamos.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "SAS Préstamos necesita acceso a la cámara para escanear documentos de identidad y tomar fotos de los clientes.",
-        "NSPhotoLibraryUsageDescription": "SAS Préstamos necesita acceso a la galería para adjuntar fotos de clientes y documentos.",
-        "NSLocationWhenInUseUsageDescription": "SAS Préstamos necesita tu ubicación para registrar direcciones y optimizar las rutas de cobro."
+        "NSCameraUsageDescription": "PrestaTech necesita acceso a la cámara para escanear documentos de identidad y tomar fotos de los clientes.",
+        "NSPhotoLibraryUsageDescription": "PrestaTech necesita acceso a la galería para adjuntar fotos de clientes y documentos.",
+        "NSLocationWhenInUseUsageDescription": "PrestaTech necesita tu ubicación para registrar direcciones y optimizar las rutas de cobro."
       }
     },
     "android": {

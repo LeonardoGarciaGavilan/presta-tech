@@ -146,10 +146,10 @@ function SplashScreen({
               pulseStyle,
             ]}
           >
-            <Ionicons name="shield-checkmark" size={56} color={primaryColor} />
+            <Ionicons name="trending-up" size={56} color={primaryColor} />
           </Animated.View>
           <Text style={[styles.splashTitle, { color: primaryColor }]}>
-            SAS Préstamos
+            PrestaTech
           </Text>
           <Text style={[styles.splashSubtitle, { color: primaryColor + '99' }]}>
             Cargando…

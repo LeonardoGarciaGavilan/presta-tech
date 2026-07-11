@@ -121,7 +121,7 @@ export default function LoginScreen() {
   );
 
   const handleWhatsApp = useCallback(() => {
-    const message = 'Hola, tengo un problema para iniciar sesión en SAS Préstamos. ¿Me pueden ayudar?';
+    const message = 'Hola, tengo un problema para iniciar sesión en PrestaTech. ¿Me pueden ayudar?';
     Linking.openURL(
       `https://wa.me/18493512674?text=${encodeURIComponent(message)}`,
     );
@@ -172,7 +172,7 @@ export default function LoginScreen() {
               />
             </View>
             <Text style={[styles.appName, { color: colors.text }]}>
-              SAS Préstamos
+              PrestaTech
             </Text>
             <Text style={[styles.tagline, { color: colors.textTertiary }]}>
               Gestión de préstamos inteligente
@@ -299,7 +299,7 @@ export default function LoginScreen() {
           </Pressable>
 
           <Text style={[styles.footer, { color: colors.textTertiary }]}>
-            © {new Date().getFullYear()} SAS Préstamos
+            © {new Date().getFullYear()} PrestaTech
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

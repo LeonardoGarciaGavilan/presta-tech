@@ -130,7 +130,7 @@ export default function CambiarPasswordScreen() {
   );
 
   const handleWhatsApp = useCallback(() => {
-    const message = 'Hola, tengo un problema con el cambio de contraseña en SAS Préstamos. ¿Me pueden ayudar?';
+    const message = 'Hola, tengo un problema con el cambio de contraseña en PrestaTech. ¿Me pueden ayudar?';
     Linking.openURL(
       `https://wa.me/18493512674?text=${encodeURIComponent(message)}`,
     );

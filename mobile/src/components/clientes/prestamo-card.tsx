@@ -94,7 +94,7 @@ export default function PrestamoCard({ prestamo, onPress }: PrestamoCardProps) {
           <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>
             Monto
           </Text>
-          <Text numberOfLines={1} style={[styles.amountValue, { color: colors.text }]}>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.amountValue, { color: colors.text }]}>
             {formatCurrency(prestamo.monto)}
           </Text>
         </View>
@@ -102,7 +102,7 @@ export default function PrestamoCard({ prestamo, onPress }: PrestamoCardProps) {
           <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>
             Saldo
           </Text>
-          <Text numberOfLines={1} style={[styles.amountValue, { color: colors.primary }]}>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.amountValue, { color: colors.primary }]}>
             {formatCurrency(saldoReal)}
           </Text>
         </View>
@@ -110,7 +110,7 @@ export default function PrestamoCard({ prestamo, onPress }: PrestamoCardProps) {
           <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>
             Cuota
           </Text>
-          <Text numberOfLines={1} style={[styles.amountValue, { color: colors.text }]}>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.amountValue, { color: colors.text }]}>
             {formatCurrency(prestamo.cuotaMensual)}
           </Text>
         </View>
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   amountValue: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.bold,
     flexShrink: 1,
     textAlign: 'center',

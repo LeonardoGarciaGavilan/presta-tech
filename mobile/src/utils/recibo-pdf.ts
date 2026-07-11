@@ -103,7 +103,7 @@ export function generateReciboHtml(data: ReciboData): string {
     : capitalPagado;
 
   const user = useAuthStore.getState().user;
-  const nombreEmpresa = user?.empresa ?? 'SAS Préstamos';
+  const nombreEmpresa = user?.empresa ?? 'PrestaTech';
   const fechaActual = formatDateShort(new Date().toISOString());
 
   const style = `
