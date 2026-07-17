@@ -10,9 +10,9 @@ export default function LoadingScreen({ message = 'Cargando...' }: LoadingScreen
   const { colorScheme, colors } = useTheme();
 
   return (
-    <View style={styles.container} accessibilityRole="progressbar">
-      <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
+    <View style={styles.container} accessible accessibilityRole="progressbar" accessibilityLabel={message}>
+      <ActivityIndicator size="large" color={colors.primary} accessibilityLabel="Cargando" />
+      <Text accessibilityRole="text" style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
     </View>
   );
 }

@@ -26,10 +26,10 @@ function KPICard({ icon, iconColor, bgColor, value, label }: KPICardProps) {
       <View style={[styles.iconWrap, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={20} color={iconColor} />
       </View>
-      <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit accessibilityRole="text">
         {value}
       </Text>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.label, { color: colors.textSecondary }]} accessibilityRole="text">{label}</Text>
     </View>
   );
 }

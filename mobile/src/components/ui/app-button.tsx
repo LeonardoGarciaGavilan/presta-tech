@@ -110,6 +110,10 @@ export function AppButton({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={loading ? `${title}, cargando` : title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       {...props}
     >
       {loading ? (

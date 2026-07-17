@@ -159,12 +159,16 @@ export default function PrestamosListScreen() {
                   <Pressable
                     onPress={() => abrirModal(item, 'EN_REVISION', 'EN_REVISION')}
                     style={[styles.actionBtn, { backgroundColor: colors.infoLight, borderColor: colors.info }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Revisar préstamo"
                   >
                     <Text style={[styles.actionBtnText, { color: colors.info }]}>Revisar</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
                     style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Rechazar préstamo"
                   >
                     <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
                   </Pressable>
@@ -175,12 +179,16 @@ export default function PrestamosListScreen() {
                   <Pressable
                     onPress={() => abrirModal(item, 'APROBADO', 'APROBADO')}
                     style={[styles.actionBtn, { backgroundColor: colors.successLight, borderColor: colors.success }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Aprobar préstamo"
                   >
                     <Text style={[styles.actionBtnText, { color: colors.success }]}>Aprobar</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
                     style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Rechazar préstamo"
                   >
                     <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
                   </Pressable>
@@ -192,6 +200,8 @@ export default function PrestamosListScreen() {
                     <Pressable
                       onPress={() => abrirModal(item, 'DESEMBOLSAR', 'ACTIVO')}
                       style={[styles.actionBtn, { backgroundColor: '#E8EFFB', borderColor: colors.primary }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Desembolsar préstamo"
                     >
                       <Ionicons name="cash" size={14} color={colors.primary} />
                       <Text style={[styles.actionBtnText, { color: colors.primary }]}>Desembolsar</Text>
@@ -200,6 +210,8 @@ export default function PrestamosListScreen() {
                   <Pressable
                     onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
                     style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Rechazar préstamo"
                   >
                     <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
                   </Pressable>
@@ -252,7 +264,7 @@ export default function PrestamosListScreen() {
         <EmptyState
           icon="alert-circle-outline"
           title="Error al cargar préstamos"
-          subtitle={(error as any)?.message || 'Error al cargar préstamos'}
+          subtitle={error instanceof Error ? error.message : 'Error al cargar préstamos'}
           actionLabel="Reintentar"
           onAction={() => refetch()}
         />
@@ -297,6 +309,8 @@ export default function PrestamosListScreen() {
           return (
             <Pressable
               onPress={() => setFiltroEstado(item.value)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
               style={[
                 styles.chip,
                 active
@@ -347,6 +361,7 @@ export default function PrestamosListScreen() {
             data={prestamos}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
+            accessibilityRole="list"
             style={{ flex: 1 }}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={renderSeparator}

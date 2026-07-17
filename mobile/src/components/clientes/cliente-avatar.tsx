@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,18 +16,20 @@ const AVATAR_COLORS = {
   inactive: ['#94A3B8', '#64748B'],
 };
 
-export default function ClienteAvatar({
+function ClienteAvatarBase({
   nombre,
   activo,
   size = 44,
 }: ClienteAvatarProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const initial = (nombre || '?')[0].toUpperCase();
   const palette = activo ? AVATAR_COLORS.active : AVATAR_COLORS.inactive;
   const fontSize = size * 0.42;
 
   return (
     <View
+      accessibilityRole="image"
+      accessibilityLabel={`Avatar de ${nombre}, ${activo ? 'activo' : 'inactivo'}`}
       style={[
         styles.avatar,
         {
@@ -79,3 +82,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
 });
+
+const ClienteAvatar = memo(ClienteAvatarBase);
+ClienteAvatar.displayName = 'ClienteAvatar';
+
+export default ClienteAvatar;

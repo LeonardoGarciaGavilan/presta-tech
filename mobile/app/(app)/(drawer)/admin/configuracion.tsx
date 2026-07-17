@@ -19,58 +19,7 @@ import { AppButton } from '@/components/ui/app-button';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
-
-function SectionCard({
-  icon,
-  title,
-  description,
-  children,
-  colors,
-}: {
-  icon: string;
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-  colors: typeof Colors.light;
-}) {
-  return (
-    <View
-      style={[
-        styles.sectionCard,
-        { backgroundColor: colors.surface, borderColor: colors.border },
-      ]}
-    >
-      <View
-        style={[
-          styles.sectionHeader,
-          { borderBottomColor: colors.borderLight },
-        ]}
-      >
-        <View
-          style={[
-            styles.sectionIcon,
-            { backgroundColor: colors.primaryLight },
-          ]}
-        >
-          <Text style={styles.sectionEmoji}>{icon}</Text>
-        </View>
-        <View style={styles.sectionHeaderText}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {title}
-          </Text>
-          {description && (
-            <Text
-              style={[styles.sectionDesc, { color: colors.textTertiary }]}
-            >
-              {description}
-            </Text>
-          )}
-        </View>
-      </View>
-      <View style={styles.sectionContent}>{children}</View>
-    </View>
-  );
-}
+import { SectionCard } from '@/components/ui/section-card';
 
 function ToggleSwitch({
   value,
@@ -480,43 +429,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
-  },
-  sectionCard: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    overflow: 'hidden',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  sectionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionEmoji: {
-    fontSize: 18,
-  },
-  sectionHeaderText: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-  },
-  sectionDesc: {
-    fontSize: FontSize.xs,
-    marginTop: 1,
-  },
-  sectionContent: {
-    padding: Spacing.md,
   },
   fieldContainer: {
     marginBottom: Spacing.md,

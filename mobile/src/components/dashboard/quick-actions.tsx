@@ -1,27 +1,48 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Colors } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface ActionItem {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   route: string;
-  color: string;
-  bg: string;
+  colorKey: keyof typeof Colors.light;
+  bgKey: keyof typeof Colors.light;
 }
 
 const ACTIONS: ActionItem[] = [
-  { icon: 'cash', label: 'Registrar pago', route: '/caja/pago', color: '#16A34A', bg: '#F0FDF4' },
-  { icon: 'person-add', label: 'Nuevo cliente', route: '/clientes/crear', color: '#2563EB', bg: '#EFF6FF' },
-  { icon: 'add-circle', label: 'Nuevo préstamo', route: '/prestamos/nuevo', color: '#D97706', bg: '#FFFBEB' },
-  { icon: 'map', label: 'Ruta de cobro', route: '/rutas', color: '#0891B2', bg: '#ECFEFF' },
+  { icon: 'cash', label: 'Registrar pago', route: '/caja/pago', colorKey: 'success', bgKey: 'successLight' },
+  { icon: 'person-add', label: 'Nuevo cliente', route: '/clientes/crear', colorKey: 'primary', bgKey: 'primaryLight' },
+  { icon: 'add-circle', label: 'Nuevo préstamo', route: '/prestamos/nuevo', colorKey: 'warning', bgKey: 'warningLight' },
+  { icon: 'map', label: 'Ruta de cobro', route: '/rutas', colorKey: 'route', bgKey: 'routeBg' },
 ];
 
+const TAB_ROUTES: Record<string, { tab: string; screen: string }> = {
+  '/caja/pago': { tab: 'caja', screen: 'pago' },
+  '/clientes/crear': { tab: 'clientes', screen: 'crear' },
+  '/prestamos/nuevo': { tab: 'prestamos', screen: 'nuevo' },
+};
+
 export function QuickActions() {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
+  const navigation = useNavigation();
+
+  const handleNavigate = (route: string) => {
+    if (route === '/clientes/crear') {
+      router.navigate(route as any);
+      return;
+    }
+    const tabRoute = TAB_ROUTES[route];
+    if (tabRoute) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (navigation as any).navigate(tabRoute.tab, { screen: tabRoute.screen });
+    } else {
+      router.push(route as any);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -32,10 +53,12 @@ export function QuickActions() {
             key={action.route}
             style={[styles.card, { backgroundColor: colors.card, borderColor: colors.borderLight }]}
             activeOpacity={0.6}
-            onPress={() => router.push(action.route as any)}
+            onPress={() => handleNavigate(action.route)}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
           >
-            <View style={[styles.iconWrap, { backgroundColor: action.bg }]}>
-              <Ionicons name={action.icon} size={24} color={action.color} />
+            <View style={[styles.iconWrap, { backgroundColor: colors[action.bgKey] }]}>
+              <Ionicons name={action.icon} size={24} color={colors[action.colorKey]} />
             </View>
             <Text style={[styles.label, { color: colors.text }]}>{action.label}</Text>
           </TouchableOpacity>

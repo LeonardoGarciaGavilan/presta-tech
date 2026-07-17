@@ -13,19 +13,14 @@ import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useToast } from '@/components/ui/toast';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+import { dateToISO } from '@/utils/formatters';
 
 export default function GenerarDiaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
 
-  const today = formatDate(new Date());
+  const today = dateToISO(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -128,7 +123,7 @@ export default function GenerarDiaScreen() {
                 onPress={() => {
                   const d = new Date();
                   d.setDate(d.getDate() + 1);
-                  setSelectedDate(formatDate(d));
+                  setSelectedDate(dateToISO(d));
                 }}
               >
                 <Text style={[styles.dateShortcutText, { color: colors.textSecondary }]}>Mañana</Text>
@@ -138,7 +133,7 @@ export default function GenerarDiaScreen() {
                 onPress={() => {
                   const d = new Date();
                   d.setDate(d.getDate() + (d.getDay() === 0 ? 1 : 8 - d.getDay()));
-                  setSelectedDate(formatDate(d));
+                  setSelectedDate(dateToISO(d));
                 }}
               >
                 <Text style={[styles.dateShortcutText, { color: colors.textSecondary }]}>Próx.</Text>

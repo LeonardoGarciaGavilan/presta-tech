@@ -23,7 +23,7 @@ export function DashboardHero({ nombre, caja }: DashboardHeroProps) {
   return (
     <View style={styles.container}>
       <View style={styles.greeting}>
-        <Text style={[styles.title, { color: colors.text }]}>
+        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
           ¡Hola, {nombre}!
         </Text>
         <Text style={[styles.date, { color: colors.textSecondary }]}>

@@ -9,18 +9,12 @@ import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useTodosPagos, usePago, useResumenPagos } from '@/hooks/use-pagos';
 import { usePrestamos } from '@/hooks/use-prestamos';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
-
-const METODO_PAGO_LABELS: Record<string, string> = {
-  EFECTIVO: 'Efectivo',
-  TRANSFERENCIA: 'Transferencia',
-  TARJETA: 'Tarjeta',
-  CHEQUE: 'Cheque',
-};
+import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 
 export default function PagosScreen() {
   const { colorScheme, colors } = useTheme();
@@ -288,19 +282,19 @@ export default function PagosScreen() {
 
 const styles = {
   screen: { flex: 1 },
-  listContent: { padding: Spacing.md, paddingBottom: Spacing.xxl } as any,
+  listContent: { padding: Spacing.md, paddingBottom: Spacing.xxl } as AppStyles,
   resumenRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   resumenCard: {
     flex: 1,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,
     alignItems: 'center',
-  } as any,
+  } as AppStyles,
   resumenValue: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
   resumenLabel: { fontSize: FontSize.xs, marginTop: 2 },
   pagoCard: {
@@ -308,26 +302,26 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   pagoCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   pagoCliente: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   pagoDate: { fontSize: FontSize.xs, marginTop: 1 },
   pagoMetodoBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
-  } as any,
+  } as AppStyles,
   pagoMetodoText: { fontSize: 10, fontWeight: FontWeight.bold },
   pagoCardBody: {
     flexDirection: 'row',
     gap: Spacing.xs,
-  } as any,
-  pagoAmounts: { flex: 1, alignItems: 'center' } as any,
+  } as AppStyles,
+  pagoAmounts: { flex: 1, alignItems: 'center' } as AppStyles,
   pagoAmountLabel: { fontSize: 9 },
   pagoAmountValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: 1 },
   modalOverlay: {
@@ -335,13 +329,13 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
-  } as any,
+  } as AppStyles,
   modalCard: {
     width: '100%',
     maxWidth: 380,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-  } as any,
+  } as AppStyles,
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -350,7 +344,7 @@ const styles = {
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-  } as any,
+  } as AppStyles,
   modalTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
   modalBody: { padding: Spacing.md },
   reciboField: {
@@ -358,16 +352,16 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.xs,
-  } as any,
+  } as AppStyles,
   reciboFieldLabel: { fontSize: FontSize.xs, flex: 1 },
   reciboFieldValue: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, flex: 2, textAlign: 'right' },
-  divider: { height: 1, marginVertical: Spacing.md } as any,
+  divider: { height: 1, marginVertical: Spacing.md } as AppStyles,
   reciboGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
-  } as any,
-  reciboGridItem: { flex: 1, alignItems: 'center' } as any,
+  } as AppStyles,
+  reciboGridItem: { flex: 1, alignItems: 'center' } as AppStyles,
   reciboGridLabel: { fontSize: FontSize.xs, marginBottom: 2 },
   reciboGridValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   totalRow: {
@@ -377,7 +371,7 @@ const styles = {
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   totalLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   totalValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   emptyText: { textAlign: 'center', paddingVertical: Spacing.xl },

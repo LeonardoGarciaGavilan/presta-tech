@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePrestamo,
   useCancelarPrestamo,
   useDesembolsarPrestamo,
-  useRefinanciarPrestamo,
   useCambiarEstadoPrestamo } from '@/hooks/use-prestamos';
 import { AppButton } from '@/components/ui/app-button';
 import ActionConfirmModal from '@/components/ui/action-confirm-modal';
@@ -17,133 +16,26 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import { SkeletonCard, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { ESTADO_CONFIG, ACCIONES_FLOW_CONFIG } from '@/constants/prestamos.constants';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import type { ApiError } from '@/types/api.types';
 import type { EstadoPrestamo, Cuota, Pago, FrecuenciaPago } from '@/types/prestamo.types';
 import { useTheme } from '@/components/ui/theme-provider';
+import DesembolsoModal from '@/components/prestamos/desembolso-modal';
+import RefinanciarModal from '@/components/prestamos/refinanciar-modal';
 
 const FLOW_ACCION_CONFIG = ACCIONES_FLOW_CONFIG;
 
-const FREQ_LABEL: Record<string, string> = {
-  DIARIO: 'diario',
-  SEMANAL: 'semanal',
-  QUINCENAL: 'quincenal',
-  MENSUAL: 'mensual',
-};
-
-const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: any) => {
-  const { colorScheme, colors } = useTheme();
-  const refinanciarMutation = useRefinanciarPrestamo();
-  const [nuevasCuotas, setNuevasCuotas] = useState('');
-  const [nuevaTasa, setNuevaTasa] = useState('');
-
-  const handleRefinanciar = useCallback(async () => {
-    if (!nuevasCuotas || !nuevaTasa) return;
-    try {
-      await refinanciarMutation.mutateAsync({
-        id: prestamoId,
-        data: { nuevasCuotas: parseInt(nuevasCuotas), nuevaTasa: parseFloat(nuevaTasa) },
-      });
-      onSuccess?.();
-      onClose();
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Error al refinanciar');
-    }
-  }, [nuevasCuotas, nuevaTasa, prestamoId, refinanciarMutation, onSuccess, onClose]);
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={refiStyles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={[refiStyles.overlay, { backgroundColor: colors.overlay }]}>
-          <View style={[refiStyles.card, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[refiStyles.headerBar, { backgroundColor: '#6D28D9' }]}>
-              <Ionicons name="refresh" size={22} color="#FFFFFF" />
-              <Text style={refiStyles.title}>Refinanciar Préstamo</Text>
-            </View>
-            <ScrollView style={refiStyles.body} keyboardShouldPersistTaps="handled">
-              <Text style={[refiStyles.label, { color: colors.textSecondary }]}>
-                Nuevo número de cuotas
-              </Text>
-              <TextInput
-                value={nuevasCuotas}
-                onChangeText={setNuevasCuotas}
-                placeholder="Ej: 12"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="numeric"
-                style={[refiStyles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-              />
-              <Text style={[refiStyles.label, { color: colors.textSecondary }]}>
-                Nueva tasa de interés (%)
-              </Text>
-              <TextInput
-                value={nuevaTasa}
-                onChangeText={setNuevaTasa}
-                placeholder="Ej: 3.5"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="decimal-pad"
-                style={[refiStyles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-              />
-              <View style={refiStyles.actions}>
-                <AppButton title="Cancelar" onPress={onClose} variant="ghost" style={{ flex: 1 }} />
-                <AppButton
-                  title="Refinanciar"
-                  onPress={handleRefinanciar}
-                  loading={refinanciarMutation.isPending}
-                  disabled={!nuevasCuotas || !nuevaTasa}
-                  style={{ flex: 1 }}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-};
-
-const refiStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-  },
-  headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-  },
-  title: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  body: { padding: Spacing.md },
-  label: { fontSize: FontSize.sm, marginBottom: Spacing.xs },
-  input: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.md,
-  },
-  actions: { flexDirection: 'row', gap: Spacing.sm },
-});
-
-const InfoItem = ({ label, value }: { label: string; value: string }) => (
+const InfoItemBase = ({ label, value }: { label: string; value: string }) => (
   <View style={infoStyles.item}>
     <Text style={infoStyles.label}>{label}</Text>
     <Text style={infoStyles.value} numberOfLines={2}>{value || '—'}</Text>
   </View>
 );
+
+const InfoItem = memo(InfoItemBase);
+InfoItem.displayName = 'InfoItem';
 
 const infoStyles = StyleSheet.create({
   item: { marginBottom: Spacing.xs },
@@ -151,8 +43,8 @@ const infoStyles = StyleSheet.create({
   value: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: 1 },
 });
 
-const CuotaBadge = ({ pagada, vencida }: { pagada: boolean; vencida: boolean }) => {
-  const { colorScheme, colors } = useTheme();
+const CuotaBadgeBase = ({ pagada, vencida }: { pagada: boolean; vencida: boolean }) => {
+  const { colors } = useTheme();
   if (pagada) {
     return <Text style={[badgeStyles.badge, { backgroundColor: colors.successLight, borderColor: colors.success, color: colors.success }]}>Pagada</Text>;
   }
@@ -161,6 +53,9 @@ const CuotaBadge = ({ pagada, vencida }: { pagada: boolean; vencida: boolean }) 
   }
   return <Text style={[badgeStyles.badge, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textTertiary }]}>Pendiente</Text>;
 };
+
+const CuotaBadge = memo(CuotaBadgeBase);
+CuotaBadge.displayName = 'CuotaBadge';
 
 const badgeStyles = StyleSheet.create({
   badge: {
@@ -192,7 +87,6 @@ export default function PrestamoDetalleScreen() {
   const [showDesembolsoModal, setShowDesembolsoModal] = useState(false);
   const [showCancelarConfirm, setShowCancelarConfirm] = useState(false);
   const [showRefinanciarModal, setShowRefinanciarModal] = useState(false);
-  const [confirmacionTexto, setConfirmacionTexto] = useState('');
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [flowAccion, setFlowAccion] = useState<{ accion: string; estado: string } | null>(null);
 
@@ -240,7 +134,6 @@ export default function PrestamoDetalleScreen() {
     try {
       await desembolsarMutation(prestamo.id);
       setShowDesembolsoModal(false);
-      setConfirmacionTexto('');
       showToast('Préstamo desembolsado exitosamente', 'success');
       refetch();
     } catch (err) {
@@ -287,7 +180,7 @@ export default function PrestamoDetalleScreen() {
         <EmptyState
           icon="alert-circle-outline"
           title="Préstamo no encontrado"
-          subtitle={(queryError as any)?.message || 'Error al cargar el préstamo'}
+          subtitle={queryError instanceof Error ? queryError.message : 'Error al cargar el préstamo'}
           actionLabel="Volver"
           onAction={() => router.back()}
         />
@@ -316,8 +209,8 @@ export default function PrestamoDetalleScreen() {
             #{prestamo.id.slice(0, 8)}
           </Text>
         </View>
-        <View style={[styles.estadoBadge, { backgroundColor: estadoCfg.bg }]}>
-          <Ionicons name={estadoCfg.icon as any} size={12} color={estadoCfg.color} />
+        <View style={[styles.estadoBadge, { backgroundColor: estadoCfg.bg }]} accessibilityRole="text" accessibilityLabel={`Estado: ${estadoCfg.label}`}>
+          <Ionicons name={estadoCfg.icon as IoniconsName} size={12} color={estadoCfg.color} />
           <Text style={[styles.estadoBadgeText, { color: estadoCfg.color }]}>{estadoCfg.label}</Text>
         </View>
       </View>
@@ -331,6 +224,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'EN_REVISION', estado: 'EN_REVISION' }); setShowFlowModal(true); }}
                 style={[styles.actionButton, { backgroundColor: '#6D28D9' }]}
+                accessibilityRole="button"
+                accessibilityLabel="Revisar préstamo"
               >
                 <Ionicons name="search-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Revisar</Text>
@@ -338,6 +233,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'RECHAZADO', estado: 'RECHAZADO' }); setShowFlowModal(true); }}
                 style={[styles.actionButton, { backgroundColor: colors.error }]}
+                accessibilityRole="button"
+                accessibilityLabel="Rechazar préstamo"
               >
                 <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Rechazar</Text>
@@ -349,6 +246,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'APROBADO', estado: 'APROBADO' }); setShowFlowModal(true); }}
                 style={[styles.actionButton, { backgroundColor: '#047857' }]}
+                accessibilityRole="button"
+                accessibilityLabel="Aprobar préstamo"
               >
                 <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Aprobar</Text>
@@ -356,6 +255,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'RECHAZADO', estado: 'RECHAZADO' }); setShowFlowModal(true); }}
                 style={[styles.actionButton, { backgroundColor: colors.error }]}
+                accessibilityRole="button"
+                accessibilityLabel="Rechazar préstamo"
               >
                 <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Rechazar</Text>
@@ -367,6 +268,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'RECHAZADO', estado: 'RECHAZADO' }); setShowFlowModal(true); }}
                 style={[styles.actionButton, { backgroundColor: colors.error }]}
+                accessibilityRole="button"
+                accessibilityLabel="Rechazar préstamo"
               >
                 <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Rechazar</Text>
@@ -379,6 +282,8 @@ export default function PrestamoDetalleScreen() {
             <Pressable
               onPress={() => router.push(`/caja/pago?prestamoId=${prestamo.id}`)}
               style={[styles.actionButton, { backgroundColor: '#16A34A' }]}
+              accessibilityRole="button"
+              accessibilityLabel="Cobrar préstamo"
             >
               <Ionicons name="cash" size={16} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Cobrar</Text>
@@ -390,6 +295,8 @@ export default function PrestamoDetalleScreen() {
             <Pressable
               onPress={() => setShowDesembolsoModal(true)}
               style={[styles.actionButton, { backgroundColor: '#1A56DB' }]}
+              accessibilityRole="button"
+              accessibilityLabel="Desembolsar préstamo"
             >
               <Ionicons name="cash" size={16} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Desembolsar</Text>
@@ -399,6 +306,8 @@ export default function PrestamoDetalleScreen() {
             <Pressable
               onPress={() => setShowRefinanciarModal(true)}
               style={[styles.actionButton, { backgroundColor: '#6D28D9' }]}
+              accessibilityRole="button"
+              accessibilityLabel="Refinanciar préstamo"
             >
               <Ionicons name="refresh" size={16} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Refinanciar</Text>
@@ -409,6 +318,8 @@ export default function PrestamoDetalleScreen() {
               onPress={() => setShowCancelarConfirm(true)}
               disabled={isCancelando}
               style={[styles.actionButton, { backgroundColor: colors.error }]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar préstamo"
             >
               <Ionicons name="close" size={16} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>{isCancelando ? '...' : 'Cancelar'}</Text>
@@ -515,6 +426,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 key={key}
                 onPress={() => setTab(key as 'cuotas' | 'pagos')}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === key }}
                 style={[
                   styles.tabBtn,
                   tab === key && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
@@ -625,6 +538,8 @@ export default function PrestamoDetalleScreen() {
               <Pressable
                 onPress={() => router.push(`/pagos/prestamo/${prestamo.id}`)}
                 style={[styles.viewAllLink, { backgroundColor: colors.borderLight, borderColor: colors.border }]}
+                accessibilityRole="button"
+                accessibilityLabel="Ver todos los pagos"
               >
                 <Text style={[styles.viewAllLinkText, { color: colors.primary }]}>
                   Ver todos los pagos
@@ -692,59 +607,16 @@ export default function PrestamoDetalleScreen() {
       </ScrollView>
 
       {/* Desembolso Modal */}
-      <Modal visible={showDesembolsoModal} transparent animationType="fade" onRequestClose={() => setShowDesembolsoModal(false)}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: '#1A56DB' }]}>
-                <Ionicons name="cash" size={24} color="#FFFFFF" />
-                <Text style={styles.modalTitle}>Desembolsar Préstamo</Text>
-              </View>
-              <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-                  Monto a desembolsar: <Text style={{ fontWeight: FontWeight.bold, color: colors.text }}>{formatCurrency(prestamo.monto)}</Text>
-                </Text>
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-                  Cuotas: {prestamo.numeroCuotas} · {prestamo.tasaInteres > 0 ? `${prestamo.tasaInteres}% ${FREQ_LABEL[prestamo.frecuenciaPago] || prestamo.frecuenciaPago}` : 'Cuota fija'}
-                </Text>
-                <View style={[styles.modalWarning, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                  <Text style={{ color: '#92400E', fontSize: FontSize.xs }}>
-                    El monto saldrá de tu caja. Asegúrate de tener tu caja abierta antes de continuar.
-                  </Text>
-                </View>
-                <Text style={[styles.formLabel, { color: colors.textSecondary }]}>
-                  Escribe <Text style={{ fontWeight: FontWeight.bold }}>CONFIRMAR</Text> para continuar
-                </Text>
-                <TextInput
-                  value={confirmacionTexto}
-                  onChangeText={setConfirmacionTexto}
-                  placeholder="CONFIRMAR"
-                  placeholderTextColor={colors.textTertiary}
-                  style={[styles.confirmInput, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                />
-                <View style={styles.modalActions}>
-                  <AppButton
-                    title="Cancelar"
-                    onPress={() => { setShowDesembolsoModal(false); setConfirmacionTexto(''); }}
-                    variant="ghost"
-                    style={{ flex: 1 }}
-                  />
-                  <AppButton
-                    title="Desembolsar"
-                    loading={isDesembolsando}
-                    disabled={confirmacionTexto.toUpperCase() !== 'CONFIRMAR'}
-                    onPress={handleDesembolsar}
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <DesembolsoModal
+        visible={showDesembolsoModal}
+        onClose={() => setShowDesembolsoModal(false)}
+        onConfirm={handleDesembolsar}
+        loading={isDesembolsando}
+        monto={prestamo.monto}
+        numeroCuotas={prestamo.numeroCuotas}
+        tasaInteres={prestamo.tasaInteres}
+        frecuenciaPago={prestamo.frecuenciaPago}
+      />
 
       {/* Confirmar Cancelación */}
       <ConfirmDialog
@@ -974,60 +846,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: FontWeight.semibold,
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-  },
-  modalHeaderBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-  },
-  modalTitle: {
-    color: '#FFFFFF',
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
-  },
-  modalBody: {
-    padding: Spacing.md,
-  },
-  modalLabel: {
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.sm,
-  },
-  modalWarning: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  formLabel: {
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.xs,
-  },
-  confirmInput: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: FontSize.md,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-    fontWeight: FontWeight.bold,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
+
   summaryCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,

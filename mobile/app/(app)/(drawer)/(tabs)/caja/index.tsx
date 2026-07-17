@@ -13,7 +13,7 @@ import { useCajaActiva, useAbrirCaja, useCerrarCaja, useCajas } from '@/hooks/us
 import { useAuthStore } from '@/store/auth.store';
 import { obtenerPago } from '@/api/pagos.api';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import type { CajaActivaResponse } from '@/types/caja.types';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -131,7 +131,7 @@ export default function CajaScreen() {
       >
         {/* Header */}
         <View style={{ marginBottom: Spacing.md }}>
-          <Text style={{ fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: colors.text }}>
+          <Text style={{ fontSize: FontSize.xxl, fontWeight: FontWeight.bold, color: colors.text }} accessibilityRole="header">
             Caja
           </Text>
           <Text style={{ fontSize: FontSize.sm, color: colors.textTertiary }}>
@@ -202,15 +202,15 @@ export default function CajaScreen() {
 
             {/* Resumen cards */}
             <View style={styles.resumenGrid}>
-              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`Cobrado hoy: ${formatCurrency(resumen?.totalCobrado || 0)}`}>
                 <Text style={[styles.resumenValue, { color: colors.primary }]}>{formatCurrency(resumen?.totalCobrado || 0)}</Text>
                 <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>Cobrado hoy</Text>
               </View>
-              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`${resumen?.cantidadPagos || 0} pagos`}>
                 <Text style={[styles.resumenValue, { color: colors.text }]}>{resumen?.cantidadPagos || 0}</Text>
                 <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>Pagos</Text>
               </View>
-              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`Efectivo en caja: ${formatCurrency(resumen?.efectivoEnCaja || 0)}`}>
                 <Text style={[styles.resumenValue, { color: colors.warning }]}>{formatCurrency(resumen?.efectivoEnCaja || 0)}</Text>
                 <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>Efectivo en caja</Text>
               </View>
@@ -241,6 +241,8 @@ export default function CajaScreen() {
                       onPress={() => handleReimprimir(p.id)}
                       hitSlop={8}
                       style={styles.reprintIcon}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reimprimir recibo de ${p.prestamo?.cliente?.nombre}`}
                     >
                       <Ionicons name="print-outline" size={18} color={colors.primary} />
                     </Pressable>
@@ -265,6 +267,8 @@ export default function CajaScreen() {
               <Pressable
                 onPress={() => router.push('/caja/pago')}
                 style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+                accessibilityRole="button"
+                accessibilityLabel="Registrar nuevo pago"
               >
                 <View style={[styles.navIcon, { backgroundColor: colors.primary + '15' }]}>
                   <Ionicons name="cash" size={22} color={colors.primary} />
@@ -277,6 +281,8 @@ export default function CajaScreen() {
               <Pressable
                 onPress={() => setShowCerrarModal(true)}
                 style={[styles.navButton, { backgroundColor: colors.surface, borderColor: '#FCA5A5' }]}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar caja"
               >
                 <View style={[styles.navIcon, { backgroundColor: '#FEF2F2' }]}>
                   <Ionicons name="lock-closed" size={22} color="#DC2626" />
@@ -294,6 +300,8 @@ export default function CajaScreen() {
           <Pressable
             onPress={() => router.push('/caja/historial')}
             style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel="Historial de caja"
           >
             <View style={[styles.navIcon, { backgroundColor: colors.borderLight }]}>
               <Ionicons name="time-outline" size={22} color={colors.textTertiary} />
@@ -307,6 +315,8 @@ export default function CajaScreen() {
             <Pressable
               onPress={() => router.push('/caja/activas')}
               style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Control de cajas"
             >
               <View style={[styles.navIcon, { backgroundColor: colors.primary + '15' }]}>
                 <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
@@ -438,7 +448,7 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -447,7 +457,7 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   sectionTitle: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
@@ -457,34 +467,34 @@ const styles = {
     flexDirection: 'row',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   resumenCard: {
     flex: 1,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,
     alignItems: 'center',
-  } as any,
-  resumenValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold } as any,
-  resumenLabel: { fontSize: FontSize.xs, marginTop: 2, textAlign: 'center' } as any,
+  } as AppStyles,
+  resumenValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold } as AppStyles,
+  resumenLabel: { fontSize: FontSize.xs, marginTop: 2, textAlign: 'center' } as AppStyles,
   metodoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: Spacing.xs,
-  } as any,
+  } as AppStyles,
   pagoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
     borderBottomWidth: 1,
-  } as any,
+  } as AppStyles,
   reprintIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  } as any,
+  } as AppStyles,
   navButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -492,14 +502,14 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     gap: Spacing.sm,
-  } as any,
+  } as AppStyles,
   navIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-  } as any,
+  } as AppStyles,
   navButtonText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
@@ -508,7 +518,7 @@ const styles = {
   navButtonSub: {
     fontSize: 9,
     display: 'none',
-  } as any,
+  } as AppStyles,
   navBadge: {
     borderRadius: 10,
     minWidth: 20,
@@ -516,7 +526,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
-  } as any,
+  } as AppStyles,
   navBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
@@ -527,32 +537,32 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
-  } as any,
+  } as AppStyles,
   modalCard: {
     width: '100%',
     maxWidth: 380,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-  } as any,
+  } as AppStyles,
   modalHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-  } as any,
+  } as AppStyles,
   modalTitle: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.bold },
   modalBody: { padding: Spacing.md },
   modalLabel: { fontSize: FontSize.sm, marginBottom: Spacing.md },
-  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as any,
+  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as AppStyles,
   summaryBox: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 2,
-  } as any,
+  } as AppStyles,
 };

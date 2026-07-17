@@ -10,7 +10,7 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import { usePrestamos, usePrestamo } from '@/hooks/use-prestamos';
 import { useCajaActiva } from '@/hooks/use-caja';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatCedula } from '@/utils/formatters';
 import type { Prestamo } from '@/types/prestamo.types';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -254,15 +254,15 @@ const styles = {
     alignItems: 'center',
     padding: Spacing.xl,
     gap: Spacing.md,
-  } as any,
+  } as AppStyles,
   centerTitle: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
     textAlign: 'center',
-  } as any,
+  } as AppStyles,
   centerSubtitle: {
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
 };

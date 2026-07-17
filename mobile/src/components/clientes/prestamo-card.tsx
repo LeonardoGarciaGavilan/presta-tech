@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Shadows, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing } from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Prestamo } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -47,14 +48,16 @@ function nombreCliente(prestamo: Prestamo): string {
   return `${c.nombre}${c.apellido ? ` ${c.apellido}` : ''}`;
 }
 
-export default function PrestamoCard({ prestamo, onPress }: PrestamoCardProps) {
-  const { colorScheme, colors } = useTheme();
+function PrestamoCardBase({ prestamo, onPress }: PrestamoCardProps) {
+  const { colors } = useTheme();
   const config = ESTADO_CONFIG[prestamo.estado] || ESTADO_CONFIG.ACTIVO;
   const saldoReal = calcularSaldoReal(prestamo);
 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Préstamo de ${nombreCliente(prestamo)}, monto ${formatCurrency(prestamo.monto)}, estado ${config.label}`}
       style={({ pressed }) => [
         styles.card,
         Shadows.sm,
@@ -67,7 +70,7 @@ export default function PrestamoCard({ prestamo, onPress }: PrestamoCardProps) {
     >
       <View style={styles.header}>
         <View style={[styles.badge, { backgroundColor: config.bg }]}>
-          <Ionicons name={config.icon as any} size={14} color={config.color} />
+          <Ionicons name={config.icon as IoniconsName} size={14} color={config.color} />
           <Text style={[styles.badgeText, { color: config.color }]}>
             {config.label}
           </Text>
@@ -210,3 +213,8 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
   },
 });
+
+const PrestamoCard = memo(PrestamoCardBase);
+PrestamoCard.displayName = 'PrestamoCard';
+
+export default PrestamoCard;

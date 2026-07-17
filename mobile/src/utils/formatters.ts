@@ -80,3 +80,39 @@ export function formatDateTime(value: string | null): string {
     minute: '2-digit',
   });
 }
+
+export function formatCurrencyCompact(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+export function formatFullCurrency(n: number): string {
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export function formatTimeAgo(dateStr: string): string {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'recién';
+  if (diffMins < 60) return `hace ${diffMins}min`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `hace ${diffHours}h`;
+  return `hace ${Math.floor(diffHours / 24)}d`;
+}
+
+export function getTodayISO(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+export function getMonthStart(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+export function dateToISO(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

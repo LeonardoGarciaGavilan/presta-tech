@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { formatCurrencyCompact, formatFullCurrency, getTodayISO } from '@/utils/formatters';
 
 type Tab = 'empleados' | 'asistencia' | 'pagos' | 'descuentos';
 
@@ -82,19 +83,7 @@ const FRECUENCIA_LABELS: Record<FrecuenciaPago, string> = {
   MENSUAL: 'Mensual',
 };
 
-function formatCurrency(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
 
-function formatFullCurrency(n: number): string {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function getTodayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 type EmpleadoForm = {
   nombre: string; apellido: string; cedula: string;
@@ -368,7 +357,7 @@ export default function EmpleadosScreen() {
       <View style={styles.cardInfo}>
         <View style={styles.cardTop}>
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{item.nombre} {item.apellido}</Text>
-          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrency(item.salario)}</Text>
+          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrencyCompact(item.salario)}</Text>
         </View>
         <Text style={[styles.cardSub, { color: colors.textSecondary }]} numberOfLines={1}>
           {item.cargo}{item.departamento ? ` · ${item.departamento}` : ''}
@@ -409,15 +398,15 @@ export default function EmpleadosScreen() {
                 <Text style={[styles.statLabel, { color: colors.primary }]}>Empleados</Text>
               </View>
               <View style={[styles.statCard, { backgroundColor: colors.secondaryLight }]}>
-                <Text style={[styles.statValue, { color: colors.secondary }]}>{formatCurrency(resumen?.nominalMensual ?? 0)}</Text>
+                <Text style={[styles.statValue, { color: colors.secondary }]}>{formatCurrencyCompact(resumen?.nominalMensual ?? 0)}</Text>
                 <Text style={[styles.statLabel, { color: colors.secondary }]}>Nómina/mes</Text>
               </View>
               <View style={[styles.statCard, { backgroundColor: colors.infoLight }]}>
-                <Text style={[styles.statValue, { color: colors.info }]}>{formatCurrency(resumen?.pagadoEsteMes ?? 0)}</Text>
+                <Text style={[styles.statValue, { color: colors.info }]}>{formatCurrencyCompact(resumen?.pagadoEsteMes ?? 0)}</Text>
                 <Text style={[styles.statLabel, { color: colors.info }]}>Pagado/mes</Text>
               </View>
               <View style={[styles.statCard, { backgroundColor: colors.warningLight }]}>
-                <Text style={[styles.statValue, { color: colors.warning }]}>{formatCurrency(resumen?.descuentosPendientesMonto ?? 0)}</Text>
+                <Text style={[styles.statValue, { color: colors.warning }]}>{formatCurrencyCompact(resumen?.descuentosPendientesMonto ?? 0)}</Text>
                 <Text style={[styles.statLabel, { color: colors.warning }]}>Desc. pend.</Text>
               </View>
             </View>
@@ -567,7 +556,7 @@ export default function EmpleadosScreen() {
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
             {item.empleado.nombre} {item.empleado.apellido}
           </Text>
-          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrency(item.salarioNeto)}</Text>
+          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrencyCompact(item.salarioNeto)}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' }}>
           <Text style={[styles.cardSub, { color: colors.textSecondary }]}>Período {item.periodo}</Text>
@@ -662,7 +651,7 @@ export default function EmpleadosScreen() {
                 <View style={[styles.badge, { backgroundColor: ESTADO_COLORS.TARDANZA + '18' }]}>
                   <Text style={[styles.badgeText, { color: ESTADO_COLORS.TARDANZA }]}>{TIPO_DESC_LABELS[item.tipo]}</Text>
                 </View>
-                <Text style={[styles.cardAmount, { color: colors.error }]}>{formatCurrency(item.monto)}</Text>
+                <Text style={[styles.cardAmount, { color: colors.error }]}>{formatCurrencyCompact(item.monto)}</Text>
               </View>
               <Text style={[styles.cardSub, { color: colors.text }]}>{item.descripcion}</Text>
               <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>

@@ -3,6 +3,7 @@ import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView,
 import { Ionicons } from '@expo/vector-icons';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import { useCobros, useCarteraVencida, useEstadoGeneral, useReporteCliente, useReporteCajas } from '@/hooks/use-reportes';
 import { useClientes } from '@/hooks/use-clientes';
 import { Skeleton, SkeletonKPIGrid } from '@/components/ui/skeleton';
@@ -10,18 +11,9 @@ import { AppInput } from '@/components/ui/app-input';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { formatCurrencyCompact, formatFullCurrency, getTodayISO, getMonthStart } from '@/utils/formatters';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatCurrency(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(2)}`;
-}
-
-function formatFullCurrency(n: number): string {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function formatFecha(dateStr: string): string {
   const d = new Date(dateStr);
@@ -36,28 +28,12 @@ function formatFechaCorta(dateStr: string): string {
   return d.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
 }
 
-function getToday(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function getMonthStart(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-}
-
 const ESTADO_COLORS: Record<string, string> = {
   ACTIVO: '#16A34A',
   ATRASADO: '#DC2626',
   PAGADO: '#2563EB',
   CANCELADO: '#6B7280',
   SOLICITADO: '#D97706',
-};
-
-const METODO_LABEL: Record<string, string> = {
-  EFECTIVO: 'Efectivo',
-  TRANSFERENCIA: 'Transfer.',
-  TARJETA: 'Tarjeta',
-  CHEQUE: 'Cheque',
 };
 
 const METODO_COLORS: Record<string, string> = {
@@ -119,7 +95,7 @@ export default function ReportesScreen() {
 
   // Filters
   const [desde, setDesde] = useState(getMonthStart());
-  const [hasta, setHasta] = useState(getToday());
+  const [hasta, setHasta] = useState(getTodayISO());
   const [provincia, setProvincia] = useState('');
   const [usuarioId, setUsuarioId] = useState('');
 
@@ -318,7 +294,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{pago.cliente}</Text>
-              <Badge label={METODO_LABEL[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
+              <Badge label={METODO_PAGO_LABELS[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
             </View>
             <Text style={[styles.itemSub, { color: colors.textSecondary }]}>
               {pago.cedula} · {pago.provincia}{pago.municipio ? `, ${pago.municipio}` : ''}
@@ -333,7 +309,7 @@ export default function ReportesScreen() {
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
-                Cap: {formatCurrency(pago.capital)} | Int: {formatCurrency(pago.interes)} | Mora: {formatCurrency(pago.mora)}
+                Cap: {formatCurrencyCompact(pago.capital)} | Int: {formatCurrencyCompact(pago.interes)} | Mora: {formatCurrencyCompact(pago.mora)}
               </Text>
             </View>
           </View>
@@ -495,7 +471,7 @@ export default function ReportesScreen() {
                   <View key={i} style={styles.pagoRow}>
                     <Text style={[styles.pagoFecha, { color: colors.textTertiary }]}>{formatFechaCorta(pago.fecha)}</Text>
                     <Text style={[styles.pagoMonto, { color: colors.text }]}>{formatFullCurrency(pago.total)}</Text>
-                    <Badge label={METODO_LABEL[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
+                    <Badge label={METODO_PAGO_LABELS[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
                   </View>
                 ))}
                 {prestamo.pagos.length > 5 && (
@@ -555,7 +531,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{pago.cliente}</Text>
-              <Badge label={METODO_LABEL[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
+              <Badge label={METODO_PAGO_LABELS[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
             </View>
             <View style={styles.itemMeta}>
               <Text style={[styles.itemMetaText, { color: colors.textTertiary }]}>

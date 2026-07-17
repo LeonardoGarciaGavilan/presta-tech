@@ -46,6 +46,10 @@ export function CompanyHeader() {
             onPress={() => drawerNav.toggleDrawer()}
             activeOpacity={0.6}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Menú"
+            accessibilityHint="Abre el menú de navegación"
             style={{ marginRight: Spacing.sm }}
           >
             <Ionicons name="menu-outline" size={26} color={colors.text} />
@@ -59,6 +63,7 @@ export function CompanyHeader() {
             flex: 1,
           }}
           numberOfLines={1}
+          accessibilityRole="header"
         >
           {companyName || 'Mi Empresa'}
         </Text>
@@ -67,6 +72,10 @@ export function CompanyHeader() {
           onPress={() => setShowThemeModal(true)}
           activeOpacity={0.6}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar tema"
+          accessibilityHint="Abre el selector de tema"
           style={{ marginLeft: Spacing.sm }}
         >
           <Ionicons name={themeIcon} size={24} color={colors.text} />

@@ -1,22 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useCrearPrestamo, useCalcularTabla } from '@/hooks/use-prestamos';
+import { useCrearPrestamo } from '@/hooks/use-prestamos';
+import { useClienteSearch, useGaranteSearch } from '@/hooks/use-entity-search';
+import { usePrestamoPreview } from '@/hooks/use-prestamo-preview';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import DatePickerField from '@/components/ui/date-picker-field';
-import PickerField from '@/components/ui/picker-field';
 import SearchableSelect from '@/components/ui/searchable-select';
 import { useToast } from '@/components/ui/toast';
-import { useAuthStore } from '@/store/auth.store';
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { listar } from '@/api/clientes.api';
-import type { Cliente } from '@/types/cliente.types';
-import type { FrecuenciaPago, TablaAmortizacion } from '@/types/prestamo.types';
+import type { FrecuenciaPago } from '@/types/prestamo.types';
 import type { ApiError } from '@/types/api.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -42,27 +40,16 @@ const DURACION_LABEL: Record<string, string> = {
 };
 
 export default function NuevoPrestamoScreen() {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const { mutateAsync: crearPrestamo, isPending: isCreando } = useCrearPrestamo();
-  const { mutateAsync: calcularMutation, isPending: isCalculando } = useCalcularTabla();
   const { showToast } = useToast();
 
   const [modoRapido, setModoRapido] = useState(true);
   const [modoCalculo, setModoCalculo] = useState<'PAGO' | 'GANANCIA'>('PAGO');
 
-  // Cliente
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [searchText, setSearchText] = useState('');
-  const [sugerencias, setSugerencias] = useState<Cliente[]>([]);
-  const [buscando, setBuscando] = useState(false);
-  const [showSugerencias, setShowSugerencias] = useState(false);
-
-  // Garante
-  const [garante, setGarante] = useState<Cliente | null>(null);
-  const [searchTextGarante, setSearchTextGarante] = useState('');
-  const [sugerenciasGarante, setSugerenciasGarante] = useState<Cliente[]>([]);
-  const [buscandoGarante, setBuscandoGarante] = useState(false);
-  const [showSugerenciasGarante, setShowSugerenciasGarante] = useState(false);
+  // Entity search
+  const clienteSearch = useClienteSearch();
+  const garanteSearch = useGaranteSearch(clienteSearch.entity?.id ?? null);
 
   // Form fields
   const [monto, setMonto] = useState('');
@@ -77,196 +64,59 @@ export default function NuevoPrestamoScreen() {
   const [duracion, setDuracion] = useState('');
 
   // Preview
-  const [preview, setPreview] = useState<TablaAmortizacion | null>(null);
   const [showTabla, setShowTabla] = useState(false);
 
-  // Errors
+  // Preview calculation via hook
+  const { preview, warnings, isCalculando } = usePrestamoPreview({
+    modoRapido,
+    modoCalculo,
+    monto,
+    tasaInteres,
+    numeroCuotas,
+    frecuenciaPago,
+    fechaInicio,
+    pagoPorPeriodo,
+    gananciaDeseada,
+    duracion,
+  });
+
+  // Errors (client-side only)
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [warnings, setWarnings] = useState<Record<string, string>>({});
-  const solverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cliente search
-  useEffect(() => {
-    if (searchText.length < 2) { setSugerencias([]); return; }
-    const timer = setTimeout(async () => {
-      setBuscando(true);
-      try {
-        const res = await listar({ page: 1, limit: 6, search: searchText });
-        setSugerencias(res.data.slice(0, 6));
-        setShowSugerencias(true);
-      } catch { setSugerencias([]); }
-      finally { setBuscando(false); }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchText]);
-
-  // Garante search
-  useEffect(() => {
-    if (searchTextGarante.length < 2 || !cliente) { setSugerenciasGarante([]); return; }
-    const timer = setTimeout(async () => {
-      setBuscandoGarante(true);
-      try {
-        const res = await listar({ page: 1, limit: 6, search: searchTextGarante });
-        const filtrados = res.data.filter(c => c.id !== cliente.id);
-        setSugerenciasGarante(filtrados.slice(0, 5));
-        setShowSugerenciasGarante(true);
-      } catch { setSugerenciasGarante([]); }
-      finally { setBuscandoGarante(false); }
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchTextGarante, cliente]);
-
-  // Preview calculation
-  useEffect(() => {
-    if (modoRapido) {
-      const montoVal = parseFloat(monto);
-      const duracionVal = parseInt(duracion, 10);
-      if (montoVal > 0 && duracionVal > 0) {
-        if (modoCalculo === 'PAGO') {
-          const pagoVal = parseFloat(pagoPorPeriodo);
-          if (pagoVal > 0) {
-            const totalCobrar = pagoVal * duracionVal;
-            calcularMutation({
-              monto: montoVal,
-              tasaInteres: 0,
-              numeroCuotas: duracionVal,
-              frecuenciaPago,
-              fechaInicio,
-            }).then((res) => {
-              setPreview({
-                ...res,
-                montoTotal: totalCobrar,
-                totalIntereses: totalCobrar - montoVal,
-                cuotaInicial: Math.round(pagoVal),
-              });
-            }).catch(() => setPreview(null));
-          } else { setPreview(null); }
-        } else {
-          const gananciaVal = parseFloat(gananciaDeseada);
-          if (gananciaVal >= 0) {
-            const totalCobrar = montoVal + gananciaVal;
-            if (totalCobrar > montoVal) {
-              const cuotaIdeal = totalCobrar / duracionVal;
-              calcularMutation({
-                monto: montoVal,
-                tasaInteres: 0,
-                numeroCuotas: duracionVal,
-                frecuenciaPago,
-                fechaInicio,
-              }).then((res) => {
-                setPreview({
-                  ...res,
-                  montoTotal: totalCobrar,
-                  totalIntereses: gananciaVal,
-                  cuotaInicial: Math.round(cuotaIdeal),
-                });
-              }).catch(() => setPreview(null));
-            } else { setPreview(null); }
-          } else { setPreview(null); }
-        }
-      } else { setPreview(null); }
-    } else {
-      const montoVal = parseFloat(monto);
-      const tasaVal = parseFloat(tasaInteres);
-      const cuotasVal = parseInt(numeroCuotas);
-      if (montoVal > 0 && tasaVal > 0 && cuotasVal > 0) {
-        calcularMutation({
-          monto: montoVal,
-          tasaInteres: tasaVal,
-          numeroCuotas: cuotasVal,
-          frecuenciaPago,
-          fechaInicio,
-        }).then(setPreview).catch(() => setPreview(null));
-      } else { setPreview(null); }
-    }
-  }, [modoRapido, modoCalculo, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, pagoPorPeriodo, gananciaDeseada, duracion, calcularMutation]);
-
-  // Auto-derive tasa in modo rapido
-  useEffect(() => {
-    if (!modoRapido) { setWarnings({}); return; }
-    if (solverRef.current) clearTimeout(solverRef.current);
-
-    const montoVal = parseFloat(monto);
-    const duracionVal = parseInt(duracion, 10);
-
-    let pagoVal: number;
-    if (modoCalculo === 'GANANCIA') {
-      const gananciaVal = parseFloat(gananciaDeseada);
-      if (montoVal > 0 && gananciaVal >= 0 && duracionVal > 0) {
-        const totalCobrar = montoVal + gananciaVal;
-        if (totalCobrar <= montoVal) {
-          setWarnings(p => ({ ...p, gananciaInvalida: 'El total a cobrar debe ser mayor al monto prestado.' }));
-          return;
-        }
-        setWarnings(p => { const n = { ...p }; delete n.gananciaInvalida; return n; });
-        pagoVal = totalCobrar / duracionVal;
-      } else { return; }
-    } else {
-      pagoVal = parseFloat(pagoPorPeriodo);
-    }
-
-    if (montoVal > 0 && pagoVal > 0 && duracionVal > 0) {
-      solverRef.current = setTimeout(() => {
-        const pagoMinimo = montoVal / duracionVal;
-        if (pagoVal < pagoMinimo) {
-          setWarnings(p => ({ ...p, pagoBajo: `El pago mínimo es ${formatCurrency(pagoMinimo)} por período` }));
-          return;
-        }
-        setWarnings(p => { const n = { ...p }; delete n.pagoBajo; return n; });
-        setNumeroCuotas(String(duracionVal));
-      }, 300);
-    }
-
-    return () => { if (solverRef.current) clearTimeout(solverRef.current); };
-  }, [modoRapido, modoCalculo, monto, pagoPorPeriodo, gananciaDeseada, duracion, frecuenciaPago]);
-
-  // Select cliente
-  const seleccionarCliente = useCallback((c: Cliente) => {
-    setCliente(c);
-    setSearchText(`${c.nombre} ${c.apellido || ''}`);
-    setSugerencias([]);
-    setShowSugerencias(false);
-    setErrors(p => { const n = { ...p }; delete n.cliente; return n; });
-  }, []);
+  const seleccionarCliente = useCallback(
+    (c: import('@/types/cliente.types').Cliente) => {
+      const ok = clienteSearch.seleccionar(c);
+      if (ok) setErrors((p) => { const n = { ...p }; delete n.cliente; return n; });
+      garanteSearch.limpiar();
+    },
+    [clienteSearch, garanteSearch],
+  );
 
   const limpiarCliente = useCallback(() => {
-    setCliente(null);
-    setSearchText('');
-    setGarante(null);
-    setSearchTextGarante('');
-  }, []);
+    clienteSearch.limpiar();
+    garanteSearch.limpiar();
+  }, [clienteSearch, garanteSearch]);
 
-  // Select garante
-  const seleccionarGarante = useCallback((c: Cliente) => {
-    if (c.id === cliente?.id) {
-      setErrors(p => ({ ...p, garante: 'El cliente no puede ser su propio garante' }));
-      return;
-    }
-    setGarante(c);
-    setSearchTextGarante(`${c.nombre} ${c.apellido || ''}`);
-    setSugerenciasGarante([]);
-    setShowSugerenciasGarante(false);
-    setErrors(p => { const n = { ...p }; delete n.garante; return n; });
-  }, [cliente]);
-
-  const limpiarGarante = useCallback(() => {
-    setGarante(null);
-    setSearchTextGarante('');
-    setSugerenciasGarante([]);
-  }, []);
+  const seleccionarGarante = useCallback(
+    (c: import('@/types/cliente.types').Cliente) => {
+      const ok = garanteSearch.seleccionar(c);
+      if (ok) setErrors((p) => { const n = { ...p }; delete n.garante; return n; });
+    },
+    [garanteSearch],
+  );
 
   // Validate
   const validate = useCallback(() => {
     const e: Record<string, string> = {};
     const montoNum = parseFloat(monto);
-    if (!cliente) e.cliente = 'Selecciona un cliente';
+    if (!clienteSearch.entity) e.cliente = 'Selecciona un cliente';
     if (!monto || montoNum <= 0) e.monto = 'Ingresa un monto válido';
     if (!modoRapido && (!tasaInteres || parseFloat(tasaInteres) <= 0)) e.tasaInteres = 'Ingresa una tasa válida';
     if (!numeroCuotas || parseInt(numeroCuotas) < 1) e.numeroCuotas = 'Ingresa un número de cuotas válido';
     if (!frecuenciaPago) e.frecuenciaPago = 'Selecciona la frecuencia';
     if (!fechaInicio) e.fechaInicio = 'Selecciona la fecha de inicio';
     return e;
-  }, [cliente, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, modoRapido]);
+  }, [clienteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, modoRapido]);
 
   const handleSubmit = useCallback(async () => {
     const errs = validate();
@@ -279,13 +129,13 @@ export default function NuevoPrestamoScreen() {
 
     try {
       const payload: any = {
-        clienteId: cliente!.id,
+        clienteId: clienteSearch.entity!.id,
         monto: parseFloat(monto),
         tasaInteres: parseFloat(modoRapido ? '0' : tasaInteres),
         numeroCuotas: parseInt(numeroCuotas, 10),
         frecuenciaPago,
         fechaInicio,
-        garanteId: garante?.id || undefined,
+        garanteId: garanteSearch.entity?.id || undefined,
       };
       if (modoRapido) {
         payload.modoRapido = true;
@@ -298,7 +148,7 @@ export default function NuevoPrestamoScreen() {
       const { message } = error as ApiError;
       showToast(message || 'No se pudo crear el préstamo', 'error');
     }
-  }, [validate, modoRapido, preview, crearPrestamo, cliente, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, garante, showToast]);
+  }, [validate, modoRapido, preview, crearPrestamo, clienteSearch.entity, garanteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, showToast]);
 
   return (
     <KeyboardAvoidingView
@@ -312,7 +162,7 @@ export default function NuevoPrestamoScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </Pressable>
           <View style={styles.headerInfo}>
-            <Text style={[styles.title, { color: colors.text }]}>Nuevo Préstamo</Text>
+            <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Nuevo Préstamo</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Complete los datos del préstamo</Text>
           </View>
         </View>
@@ -322,14 +172,20 @@ export default function NuevoPrestamoScreen() {
           <View style={styles.section}>
             <View style={styles.modeToggle}>
               <Pressable
-                onPress={() => { setModoRapido(false); setWarnings({}); }}
+                onPress={() => setModoRapido(false)}
                 style={[styles.modeBtn, !modoRapido && { backgroundColor: colors.primary }]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !modoRapido }}
+                accessibilityLabel="Modo normal"
               >
                 <Text style={[styles.modeBtnText, !modoRapido && { color: '#FFFFFF' }]}>Normal</Text>
               </Pressable>
               <Pressable
                 onPress={() => setModoRapido(true)}
                 style={[styles.modeBtn, modoRapido && { backgroundColor: colors.primary }]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: modoRapido }}
+                accessibilityLabel="Modo rápido"
               >
                 <Text style={[styles.modeBtnText, modoRapido && { color: '#FFFFFF' }]}>Rápido</Text>
               </Pressable>
@@ -344,35 +200,35 @@ export default function NuevoPrestamoScreen() {
           <SearchableSelect
             label="Cliente"
             placeholder="Buscar por nombre o cédula..."
-            value={cliente}
-            searchText={searchText}
-            onSearchChange={setSearchText}
-            sugerencias={sugerencias}
-            showSugerencias={showSugerencias}
+            value={clienteSearch.entity}
+            searchText={clienteSearch.searchText}
+            onSearchChange={clienteSearch.setSearchText}
+            sugerencias={clienteSearch.sugerencias}
+            showSugerencias={clienteSearch.showSugerencias}
             onSelect={seleccionarCliente}
             onClear={limpiarCliente}
             error={errors.cliente}
-            buscando={buscando}
-            onFocus={() => sugerencias.length > 0 && setShowSugerencias(true)}
+            buscando={clienteSearch.buscando}
+            onFocus={() => clienteSearch.sugerencias.length > 0 && clienteSearch.setShowSugerencias(true)}
           />
 
           <SearchableSelect
             label="Garante (opcional)"
             placeholder="Buscar garante..."
-            value={garante}
-            searchText={searchTextGarante}
-            onSearchChange={setSearchTextGarante}
-            sugerencias={sugerenciasGarante}
-            showSugerencias={showSugerenciasGarante}
+            value={garanteSearch.entity}
+            searchText={garanteSearch.searchText}
+            onSearchChange={garanteSearch.setSearchText}
+            sugerencias={garanteSearch.sugerencias}
+            showSugerencias={garanteSearch.showSugerencias}
             onSelect={seleccionarGarante}
-            onClear={limpiarGarante}
-            error={errors.garante}
-            buscando={buscandoGarante}
-            disabled={!cliente}
+            onClear={() => { garanteSearch.limpiar(); setErrors(p => { const n = { ...p }; delete n.garante; return n; }); }}
+            error={errors.garante ?? garanteSearch.error ?? undefined}
+            buscando={garanteSearch.buscando}
+            disabled={!clienteSearch.entity}
             disabledText="Selecciona un cliente primero"
             accentColor={colors.success}
             accentLight={colors.successLight}
-            onFocus={() => sugerenciasGarante.length > 0 && setShowSugerenciasGarante(true)}
+            onFocus={() => garanteSearch.sugerencias.length > 0 && garanteSearch.setShowSugerencias(true)}
           />
 
           {/* Conditions */}
@@ -395,7 +251,7 @@ export default function NuevoPrestamoScreen() {
               <>
                 <View style={styles.subToggle}>
                   <Pressable
-                    onPress={() => { setModoCalculo('PAGO'); setWarnings({}); }}
+                    onPress={() => setModoCalculo('PAGO')}
                     style={[styles.subBtn, modoCalculo === 'PAGO' && { backgroundColor: colors.primary }]}
                   >
                     <Text style={[styles.subBtnText, modoCalculo === 'PAGO' && { color: '#FFFFFF' }]}>
@@ -403,7 +259,7 @@ export default function NuevoPrestamoScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
-                    onPress={() => { setModoCalculo('GANANCIA'); setWarnings({}); }}
+                    onPress={() => setModoCalculo('GANANCIA')}
                     style={[styles.subBtn, modoCalculo === 'GANANCIA' && { backgroundColor: colors.primary }]}
                   >
                     <Text style={[styles.subBtnText, modoCalculo === 'GANANCIA' && { color: '#FFFFFF' }]}>
@@ -643,6 +499,8 @@ export default function NuevoPrestamoScreen() {
             loading={isCreando}
             onPress={handleSubmit}
             icon="checkmark-circle-outline"
+            accessibilityRole="button"
+            accessibilityLabel="Enviar solicitud de préstamo"
           />
 
           <View style={{ height: Spacing.xxl }} />
@@ -653,7 +511,7 @@ export default function NuevoPrestamoScreen() {
 }
 
 function ResumenItem({ title, value, highlight = false }: { title: string; value: string; highlight?: boolean }) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   return (
     <View style={[styles.resumenRow, { borderBottomColor: colors.borderLight }]}>
       <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>{title}</Text>

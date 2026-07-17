@@ -188,3 +188,13 @@ export const Shadows = {
     default: {},
   }),
 };
+
+import { Ionicons } from '@expo/vector-icons';
+
+export type IoniconsName = keyof typeof Ionicons.glyphMap;
+
+export type AppStyles = Record<string, any>;
+
+export function getColor(colors: typeof Colors.light, key: string): string {
+  return (colors as Record<string, string>)[key] ?? colors.text;
+}

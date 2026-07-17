@@ -7,7 +7,7 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, IoniconsName, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -86,6 +86,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       {toast && (
         <Animated.View
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
           style={[
             styles.toast,
             {
@@ -105,7 +108,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           ]}
         >
           <Ionicons
-            name={toastColors[toast.type].icon as any}
+            name={toastColors[toast.type].icon as IoniconsName}
             size={20}
             color={toastColors[toast.type].iconColor}
           />
@@ -118,7 +121,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           >
             {toast.message}
           </Text>
-          <TouchableOpacity onPress={dismiss} hitSlop={8}>
+          <TouchableOpacity
+            onPress={dismiss}
+            hitSlop={8}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar notificación"
+          >
             <Ionicons name="close" size={18} color={toastColors[toast.type].text} />
           </TouchableOpacity>
         </Animated.View>

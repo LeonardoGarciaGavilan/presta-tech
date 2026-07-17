@@ -179,6 +179,8 @@ export default function ClientesListScreen() {
         </View>
         <Pressable
           onPress={handleToggleFilter}
+          accessibilityRole="button"
+          accessibilityLabel={verInactivos ? 'Ver clientes activos' : 'Ver clientes inactivos'}
           style={[
             styles.filterToggle,
             {
@@ -240,6 +242,8 @@ export default function ClientesListScreen() {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={renderSeparator}
           keyboardShouldPersistTaps="handled"
+          accessibilityRole="list"
+          accessibilityLabel={`Lista de clientes, ${totalClientes} en total`}
           onScrollBeginDrag={Keyboard.dismiss}
           onScroll={(e) => {
             const y = e.nativeEvent.contentOffset.y;

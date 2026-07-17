@@ -7,7 +7,7 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import DetalleSesionModal from '@/components/caja/detalle-sesion-modal';
 import { useHistorialCajas } from '@/hooks/use-caja';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -176,26 +176,26 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   sesionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-  } as any,
+  } as AppStyles,
   sesionDate: { fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   sesionSub: { fontSize: FontSize.xs, marginTop: 1 },
   estadoBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
-  } as any,
+  } as AppStyles,
   estadoText: { fontSize: 10, fontWeight: FontWeight.bold },
-  divider: { height: 1, marginVertical: Spacing.sm } as any,
+  divider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
   sesionAmounts: {
     flexDirection: 'row',
     gap: Spacing.sm,
-  } as any,
-  amountItem: { flex: 1, alignItems: 'center' } as any,
+  } as AppStyles,
+  amountItem: { flex: 1, alignItems: 'center' } as AppStyles,
   amountLabel: { fontSize: 9 },
   amountValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: 1 },
   diferenciaRow: {
@@ -203,6 +203,6 @@ const styles = {
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     alignItems: 'center',
-  } as any,
+  } as AppStyles,
   diferenciaLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 } as const;

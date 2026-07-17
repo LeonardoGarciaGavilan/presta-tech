@@ -78,6 +78,8 @@ export default function RutasListScreen() {
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => router.push(`/rutas/${item.id}`)}
         onLongPress={() => isAdmin && setDeleteId(item.id)}
+        accessibilityRole="button"
+        accessibilityLabel={`Ruta ${item.nombre}, ${item.clientes?.length ?? 0} clientes`}
       >
         <View style={styles.cardHeader}>
           <View style={[styles.cardIcon, { backgroundColor: colors.routeBg }]}>
@@ -110,6 +112,8 @@ export default function RutasListScreen() {
                     setAsignarUsuarioId(item.usuario?.id || '');
                   }
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Cobrador: ${item.usuario.nombre}`}
               >
                 <Ionicons name="person-outline" size={12} color={isAdmin ? colors.primary : colors.textTertiary} />
                 <Text style={[styles.cobradorText, { color: isAdmin ? colors.primary : colors.textTertiary }]}>
@@ -125,6 +129,8 @@ export default function RutasListScreen() {
                   setAsignarRutaId(item.id);
                   setAsignarUsuarioId('');
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Asignar cobrador"
               >
                 <Ionicons name="person-add-outline" size={12} color={colors.primary} />
                 <Text style={[styles.cobradorText, { color: colors.primary }]}>
@@ -178,6 +184,7 @@ export default function RutasListScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderRuta}
         contentContainerStyle={styles.list}
+        accessibilityRole="list"
         ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
         refreshControl={
           <RefreshControl

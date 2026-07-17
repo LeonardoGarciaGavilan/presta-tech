@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,20 +17,17 @@ import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
-import { SkeletonCard } from '@/components/ui/skeleton';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import type { ReciboData } from '@/utils/recibo-pdf';
 import type { ClienteVistaDia, ResumenVistaDia } from '@/types/rutas.types';
 import { useTheme } from '@/components/ui/theme-provider';
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+import { dateToISO } from '@/utils/formatters';
+import CobroRapidoModal from '@/components/rutas/cobro-rapido-modal';
+import { DateNavigator } from '@/components/rutas/date-navigator';
+import { RutaStatsGrid } from '@/components/rutas/ruta-stats-grid';
+import { RutaToolbar } from '@/components/rutas/ruta-toolbar';
 
 function displayDate(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -49,16 +46,13 @@ export default function VistaDiaScreen() {
   const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
   const { showToast } = useToast();
 
-  const today = formatDate(new Date());
+  const today = dateToISO(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [filter, setFilter] = useState<'todos' | 'pendientes' | 'visitados'>('todos');
   const [sortByCercania, setSortByCercania] = useState(false);
 
   const [cobroCliente, setCobroCliente] = useState<ClienteVistaDia | null>(null);
-  const [pagoMonto, setPagoMonto] = useState('');
-  const [pagoMetodo, setPagoMetodo] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE'>('EFECTIVO');
-  const [pagoRef, setPagoRef] = useState('');
 
   const { data: ruta } = useRuta(id ?? '');
   const {
@@ -117,12 +111,9 @@ export default function VistaDiaScreen() {
 
   const handleCobroRapido = useCallback((item: ClienteVistaDia) => {
     setCobroCliente(item);
-    setPagoMonto(item.totalACobrar.toFixed(2));
-    setPagoMetodo('EFECTIVO');
-    setPagoRef('');
   }, []);
 
-  const handleProcesarPago = useCallback(async () => {
+  const handleProcesarPago = useCallback(async (data: { metodo: 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE'; referencia?: string }) => {
     if (!cobroCliente) return;
     const prestamo = cobroCliente.prestamos?.[0];
     if (!prestamo?.proximaCuota) {
@@ -133,9 +124,9 @@ export default function VistaDiaScreen() {
       const result = await registrarPago({
         prestamoId: prestamo.id,
         cuotaId: prestamo.proximaCuota.id,
-        montoPagado: parseFloat(pagoMonto) || cobroCliente.totalACobrar,
-        metodo: pagoMetodo,
-        referencia: pagoRef || undefined,
+        montoPagado: cobroCliente.totalACobrar,
+        metodo: data.metodo,
+        referencia: data.referencia,
       });
       await marcarVisitado({ rcId: cobroCliente.rutaClienteId, visitado: true });
       setCobroCliente(null);
@@ -145,12 +136,12 @@ export default function VistaDiaScreen() {
     } catch (err: any) {
       showToast(err?.message || 'Error al procesar pago', 'error');
     }
-  }, [cobroCliente, pagoMonto, pagoMetodo, pagoRef, registrarPago, marcarVisitado, showToast, refetch]);
+  }, [cobroCliente, registrarPago, marcarVisitado, showToast, refetch]);
 
   const navigateDate = useCallback((delta: number) => {
     const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + delta);
-    setSelectedDate(formatDate(d));
+    setSelectedDate(dateToISO(d));
   }, [selectedDate]);
 
   const resumen: ResumenVistaDia | null = vistaDia?.resumen ?? null;
@@ -207,44 +198,15 @@ export default function VistaDiaScreen() {
           />
         }
       >
-        {/* Date Navigation */}
-        <View style={[styles.dateRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Pressable onPress={() => navigateDate(-1)} hitSlop={8}>
-            <Ionicons name="chevron-back" size={20} color={colors.primary} />
-          </Pressable>
-          <Pressable onPress={() => setSelectedDate(today)}>
-            <Text style={[styles.dateText, { color: colors.text }]}>
-              {displayDate(selectedDate)}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => navigateDate(1)} hitSlop={8}>
-            <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-          </Pressable>
-        </View>
+        <DateNavigator
+          selectedDate={selectedDate}
+          displayDate={displayDate(selectedDate)}
+          colors={colors}
+          onNavigate={navigateDate}
+          onToday={() => setSelectedDate(today)}
+        />
 
-        {/* Stats Cards */}
-        {resumen && (
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>{resumen.aVisitarHoy}</Text>
-              <Text style={[styles.statLabel, { color: colors.primary }]}>A visitar</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
-              <Text style={[styles.statValue, { color: colors.success }]}>{resumen.visitadosHoy}</Text>
-              <Text style={[styles.statLabel, { color: colors.success }]}>Visitados</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.errorLight, borderColor: colors.error }]}>
-              <Text style={[styles.statValue, { color: colors.error }]}>{resumen.conAtrasados}</Text>
-              <Text style={[styles.statLabel, { color: colors.error }]}>Atrasados</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.infoLight, borderColor: colors.info }]}>
-              <Text style={[styles.statValue, { color: colors.info }]}>
-                {formatCurrency(resumen.totalACobrarHoy)}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.info }]}>A cobrar</Text>
-            </View>
-          </View>
-        )}
+        {resumen && <RutaStatsGrid resumen={resumen} colors={colors} />}
 
         {/* Progress Bar */}
         {resumen && resumen.totalClientes > 0 && (
@@ -257,7 +219,7 @@ export default function VistaDiaScreen() {
                 {Math.round(progress)}%
               </Text>
             </View>
-            <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+            <View style={[styles.progressTrack, { backgroundColor: colors.border }]} accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(progress), min: 0, max: 100 }}>
               <View
                 style={[
                   styles.progressFill,
@@ -271,58 +233,15 @@ export default function VistaDiaScreen() {
           </View>
         )}
 
-        {/* View Mode Toggle + Filter */}
-        <View style={styles.toolbar}>
-          <View style={styles.filterRow}>
-            {(['todos', 'pendientes', 'visitados'] as const).map((f) => (
-              <Pressable
-                key={f}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor: filter === f ? colors.primaryLight : colors.surface,
-                    borderColor: filter === f ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setFilter(f)}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    { color: filter === f ? colors.primary : colors.textSecondary },
-                  ]}
-                >
-                  {f === 'todos' ? 'Todos' : f === 'pendientes' ? 'Pendientes' : 'Visitados'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <View style={styles.toolRight}>
-            <Pressable
-              style={[styles.viewToggle, {
-                backgroundColor: sortByCercania ? colors.primaryLight : colors.surface,
-                borderColor: sortByCercania ? colors.primary : colors.border,
-              }]}
-              onPress={() => setSortByCercania((p) => !p)}
-            >
-              <Ionicons
-                name="navigate-outline"
-                size={16}
-                color={sortByCercania ? colors.primary : colors.textTertiary}
-              />
-            </Pressable>
-            <Pressable
-              style={[styles.viewToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-            >
-              <Ionicons
-                name={viewMode === 'list' ? 'map-outline' : 'list-outline'}
-                size={16}
-                color={colors.primary}
-              />
-            </Pressable>
-          </View>
-        </View>
+        <RutaToolbar
+          filter={filter}
+          viewMode={viewMode}
+          sortByCercania={sortByCercania}
+          colors={colors}
+          onFilterChange={setFilter}
+          onViewModeChange={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+          onSortChange={() => setSortByCercania((p) => !p)}
+        />
 
         {/* Map View */}
         {viewMode === 'map' && (
@@ -357,7 +276,7 @@ export default function VistaDiaScreen() {
               />
             ) : (
               clientes.map((item) => (
-                <ClienteCardItem
+                <ClienteCardItemMemo
                   key={item.rutaClienteId}
                   item={item}
                   colors={colors}
@@ -409,121 +328,13 @@ export default function VistaDiaScreen() {
         onCancel={() => setResetConfirm(false)}
       />
 
-      {/* Cobro Rápido Modal */}
-      <Modal
+      <CobroRapidoModal
         visible={!!cobroCliente}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setCobroCliente(null)}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-        <Pressable style={styles.modalOverlay} onPress={() => setCobroCliente(null)}>
-          <Pressable style={[styles.cobroModal, { backgroundColor: colors.surfaceElevated }]} onPress={() => {}}>
-            <View style={styles.cobroModalHeader}>
-              <Text style={[styles.cobroModalTitle, { color: colors.text }]}>Cobro Rápido</Text>
-              <Pressable onPress={() => setCobroCliente(null)} hitSlop={8}>
-                <Ionicons name="close" size={22} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-
-            {cobroCliente && (
-              <>
-                <Text style={[styles.cobroClienteName, { color: colors.text }]}>
-                  {cobroCliente.cliente.nombre} {cobroCliente.cliente.apellido || ''}
-                </Text>
-                {cobroCliente.cliente.telefono && (
-                  <Text style={[styles.cobroClientePhone, { color: colors.textTertiary }]}>
-                    {cobroCliente.cliente.telefono}
-                  </Text>
-                )}
-
-                {/* Cuotas pendientes */}
-                {cobroCliente.prestamos?.map((p) => p.proximaCuota).filter(Boolean).length > 0 && (
-                  <View style={styles.cobroCuotasSection}>
-                    <Text style={[styles.cobroSectionLabel, { color: colors.textSecondary }]}>Cuotas pendientes</Text>
-                    {cobroCliente.prestamos.map((p) => p.proximaCuota && (
-                      <View key={p.proximaCuota.id} style={[styles.cobroCuotaRow, { borderColor: colors.border }]}>
-                        <Text style={[styles.cobroCuotaNum, { color: colors.text }]}>
-                          Cuota #{p.proximaCuota.numero}
-                        </Text>
-                        <View>
-                          <Text style={[styles.cobroCuotaMonto, { color: colors.text }]}>
-                            RD$ {formatCurrency(p.proximaCuota.total)}
-                          </Text>
-                          {p.proximaCuota.mora > 0 && (
-                            <Text style={[styles.cobroCuotaMora, { color: colors.error }]}>
-                              Mora: RD$ {formatCurrency(p.proximaCuota.mora)}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Total */}
-                <View style={[styles.cobroTotalRow, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.cobroTotalLabel, { color: colors.text }]}>Total a cobrar</Text>
-                  <Text style={[styles.cobroTotalAmount, { color: colors.primary }]}>
-                    RD$ {formatCurrency(cobroCliente.totalACobrar)}
-                  </Text>
-                </View>
-
-                {/* Payment method selector */}
-                <Text style={[styles.cobroSectionLabel, { color: colors.textSecondary }]}>Método de pago</Text>
-                <View style={styles.metodoRow}>
-                  {(['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CHEQUE'] as const).map((m) => (
-                    <Pressable
-                      key={m}
-                      style={[styles.metodoChip, {
-                        backgroundColor: pagoMetodo === m ? colors.primaryLight : colors.surface,
-                        borderColor: pagoMetodo === m ? colors.primary : colors.border,
-                      }]}
-                      onPress={() => setPagoMetodo(m)}
-                    >
-                      <Text style={[styles.metodoChipText, {
-                        color: pagoMetodo === m ? colors.primary : colors.textSecondary,
-                        fontWeight: pagoMetodo === m ? '600' : '400',
-                      }]}>
-                        {m === 'EFECTIVO' ? 'Efectivo' : m === 'TRANSFERENCIA' ? 'Transferencia' : m === 'TARJETA' ? 'Tarjeta' : 'Cheque'}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Referencia */}
-                <TextInput
-                  style={[styles.cobroRefInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]}
-                  placeholder="Referencia (opcional)"
-                  placeholderTextColor={colors.textTertiary}
-                  value={pagoRef}
-                  onChangeText={setPagoRef}
-                />
-
-                {/* Actions */}
-                <View style={styles.cobroActions}>
-                  <AppButton
-                    title="Cancelar"
-                    variant="ghost"
-                    onPress={() => setCobroCliente(null)}
-                  />
-                  <AppButton
-                    title="Cobrar"
-                    loading={pagando}
-                    disabled={!cobroCliente.totalACobrar}
-                    onPress={handleProcesarPago}
-                    icon="cash-outline"
-                  />
-                </View>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
+        cliente={cobroCliente}
+        loading={pagando}
+        onClose={() => setCobroCliente(null)}
+        onConfirm={handleProcesarPago}
+      />
     </ScreenContainer>
   );
 }
@@ -564,6 +375,8 @@ function ClienteCardItem({
           opacity: visitadoHoy ? 0.85 : 1,
         },
       ]}
+      accessibilityRole="summary"
+      accessibilityLabel={`Cliente ${cliente.nombre} ${cliente.apellido || ''}, orden ${orden}${visitadoHoy ? ', visitado' : ''}`}
     >
       {/* Order Badge */}
       <View style={styles.cardRow}>
@@ -576,6 +389,9 @@ function ClienteCardItem({
           onPress={() => onToggleVisita(rutaClienteId, visitadoHoy)}
           disabled={marcando}
           hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: visitadoHoy }}
+          accessibilityLabel={visitadoHoy ? 'Desmarcar visita' : 'Marcar como visitado'}
           style={[styles.visitCheckbox, {
             backgroundColor: visitadoHoy ? colors.success : 'transparent',
             borderColor: visitadoHoy ? colors.success : colors.border,
@@ -588,6 +404,8 @@ function ClienteCardItem({
         <Pressable
           style={styles.clientInfo}
           onPress={() => router.push(`/clientes/${cliente.id}?from=rutas`)}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver perfil de ${cliente.nombre} ${cliente.apellido || ''}`}
         >
           <View style={styles.clientNameRow}>
             <Text style={[styles.clientName, { color: colors.text }]} numberOfLines={1}>
@@ -624,6 +442,8 @@ function ClienteCardItem({
           <Pressable
             style={[styles.cobrarBtn, { backgroundColor: colors.primary }]}
             onPress={() => onCobroRapido(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Cobrar ${formatCurrency(totalACobrar)} a ${cliente.nombre}`}
           >
             <Ionicons name="cash-outline" size={16} color="#FFF" />
             <Text style={styles.cobrarText}>Cobrar</Text>
@@ -634,6 +454,9 @@ function ClienteCardItem({
   );
 }
 
+const ClienteCardItemMemo = memo(ClienteCardItem);
+ClienteCardItemMemo.displayName = 'ClienteCardItem';
+
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
@@ -641,41 +464,6 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.md,
     paddingBottom: Spacing.xxl,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  dateText: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.sm,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  statLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    marginTop: 1,
   },
   progressSection: {
     marginBottom: Spacing.md,
@@ -700,36 +488,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 4,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-    gap: Spacing.sm,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    flex: 1,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-  },
-  viewToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   clientList: {
     gap: Spacing.sm,
@@ -822,10 +580,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
-  toolRight: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-  },
   noMap: {
     height: 200,
     borderRadius: BorderRadius.lg,
@@ -840,103 +594,5 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: Spacing.lg,
     gap: Spacing.sm,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  cobroModal: {
-    borderTopLeftRadius: BorderRadius.xl,
-    borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    maxHeight: '80%',
-    gap: Spacing.md,
-  },
-  cobroModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cobroModalTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  cobroClienteName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-  },
-  cobroClientePhone: {
-    fontSize: FontSize.sm,
-  },
-  cobroCuotasSection: {
-    gap: Spacing.xs,
-  },
-  cobroSectionLabel: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  cobroCuotaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    paddingVertical: Spacing.xs,
-  },
-  cobroCuotaNum: {
-    fontSize: FontSize.sm,
-  },
-  cobroCuotaMonto: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-    textAlign: 'right',
-  },
-  cobroCuotaMora: {
-    fontSize: FontSize.xs,
-    textAlign: 'right',
-  },
-  cobroTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    paddingTop: Spacing.sm,
-  },
-  cobroTotalLabel: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-  },
-  cobroTotalAmount: {
-    fontSize: FontSize.lg,
-    fontWeight: FontWeight.bold,
-  },
-  metodoRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-  metodoChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-  },
-  metodoChipText: {
-    fontSize: FontSize.xs,
-  },
-  cobroRefInput: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: FontSize.sm,
-  },
-  cobroActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
   },
 });

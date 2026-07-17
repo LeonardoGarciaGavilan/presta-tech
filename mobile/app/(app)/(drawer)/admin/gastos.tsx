@@ -16,6 +16,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { formatCurrencyCompact, formatFullCurrency, getTodayISO, getMonthStart } from '@/utils/formatters';
 
 const CATEGORY_PALETTE = [
   '#2563EB', '#D97706', '#7C3AED', '#0891B2', '#059669',
@@ -59,16 +60,6 @@ function getCategoryMeta(cat: string) {
   };
 }
 
-function formatCurrency(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-function formatFullCurrency(n: number): string {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 function formatFecha(dateStr: string): string {
   const d = new Date(dateStr);
   const now = new Date();
@@ -78,15 +69,6 @@ function formatFecha(dateStr: string): string {
   if (isToday) return `Hoy ${d.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}`;
   if (isYesterday) return `Ayer ${d.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}`;
   return d.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
-}
-
-function getToday(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
-function getMonthStart(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
 type GastoForm = {
@@ -104,7 +86,7 @@ const EMPTY_FORM: GastoForm = {
   categoria: '',
   descripcion: '',
   monto: '',
-  fecha: getToday(),
+  fecha: getTodayISO(),
   tipo: 'OPERATIVO',
   proveedor: '',
   referencia: '',
@@ -116,7 +98,7 @@ export default function GastosScreen() {
   const { showToast } = useToast();
 
   const [desde, setDesde] = useState(getMonthStart());
-  const [hasta, setHasta] = useState(getToday());
+  const [hasta, setHasta] = useState(getTodayISO());
   const [categoriaFilter, setCategoriaFilter] = useState('');
 
   const filters = useMemo<GastosFilters>(() => {
@@ -274,7 +256,7 @@ export default function GastosScreen() {
             </Text>
           </View>
           <Text style={[styles.gastoMonto, { color: colors.error }]}>
-            -{formatCurrency(item.monto)}
+            -{formatCurrencyCompact(item.monto)}
           </Text>
         </TouchableOpacity>
       );
@@ -323,19 +305,19 @@ export default function GastosScreen() {
             <View style={styles.kpiRow}>
               <View style={[styles.kpiCard, { backgroundColor: colors.primaryLight }]}>
                 <Text style={[styles.kpiValue, { color: colors.primary }]}>
-                  {formatCurrency(resumen?.totalMes ?? 0)}
+                  {formatCurrencyCompact(resumen?.totalMes ?? 0)}
                 </Text>
                 <Text style={[styles.kpiLabel, { color: colors.primary }]}>Este mes</Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.secondaryLight }]}>
                 <Text style={[styles.kpiValue, { color: colors.secondary }]}>
-                  {formatCurrency(resumen?.totalAno ?? 0)}
+                  {formatCurrencyCompact(resumen?.totalAno ?? 0)}
                 </Text>
                 <Text style={[styles.kpiLabel, { color: colors.secondary }]}>Este año</Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.warningLight }]}>
                 <Text style={[styles.kpiValue, { color: colors.warning }]}>
-                  {formatCurrency(totalGral)}
+                  {formatCurrencyCompact(totalGral)}
                 </Text>
                 <Text style={[styles.kpiLabel, { color: colors.warning }]}>Total</Text>
               </View>
@@ -365,7 +347,7 @@ export default function GastosScreen() {
                       <View style={[styles.catDot, { backgroundColor: meta.color }]} />
                       <Ionicons name={meta.icon} size={12} color={meta.color} style={{ marginRight: 4 }} />
                       <Text style={[styles.catLabel, { color: colors.textSecondary }]}>{cat}</Text>
-                      <Text style={[styles.catValue, { color: colors.text }]}>{formatCurrency(val)}</Text>
+                      <Text style={[styles.catValue, { color: colors.text }]}>{formatCurrencyCompact(val)}</Text>
                       <Text style={[styles.catPct, { color: colors.textTertiary }]}>
                         {pct.toFixed(1)}%
                       </Text>

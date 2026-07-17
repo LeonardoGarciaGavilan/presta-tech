@@ -10,7 +10,7 @@ import EmptyState from '@/components/ui/empty-state';
 import DetalleSesionModal from '@/components/caja/detalle-sesion-modal';
 import { useToast } from '@/components/ui/toast';
 import { useCajas, useCerrarCaja } from '@/hooks/use-caja';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -433,12 +433,12 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-  } as any,
+  } as AppStyles,
   userName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, marginBottom: 1 },
   dateText: { fontSize: FontSize.xs },
   riskBadge: {
@@ -448,25 +448,25 @@ const styles = {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
-  } as any,
+  } as AppStyles,
   riskBadgeText: { fontSize: 9, fontWeight: FontWeight.bold },
   openBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
-  } as any,
+  } as AppStyles,
   openBadgeText: { fontSize: 10, fontWeight: FontWeight.bold, color: '#16A34A' },
   razonesBox: {
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
     marginTop: Spacing.xs,
-  } as any,
-  divider: { height: 1, marginVertical: Spacing.sm } as any,
+  } as AppStyles,
+  divider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
   statsGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
-  } as any,
-  statItem: { flex: 1, alignItems: 'center' } as any,
+  } as AppStyles,
+  statItem: { flex: 1, alignItems: 'center' } as AppStyles,
   statLabel: { fontSize: 9 },
   statValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: 1 },
   esperadoRow: {
@@ -476,7 +476,7 @@ const styles = {
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     gap: Spacing.xs,
-  } as any,
+  } as AppStyles,
   esperadoLabel: { fontSize: FontSize.xs, flex: 1 },
   esperadoValue: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   recomendacionBox: {
@@ -486,7 +486,7 @@ const styles = {
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     gap: Spacing.xs,
-  } as any,
+  } as AppStyles,
   cerrarButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -496,34 +496,34 @@ const styles = {
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.sm,
     marginTop: Spacing.sm,
-  } as any,
+  } as AppStyles,
   cerrarButtonText: { fontSize: FontSize.xs, fontWeight: FontWeight.medium },
   kpiCard: {
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   kpiHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   kpiTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   kpiGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
-  } as any,
-  kpiItem: { flex: 1, alignItems: 'center' } as any,
+  } as AppStyles,
+  kpiItem: { flex: 1, alignItems: 'center' } as AppStyles,
   kpiValue: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   kpiLabel: { fontSize: 9, marginTop: 1 },
-  kpiDivider: { height: 1, marginVertical: Spacing.sm } as any,
+  kpiDivider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
   kpiTotals: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  } as any,
+  } as AppStyles,
   kpiTotalLabel: { fontSize: FontSize.xs },
   kpiTotalValue: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   modalOverlay: {
@@ -531,33 +531,33 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
-  } as any,
+  } as AppStyles,
   modalCard: {
     width: '100%',
     maxWidth: 380,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-  } as any,
+  } as AppStyles,
   modalHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-  } as any,
+  } as AppStyles,
   modalTitle: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.bold },
   modalBody: { padding: Spacing.md },
-  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as any,
+  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as AppStyles,
   summaryBox: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 2,
-  } as any,
+  } as AppStyles,
   diferenciaPreview: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -565,5 +565,5 @@ const styles = {
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
 } as const;

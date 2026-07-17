@@ -7,25 +7,12 @@ import { AppInput } from '@/components/ui/app-input';
 import PickerField from '@/components/ui/picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useRegistrarPago, useSaldarPrestamo } from '@/hooks/use-pagos';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import type { Cuota, MetodoPago, Prestamo } from '@/types/prestamo.types';
 import { useTheme } from '@/components/ui/theme-provider';
-
-const METODO_PAGO_OPTIONS = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CHEQUE'];
-const METODO_PAGO_LABELS: Record<string, string> = {
-  EFECTIVO: 'Efectivo',
-  TRANSFERENCIA: 'Transferencia',
-  TARJETA: 'Tarjeta',
-  CHEQUE: 'Cheque',
-};
-const METODO_PAGO_ICONS: Record<string, string> = {
-  EFECTIVO: 'cash-outline',
-  TRANSFERENCIA: 'swap-horizontal-outline',
-  TARJETA: 'card-outline',
-  CHEQUE: 'document-text-outline',
-};
+import { METODO_PAGO_LABELS, METODO_PAGO_ICONS, METODO_PAGO_OPTIONS } from '@/constants/pagos.constants';
 
 interface PaymentFormProps {
   prestamo: Prestamo;
@@ -286,28 +273,28 @@ export default function PaymentForm({
         <View style={styles.metodoGrid}>
           {METODO_PAGO_OPTIONS.map((m) => (
             <Pressable
-              key={m}
-              onPress={() => setMetodo(m as MetodoPago)}
+              key={m.value}
+              onPress={() => setMetodo(m.value as MetodoPago)}
               style={[
                 styles.metodoCard,
                 {
-                  backgroundColor: metodo === m ? colors.primaryLight : colors.surface,
-                  borderColor: metodo === m ? colors.primary : colors.border,
+                  backgroundColor: metodo === m.value ? colors.primaryLight : colors.surface,
+                  borderColor: metodo === m.value ? colors.primary : colors.border,
                 },
               ]}
             >
               <Ionicons
-                name={METODO_PAGO_ICONS[m] as any}
+                name={METODO_PAGO_ICONS[m.value] as IoniconsName}
                 size={20}
-                color={metodo === m ? colors.primary : colors.textTertiary}
+                color={metodo === m.value ? colors.primary : colors.textTertiary}
               />
               <Text
                 style={[
                   styles.metodoText,
-                  { color: metodo === m ? colors.primary : colors.textSecondary },
+                  { color: metodo === m.value ? colors.primary : colors.textSecondary },
                 ]}
               >
-                {METODO_PAGO_LABELS[m]}
+                {m.label}
               </Text>
             </Pressable>
           ))}

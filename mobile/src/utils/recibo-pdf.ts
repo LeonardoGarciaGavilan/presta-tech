@@ -1,6 +1,8 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAuthStore } from '@/store/auth.store';
+import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
+import { formatCedula, formatCurrency } from '@/utils/formatters';
 
 const FRECUENCIA_LABEL: Record<string, string> = {
   DIARIO: 'Diario',
@@ -8,21 +10,6 @@ const FRECUENCIA_LABEL: Record<string, string> = {
   QUINCENAL: 'Quincenal',
   MENSUAL: 'Mensual',
 };
-
-const METODO_LABEL: Record<string, string> = {
-  EFECTIVO: 'Efectivo',
-  TRANSFERENCIA: 'Transferencia',
-  TARJETA: 'Tarjeta',
-  CHEQUE: 'Cheque',
-};
-
-function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined) return 'RD$ 0.00';
-  return `RD$ ${new Intl.NumberFormat('es-DO', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)}`;
-}
 
 function formatDateLong(date: string | null | undefined): string {
   if (!date) return '—';
@@ -37,13 +24,6 @@ function formatDateShort(date: string | null | undefined): string {
   return new Intl.DateTimeFormat('es-DO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   }).format(new Date(date));
-}
-
-function formatCedula(value: string): string {
-  const d = value.replace(/\D/g, '').slice(0, 11);
-  if (d.length <= 3) return d;
-  if (d.length <= 10) return `${d.slice(0, 3)}-${d.slice(3)}`;
-  return `${d.slice(0, 3)}-${d.slice(3, 10)}-${d.slice(10)}`;
 }
 
 export interface ReciboData {
@@ -297,7 +277,7 @@ export function generateReciboHtml(data: ReciboData): string {
   ` : ''}
   <div class="row">
     <span class="label">Método</span>
-    <span class="value">${METODO_LABEL[pago?.metodo ?? ''] || pago?.metodo || '—'}</span>
+    <span class="value">${METODO_PAGO_LABELS[pago?.metodo ?? ''] || pago?.metodo || '—'}</span>
   </div>
   ${pago?.referencia ? `
     <div class="row">

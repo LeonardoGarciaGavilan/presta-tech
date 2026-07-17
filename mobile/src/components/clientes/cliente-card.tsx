@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -22,7 +22,7 @@ interface ClienteCardProps {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export default function ClienteCard({
+function ClienteCardBase({
   cliente,
   onPress,
   onEstadoCuenta,
@@ -241,6 +241,11 @@ export default function ClienteCard({
     </View>
   );
 }
+
+const ClienteCard = memo(ClienteCardBase);
+ClienteCard.displayName = 'ClienteCard';
+
+export default ClienteCard;
 
 const styles = StyleSheet.create({
   card: {

@@ -81,9 +81,11 @@ export default function SearchBar({
         placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         returnKeyType="search"
+        accessibilityRole="search"
+        accessibilityLabel={placeholder}
       />
       {localValue.length > 0 && (
-        <Pressable onPress={handleClear} hitSlop={8} style={styles.clearButton}>
+        <Pressable onPress={handleClear} hitSlop={8} style={styles.clearButton} accessibilityRole="button" accessibilityLabel="Limpiar búsqueda">
           <Ionicons
             name="close-circle"
             size={20}

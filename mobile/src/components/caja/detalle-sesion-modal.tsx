@@ -7,9 +7,10 @@ import { useResumenCaja, useAuditoriaCaja } from '@/hooks/use-caja';
 import { obtenerPago } from '@/api/pagos.api';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import { useToast } from '@/components/ui/toast';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
+import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import type {
   CajaSesion,
   MovimientoTimeline,
@@ -23,13 +24,6 @@ interface Props {
   caja?: CajaSesion | null;
   onClose: () => void;
 }
-
-const METODO_PAGO_LABELS: Record<string, string> = {
-  EFECTIVO: 'Efectivo',
-  TRANSFERENCIA: 'Transferencia',
-  TARJETA: 'Tarjeta',
-  CHEQUE: 'Cheque',
-};
 
 const MOVIMIENTO_CONFIG: Record<TipoMovimiento, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
   APERTURA_CAJA: { label: 'Apertura de caja', icon: 'lock-open-outline' },
@@ -564,23 +558,20 @@ function AuditoriaTab({
   );
 }
 
-// Re-exported helper used externally
-export { METODO_PAGO_LABELS };
-
 const s = {
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
-  } as any,
+  } as AppStyles,
   modalCard: {
     width: '100%',
     maxWidth: 400,
     maxHeight: '90%',
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-  } as any,
+  } as AppStyles,
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -588,16 +579,16 @@ const s = {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-  } as any,
+  } as AppStyles,
   modalTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.semibold },
   tabRow: {
     flexDirection: 'row',
     marginTop: Spacing.sm,
     gap: Spacing.lg,
-  } as any,
+  } as AppStyles,
   tab: {
     paddingBottom: Spacing.xs,
-  } as any,
+  } as AppStyles,
   tabText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
@@ -608,36 +599,36 @@ const s = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.xs,
-  } as any,
+  } as AppStyles,
   infoLabel: { fontSize: FontSize.xs, flex: 1 },
   infoValue: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, flex: 1, textAlign: 'right' },
-  divider: { height: 1, marginVertical: Spacing.sm } as any,
+  divider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
   resumenGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   resumenCard: {
     flex: 1,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,
     alignItems: 'center',
-  } as any,
-  resumenValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold } as any,
-  resumenLabel: { fontSize: FontSize.xs, marginTop: 2, textAlign: 'center' } as any,
+  } as AppStyles,
+  resumenValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold } as AppStyles,
+  resumenLabel: { fontSize: FontSize.xs, marginTop: 2, textAlign: 'center' } as AppStyles,
   sectionCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   sectionTitle: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.bold,
@@ -647,61 +638,61 @@ const s = {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: Spacing.xs,
-  } as any,
+  } as AppStyles,
   pagoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
     borderBottomWidth: 1,
-  } as any,
+  } as AppStyles,
   reprintIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  } as any,
+  } as AppStyles,
   reconstruccionCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   reconRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.xs,
-  } as any,
+  } as AppStyles,
   reconLabel: { fontSize: FontSize.xs },
   reconValue: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  reconDivider: { height: 1, marginVertical: Spacing.xs } as any,
+  reconDivider: { height: 1, marginVertical: Spacing.xs } as AppStyles,
   alertaCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
-  } as any,
+  } as AppStyles,
   alertaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: Spacing.xs,
-  } as any,
+  } as AppStyles,
   timelineRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
-  } as any,
+  } as AppStyles,
   timelineIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  } as any,
+  } as AppStyles,
   timelineDot: {
     height: 1,
     marginLeft: 18,
     marginVertical: 1,
-  } as any,
+  } as AppStyles,
 } as const;

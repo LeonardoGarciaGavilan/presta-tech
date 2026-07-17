@@ -7,27 +7,12 @@ import { useResumenRutas } from '@/hooks/use-rutas';
 import type { ResumenRuta } from '@/types/rutas.types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTheme } from '@/components/ui/theme-provider';
+import { formatCurrencyCompact, formatTimeAgo } from '@/utils/formatters';
 
 const DISTRIBUTION_COLORS = [
   '#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED',
   '#0891B2', '#DB2777', '#65A30D', '#0D9488', '#9333EA',
 ];
-
-function formatCurrency(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'recién';
-  if (diffMins < 60) return `hace ${diffMins}min`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `hace ${diffHours}h`;
-  return `hace ${Math.floor(diffHours / 24)}d`;
-}
 
 function calcEficiencia(ruta: ResumenRuta): number {
   if (!ruta.dineroEnCalle) return 0;
@@ -172,13 +157,13 @@ export default function AnalisisRutasScreen() {
           <View style={styles.rutaStats}>
             <View style={styles.rutaStat}>
               <Text style={[styles.rutaStatValue, { color: colors.text }]}>
-                {formatCurrency(item.totalCobrado)}
+                {formatCurrencyCompact(item.totalCobrado)}
               </Text>
               <Text style={[styles.rutaStatLabel, { color: colors.textTertiary }]}>Cobrado</Text>
             </View>
             <View style={styles.rutaStat}>
               <Text style={[styles.rutaStatValue, { color: colors.text }]}>
-                {formatCurrency(item.dineroEnCalle)}
+                {formatCurrencyCompact(item.dineroEnCalle)}
               </Text>
               <Text style={[styles.rutaStatLabel, { color: colors.textTertiary }]}>En calle</Text>
             </View>
@@ -195,7 +180,7 @@ export default function AnalisisRutasScreen() {
               {item.clientesActivos} clientes · {item.prestamosActivos} préstamos
             </Text>
             <Text style={[styles.rutaMetaText, { color: colors.textTertiary }]}>
-              {formatCurrency(item.totalInteres)} intereses
+              {formatCurrencyCompact(item.totalInteres)} intereses
             </Text>
           </View>
         </View>
@@ -248,19 +233,19 @@ export default function AnalisisRutasScreen() {
             <View style={styles.summaryGrid}>
               <View style={[styles.summaryCard, { backgroundColor: colors.primaryLight }]}>
                 <Text style={[styles.summaryValue, { color: colors.primary }]}>
-                  {formatCurrency(data?.totales.totalCobrado ?? 0)}
+                  {formatCurrencyCompact(data?.totales.totalCobrado ?? 0)}
                 </Text>
                 <Text style={[styles.summaryLabel, { color: colors.primary }]}>Cobrado</Text>
               </View>
               <View style={[styles.summaryCard, { backgroundColor: colors.warningLight }]}>
                 <Text style={[styles.summaryValue, { color: colors.warning }]}>
-                  {formatCurrency(data?.totales.totalInteres ?? 0)}
+                  {formatCurrencyCompact(data?.totales.totalInteres ?? 0)}
                 </Text>
                 <Text style={[styles.summaryLabel, { color: colors.warning }]}>Interés</Text>
               </View>
               <View style={[styles.summaryCard, { backgroundColor: colors.errorLight }]}>
                 <Text style={[styles.summaryValue, { color: colors.error }]}>
-                  {formatCurrency(data?.totales.dineroEnCalle ?? 0)}
+                  {formatCurrencyCompact(data?.totales.dineroEnCalle ?? 0)}
                 </Text>
                 <Text style={[styles.summaryLabel, { color: colors.error }]}>En calle</Text>
               </View>
@@ -283,7 +268,7 @@ export default function AnalisisRutasScreen() {
                 </View>
                 {rutasCriticas.map((r) => (
                   <Text key={r.rutaId} style={[styles.alertItem, { color: colors.error }]}>
-                    {r.nombre} · {calcEficiencia(r).toFixed(0)}% eficiencia · {formatCurrency(r.dineroEnCalle)} en calle
+                    {r.nombre} · {calcEficiencia(r).toFixed(0)}% eficiencia · {formatCurrencyCompact(r.dineroEnCalle)} en calle
                   </Text>
                 ))}
               </View>
@@ -302,7 +287,7 @@ export default function AnalisisRutasScreen() {
                   const ef = calcEficiencia(r);
                   return (
                     <Text key={r.rutaId} style={[styles.alertItem, { color: colors.warning }]}>
-                      {r.nombre} · {ef.toFixed(0)}% eficiencia · {formatCurrency(r.dineroEnCalle)} en calle
+                      {r.nombre} · {ef.toFixed(0)}% eficiencia · {formatCurrencyCompact(r.dineroEnCalle)} en calle
                     </Text>
                   );
                 })}
@@ -419,10 +404,10 @@ export default function AnalisisRutasScreen() {
                       {topRoute.cobrador}
                     </Text>
                     <Text style={[styles.topRouteDetail, { color: colors.textSecondary }]}>
-                      {formatCurrency(topRoute.totalInteres)} intereses · {calcEficiencia(topRoute).toFixed(0)}% eficiencia
+                      {formatCurrencyCompact(topRoute.totalInteres)} intereses · {calcEficiencia(topRoute).toFixed(0)}% eficiencia
                     </Text>
                     <Text style={[styles.topRouteDetail, { color: colors.textSecondary }]}>
-                      {formatCurrency(topRoute.dineroEnCalle)} en calle
+                      {formatCurrencyCompact(topRoute.dineroEnCalle)} en calle
                     </Text>
                   </View>
                 </View>

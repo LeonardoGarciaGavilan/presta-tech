@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -55,7 +55,7 @@ export default function ActionConfirmModal({
         <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
             <View style={[styles.headerBar, { backgroundColor: colorAccion }]}>
-              <Ionicons name={icon as any} size={22} color="#FFFFFF" />
+              <Ionicons name={icon as IoniconsName} size={22} color="#FFFFFF" />
               <Text style={styles.title}>{titulo}</Text>
             </View>
             <ScrollView

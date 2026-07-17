@@ -13,6 +13,7 @@ import { AppButton } from '@/components/ui/app-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { formatCurrencyCompact, formatFullCurrency, formatTimeAgo } from '@/utils/formatters';
 
 const MOVEMENT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   PAGO_RECIBIDO: 'cash',
@@ -41,26 +42,6 @@ const MOVEMENT_COLORS: Record<string, string> = {
   GASTO_CAPITAL: '#DC2626',
   AJUSTE_CAJA: '#0891B2',
 };
-
-function formatCurrency(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-function formatFullCurrency(n: number): string {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'recién';
-  if (diffMins < 60) return `hace ${diffMins}min`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `hace ${diffHours}h`;
-  return `hace ${Math.floor(diffHours / 24)}d`;
-}
 
 function formatMovFecha(dateStr: string): string {
   const d = new Date(dateStr);
@@ -155,12 +136,12 @@ export default function EstadoFinancieroScreen() {
             </Text>
             <Text style={[styles.movMeta, { color: colors.textTertiary }]}>
               {item.usuario?.nombre ? `${item.usuario.nombre} · ` : ''}{formatMovFecha(item.fecha)}
-              {item.interes > 0 && ` · ${formatCurrency(item.interes)} int`}
-              {item.mora > 0 && ` · ${formatCurrency(item.mora)} mora`}
+              {item.interes > 0 && ` · ${formatCurrencyCompact(item.interes)} int`}
+              {item.mora > 0 && ` · ${formatCurrencyCompact(item.mora)} mora`}
             </Text>
           </View>
           <Text style={[styles.movMonto, { color: isPositive ? colors.success : colors.error }]}>
-            {isPositive ? '+' : '-'}{formatCurrency(Math.abs(item.monto))}
+            {isPositive ? '+' : '-'}{formatCurrencyCompact(Math.abs(item.monto))}
           </Text>
         </View>
       );
@@ -233,25 +214,25 @@ export default function EstadoFinancieroScreen() {
               <View style={[styles.kpiCard, { backgroundColor: colors.primaryLight }]}>
                 <Text style={[styles.kpiLabel, { color: colors.primary }]}>Capital</Text>
                 <Text style={[styles.kpiValue, { color: colors.primary }]}>
-                  {formatCurrency(dash?.capital.total ?? 0)}
+                  {formatCurrencyCompact(dash?.capital.total ?? 0)}
                 </Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.secondaryLight }]}>
                 <Text style={[styles.kpiLabel, { color: colors.secondary }]}>Ganancias</Text>
                 <Text style={[styles.kpiValue, { color: colors.secondary }]}>
-                  {formatCurrency(dash?.ganancias.brutas ?? 0)}
+                  {formatCurrencyCompact(dash?.ganancias.brutas ?? 0)}
                 </Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.warningLight }]}>
                 <Text style={[styles.kpiLabel, { color: colors.warning }]}>En caja</Text>
                 <Text style={[styles.kpiValue, { color: colors.warning }]}>
-                  {formatCurrency(dash?.dinero.enCaja ?? 0)}
+                  {formatCurrencyCompact(dash?.dinero.enCaja ?? 0)}
                 </Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.errorLight }]}>
                 <Text style={[styles.kpiLabel, { color: colors.error }]}>En calle</Text>
                 <Text style={[styles.kpiValue, { color: colors.error }]}>
-                  {formatCurrency(dash?.dinero.enCalle ?? 0)}
+                  {formatCurrencyCompact(dash?.dinero.enCalle ?? 0)}
                 </Text>
               </View>
             </View>
@@ -276,7 +257,7 @@ export default function EstadoFinancieroScreen() {
                   <View key={item.label} style={styles.patrimonioRow}>
                     <View style={[styles.patrimonioDot, { backgroundColor: item.color }]} />
                     <Text style={[styles.patrimonioLabel, { color: colors.textSecondary }]}>{item.label}</Text>
-                    <Text style={[styles.patrimonioValue, { color: colors.text }]}>{formatCurrency(item.value)}</Text>
+                    <Text style={[styles.patrimonioValue, { color: colors.text }]}>{formatCurrencyCompact(item.value)}</Text>
                   </View>
                 ))}
               </View>
@@ -298,7 +279,7 @@ export default function EstadoFinancieroScreen() {
               </View>
               <View style={[styles.metricChip, { backgroundColor: colors.warningLight }]}>
                 <Text style={[styles.metricValue, { color: colors.warning }]}>
-                  {formatCurrency(dash?.metricas.dineroOcioso ?? 0)}
+                  {formatCurrencyCompact(dash?.metricas.dineroOcioso ?? 0)}
                 </Text>
                 <Text style={[styles.metricLabel, { color: colors.warning }]}>Ocioso</Text>
               </View>

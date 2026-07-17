@@ -7,16 +7,10 @@ import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { usePagosDePrestamo } from '@/hooks/use-pagos';
 import { usePrestamo } from '@/hooks/use-prestamos';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
-
-const METODO_PAGO_LABELS: Record<string, string> = {
-  EFECTIVO: 'Efectivo',
-  TRANSFERENCIA: 'Transferencia',
-  TARJETA: 'Tarjeta',
-  CHEQUE: 'Cheque',
-};
+import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 
 export default function PagosPrestamoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -121,14 +115,14 @@ export default function PagosPrestamoScreen() {
 
 const styles = {
   screen: { flex: 1 },
-  listContent: { padding: Spacing.md, paddingBottom: Spacing.xxl } as any,
+  listContent: { padding: Spacing.md, paddingBottom: Spacing.xxl } as AppStyles,
   summaryCard: {
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     gap: Spacing.xs,
-  } as any,
+  } as AppStyles,
   summaryLabel: { fontSize: FontSize.xs },
   summaryValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   pagoCard: {
@@ -136,25 +130,25 @@ const styles = {
     borderWidth: 1,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   pagoCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.sm,
-  } as any,
+  } as AppStyles,
   pagoDate: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   pagoMetodoBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: BorderRadius.sm,
-  } as any,
+  } as AppStyles,
   pagoMetodoText: { fontSize: 10, fontWeight: FontWeight.bold },
   pagoAmountsRow: {
     flexDirection: 'row',
     gap: Spacing.xs,
-  } as any,
-  pagoAmountItem: { flex: 1, alignItems: 'center' } as any,
+  } as AppStyles,
+  pagoAmountItem: { flex: 1, alignItems: 'center' } as AppStyles,
   pagoAmountLabel: { fontSize: 9 },
   pagoAmountValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: 1 },
   pagoTotalRow: {
@@ -164,7 +158,7 @@ const styles = {
     borderTopWidth: 1,
     marginTop: Spacing.xs,
     paddingTop: Spacing.xs,
-  } as any,
+  } as AppStyles,
   pagoTotalLabel: { fontSize: FontSize.xs },
   pagoTotalValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
 };

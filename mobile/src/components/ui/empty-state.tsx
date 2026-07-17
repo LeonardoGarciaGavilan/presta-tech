@@ -24,10 +24,10 @@ export default function EmptyState({
 
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={64} color={colors.textTertiary} />
-      <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
+      <Ionicons name={icon} size={64} color={colors.textTertiary} accessibilityRole="image" accessibilityLabel={title} />
+      <Text accessibilityRole="header" style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
       {subtitle && (
-        <Text style={[styles.subtitle, { color: colors.textTertiary }]}>{subtitle}</Text>
+        <Text accessibilityRole="text" style={[styles.subtitle, { color: colors.textTertiary }]}>{subtitle}</Text>
       )}
       {actionLabel && onAction && (
         <AppButton title={actionLabel} onPress={onAction} style={styles.action} />

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { BorderRadius, Colors, FontSize, FontWeight, Spacing, Shadows } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, FontWeight, Spacing, Shadows, getColor } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface KpiCardProps {
@@ -26,14 +26,14 @@ const ACCENT_MAP = {
   info: { bg: 'infoLight', icon: 'info', text: 'info' },
 };
 
-export default function KpiCard({
+function KpiCardBase({
   icon,
   value,
   label,
   accent = 'primary',
   delay = 0,
 }: KpiCardProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const scale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
 
@@ -67,17 +67,17 @@ export default function KpiCard({
       <View
         style={[
           styles.iconWrap,
-          { backgroundColor: (colors as any)[accentColors.bg] },
+          { backgroundColor: getColor(colors, accentColors.bg) },
         ]}
       >
         <Ionicons
           name={icon}
           size={20}
-          color={(colors as any)[accentColors.icon]}
+          color={getColor(colors, accentColors.icon)}
         />
       </View>
-      <Text style={[styles.value, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>
+      <Text style={[styles.value, { color: colors.text }]} accessibilityRole="text">{value}</Text>
+      <Text style={[styles.label, { color: colors.textSecondary }]} accessibilityRole="text">
         {label}
       </Text>
     </Animated.View>
@@ -111,3 +111,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+const KpiCard = memo(KpiCardBase);
+KpiCard.displayName = 'KpiCard';
+
+export default KpiCard;

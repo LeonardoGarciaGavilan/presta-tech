@@ -24,6 +24,10 @@ export function PageHeader({ title, right }: PageHeaderProps) {
       <TouchableOpacity
         onPress={() => router.back()}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Volver"
+        accessibilityHint="Regresa a la pantalla anterior"
         style={{
           width: 36,
           height: 36,
@@ -36,6 +40,7 @@ export function PageHeader({ title, right }: PageHeaderProps) {
       </TouchableOpacity>
       <Text
         numberOfLines={1}
+        accessibilityRole="header"
         style={{
           flex: 1,
           fontSize: FontSize.lg,

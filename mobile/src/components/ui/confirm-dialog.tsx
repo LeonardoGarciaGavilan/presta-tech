@@ -35,10 +35,10 @@ export default function ConfirmDialog({
       animationType="fade"
       onRequestClose={onCancel}
     >
-      <View style={[styles.overlay, { backgroundColor: colors.overlay }]} accessibilityRole="alert">
+      <View style={[styles.overlay, { backgroundColor: colors.overlay }]} accessible accessibilityRole="alert" accessibilityLabel={title}>
         <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-          <Text style={[styles.message, { color: colors.textSecondary }]}>
+          <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{title}</Text>
+          <Text accessibilityRole="text" style={[styles.message, { color: colors.textSecondary }]}>
             {message}
           </Text>
           <View style={styles.actions}>
