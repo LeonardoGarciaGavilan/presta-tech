@@ -44,6 +44,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-osm-sdk/plugin",
+        {
+          "locationWhenInUseDescription": "PrestaTech necesita tu ubicación para registrar direcciones y optimizar las rutas de cobro."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

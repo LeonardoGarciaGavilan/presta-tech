@@ -1,7 +1,9 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import type { Coordinate } from 'expo-osm-sdk';
 
 import { useVistaDia,
   useRuta,
@@ -25,6 +27,7 @@ import type { ClienteVistaDia, ResumenVistaDia } from '@/types/rutas.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import { dateToISO } from '@/utils/formatters';
 import CobroRapidoModal from '@/components/rutas/cobro-rapido-modal';
+import MapMarkerSheet from '@/components/rutas/map-marker-sheet';
 import { DateNavigator } from '@/components/rutas/date-navigator';
 import { RutaStatsGrid } from '@/components/rutas/ruta-stats-grid';
 import { RutaToolbar } from '@/components/rutas/ruta-toolbar';
@@ -53,6 +56,8 @@ export default function VistaDiaScreen() {
   const [sortByCercania, setSortByCercania] = useState(false);
 
   const [cobroCliente, setCobroCliente] = useState<ClienteVistaDia | null>(null);
+  const [mapSelectedCliente, setMapSelectedCliente] = useState<ClienteVistaDia | null>(null);
+  const [cobradorLocation, setCobradorLocation] = useState<Coordinate | null>(null);
 
   const { data: ruta } = useRuta(id ?? '');
   const {
@@ -68,6 +73,36 @@ export default function VistaDiaScreen() {
   const { mutateAsync: registrarPago, isPending: pagando } = useRegistrarPago();
 
   const [resetConfirm, setResetConfirm] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    let watcher: Location.LocationSubscription | null = null;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || !mounted) return;
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (mounted) {
+          setCobradorLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+        }
+        if (!mounted) return;
+        watcher = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, distanceInterval: 50, timeInterval: 30000 },
+          (position) => {
+            if (mounted) {
+              setCobradorLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+            }
+          },
+        );
+      } catch {
+        // Silently fail — location is optional
+      }
+    })();
+    return () => {
+      mounted = false;
+      watcher?.remove();
+    };
+  }, []);
 
   const clientes = useMemo(() => {
     if (!vistaDia?.clientes) return [];
@@ -111,6 +146,34 @@ export default function VistaDiaScreen() {
 
   const handleCobroRapido = useCallback((item: ClienteVistaDia) => {
     setCobroCliente(item);
+    setMapSelectedCliente(null);
+  }, []);
+
+  const handleMapMarkerPress = useCallback(
+    (marker: { id: string }) => {
+      if (!vistaDia?.clientes) return;
+      const cliente = vistaDia.clientes.find((c) => c.rutaClienteId === marker.id);
+      if (cliente) setMapSelectedCliente(cliente);
+    },
+    [vistaDia?.clientes],
+  );
+
+  const handleMapMarcarVisita = useCallback(
+    async (rcId: string, currentState: boolean) => {
+      try {
+        await marcarVisitado({ rcId, visitado: !currentState });
+        setMapSelectedCliente(null);
+        showToast(!currentState ? 'Visitado' : 'Desmarcado', 'success');
+      } catch (err: any) {
+        showToast(err?.message || 'Error al marcar visita', 'error');
+      }
+    },
+    [marcarVisitado, showToast],
+  );
+
+  const handleMapVerDetalle = useCallback((clienteId: string) => {
+    setMapSelectedCliente(null);
+    router.push(`/clientes/${clienteId}?from=rutas`);
   }, []);
 
   const handleProcesarPago = useCallback(async (data: { metodo: 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE'; referencia?: string }) => {
@@ -253,6 +316,8 @@ export default function VistaDiaScreen() {
                 height={400}
                 showPolyline
                 fitToMarkers
+                userLocation={cobradorLocation ?? undefined}
+                onMarkerPress={handleMapMarkerPress}
               />
             ) : (
               <View style={[styles.noMap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -335,6 +400,16 @@ export default function VistaDiaScreen() {
         onClose={() => setCobroCliente(null)}
         onConfirm={handleProcesarPago}
       />
+
+      {mapSelectedCliente && (
+        <MapMarkerSheet
+          cliente={mapSelectedCliente}
+          onCobrar={handleCobroRapido}
+          onMarcarVisita={handleMapMarcarVisita}
+          onVerDetalle={handleMapVerDetalle}
+          onClose={() => setMapSelectedCliente(null)}
+        />
+      )}
     </ScreenContainer>
   );
 }
