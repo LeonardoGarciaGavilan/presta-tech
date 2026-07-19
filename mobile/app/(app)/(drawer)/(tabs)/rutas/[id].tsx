@@ -245,6 +245,51 @@ export default function VistaDiaScreen() {
       isOverdue: c.tieneAtrasados,
     }));
 
+  if (viewMode === 'map') {
+    return (
+      <ScreenContainer>
+        <View style={styles.mapFull}>
+          {mapMarkers.length > 0 ? (
+            <AppMapView
+              markers={mapMarkers}
+              readOnly
+              height={0}
+              showPolyline
+              fitToMarkers
+              userLocation={cobradorLocation ?? undefined}
+              onMarkerPress={handleMapMarkerPress}
+            />
+          ) : (
+            <View style={[styles.noMap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="map-outline" size={32} color={colors.textTertiary} />
+              <Text style={[styles.noMapText, { color: colors.textTertiary }]}>
+                Sin ubicaciones en esta ruta
+              </Text>
+            </View>
+          )}
+
+          <Pressable
+            style={[styles.mapFab, { backgroundColor: colors.primary }]}
+            onPress={() => setViewMode('list')}
+          >
+            <Ionicons name="list-outline" size={22} color="#FFF" />
+            <Text style={styles.mapFabText}>Lista</Text>
+          </Pressable>
+        </View>
+
+        {mapSelectedCliente && (
+          <MapMarkerSheet
+            cliente={mapSelectedCliente}
+            onCobrar={handleCobroRapido}
+            onMarcarVisita={handleMapMarcarVisita}
+            onVerDetalle={handleMapVerDetalle}
+            onClose={() => setMapSelectedCliente(null)}
+          />
+        )}
+      </ScreenContainer>
+    );
+  }
+
   return (
     <ScreenContainer>
       <PageHeader title={ruta.nombre} />
@@ -306,54 +351,28 @@ export default function VistaDiaScreen() {
           onSortChange={() => setSortByCercania((p) => !p)}
         />
 
-        {/* Map View */}
-        {viewMode === 'map' && (
-          <View style={{ marginBottom: Spacing.md }}>
-            {mapMarkers.length > 0 ? (
-              <AppMapView
-                markers={mapMarkers}
-                readOnly
-                height={400}
-                showPolyline
-                fitToMarkers
-                userLocation={cobradorLocation ?? undefined}
-                onMarkerPress={handleMapMarkerPress}
-              />
-            ) : (
-              <View style={[styles.noMap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Ionicons name="map-outline" size={32} color={colors.textTertiary} />
-                <Text style={[styles.noMapText, { color: colors.textTertiary }]}>
-                  Sin ubicaciones en esta ruta
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {/* Client List */}
-        {viewMode === 'list' && (
-          <View style={styles.clientList}>
-            {clientes.length === 0 ? (
-              <EmptyState
-                icon="checkmark-circle-outline"
-                title={filter === 'visitados' ? 'Sin visitados' : filter === 'pendientes' ? 'Todo visitado' : 'Sin clientes'}
-                subtitle={filter !== 'todos' ? 'Cambia el filtro para ver más' : 'No hay clientes en esta ruta para esta fecha'}
+        <View style={styles.clientList}>
+          {clientes.length === 0 ? (
+            <EmptyState
+              icon="checkmark-circle-outline"
+              title={filter === 'visitados' ? 'Sin visitados' : filter === 'pendientes' ? 'Todo visitado' : 'Sin clientes'}
+              subtitle={filter !== 'todos' ? 'Cambia el filtro para ver más' : 'No hay clientes en esta ruta para esta fecha'}
+            />
+          ) : (
+            clientes.map((item) => (
+              <ClienteCardItemMemo
+                key={item.rutaClienteId}
+                item={item}
+                colors={colors}
+                onToggleVisita={handleToggleVisita}
+                onCobroRapido={handleCobroRapido}
+                marcando={marcando}
+                isAdmin={isAdmin}
               />
-            ) : (
-              clientes.map((item) => (
-                <ClienteCardItemMemo
-                  key={item.rutaClienteId}
-                  item={item}
-                  colors={colors}
-                  onToggleVisita={handleToggleVisita}
-                  onCobroRapido={handleCobroRapido}
-                  marcando={marcando}
-                  isAdmin={isAdmin}
-                />
-              ))
-            )}
-          </View>
-        )}
+            ))
+          )}
+        </View>
 
         {/* Bottom Actions */}
         {vistaDia && (
@@ -400,16 +419,6 @@ export default function VistaDiaScreen() {
         onClose={() => setCobroCliente(null)}
         onConfirm={handleProcesarPago}
       />
-
-      {mapSelectedCliente && (
-        <MapMarkerSheet
-          cliente={mapSelectedCliente}
-          onCobrar={handleCobroRapido}
-          onMarcarVisita={handleMapMarcarVisita}
-          onVerDetalle={handleMapVerDetalle}
-          onClose={() => setMapSelectedCliente(null)}
-        />
-      )}
     </ScreenContainer>
   );
 }
@@ -656,7 +665,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   noMap: {
-    height: 200,
+    flex: 1,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     justifyContent: 'center',
@@ -669,5 +678,29 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: Spacing.lg,
     gap: Spacing.sm,
+  },
+  mapFull: {
+    flex: 1,
+  },
+  mapFab: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    right: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.xl,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  mapFabText: {
+    color: '#FFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
   },
 });

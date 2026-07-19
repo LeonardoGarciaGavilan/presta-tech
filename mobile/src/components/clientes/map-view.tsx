@@ -87,7 +87,7 @@ export default function AppMapView({
   }, [hasSingleCoord, hasMultiple, markers]);
 
   const tileStyleUrl = useMemo(
-    () => (colorScheme === 'dark' ? TILE_CONFIGS.openfreemapDark.styleUrl : TILE_CONFIGS.openfreemapPositron.styleUrl),
+    () => (colorScheme === 'dark' ? TILE_CONFIGS.openfreemapDark.styleUrl : TILE_CONFIGS.openfreemapLiberty.styleUrl),
     [colorScheme],
   );
 
@@ -189,7 +189,7 @@ export default function AppMapView({
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.mapContainer, { height, borderColor: colors.border }]}>
+      <View style={[styles.mapContainer, height > 0 ? { height } : styles.mapContainerFlex, { borderColor: colors.border }]}>
         <OSMView
           ref={mapRef}
           style={styles.map}
@@ -300,6 +300,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   mapContainer: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  mapContainerFlex: {
+    flex: 1,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     overflow: 'hidden',

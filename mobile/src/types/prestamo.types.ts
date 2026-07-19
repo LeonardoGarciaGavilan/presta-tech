@@ -21,6 +21,7 @@ export type MetodoPago =
   | 'CHEQUE';
 
 export type TipoAlerta =
+  | 'SOLICITUD'
   | 'REFINANCIAMIENTO'
   | 'CAMBIO_FRECUENCIA'
   | 'CAMBIO_TASA'

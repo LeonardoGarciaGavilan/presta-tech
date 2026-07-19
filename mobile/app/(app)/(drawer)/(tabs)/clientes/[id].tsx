@@ -517,7 +517,7 @@ export default function ClienteDetalleScreen() {
               <Text style={[styles.finLabel, { color: colors.textSecondary }]}>
                 Ingresos declarados:
               </Text>
-              <Text style={[styles.finValue, { color: colors.text }]}>
+              <Text style={[styles.finValue, { color: colors.text }]} numberOfLines={1}>
                 {formatCurrency(cliente.ingresos)}/mes
               </Text>
             </View>
@@ -735,11 +735,12 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   finLabel: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
   },
   finValue: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
+    flexShrink: 1,
   },
   prestamosList: {
     gap: Spacing.sm,

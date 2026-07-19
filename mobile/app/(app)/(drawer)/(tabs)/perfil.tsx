@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   toastText: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
     flex: 1,
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.3)',
   },
   avatarText: {
-    fontSize: 26,
+    fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
     color: '#FFFFFF',
   },
@@ -509,12 +509,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroName: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
     color: '#FFFFFF',
   },
   heroEmail: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   empresaStatusText: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
   },
   accountInfo: {
@@ -580,10 +580,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   accountInfoLabel: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
   },
   accountInfoValue: {
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
   },
   bottomSpacer: {

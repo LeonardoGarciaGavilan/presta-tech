@@ -4,8 +4,11 @@ import { Stack } from 'expo-router';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NetworkBanner } from '@/components/ui/network-banner';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 
 export default function AppLayout() {
+  usePushNotifications();
+
   return (
     <AuthGuard>
       <ErrorBoundary>

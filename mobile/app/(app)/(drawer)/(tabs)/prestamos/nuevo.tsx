@@ -112,11 +112,12 @@ export default function NuevoPrestamoScreen() {
     if (!clienteSearch.entity) e.cliente = 'Selecciona un cliente';
     if (!monto || montoNum <= 0) e.monto = 'Ingresa un monto válido';
     if (!modoRapido && (!tasaInteres || parseFloat(tasaInteres) <= 0)) e.tasaInteres = 'Ingresa una tasa válida';
-    if (!numeroCuotas || parseInt(numeroCuotas) < 1) e.numeroCuotas = 'Ingresa un número de cuotas válido';
+    if (!modoRapido && (!numeroCuotas || parseInt(numeroCuotas) < 1)) e.numeroCuotas = 'Ingresa un número de cuotas válido';
+    if (modoRapido && (!duracion || parseInt(duracion, 10) < 1)) e.duracion = 'Ingresa una duración válida';
     if (!frecuenciaPago) e.frecuenciaPago = 'Selecciona la frecuencia';
     if (!fechaInicio) e.fechaInicio = 'Selecciona la fecha de inicio';
     return e;
-  }, [clienteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, modoRapido]);
+  }, [clienteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, modoRapido, duracion]);
 
   const handleSubmit = useCallback(async () => {
     const errs = validate();
@@ -132,7 +133,7 @@ export default function NuevoPrestamoScreen() {
         clienteId: clienteSearch.entity!.id,
         monto: parseFloat(monto),
         tasaInteres: parseFloat(modoRapido ? '0' : tasaInteres),
-        numeroCuotas: parseInt(numeroCuotas, 10),
+        numeroCuotas: parseInt(modoRapido ? duracion : numeroCuotas, 10),
         frecuenciaPago,
         fechaInicio,
         garanteId: garanteSearch.entity?.id || undefined,

@@ -1,30 +1,40 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useRouter } from 'expo-router';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { useAlertas,
-  useContarAlertas,
-  useMarcarLeida,
-  useMarcarTodasLeidas } from '@/hooks/use-alertas';
+import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { useAlertas, useContarAlertas, useMarcarLeida, useMarcarTodasLeidas } from '@/hooks/use-alertas';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AppButton } from '@/components/ui/app-button';
+import SearchBar from '@/components/ui/search-bar';
+import EmptyState from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
 
+import { AlertaCard, AlertaDateGroup, AlertaDetailModal } from '@/components/alertas';
+
 const TIPO_OPTIONS: { label: string; value: TipoAlerta | 'Todas' }[] = [
   { label: 'Todas', value: 'Todas' },
-  { label: 'Refinanciamiento', value: 'REFINANCIAMIENTO' },
-  { label: 'Cambio frecuencia', value: 'CAMBIO_FRECUENCIA' },
+  { label: 'Solicitud', value: 'SOLICITUD' },
+  { label: 'Estado', value: 'CAMBIO_ESTADO' },
+  { label: 'Refinanc.', value: 'REFINANCIAMIENTO' },
+  { label: 'Cancel.', value: 'CANCELACION' },
   { label: 'Cambio tasa', value: 'CAMBIO_TASA' },
   { label: 'Cambio cuotas', value: 'CAMBIO_CUOTAS' },
+  { label: 'Cambio freq', value: 'CAMBIO_FRECUENCIA' },
   { label: 'Cambio fecha', value: 'CAMBIO_FECHA_PAGO' },
-  { label: 'Cancelación', value: 'CANCELACION' },
-  { label: 'Cambio estado', value: 'CAMBIO_ESTADO' },
+];
+
+const LEIDA_OPTIONS = [
+  { label: 'Todas', value: 'todas' as const },
+  { label: 'No leídas', value: 'noLeidas' as const },
+  { label: 'Leídas', value: 'leidas' as const },
 ];
 
 const ALERTA_COLORS: Record<TipoAlerta, string> = {
+  SOLICITUD: '#0EA5E9',
   REFINANCIAMIENTO: '#8B5CF6',
   CAMBIO_FRECUENCIA: '#F59E0B',
   CAMBIO_TASA: '#3B82F6',
@@ -33,43 +43,6 @@ const ALERTA_COLORS: Record<TipoAlerta, string> = {
   CANCELACION: '#EF4444',
   CAMBIO_ESTADO: '#6366F1',
 };
-
-const ALERTA_ICONS: Record<TipoAlerta, keyof typeof Ionicons.glyphMap> = {
-  REFINANCIAMIENTO: 'git-network-outline',
-  CAMBIO_FRECUENCIA: 'swap-horizontal-outline',
-  CAMBIO_TASA: 'options-outline',
-  CAMBIO_CUOTAS: 'grid-outline',
-  CAMBIO_FECHA_PAGO: 'calendar-outline',
-  CANCELACION: 'close-circle-outline',
-  CAMBIO_ESTADO: 'shuffle-outline',
-};
-
-const LEIDA_OPTIONS = [
-  { label: 'Todas', value: 'todas' as const },
-  { label: 'No leídas', value: 'noLeidas' as const },
-  { label: 'Leídas', value: 'leidas' as const },
-];
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'Ahora';
-  if (diffMins < 60) return `Hace ${diffMins}min`;
-  if (diffHours < 24) return `Hace ${diffHours}h`;
-  if (diffDays < 7) return `Hace ${diffDays}d`;
-
-  const isThisYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString('es-DO', {
-    day: '2-digit',
-    month: 'short',
-    ...(isThisYear ? {} : { year: 'numeric' }),
-  });
-}
 
 function getDateRange(mode: '7d' | 'today', offset: number) {
   const now = new Date();
@@ -99,14 +72,53 @@ function rangeLabel(mode: '7d' | 'today', offset: number) {
   return `${desde} – ${hasta}`;
 }
 
+function groupAlertasByDate(alertas: Alerta[]): { title: string; count: number; data: Alerta[] }[] {
+  const groups = new Map<string, Alerta[]>();
+
+  for (const a of alertas) {
+    const d = new Date(a.createdAt);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+
+    let key: string;
+    if (d.toDateString() === now.toDateString()) {
+      key = 'Hoy';
+    } else if (d.toDateString() === new Date(now.getTime() - 86400000).toDateString()) {
+      key = 'Ayer';
+    } else if (diffDays < 7) {
+      key = 'Esta semana';
+    } else {
+      key = d.toLocaleDateString('es-DO', { month: 'long', year: 'numeric' });
+    }
+
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(a);
+  }
+
+  const order = ['Hoy', 'Ayer', 'Esta semana'];
+  return Array.from(groups.entries())
+    .sort(([a], [b]) => {
+      const ai = order.indexOf(a);
+      const bi = order.indexOf(b);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return b.localeCompare(a);
+    })
+    .map(([title, data]) => ({ title, count: data.length, data }));
+}
+
 export default function AlertasScreen() {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const { showToast } = useToast();
+  const router = useRouter();
 
   const [fechaMode, setFechaMode] = useState<'7d' | 'today'>('7d');
   const [offset, setOffset] = useState(0);
   const [tipoFiltro, setTipoFiltro] = useState<TipoAlerta | 'Todas'>('Todas');
   const [leidaFiltro, setLeidaFiltro] = useState<'todas' | 'noLeidas' | 'leidas'>('todas');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAlerta, setSelectedAlerta] = useState<Alerta | null>(null);
 
   const dateRange = useMemo(() => getDateRange(fechaMode, offset), [fechaMode, offset]);
 
@@ -117,15 +129,23 @@ export default function AlertasScreen() {
 
   const alertasFiltrados = useMemo(() => {
     if (!alertas) return [];
+    const q = searchQuery.toLowerCase().trim();
     return alertas.filter((a) => {
       const matchTipo = tipoFiltro === 'Todas' || a.tipo === tipoFiltro;
       const matchLeida =
         leidaFiltro === 'todas' ||
         (leidaFiltro === 'noLeidas' && !a.leida) ||
         (leidaFiltro === 'leidas' && a.leida);
-      return matchTipo && matchLeida;
+      const matchSearch =
+        !q ||
+        a.clienteNombre.toLowerCase().includes(q) ||
+        a.descripcion.toLowerCase().includes(q) ||
+        (a.usuarioNombre && a.usuarioNombre.toLowerCase().includes(q));
+      return matchTipo && matchLeida && matchSearch;
     });
-  }, [alertas, tipoFiltro, leidaFiltro]);
+  }, [alertas, tipoFiltro, leidaFiltro, searchQuery]);
+
+  const sections = useMemo(() => groupAlertasByDate(alertasFiltrados), [alertasFiltrados]);
 
   const noLeidas = useMemo(() => {
     if (!alertas) return 0;
@@ -138,7 +158,19 @@ export default function AlertasScreen() {
     return { total: alertas.length, noLeidas: nl, leidas: alertas.length - nl };
   }, [alertas]);
 
-  const handleMarcarLeida = useCallback(
+  const handlePress = useCallback(
+    (alerta: Alerta) => {
+      setSelectedAlerta(alerta);
+      if (!alerta.leida) {
+        marcarLeidaMutation.mutate(alerta.id, {
+          onError: () => showToast('Error al marcar como leída', 'error'),
+        });
+      }
+    },
+    [marcarLeidaMutation, showToast],
+  );
+
+  const handleMarkRead = useCallback(
     (alerta: Alerta) => {
       if (alerta.leida) return;
       marcarLeidaMutation.mutate(alerta.id, {
@@ -155,71 +187,19 @@ export default function AlertasScreen() {
     });
   }, [marcarTodasMutation, showToast]);
 
-  const renderAlerta = useCallback(
-    ({ item }: { item: Alerta }) => {
-      const isUnread = !item.leida;
-      const tipoColor = ALERTA_COLORS[item.tipo];
-      const icon = ALERTA_ICONS[item.tipo];
-
-      return (
-        <Pressable
-          onPress={() => handleMarcarLeida(item)}
-          style={({ pressed }) => [
-            styles.alertaCard,
-            {
-              backgroundColor: isUnread ? colors.surface : colors.surfaceElevated,
-              borderColor: isUnread ? tipoColor + '30' : colors.border,
-              opacity: pressed ? 0.85 : 1,
-            },
-            isUnread && { borderLeftWidth: 3, borderLeftColor: tipoColor },
-          ]}
-        >
-          <View style={styles.alertaTop}>
-            <View style={[styles.alertaIcon, { backgroundColor: tipoColor + '18' }]}>
-              <Ionicons name={icon} size={20} color={tipoColor} />
-            </View>
-            <View style={styles.alertaInfo}>
-              <Text
-                style={[
-                  styles.alertaCliente,
-                  { color: colors.text, fontWeight: isUnread ? FontWeight.semibold : FontWeight.medium },
-                ]}
-                numberOfLines={1}
-              >
-                {item.clienteNombre}
-              </Text>
-              <Text
-                style={[styles.alertaDesc, { color: isUnread ? colors.textSecondary : colors.textTertiary }]}
-                numberOfLines={2}
-              >
-                {item.descripcion}
-              </Text>
-            </View>
-            {isUnread && <View style={[styles.unreadDot, { backgroundColor: tipoColor }]} />}
-          </View>
-
-          <View style={styles.alertaBottom}>
-            <Text style={[styles.alertaMeta, { color: colors.textTertiary }]}>
-              {item.usuarioNombre !== 'Sistema' ? item.usuarioNombre : ''}
-              {item.usuarioNombre !== 'Sistema' ? ' · ' : ''}
-              {formatDate(item.createdAt)}
-            </Text>
-            <View style={[styles.tipoBadge, { backgroundColor: tipoColor + '18' }]}>
-              <Text style={[styles.tipoBadgeText, { color: tipoColor }]}>
-                {item.tipo.replace('_', ' ')}
-              </Text>
-            </View>
-          </View>
-        </Pressable>
-      );
+  const handleGoToLoan = useCallback(
+    (prestamoId: string) => {
+      setSelectedAlerta(null);
+      router.push(`/(app)/(drawer)/(tabs)/prestamos/${prestamoId}`);
     },
-    [colors, handleMarcarLeida],
+    [router],
   );
 
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.content}>
+          <Skeleton height={48} style={{ marginBottom: Spacing.md }} />
           <Skeleton height={72} style={{ marginBottom: Spacing.md }} />
           <Skeleton height={44} style={{ marginBottom: Spacing.md }} />
           <Skeleton height={100} style={{ marginBottom: Spacing.sm }} />
@@ -231,17 +211,34 @@ export default function AlertasScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
-        data={alertasFiltrados}
+    <GestureHandlerRootView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.id}
-        renderItem={renderAlerta}
+        renderItem={({ item }) => (
+          <AlertaCard
+            alerta={item}
+            onPress={handlePress}
+            onMarkRead={handleMarkRead}
+            onGoToLoan={handleGoToLoan}
+          />
+        )}
+        renderSectionHeader={({ section }) => (
+          <AlertaDateGroup title={section.title} count={section.count} />
+        )}
         refreshing={isRefetching}
         onRefresh={refetch}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <View>
+            <SearchBar
+              value={searchQuery}
+              onSearch={setSearchQuery}
+              placeholder="Buscar por cliente, descripción..."
+            />
+
             {/* Stats */}
             <View style={styles.statsRow}>
               <View style={[styles.statCard, { backgroundColor: colors.primaryLight }]}>
@@ -258,65 +255,8 @@ export default function AlertasScreen() {
               </View>
             </View>
 
-            {/* Date filter */}
-            <View style={[styles.filterSection, { backgroundColor: colors.background }]}>
-              <View style={styles.dateRow}>
-                <Pressable onPress={() => setOffset((p) => p - (fechaMode === 'today' ? 1 : 7))} hitSlop={8}>
-                  <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    if (fechaMode === '7d') setFechaMode('today');
-                    else setFechaMode('7d');
-                    setOffset(0);
-                  }}
-                  style={[styles.dateToggle, { borderColor: colors.border }]}
-                >
-                  <Text style={[styles.dateLabel, { color: colors.text }]}>
-                    {rangeLabel(fechaMode, offset)}
-                  </Text>
-                  <Ionicons name="chevron-down" size={14} color={colors.textTertiary} />
-                </Pressable>
-                <Pressable onPress={() => setOffset((p) => p + (fechaMode === 'today' ? 1 : 7))} hitSlop={8}>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {/* Tipo chips */}
-              <FlatList
-                horizontal
-                data={TIPO_OPTIONS}
-                keyExtractor={(item) => item.value}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipsContainer}
-                renderItem={({ item }) => {
-                  const isSelected = tipoFiltro === item.value;
-                  const chipColor = item.value === 'Todas' ? colors.primary : ALERTA_COLORS[item.value];
-                  return (
-                    <Pressable
-                      onPress={() => setTipoFiltro(item.value)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? chipColor + '20' : colors.surfaceElevated,
-                          borderColor: isSelected ? chipColor : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          { color: isSelected ? chipColor : colors.textSecondary },
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                }}
-              />
-
-              {/* Leída filter */}
+            {/* Simplified filters: 2 rows */}
+            <View style={styles.filtersRow}>
               <View style={styles.leidaRow}>
                 {LEIDA_OPTIONS.map((opt) => {
                   const isSelected = leidaFiltro === opt.value;
@@ -332,12 +272,7 @@ export default function AlertasScreen() {
                         },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.leidaText,
-                          { color: isSelected ? '#FFFFFF' : colors.textSecondary },
-                        ]}
-                      >
+                      <Text style={[styles.leidaText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
                         {opt.label}
                       </Text>
                     </Pressable>
@@ -345,32 +280,90 @@ export default function AlertasScreen() {
                 })}
               </View>
 
-              {/* Marcar todas */}
-              {noLeidas > 0 && (
-                <AppButton
-                  title={`Marcar todas como leídas (${noLeidas})`}
-                  onPress={handleMarcarTodas}
-                  loading={marcarTodasMutation.isPending}
-                  variant="ghost"
-                  icon="checkmark-done-outline"
-                  style={{ marginTop: Spacing.xs }}
-                />
-              )}
+              <View style={styles.dateRow}>
+                <Pressable onPress={() => setOffset((p) => p - (fechaMode === 'today' ? 1 : 7))} hitSlop={8}>
+                  <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setFechaMode((p) => (p === '7d' ? 'today' : '7d'));
+                    setOffset(0);
+                  }}
+                  style={[styles.dateToggle, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.dateLabel, { color: colors.text }]}>
+                    {rangeLabel(fechaMode, offset)}
+                  </Text>
+                  <Ionicons name="chevron-down" size={14} color={colors.textTertiary} />
+                </Pressable>
+                <Pressable onPress={() => setOffset((p) => p + (fechaMode === 'today' ? 1 : 7))} hitSlop={8}>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </Pressable>
+              </View>
             </View>
+
+            {/* Tipo chips */}
+            <View style={styles.chipsContainer}>
+              {TIPO_OPTIONS.map((item) => {
+                const isSelected = tipoFiltro === item.value;
+                const chipColor = item.value === 'Todas' ? colors.primary : ALERTA_COLORS[item.value];
+                return (
+                  <Pressable
+                    key={item.value}
+                    onPress={() => setTipoFiltro(item.value)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: isSelected ? chipColor + '20' : colors.surfaceElevated,
+                        borderColor: isSelected ? chipColor : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: isSelected ? chipColor : colors.textSecondary }]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {noLeidas > 0 && (
+              <Pressable
+                onPress={handleMarcarTodas}
+                style={styles.markAllBtn}
+                disabled={marcarTodasMutation.isPending}
+              >
+                <Ionicons name="checkmark-done-outline" size={16} color={colors.primary} />
+                <Text style={[styles.markAllText, { color: colors.primary }]}>
+                  Marcar todas leídas ({noLeidas})
+                </Text>
+              </Pressable>
+            )}
           </View>
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="notifications-off-outline" size={48} color={colors.textTertiary} />
-            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-              {tipoFiltro !== 'Todas' || leidaFiltro !== 'todas'
+          <EmptyState
+            title="Sin resultados"
+            subtitle={
+              tipoFiltro !== 'Todas' || leidaFiltro !== 'todas' || searchQuery
                 ? 'No hay alertas con los filtros seleccionados'
-                : 'No hay alertas en este período'}
-            </Text>
-          </View>
+                : 'No hay alertas en este período'
+            }
+            icon="notifications-off-outline"
+          />
         }
       />
-    </View>
+
+      <AlertaDetailModal
+        visible={!!selectedAlerta}
+        alerta={selectedAlerta}
+        onClose={() => setSelectedAlerta(null)}
+        onMarkRead={(id) => {
+          marcarLeidaMutation.mutate(id);
+        }}
+        onGoToLoan={handleGoToLoan}
+      />
+    </GestureHandlerRootView>
   );
 }
 
@@ -379,13 +372,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: Spacing.md,
     paddingBottom: Spacing.xxl,
+    paddingTop: Spacing.md,
   },
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
   },
   statCard: {
     flex: 1,
@@ -402,15 +396,31 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     marginTop: 2,
   },
-  filterSection: {
-    paddingBottom: Spacing.md,
+  filtersRow: {
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  leidaRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  leidaOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  leidaText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    marginBottom: Spacing.sm,
   },
   dateToggle: {
     flexDirection: 'row',
@@ -426,12 +436,15 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   chipsContainer: {
-    gap: Spacing.sm,
-    paddingBottom: Spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   chip: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm - 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -439,87 +452,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
   },
-  leidaRow: {
+  markAllBtn: {
     flexDirection: 'row',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
-  },
-  leidaOption: {
-    flex: 1,
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-  },
-  leidaText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  alertaCard: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  alertaTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-  },
-  alertaIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.md,
     justifyContent: 'center',
-    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginHorizontal: Spacing.md,
   },
-  alertaInfo: {
-    flex: 1,
-  },
-  alertaCliente: {
-    fontSize: FontSize.md,
-    marginBottom: 2,
-  },
-  alertaDesc: {
+  markAllText: {
     fontSize: FontSize.sm,
-    lineHeight: 20,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 4,
-  },
-  alertaBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'transparent',
-  },
-  alertaMeta: {
-    fontSize: FontSize.xs,
-    flex: 1,
-  },
-  tipoBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  tipoBadgeText: {
-    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    textTransform: 'capitalize',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl * 2,
-    gap: Spacing.sm,
-  },
-  emptyText: {
-    fontSize: FontSize.sm,
-    textAlign: 'center',
   },
 });

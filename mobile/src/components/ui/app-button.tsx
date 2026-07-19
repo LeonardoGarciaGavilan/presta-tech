@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   text: {
-    fontSize: FontSize.md,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
 });

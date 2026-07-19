@@ -43,6 +43,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-osm-sdk/plugin",
         {

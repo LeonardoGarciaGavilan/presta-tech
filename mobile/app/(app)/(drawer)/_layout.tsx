@@ -12,17 +12,20 @@ import { logout } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useContarAlertas } from '@/hooks/use-alertas';
 
 function DrawerItem({
   label,
   icon,
   onPress,
   colors,
+  badge,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   colors: typeof Colors.light;
+  badge?: number;
 }) {
   return (
     <TouchableOpacity
@@ -37,7 +40,29 @@ function DrawerItem({
         borderRadius: BorderRadius.md,
       }}
     >
-      <Ionicons name={icon} size={22} color={colors.textSecondary} style={{ marginRight: Spacing.md }} />
+      <View style={{ position: 'relative' }}>
+        <Ionicons name={icon} size={22} color={colors.textSecondary} style={{ marginRight: Spacing.md }} />
+        {badge != null && badge > 0 && (
+          <View
+            style={{
+              position: 'absolute',
+              top: -4,
+              right: -2,
+              backgroundColor: colors.error,
+              borderRadius: 8,
+              minWidth: 16,
+              height: 16,
+              justifyContent: 'center',
+              alignItems: 'center',
+              paddingHorizontal: 4,
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: FontWeight.bold }}>
+              {badge > 99 ? '99+' : badge}
+            </Text>
+          </View>
+        )}
+      </View>
       <Text style={{ color: colors.text, fontSize: FontSize.md, fontWeight: FontWeight.medium, flex: 1 }}>
         {label}
       </Text>
@@ -53,6 +78,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   const queryClient = useQueryClient();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { data: noLeidas } = useContarAlertas();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -66,7 +92,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   };
 
   const adminItems = [
-    { name: 'admin/alertas', label: 'Alertas', icon: 'notifications-outline' as const },
+    { name: 'admin/alertas', label: 'Alertas', icon: 'notifications-outline' as const, badge: noLeidas },
     { name: 'admin/analisis-rutas', label: 'Análisis Rutas', icon: 'analytics-outline' as const },
     { name: 'admin/auditoria', label: 'Auditoría', icon: 'document-text-outline' as const },
     { name: 'admin/empleados', label: 'Empleados', icon: 'people-outline' as const },
@@ -165,6 +191,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
                 icon={item.icon}
                 onPress={() => props.navigation.navigate(item.name)}
                 colors={colors}
+                badge={item.badge}
               />
             ))}
           </>
