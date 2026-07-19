@@ -13,6 +13,7 @@ import { UpdatePrestamoDto } from './dto/update-prestamo.dto';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
 import { EstadoPrestamo, FrecuenciaPago, MetodoPago } from '@prisma/client';
 import { AlertsGateway } from '../alerts/alerts.gateway';
+import { PushNotificationsService } from '../notificaciones/push-notifications.service';
 import {
   addDays,
   addWeeks,
@@ -74,6 +75,7 @@ export class PrestamosService {
     private readonly prisma: PrismaService,
     @Optional() private readonly alertsGateway?: AlertsGateway,
     @Inject(CACHE_MANAGER) @Optional() private cacheManager?: Cache,
+    @Optional() private readonly pushService?: PushNotificationsService,
   ) {}
 
   private getFechaRD(): string {
@@ -409,6 +411,40 @@ export class PrestamosService {
 
         const count = await this.contarAlertasNoLeidas(params.empresaId);
         this.alertsGateway.emitirContador(params.empresaId, count);
+      }
+
+      if (this.pushService) {
+        try {
+          const admins = await this.prisma.usuario.findMany({
+            where: {
+              empresaId: params.empresaId,
+              activo: true,
+              pushToken: { not: null },
+              rol: { in: ['ADMIN', 'SUPERADMIN'] },
+            },
+            select: { pushToken: true },
+          });
+
+          const tokens = admins
+            .map((u) => u.pushToken)
+            .filter((t): t is string => !!t);
+
+          if (tokens.length > 0) {
+            const titulo = `Alerta — ${params.tipo.replace('_', ' ')}`;
+            await this.pushService.enviarPushNotifications(
+              tokens,
+              titulo,
+              params.descripcion,
+              {
+                alertaId: alertaCreada.id,
+                prestamoId: params.prestamoId,
+                screen: 'admin/alertas',
+              },
+            );
+          }
+        } catch (e) {
+          console.error('Error enviando push notifications:', e);
+        }
       }
     } catch (e) {
       console.error('Error creando alerta:', e);

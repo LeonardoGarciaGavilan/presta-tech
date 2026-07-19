@@ -57,4 +57,11 @@ export class UsuarioController {
   cambiarPassword(@CurrentUser() user: any, @Body() body: { nuevaPassword: string }) {
     return this.usuarioService.cambiarPassword(user, body.nuevaPassword);
   }
+
+  // PATCH /usuarios/push-token — registrar token de push notification
+  @UseGuards(JwtAuthGuard)
+  @Patch('push-token')
+  registrarPushToken(@CurrentUser() user: any, @Body() body: { pushToken: string }) {
+    return this.usuarioService.registrarPushToken(user.userId, body.pushToken);
+  }
 }

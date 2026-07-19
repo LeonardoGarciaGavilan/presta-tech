@@ -139,4 +139,13 @@ export class UsuarioService {
 
     return { mensaje: 'Password actualizada correctamente' };
   }
+
+  // ─── REGISTRAR push token ─────────────────────────────────────────────────
+  async registrarPushToken(usuarioId: string, pushToken: string) {
+    return this.prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { pushToken },
+      select: { id: true, pushToken: true },
+    });
+  }
 }

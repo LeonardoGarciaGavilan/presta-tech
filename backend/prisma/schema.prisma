@@ -37,6 +37,7 @@ model Usuario {
   rol                 Rol                    @default(EMPLEADO)
   activo              Boolean                @default(true)
   debeCambiarPassword Boolean                @default(true)
+  pushToken           String?
   createdAt           DateTime               @default(now())
   empresaId           String?
   auditorias          Auditoria[]
