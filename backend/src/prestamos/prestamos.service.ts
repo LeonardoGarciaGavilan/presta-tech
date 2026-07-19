@@ -59,6 +59,7 @@ const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
 };
 
 export type TipoAlerta =
+  | 'SOLICITUD'
   | 'REFINANCIAMIENTO'
   | 'CAMBIO_FRECUENCIA'
   | 'CAMBIO_TASA'
@@ -574,6 +575,21 @@ export class PrestamosService {
       referenciaId: prestamo.id,
       referenciaTipo: 'Prestamo',
       datosNuevos: { monto: dto.monto, numeroCuotas: dto.numeroCuotas, tasaInteres: dto.tasaInteres, frecuenciaPago: dto.frecuenciaPago },
+    });
+
+    await this.crearAlerta({
+      empresaId,
+      prestamoId: prestamo.id,
+      clienteNombre,
+      tipo: 'SOLICITUD',
+      descripcion: `${clienteNombre} solicitó un préstamo de RD$${dto.monto.toLocaleString()}`,
+      detalle: {
+        monto: dto.monto,
+        numeroCuotas: dto.numeroCuotas,
+        tasaInteres: dto.tasaInteres,
+        frecuenciaPago: dto.frecuenciaPago,
+      },
+      usuarioId,
     });
 
     // Invalidar cache después de crear préstamo
