@@ -187,9 +187,17 @@ export default function AppMapView({
     [markers, onMarkerPress],
   );
 
+  const handleZoomIn = useCallback(() => {
+    mapRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    mapRef.current?.zoomOut();
+  }, []);
+
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.mapContainer, height > 0 ? { height } : styles.mapContainerFlex, { borderColor: colors.border }]}>
+      <View style={[styles.mapContainer, { height, borderColor: colors.border }]}>
         <OSMView
           ref={mapRef}
           style={styles.map}
@@ -208,6 +216,17 @@ export default function AppMapView({
           showsCompass={false}
           showsZoomControls={false}
         />
+
+        {hasAnyCoords && (
+          <View style={styles.zoomControls}>
+            <Pressable style={styles.zoomBtn} onPress={handleZoomIn}>
+              <Ionicons name="add" size={20} color="#FFF" />
+            </Pressable>
+            <Pressable style={styles.zoomBtn} onPress={handleZoomOut}>
+              <Ionicons name="remove" size={20} color="#FFF" />
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {coordsAproximadas != null && hasAnyCoords && (
@@ -304,14 +323,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  mapContainerFlex: {
-    flex: 1,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
   map: {
     flex: 1,
+  },
+  zoomControls: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    gap: 2,
+  },
+  zoomBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   badge: {
     flexDirection: 'row',

@@ -1,4 +1,6 @@
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
@@ -89,8 +91,23 @@ interface AlertaDetailModalProps {
   visible: boolean;
   alerta: Alerta | null;
   onClose: () => void;
-  onMarkRead?: (alertaId: string) => void;
+  onMarkRead?: (alerta: Alerta) => void;
   onGoToLoan?: (prestamoId: string) => void;
+  isMarkingRead?: boolean;
+}
+
+function parseDetalle(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {}
+  }
+  return null;
 }
 
 export default function AlertaDetailModal({
@@ -99,20 +116,23 @@ export default function AlertaDetailModal({
   onClose,
   onMarkRead,
   onGoToLoan,
+  isMarkingRead,
 }: AlertaDetailModalProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [localMarking, setLocalMarking] = useState(false);
 
   if (!alerta) return null;
 
   const tipoColor = ALERTA_COLORS[alerta.tipo] ?? colors.primary;
   const icon = ALERTA_ICONS[alerta.tipo] ?? 'alert-circle-outline';
-  const detalle = alerta.detalle && typeof alerta.detalle === 'object'
-    ? alerta.detalle as Record<string, unknown>
-    : null;
+  const detalle = parseDetalle(alerta.detalle);
 
   const detalleEntries = detalle
     ? Object.entries(detalle).filter(([k]) => !SKIP_KEYS.has(k))
     : [];
+
+  const marking = isMarkingRead ?? localMarking;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -175,7 +195,7 @@ export default function AlertaDetailModal({
             )}
           </ScrollView>
 
-          <View style={[styles.footer, { borderTopColor: colors.border }]}>
+          <View style={[styles.footer, { borderTopColor: colors.border, paddingBottom: Spacing.md + insets.bottom }]}>
             {onGoToLoan && (
               <AppButton
                 title="Ver prestamo"
@@ -187,12 +207,19 @@ export default function AlertaDetailModal({
             )}
             {!alerta.leida && onMarkRead && (
               <AppButton
-                title="Marcar leida"
-                onPress={() => onMarkRead(alerta.id)}
+                title={marking ? 'Marcando...' : 'Marcar leida'}
+                onPress={() => {
+                  setLocalMarking(true);
+                  onMarkRead(alerta);
+                }}
                 variant="primary"
-                icon="checkmark-done-outline"
+                icon={marking ? undefined : 'checkmark-done-outline'}
                 style={styles.footerBtn}
+                disabled={marking}
               />
+            )}
+            {marking && (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.loadingIndicator} />
             )}
           </View>
         </Pressable>
@@ -311,5 +338,8 @@ const styles = StyleSheet.create({
   },
   footerBtn: {
     flex: 1,
+  },
+  loadingIndicator: {
+    marginLeft: Spacing.sm,
   },
 });

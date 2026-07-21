@@ -122,7 +122,7 @@ export default function AlertasScreen() {
 
   const dateRange = useMemo(() => getDateRange(fechaMode, offset), [fechaMode, offset]);
 
-  const { data: alertas, isLoading, refetch, isRefetching } = useAlertas(dateRange);
+  const { data: alertas, isLoading, isError, refetch, isRefetching } = useAlertas(dateRange);
   const { data: contador } = useContarAlertas();
   const marcarLeidaMutation = useMarcarLeida();
   const marcarTodasMutation = useMarcarTodasLeidas();
@@ -174,6 +174,9 @@ export default function AlertasScreen() {
     (alerta: Alerta) => {
       if (alerta.leida) return;
       marcarLeidaMutation.mutate(alerta.id, {
+        onSuccess: () => {
+          setSelectedAlerta(null);
+        },
         onError: () => showToast('Error al marcar como leída', 'error'),
       });
     },
@@ -206,6 +209,20 @@ export default function AlertasScreen() {
           <Skeleton height={100} style={{ marginBottom: Spacing.sm }} />
           <Skeleton height={100} />
         </View>
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          title="Error al cargar alertas"
+          subtitle="Ocurrió un problema al conectar con el servidor"
+          icon="cloud-offline-outline"
+          actionLabel="Reintentar"
+          onAction={() => refetch()}
+        />
       </View>
     );
   }
@@ -358,10 +375,9 @@ export default function AlertasScreen() {
         visible={!!selectedAlerta}
         alerta={selectedAlerta}
         onClose={() => setSelectedAlerta(null)}
-        onMarkRead={(id) => {
-          marcarLeidaMutation.mutate(id);
-        }}
+        onMarkRead={handleMarkRead}
         onGoToLoan={handleGoToLoan}
+        isMarkingRead={marcarLeidaMutation.isPending}
       />
     </GestureHandlerRootView>
   );

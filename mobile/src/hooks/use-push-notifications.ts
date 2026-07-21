@@ -31,12 +31,21 @@ export function usePushNotifications() {
     },
   });
 
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+
+  const saveTokenRef = useRef(saveTokenMutation);
+  saveTokenRef.current = saveTokenMutation;
+
   useEffect(() => {
     if (!isAdmin) return;
 
     registerForPushNotificationsAsync().then((token) => {
       if (token) {
-        saveTokenMutation.mutate(token);
+        saveTokenRef.current.mutate(token);
       }
     });
 
@@ -44,7 +53,7 @@ export function usePushNotifications() {
       (notification) => {
         const title = notification.request.content.title;
         const body = notification.request.content.body;
-        showToast(body ?? title ?? 'Nueva notificacion', 'info');
+        showToastRef.current(body ?? title ?? 'Nueva notificacion', 'info');
       },
     );
 
@@ -52,7 +61,7 @@ export function usePushNotifications() {
       Notifications.addNotificationResponseReceivedListener((response) => {
         const screen = response.notification.request.content.data?.screen;
         if (screen) {
-          router.push(screen as any);
+          routerRef.current.push(screen as any);
         }
       });
 
