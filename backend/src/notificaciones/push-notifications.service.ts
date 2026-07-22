@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class PushNotificationsService {
   private readonly expo = new Expo();
   private readonly logger = new Logger(PushNotificationsService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
 
   async enviarPushNotifications(
     tokens: string[],
@@ -25,6 +28,7 @@ export class PushNotificationsService {
       body: cuerpo,
       data,
       priority: 'high' as const,
+      channelId: 'alertas',
     }));
 
     const chunks = this.expo.chunkPushNotifications(messages);
@@ -48,12 +52,41 @@ export class PushNotificationsService {
     const receipts = await this.expo.getPushNotificationReceiptsAsync(receiptIds);
 
     for (const [id, receipt] of Object.entries(receipts)) {
-      if (
-        receipt.status === 'error' &&
-        receipt.details?.error === 'InvalidCredentials'
-      ) {
-        this.logger.warn(`Token push inválido detectado: ${id}`);
+      if (receipt.status !== 'error') continue;
+
+      const errorCode = receipt.details?.error;
+
+      switch (errorCode) {
+        case 'DeviceNotRegistered':
+          this.logger.warn(`Token stale detectado (DeviceNotRegistered): ${id}`);
+          await this.limpiarTokenStale(id);
+          break;
+        case 'InvalidCredentials':
+          this.logger.warn(`Token push inválido (InvalidCredentials): ${id}`);
+          break;
+        case 'MessageTooBig':
+          this.logger.warn(`Mensaje demasiado grande: ${id}`);
+          break;
+        case 'MessageRateExceeded':
+          this.logger.warn(`Límite de mensajes excedido: ${id}`);
+          break;
+        default:
+          this.logger.warn(`Error desconocido en push receipt [${id}]: ${errorCode}`);
       }
+    }
+  }
+
+  private async limpiarTokenStale(token: string): Promise<void> {
+    try {
+      const result = await this.prisma.usuario.updateMany({
+        where: { pushToken: token },
+        data: { pushToken: null },
+      });
+      if (result.count > 0) {
+        this.logger.log(`Token stale limpiado de ${result.count} usuario(s)`);
+      }
+    } catch (error) {
+      this.logger.error('Error limpiando token stale:', error);
     }
   }
 }

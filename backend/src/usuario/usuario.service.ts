@@ -148,4 +148,13 @@ export class UsuarioService {
       select: { id: true, pushToken: true },
     });
   }
+
+  // ─── LIMPIAR push token (logout) ──────────────────────────────────────────
+  async limpiarPushToken(usuarioId: string) {
+    return this.prisma.usuario.update({
+      where: { id: usuarioId },
+      data: { pushToken: null },
+      select: { id: true },
+    });
+  }
 }

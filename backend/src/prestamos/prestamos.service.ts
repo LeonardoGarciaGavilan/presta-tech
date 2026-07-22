@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   Inject,
@@ -70,6 +71,7 @@ export type TipoAlerta =
 
 @Injectable()
 export class PrestamosService {
+  private readonly logger = new Logger(PrestamosService.name);
   private readonly TIMEZONE_RD = 'America/Santo_Domingo';
 
   constructor(
@@ -432,7 +434,7 @@ export class PrestamosService {
 
           if (tokens.length > 0) {
             const titulo = `Alerta — ${params.tipo.replace('_', ' ')}`;
-            await this.pushService.enviarPushNotifications(
+            void this.pushService.enviarPushNotifications(
               tokens,
               titulo,
               params.descripcion,
@@ -444,11 +446,11 @@ export class PrestamosService {
             );
           }
         } catch (e) {
-          console.error('Error enviando push notifications:', e);
+          this.logger.error('Error enviando push notifications:', e);
         }
       }
     } catch (e) {
-      console.error('Error creando alerta:', e);
+      this.logger.error('Error creando alerta:', e);
     }
   }
 

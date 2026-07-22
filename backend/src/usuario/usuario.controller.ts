@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Put, Patch,
+  Controller, Post, Put, Patch, Delete,
   Body, Param, UseGuards, Get,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -63,5 +63,12 @@ export class UsuarioController {
   @Patch('push-token')
   registrarPushToken(@CurrentUser() user: any, @Body() body: { pushToken: string }) {
     return this.usuarioService.registrarPushToken(user.userId, body.pushToken);
+  }
+
+  // DELETE /usuarios/push-token — limpiar token al cerrar sesión
+  @UseGuards(JwtAuthGuard)
+  @Delete('push-token')
+  limpiarPushToken(@CurrentUser() user: any) {
+    return this.usuarioService.limpiarPushToken(user.userId);
   }
 }
