@@ -3,7 +3,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { formatDateShort } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -91,7 +91,7 @@ export default function DatePickerField({ label, value, onChange, error }: DateP
         >
           {displayValue || 'Seleccionar fecha'}
         </Text>
-        <Ionicons name="calendar-outline" size={20} color={colors.textTertiary} />
+        <Ionicons name="calendar-outline" size={scale(20)} color={colors.textTertiary} />
       </Pressable>
       {Platform.OS === 'web' && (
         <input
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 48,
+    height: scale(48),
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
@@ -190,7 +190,7 @@ const modalStyles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: BorderRadius.lg,
     borderTopRightRadius: BorderRadius.lg,
-    paddingBottom: 34,
+    paddingBottom: scale(34),
   },
   header: {
     flexDirection: 'row',

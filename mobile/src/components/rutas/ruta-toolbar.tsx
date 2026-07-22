@@ -1,6 +1,6 @@
 import { Pressable, Text, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 
 type FilterType = 'todos' | 'pendientes' | 'visitados';
 
@@ -65,7 +65,7 @@ export function RutaToolbar({
         >
           <Ionicons
             name="navigate-outline"
-            size={16}
+            size={scale(16)}
             color={sortByCercania ? colors.primary : colors.textTertiary}
           />
         </Pressable>
@@ -75,7 +75,7 @@ export function RutaToolbar({
         >
           <Ionicons
             name={viewMode === 'list' ? 'map-outline' : 'list-outline'}
-            size={16}
+            size={scale(16)}
             color={colors.primary}
           />
         </Pressable>
@@ -108,8 +108,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   viewToggle: {
-    width: 36,
-    height: 36,
+    width: scale(36),
+    height: scale(36),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     justifyContent: 'center',

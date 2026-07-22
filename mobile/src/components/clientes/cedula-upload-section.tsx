@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { uploadCedula } from '@/api/clientes.api';
 import compressImage from '@/utils/compress-image';
-import { BorderRadius, Colors, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { useToast } from '@/components/ui/toast';
 
@@ -145,13 +145,13 @@ function CedulaSide({
               onPress={() => onImagePicked(null)}
               style={styles.removeBtn}
             >
-              <Ionicons name="close-circle" size={22} color={colors.error} />
+              <Ionicons name="close-circle" size={scale(22)} color={colors.error} />
             </Pressable>
           )}
         </View>
       ) : (
         <View style={styles.placeholder}>
-          <Ionicons name="id-card-outline" size={32} color={colors.textTertiary} />
+          <Ionicons name="id-card-outline" size={scale(32)} color={colors.textTertiary} />
           <Text style={[styles.placeholderText, { color: colors.textTertiary }]}>
             {isProcessing ? 'Comprimiendo...' : 'Sin foto'}
           </Text>
@@ -177,7 +177,7 @@ function CedulaSide({
             <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <>
-              <Ionicons name="camera" size={14} color={colors.primary} />
+              <Ionicons name="camera" size={scale(14)} color={colors.primary} />
               <Text style={[styles.smallBtnText, { color: colors.primary }]}>
                 Cámara
               </Text>
@@ -192,7 +192,7 @@ function CedulaSide({
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Ionicons name="images" size={14} color={colors.textSecondary} />
+          <Ionicons name="images" size={scale(14)} color={colors.textSecondary} />
           <Text style={[styles.smallBtnText, { color: colors.textSecondary }]}>
             Galería
           </Text>
@@ -216,8 +216,8 @@ export default function CedulaUploadSection({
 
   return (
     <View style={styles.container}>
-      <View style={[styles.title, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-        <Ionicons name="document-outline" size={14} color={colors.textSecondary} />
+      <View style={[styles.title, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
+        <Ionicons name="document-outline" size={scale(14)} color={colors.textSecondary} />
         <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
           Documentos
           <Text style={[styles.optional, { color: colors.textTertiary }]}>
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   preview: {
     width: '100%',
-    height: 100,
+    height: scale(100),
     borderRadius: BorderRadius.sm,
   },
   removeBtn: {
@@ -297,20 +297,20 @@ const styles = StyleSheet.create({
     top: 4,
     right: 4,
     backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 11,
+    borderRadius: scale(11),
   },
   placeholder: {
-    height: 100,
+    height: scale(100),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },
   placeholderText: {
     fontSize: FontSize.xs,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   uploadError: {
-    fontSize: 10,
+    fontSize: scale(10),
     textAlign: 'center',
     marginBottom: Spacing.xs,
   },
@@ -323,13 +323,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
+    gap: scale(4),
+    paddingVertical: scale(6),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
   },
   smallBtnText: {
-    fontSize: 10,
+    fontSize: scale(10),
     fontWeight: FontWeight.semibold,
   },
 });

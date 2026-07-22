@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { CajaActiva } from '@/types/dashboard.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -34,7 +34,7 @@ export function DashboardHero({ nombre, caja }: DashboardHeroProps) {
       {caja ? (
         <View style={[styles.cajaCard, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
           <View style={styles.cajaHeader}>
-            <Ionicons name="wallet" size={20} color={colors.success} />
+            <Ionicons name="wallet" size={scale(20)} color={colors.success} />
             <Text style={[styles.cajaLabel, { color: colors.success }]}>
               Caja abierta
             </Text>
@@ -49,7 +49,7 @@ export function DashboardHero({ nombre, caja }: DashboardHeroProps) {
       ) : (
         <View style={[styles.cajaCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.cajaHeader}>
-            <Ionicons name="wallet-outline" size={20} color={colors.textTertiary} />
+            <Ionicons name="wallet-outline" size={scale(20)} color={colors.textTertiary} />
             <Text style={[styles.cajaLabel, { color: colors.textTertiary }]}>
               Caja cerrada
             </Text>
@@ -101,6 +101,6 @@ const styles = StyleSheet.create({
   },
   cajaSubtext: {
     fontSize: FontSize.xs,
-    marginTop: 2,
+    marginTop: scale(2),
   },
 });

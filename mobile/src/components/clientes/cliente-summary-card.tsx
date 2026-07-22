@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Shadows, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale} from '@/constants/theme';
 import type { EstadoCuentaResponse } from '@/types/cliente.types';
 
 interface ClienteSummaryProps {
@@ -33,7 +33,7 @@ export default function ClienteSummary({ data, colors }: ClienteSummaryProps) {
       </View>
       {c.direccion && (
         <Text style={[styles.address, { color: colors.textTertiary }]}>
-          <Ionicons name="location-outline" size={12} color={colors.textTertiary} /> {c.direccion}
+          <Ionicons name="location-outline" size={scale(12)} color={colors.textTertiary} /> {c.direccion}
           {c.sector ? `, ${c.sector}` : ''}
           {c.municipio ? `, ${c.municipio}` : ''}
         </Text>
@@ -53,9 +53,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: scale(48),
+    height: scale(48),
+    borderRadius: scale(24),
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.semibold,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   detail: {
     fontSize: FontSize.sm,

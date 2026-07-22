@@ -9,7 +9,7 @@ import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useTodosPagos, usePago, useResumenPagos } from '@/hooks/use-pagos';
 import { usePrestamos } from '@/hooks/use-prestamos';
-import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import { useToast } from '@/components/ui/toast';
@@ -166,7 +166,7 @@ export default function PagosScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Detalle del Pago</Text>
               <Pressable onPress={() => setSelectedPagoId(null)} hitSlop={8}>
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={scale(24)} color={colors.text} />
               </Pressable>
             </View>
 
@@ -313,10 +313,10 @@ const styles = {
   pagoDate: { fontSize: FontSize.xs, marginTop: 1 },
   pagoMetodoBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   } as AppStyles,
-  pagoMetodoText: { fontSize: 10, fontWeight: FontWeight.bold },
+  pagoMetodoText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   pagoCardBody: {
     flexDirection: 'row',
     gap: Spacing.xs,

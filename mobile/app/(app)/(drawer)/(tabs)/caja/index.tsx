@@ -13,7 +13,7 @@ import { useCajaActiva, useAbrirCaja, useCerrarCaja, useCajas } from '@/hooks/us
 import { useAuthStore } from '@/store/auth.store';
 import { obtenerPago } from '@/api/pagos.api';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
-import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import type { CajaActivaResponse } from '@/types/caja.types';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -116,8 +116,8 @@ export default function CajaScreen() {
       <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ padding: Spacing.md }}>
           <SkeletonCard lines={2} />
-          <SkeletonCard lines={4} style={{ marginTop: 16 }} />
-          <SkeletonCard lines={6} style={{ marginTop: 16 }} />
+          <SkeletonCard lines={4} style={{ marginTop: scale(16) }} />
+          <SkeletonCard lines={6} style={{ marginTop: scale(16) }} />
         </View>
       </ScreenContainer>
     );
@@ -143,7 +143,7 @@ export default function CajaScreen() {
         {!caja && (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={{ alignItems: 'center', paddingVertical: Spacing.lg }}>
-              <Ionicons name="wallet-outline" size={64} color={colors.textTertiary} style={{ opacity: 0.4 }} />
+              <Ionicons name="wallet-outline" size={scale(64)} color={colors.textTertiary} style={{ opacity: 0.4 }} />
               <Text style={{ fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.text, marginTop: Spacing.md }}>
                 Sin caja abierta
               </Text>
@@ -163,7 +163,7 @@ export default function CajaScreen() {
         {cajaCerrada && (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={{ alignItems: 'center', paddingVertical: Spacing.lg }}>
-              <Ionicons name="checkmark-done-circle" size={48} color={colors.textTertiary} />
+              <Ionicons name="checkmark-done-circle" size={scale(48)} color={colors.textTertiary} />
               <Text style={{ fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.text, marginTop: Spacing.md }}>
                 Caja cerrada hoy
               </Text>
@@ -189,7 +189,7 @@ export default function CajaScreen() {
           <>
             {/* Estado banner */}
             <View style={[styles.banner, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}>
-              <Ionicons name="checkmark-circle" size={20} color="#16A34A" />
+              <Ionicons name="checkmark-circle" size={scale(20)} color="#16A34A" />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: '#16A34A' }}>
                   Caja abierta
@@ -244,13 +244,13 @@ export default function CajaScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Reimprimir recibo de ${p.prestamo?.cliente?.nombre}`}
                     >
-                      <Ionicons name="print-outline" size={18} color={colors.primary} />
+                      <Ionicons name="print-outline" size={scale(18)} color={colors.primary} />
                     </Pressable>
                     <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                       <Text style={{ fontSize: FontSize.xs, fontWeight: FontWeight.semibold, color: colors.text }}>
                         {p.prestamo?.cliente?.nombre} {p.prestamo?.cliente?.apellido || ''}
                       </Text>
-                      <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                      <Text style={{ fontSize: scale(10), color: colors.textTertiary }}>
                         {formatDateTime(p.createdAt)} · {p.metodo}
                       </Text>
                     </View>
@@ -271,11 +271,11 @@ export default function CajaScreen() {
                 accessibilityLabel="Registrar nuevo pago"
               >
                 <View style={[styles.navIcon, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="cash" size={22} color={colors.primary} />
+                  <Ionicons name="cash" size={scale(22)} color={colors.primary} />
                 </View>
                 <Text style={[styles.navButtonText, { color: colors.text }]}>Nuevo Pago</Text>
                 <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Registrar un cobro</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+                <Ionicons name="chevron-forward" size={scale(18)} color={colors.primary} />
               </Pressable>
 
               <Pressable
@@ -285,11 +285,11 @@ export default function CajaScreen() {
                 accessibilityLabel="Cerrar caja"
               >
                 <View style={[styles.navIcon, { backgroundColor: '#FEF2F2' }]}>
-                  <Ionicons name="lock-closed" size={22} color="#DC2626" />
+                  <Ionicons name="lock-closed" size={scale(22)} color="#DC2626" />
                 </View>
                 <Text style={[styles.navButtonText, { color: colors.text }]}>Cerrar Caja</Text>
                 <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Finalizar jornada</Text>
-                <Ionicons name="chevron-forward" size={18} color="#DC2626" />
+                <Ionicons name="chevron-forward" size={scale(18)} color="#DC2626" />
               </Pressable>
             </View>
           </>
@@ -304,11 +304,11 @@ export default function CajaScreen() {
             accessibilityLabel="Historial de caja"
           >
             <View style={[styles.navIcon, { backgroundColor: colors.borderLight }]}>
-              <Ionicons name="time-outline" size={22} color={colors.textTertiary} />
+              <Ionicons name="time-outline" size={scale(22)} color={colors.textTertiary} />
             </View>
             <Text style={[styles.navButtonText, { color: colors.text }]}>Historial de Caja</Text>
             <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Sesiones anteriores</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={scale(18)} color={colors.textTertiary} />
           </Pressable>
 
           {isAdmin && (
@@ -319,7 +319,7 @@ export default function CajaScreen() {
               accessibilityLabel="Control de cajas"
             >
               <View style={[styles.navIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="shield-checkmark" size={22} color={colors.primary} />
+                <Ionicons name="shield-checkmark" size={scale(22)} color={colors.primary} />
               </View>
               <Text style={[styles.navButtonText, { color: colors.text }]}>Control de Cajas</Text>
               <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Supervisar cajas activas</Text>
@@ -328,7 +328,7 @@ export default function CajaScreen() {
                   <Text style={styles.navBadgeText}>{abiertasCount}</Text>
                 </View>
               )}
-              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              <Ionicons name="chevron-forward" size={scale(18)} color={colors.primary} />
             </Pressable>
           )}
         </View>
@@ -340,7 +340,7 @@ export default function CajaScreen() {
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#16A34A' }]}>
-                <Ionicons name="add-circle" size={22} color="#FFFFFF" />
+                <Ionicons name="add-circle" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Abrir Caja</Text>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -371,7 +371,7 @@ export default function CajaScreen() {
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
-                <Ionicons name="lock-closed" size={22} color="#FFFFFF" />
+                <Ionicons name="lock-closed" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Cerrar Caja</Text>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -489,9 +489,9 @@ const styles = {
     borderBottomWidth: 1,
   } as AppStyles,
   reprintIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     alignItems: 'center',
     justifyContent: 'center',
   } as AppStyles,
@@ -504,9 +504,9 @@ const styles = {
     gap: Spacing.sm,
   } as AppStyles,
   navIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     alignItems: 'center',
     justifyContent: 'center',
   } as AppStyles,
@@ -520,16 +520,16 @@ const styles = {
     display: 'none',
   } as AppStyles,
   navBadge: {
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: scale(10),
+    minWidth: scale(20),
+    height: scale(20),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: scale(6),
   } as AppStyles,
   navBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: scale(10),
     fontWeight: FontWeight.bold,
   },
   modalOverlay: {
@@ -563,6 +563,6 @@ const styles = {
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: scale(2),
   } as AppStyles,
 };

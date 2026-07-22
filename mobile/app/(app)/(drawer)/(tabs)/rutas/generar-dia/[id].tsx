@@ -12,7 +12,7 @@ import DatePickerField from '@/components/ui/date-picker-field';
 import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useToast } from '@/components/ui/toast';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { dateToISO } from '@/utils/formatters';
 
 export default function GenerarDiaScreen() {
@@ -159,7 +159,7 @@ export default function GenerarDiaScreen() {
 
           {/* Search + Select All */}
           <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name="search-outline" size={16} color={colors.textTertiary} />
+            <Ionicons name="search-outline" size={scale(16)} color={colors.textTertiary} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
               placeholder="Buscar cliente..."
@@ -170,14 +170,14 @@ export default function GenerarDiaScreen() {
             />
             {search.length > 0 && (
               <Pressable onPress={() => setSearch('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+                <Ionicons name="close-circle" size={scale(16)} color={colors.textTertiary} />
               </Pressable>
             )}
             {clientes.length > 0 && (
               <Pressable onPress={toggleAll} hitSlop={8}>
                 <Ionicons
                   name={selectedIds.size === clientes.length ? 'checkbox' : 'square-outline'}
-                  size={20}
+                  size={scale(20)}
                   color={selectedIds.size === clientes.length ? colors.primary : colors.textTertiary}
                 />
               </Pressable>
@@ -209,7 +209,7 @@ export default function GenerarDiaScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={styles.list}
             keyboardShouldPersistTaps="handled"
-            ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
+            ItemSeparatorComponent={() => <View style={{ height: scale(2) }} />}
             ListEmptyComponent={
               <EmptyState
                 icon="people-outline"
@@ -233,7 +233,7 @@ export default function GenerarDiaScreen() {
                   <View style={styles.clienteCheck}>
                     <Ionicons
                       name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
+                      size={scale(22)}
                       color={isSelected ? colors.primary : colors.textTertiary}
                     />
                   </View>
@@ -292,16 +292,16 @@ const styles = StyleSheet.create({
   },
   dateShortcuts: {
     flexDirection: 'row',
-    gap: 2,
+    gap: scale(2),
   },
   dateShortcut: {
     paddingHorizontal: Spacing.xs + 2,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
   },
   dateShortcutText: {
-    fontSize: 11,
+    fontSize: scale(11),
     fontWeight: FontWeight.medium,
   },
   dateText: {
@@ -338,16 +338,16 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: Spacing.xs + 2,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
   },
   filterChipText: {
-    fontSize: 11,
+    fontSize: scale(11),
     fontWeight: FontWeight.medium,
   },
   list: {
-    paddingBottom: 100,
+    paddingBottom: scale(100),
   },
   clienteItem: {
     flexDirection: 'row',
@@ -358,11 +358,11 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   clienteCheck: {
-    width: 24,
+    width: scale(24),
     alignItems: 'center',
   },
   clienteOrder: {
-    width: 20,
+    width: scale(20),
     alignItems: 'center',
   },
   orderNum: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   clientePhone: {
     fontSize: FontSize.xs,
-    marginTop: 0,
+    marginTop: scale(0),
   },
   clienteMonto: {
     fontSize: FontSize.sm,

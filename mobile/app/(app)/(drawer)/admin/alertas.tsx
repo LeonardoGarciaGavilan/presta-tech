@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { useAlertas, useContarAlertas, useMarcarLeida, useMarcarTodasLeidas } from '@/hooks/use-alertas';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -299,7 +299,7 @@ export default function AlertasScreen() {
 
               <View style={styles.dateRow}>
                 <Pressable onPress={() => setOffset((p) => p - (fechaMode === 'today' ? 1 : 7))} hitSlop={8}>
-                  <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
+                  <Ionicons name="chevron-back" size={scale(20)} color={colors.textSecondary} />
                 </Pressable>
                 <Pressable
                   onPress={() => {
@@ -311,10 +311,10 @@ export default function AlertasScreen() {
                   <Text style={[styles.dateLabel, { color: colors.text }]}>
                     {rangeLabel(fechaMode, offset)}
                   </Text>
-                  <Ionicons name="chevron-down" size={14} color={colors.textTertiary} />
+                  <Ionicons name="chevron-down" size={scale(14)} color={colors.textTertiary} />
                 </Pressable>
                 <Pressable onPress={() => setOffset((p) => p + (fechaMode === 'today' ? 1 : 7))} hitSlop={8}>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  <Ionicons name="chevron-forward" size={scale(20)} color={colors.textSecondary} />
                 </Pressable>
               </View>
             </View>
@@ -350,7 +350,7 @@ export default function AlertasScreen() {
                 style={styles.markAllBtn}
                 disabled={marcarTodasMutation.isPending}
               >
-                <Ionicons name="checkmark-done-outline" size={16} color={colors.primary} />
+                <Ionicons name="checkmark-done-outline" size={scale(16)} color={colors.primary} />
                 <Text style={[styles.markAllText, { color: colors.primary }]}>
                   Marcar todas leídas ({noLeidas})
                 </Text>
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   filtersRow: {
     paddingHorizontal: Spacing.md,

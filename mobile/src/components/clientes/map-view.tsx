@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { OSMView, TILE_CONFIGS } from 'expo-osm-sdk';
-import type { OSMViewRef, MarkerConfig, PolylineConfig, Coordinate } from 'expo-osm-sdk';
+import type { OSMViewRef, MarkerConfig, PolylineConfig, Coordinate, MapRegion } from 'expo-osm-sdk';
 import * as Location from 'expo-location';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 export interface MapViewMarker {
@@ -58,6 +58,7 @@ export default function AppMapView({
   const { colorScheme, colors } = useTheme();
   const mapRef = useRef<OSMViewRef>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [currentRegion, setCurrentRegion] = useState<MapRegion | null>(null);
 
   const hasSingleCoord = latitude != null && longitude != null;
   const hasMultiple = markers != null && markers.length > 0;
@@ -195,6 +196,47 @@ export default function AppMapView({
     mapRef.current?.zoomOut();
   }, []);
 
+  const handlePanUp = useCallback(() => {
+    if (!currentRegion) return;
+    mapRef.current?.animateToLocation(
+      currentRegion.latitude + currentRegion.latitudeDelta * 0.25,
+      currentRegion.longitude,
+    );
+  }, [currentRegion]);
+
+  const handlePanDown = useCallback(() => {
+    if (!currentRegion) return;
+    mapRef.current?.animateToLocation(
+      currentRegion.latitude - currentRegion.latitudeDelta * 0.25,
+      currentRegion.longitude,
+    );
+  }, [currentRegion]);
+
+  const handlePanLeft = useCallback(() => {
+    if (!currentRegion) return;
+    mapRef.current?.animateToLocation(
+      currentRegion.latitude,
+      currentRegion.longitude - currentRegion.longitudeDelta * 0.25,
+    );
+  }, [currentRegion]);
+
+  const handlePanRight = useCallback(() => {
+    if (!currentRegion) return;
+    mapRef.current?.animateToLocation(
+      currentRegion.latitude,
+      currentRegion.longitude + currentRegion.longitudeDelta * 0.25,
+    );
+  }, [currentRegion]);
+
+  const handleCenter = useCallback(() => {
+    if (userLocation) {
+      mapRef.current?.animateToLocation(userLocation.latitude, userLocation.longitude);
+    } else if (hasMultiple && markers) {
+      const coords = markers.map((m) => ({ latitude: m.latitude, longitude: m.longitude }));
+      mapRef.current?.fitRouteInView(coords);
+    }
+  }, [userLocation, hasMultiple, markers]);
+
   return (
     <View style={styles.wrapper}>
       <View style={[styles.mapContainer, { height, borderColor: colors.border }]}>
@@ -209,6 +251,7 @@ export default function AppMapView({
           showUserLocation={false}
           onPress={handleMapPress}
           onMarkerPress={handleMarkerPress}
+          onRegionChange={setCurrentRegion}
           scrollEnabled
           zoomEnabled
           rotateEnabled={false}
@@ -220,10 +263,32 @@ export default function AppMapView({
         {hasAnyCoords && (
           <View style={styles.zoomControls}>
             <Pressable style={styles.zoomBtn} onPress={handleZoomIn}>
-              <Ionicons name="add" size={20} color="#FFF" />
+              <Ionicons name="add" size={scale(20)} color="#FFF" />
             </Pressable>
             <Pressable style={styles.zoomBtn} onPress={handleZoomOut}>
-              <Ionicons name="remove" size={20} color="#FFF" />
+              <Ionicons name="remove" size={scale(20)} color="#FFF" />
+            </Pressable>
+          </View>
+        )}
+
+        {hasAnyCoords && (
+          <View style={styles.dpadControls}>
+            <Pressable style={styles.dpadBtn} onPress={handlePanUp}>
+              <Ionicons name="chevron-up" size={scale(20)} color="#FFF" />
+            </Pressable>
+            <View style={styles.dpadRow}>
+              <Pressable style={styles.dpadBtn} onPress={handlePanLeft}>
+                <Ionicons name="chevron-back" size={scale(20)} color="#FFF" />
+              </Pressable>
+              <Pressable style={styles.dpadBtn} onPress={handleCenter}>
+                <Ionicons name="locate" size={scale(16)} color="#FFF" />
+              </Pressable>
+              <Pressable style={styles.dpadBtn} onPress={handlePanRight}>
+                <Ionicons name="chevron-forward" size={scale(20)} color="#FFF" />
+              </Pressable>
+            </View>
+            <Pressable style={styles.dpadBtn} onPress={handlePanDown}>
+              <Ionicons name="chevron-down" size={scale(20)} color="#FFF" />
             </Pressable>
           </View>
         )}
@@ -264,7 +329,7 @@ export default function AppMapView({
           ]}
         >
           <View style={styles.coordsBarLeft}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+            <Ionicons name="checkmark-circle" size={scale(16)} color={colors.success} />
             <View>
               <Text style={[styles.coordsBarTitle, { color: colors.success }]}>
                 Ubicación guardada
@@ -275,7 +340,7 @@ export default function AppMapView({
             </View>
           </View>
           <Pressable onPress={handleClear} hitSlop={8}>
-            <Ionicons name="close-circle" size={20} color={colors.error} />
+            <Ionicons name="close-circle" size={scale(20)} color={colors.error} />
           </Pressable>
         </View>
       )}
@@ -293,7 +358,7 @@ export default function AppMapView({
             {gpsLoading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="locate-outline" size={16} color={colors.primary} />
+              <Ionicons name="locate-outline" size={scale(16)} color={colors.primary} />
             )}
             <Text style={[styles.gpsBtnText, { color: colors.primary }]}>
               {gpsLoading ? 'Obteniendo ubicación...' : 'Usar mi ubicación'}
@@ -330,12 +395,37 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.sm,
     right: Spacing.sm,
-    gap: 2,
+    gap: scale(2),
   },
   zoomBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  dpadControls: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    left: Spacing.sm,
+    alignItems: 'center',
+    gap: 2,
+  },
+  dpadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  dpadBtn: {
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -351,13 +441,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: Spacing.xs,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
   },
   badgeDot: {
-    width: 6,
-    height: 6,
+    width: scale(6),
+    height: scale(6),
     borderRadius: 3,
   },
   badgeText: {
@@ -384,9 +474,9 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   coordsBarValue: {
-    fontSize: 10,
+    fontSize: scale(10),
     fontFamily: 'monospace',
-    marginTop: 1,
+    marginTop: scale(1),
   },
   actions: {
     gap: Spacing.xs,
@@ -410,7 +500,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   attribution: {
-    fontSize: 10,
+    fontSize: scale(10),
     textAlign: 'right',
     fontStyle: 'italic',
   },

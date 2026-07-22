@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import type { ClienteVistaDia } from '@/types/rutas.types';
 
@@ -66,7 +66,7 @@ export default function CobroRapidoModal({
                 Cobro Rápido
               </Text>
               <Pressable onPress={onClose} hitSlop={8}>
-                <Ionicons name="close" size={22} color={colors.textSecondary} />
+                <Ionicons name="close" size={scale(22)} color={colors.textSecondary} />
               </Pressable>
             </View>
 
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: scale(0.5),
   },
   cobroCuotaRow: {
     flexDirection: 'row',

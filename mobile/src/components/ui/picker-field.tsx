@@ -3,7 +3,7 @@ import { FlatList, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View
 import { useTheme } from '@/components/ui/theme-provider';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 interface PickerFieldProps {
   label: string;
   placeholder?: string;
@@ -90,7 +90,7 @@ export default function PickerField({
           >
             {value || placeholder}
           </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.textTertiary} />
+          <Ionicons name="chevron-down" size={scale(16)} color={colors.textTertiary} />
         </View>
         {error && (
           <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
@@ -123,7 +123,7 @@ export default function PickerField({
                 {label}
               </Text>
               <Pressable onPress={handleDismiss} hitSlop={8}>
-                <Ionicons name="close" size={24} color={colors.text} />
+                <Ionicons name="close" size={scale(24)} color={colors.text} />
               </Pressable>
             </View>
 
@@ -134,7 +134,7 @@ export default function PickerField({
                   { borderBottomColor: colors.border },
                 ]}
               >
-                <Ionicons name="search" size={16} color={colors.textTertiary} />
+                <Ionicons name="search" size={scale(16)} color={colors.textTertiary} />
                 <TextInput
                   ref={inputRef}
                   style={[styles.searchInput, { color: colors.text }]}
@@ -147,7 +147,7 @@ export default function PickerField({
                 />
                 {search ? (
                   <Pressable onPress={() => setSearch('')} hitSlop={6}>
-                    <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+                    <Ionicons name="close-circle" size={scale(16)} color={colors.textTertiary} />
                   </Pressable>
                 ) : null}
               </View>
@@ -200,7 +200,7 @@ export default function PickerField({
                   {item === value && (
                     <Ionicons
                       name="checkmark"
-                      size={18}
+                      size={scale(18)}
                       color={colors.primary}
                     />
                   )}
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   inputRow: {
     flexDirection: 'row',
@@ -238,11 +238,11 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: FontSize.xs,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   hint: {
     fontSize: FontSize.xs,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   overlay: {
     flex: 1,
@@ -276,10 +276,10 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: FontSize.md,
-    paddingVertical: 0,
+    paddingVertical: scale(0),
   },
   list: {
-    maxHeight: 400,
+    maxHeight: scale(400),
   },
   listContent: {
     paddingBottom: Spacing.xxl,

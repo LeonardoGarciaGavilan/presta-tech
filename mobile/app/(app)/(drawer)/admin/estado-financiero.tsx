@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { useDashboard,
   useMovimientos,
   useCrearInyeccion,
@@ -128,7 +128,7 @@ export default function EstadoFinancieroScreen() {
       return (
         <View style={[styles.movCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={[styles.movIcon, { backgroundColor: color + '18' }]}>
-            <Ionicons name={icon} size={18} color={color} />
+            <Ionicons name={icon} size={scale(18)} color={color} />
           </View>
           <View style={styles.movInfo}>
             <Text style={[styles.movDesc, { color: colors.text }]} numberOfLines={1}>
@@ -178,7 +178,7 @@ export default function EstadoFinancieroScreen() {
           <View>
             {/* Timestamp */}
             <View style={styles.timestampRow}>
-              <Ionicons name="time-outline" size={14} color={colors.textTertiary} />
+              <Ionicons name="time-outline" size={scale(14)} color={colors.textTertiary} />
               <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
                 {dash?.timestamp ? `Actualizado ${formatTimeAgo(dash.timestamp)}` : 'Sin datos'}
               </Text>
@@ -190,21 +190,21 @@ export default function EstadoFinancieroScreen() {
                 onPress={() => setShowInyectar(true)}
                 style={[styles.actionBtn, { backgroundColor: colors.primary }]}
               >
-                <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Inyectar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setShowRetirar('ganancias')}
                 style={[styles.actionBtn, { backgroundColor: colors.success }]}
               >
-                <Ionicons name="arrow-down-circle-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="arrow-down-circle-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Ganancias</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setShowRetirar('capital')}
                 style={[styles.actionBtn, { backgroundColor: colors.error }]}
               >
-                <Ionicons name="remove-circle-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="remove-circle-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Capital</Text>
               </TouchableOpacity>
             </View>
@@ -306,7 +306,7 @@ export default function EstadoFinancieroScreen() {
 
                   return (
                     <View key={i} style={[styles.alertBanner, { backgroundColor: bgColor, borderColor }]}>
-                      <Ionicons name={icon} size={16} color={txtColor} />
+                      <Ionicons name={icon} size={scale(16)} color={txtColor} />
                       <Text style={[styles.alertText, { color: txtColor }]}>{alerta.mensaje}</Text>
                     </View>
                   );
@@ -354,7 +354,7 @@ export default function EstadoFinancieroScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="wallet-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="wallet-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
               No hay movimientos disponibles
             </Text>
@@ -370,7 +370,7 @@ export default function EstadoFinancieroScreen() {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Inyectar capital</Text>
                 <TouchableOpacity onPress={() => setShowInyectar(false)} hitSlop={8}>
-                  <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -412,7 +412,7 @@ export default function EstadoFinancieroScreen() {
                   {showRetirar === 'ganancias' ? 'Retirar ganancias' : 'Retirar capital'}
                 </Text>
                 <TouchableOpacity onPress={() => setShowRetirar(null)} hitSlop={8}>
-                  <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
     ...Shadows.sm,
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     alignItems: 'center',
   },
-  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginBottom: 2 },
+  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginBottom: scale(2) },
   kpiValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   sectionCard: {
     borderRadius: BorderRadius.lg,
@@ -483,10 +483,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sectionTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
-  patrimonioBar: { flexDirection: 'row', height: 20, borderRadius: BorderRadius.sm, overflow: 'hidden', marginBottom: Spacing.sm },
+  patrimonioBar: { flexDirection: 'row', height: scale(20), borderRadius: BorderRadius.sm, overflow: 'hidden', marginBottom: Spacing.sm },
   patrimonioSegment: { height: '100%' },
-  patrimonioRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 4 },
-  patrimonioDot: { width: 8, height: 8, borderRadius: 4 },
+  patrimonioRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: scale(4) },
+  patrimonioDot: { width: scale(8), height: scale(8), borderRadius: 4 },
   patrimonioLabel: { fontSize: FontSize.xs, flex: 1 },
   patrimonioValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   metricsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   metricValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  metricLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 1 },
+  metricLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: scale(1) },
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -526,10 +526,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: Spacing.xs,
   },
-  movIcon: { width: 36, height: 36, borderRadius: BorderRadius.sm, justifyContent: 'center', alignItems: 'center' },
+  movIcon: { width: scale(36), height: scale(36), borderRadius: BorderRadius.sm, justifyContent: 'center', alignItems: 'center' },
   movInfo: { flex: 1 },
   movDesc: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  movMeta: { fontSize: FontSize.xs, marginTop: 1 },
+  movMeta: { fontSize: FontSize.xs, marginTop: scale(1) },
   movMonto: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl * 2, gap: Spacing.sm },
   emptyText: { fontSize: FontSize.sm, textAlign: 'center' },

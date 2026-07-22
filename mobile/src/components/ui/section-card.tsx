@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import type { Colors } from '@/constants/theme';
 
 interface SectionCardProps {
@@ -73,14 +73,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   sectionIcon: {
-    width: 36,
-    height: 36,
+    width: scale(36),
+    height: scale(36),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionEmoji: {
-    fontSize: 18,
+    fontSize: scale(18),
   },
   sectionHeaderText: {
     flex: 1,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   sectionDesc: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   sectionContent: {
     padding: Spacing.md,

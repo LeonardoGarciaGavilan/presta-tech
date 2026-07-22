@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useNavigation } from 'expo-router';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Colors } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Colors, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface ActionItem {
@@ -58,7 +58,7 @@ export function QuickActions() {
             accessibilityLabel={action.label}
           >
             <View style={[styles.iconWrap, { backgroundColor: colors[action.bgKey] }]}>
-              <Ionicons name={action.icon} size={24} color={colors[action.colorKey]} />
+              <Ionicons name={action.icon} size={scale(24)} color={colors[action.colorKey]} />
             </View>
             <Text style={[styles.label, { color: colors.text }]}>{action.label}</Text>
           </TouchableOpacity>
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: scale(12),
   },
   card: {
     width: '47%',
@@ -92,8 +92,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconWrap: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',

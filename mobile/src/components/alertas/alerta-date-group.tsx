@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface AlertaDateGroupProps {
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: scale(0.5),
   },
   count: {
     fontSize: FontSize.xs,

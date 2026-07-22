@@ -19,7 +19,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import type { ReciboData } from '@/utils/recibo-pdf';
@@ -321,7 +321,7 @@ export default function VistaDiaScreen() {
               />
             ) : (
               <View style={[styles.noMap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Ionicons name="map-outline" size={32} color={colors.textTertiary} />
+                <Ionicons name="map-outline" size={scale(32)} color={colors.textTertiary} />
                 <Text style={[styles.noMapText, { color: colors.textTertiary }]}>
                   Sin ubicaciones en esta ruta
                 </Text>
@@ -472,7 +472,7 @@ function ClienteCardItem({
             borderColor: visitadoHoy ? colors.success : colors.border,
           }]}
         >
-          {visitadoHoy && <Ionicons name="checkmark" size={14} color="#FFF" />}
+          {visitadoHoy && <Ionicons name="checkmark" size={scale(14)} color="#FFF" />}
         </Pressable>
 
         {/* Client Info */}
@@ -520,7 +520,7 @@ function ClienteCardItem({
             accessibilityRole="button"
             accessibilityLabel={`Cobrar ${formatCurrency(totalACobrar)} a ${cliente.nombre}`}
           >
-            <Ionicons name="cash-outline" size={16} color="#FFF" />
+            <Ionicons name="cash-outline" size={scale(16)} color="#FFF" />
             <Text style={styles.cobrarText}>Cobrar</Text>
           </Pressable>
         </View>
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   progressLabel: {
     fontSize: FontSize.xs,
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   progressTrack: {
-    height: 8,
+    height: scale(8),
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -578,9 +578,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   orderCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -589,9 +589,9 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   visitCheckbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: scale(22),
+    height: scale(22),
+    borderRadius: scale(11),
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
@@ -610,21 +610,21 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   atrasadoBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(1),
     borderRadius: BorderRadius.sm,
   },
   atrasadoText: {
-    fontSize: 9,
+    fontSize: scale(9),
     fontWeight: FontWeight.bold,
   },
   clientPhone: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   clientObs: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
     fontStyle: 'italic',
   },
   cobroRow: {
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   cobrarBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   noMap: {
-    height: 200,
+    height: scale(200),
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     justifyContent: 'center',

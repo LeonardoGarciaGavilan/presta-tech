@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { useGastos,
   useGastosResumen,
   useCrearGasto,
@@ -224,7 +224,7 @@ export default function GastosScreen() {
           style={[styles.gastoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
           <View style={[styles.gastoIcon, { backgroundColor: meta.color + '18' }]}>
-            <Ionicons name={meta.icon} size={18} color={meta.color} />
+            <Ionicons name={meta.icon} size={scale(18)} color={meta.color} />
           </View>
           <View style={styles.gastoInfo}>
             <View style={styles.gastoTop}>
@@ -297,7 +297,7 @@ export default function GastosScreen() {
               onPress={openCreate}
               style={[styles.newBtn, { backgroundColor: colors.primary }]}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
               <Text style={styles.newBtnText}>Nuevo gasto</Text>
             </TouchableOpacity>
 
@@ -345,7 +345,7 @@ export default function GastosScreen() {
                   return (
                     <View key={cat} style={styles.catRow}>
                       <View style={[styles.catDot, { backgroundColor: meta.color }]} />
-                      <Ionicons name={meta.icon} size={12} color={meta.color} style={{ marginRight: 4 }} />
+                      <Ionicons name={meta.icon} size={scale(12)} color={meta.color} style={{ marginRight: scale(4) }} />
                       <Text style={[styles.catLabel, { color: colors.textSecondary }]}>{cat}</Text>
                       <Text style={[styles.catValue, { color: colors.text }]}>{formatCurrencyCompact(val)}</Text>
                       <Text style={[styles.catPct, { color: colors.textTertiary }]}>
@@ -434,7 +434,7 @@ export default function GastosScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="receipt-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
               No hay gastos registrados
             </Text>
@@ -452,7 +452,7 @@ export default function GastosScreen() {
                   {isEditing ? 'Editar gasto' : 'Nuevo gasto'}
                 </Text>
                 <TouchableOpacity onPress={closeForm} hitSlop={8}>
-                  <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
     marginBottom: Spacing.md,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   kpiValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 1 },
+  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: scale(1) },
   sectionCard: {
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
@@ -622,18 +622,18 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sectionTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
-  catBar: { flexDirection: 'row', height: 16, borderRadius: BorderRadius.sm, overflow: 'hidden', marginBottom: Spacing.sm },
+  catBar: { flexDirection: 'row', height: scale(16), borderRadius: BorderRadius.sm, overflow: 'hidden', marginBottom: Spacing.sm },
   catSegment: { height: '100%' },
   catRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    marginBottom: 3,
+    marginBottom: scale(3),
   },
-  catDot: { width: 8, height: 8, borderRadius: 4 },
+  catDot: { width: scale(8), height: scale(8), borderRadius: 4 },
   catLabel: { fontSize: FontSize.xs, flex: 1 },
   catValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginRight: Spacing.xs },
-  catPct: { fontSize: FontSize.xs, width: 40, textAlign: 'right' },
+  catPct: { fontSize: FontSize.xs, width: scale(40), textAlign: 'right' },
   filterRow: { flexDirection: 'row', gap: Spacing.sm },
   filterHalf: { flex: 1 },
   chipRow: {
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: scale(4),
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -658,18 +658,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: Spacing.xs,
   },
-  gastoIcon: { width: 36, height: 36, borderRadius: BorderRadius.sm, justifyContent: 'center', alignItems: 'center' },
+  gastoIcon: { width: scale(36), height: scale(36), borderRadius: BorderRadius.sm, justifyContent: 'center', alignItems: 'center' },
   gastoInfo: { flex: 1 },
-  gastoTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: 1 },
+  gastoTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: scale(1) },
   gastoCat: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   tipoBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    paddingHorizontal: scale(5),
+    paddingVertical: scale(1),
     borderRadius: BorderRadius.sm,
   },
-  tipoBadgeText: { fontSize: 10, fontWeight: FontWeight.bold },
+  tipoBadgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   gastoDesc: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  gastoMeta: { fontSize: FontSize.xs, marginTop: 1 },
+  gastoMeta: { fontSize: FontSize.xs, marginTop: scale(1) },
   gastoMonto: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl * 2, gap: Spacing.sm },
   emptyText: { fontSize: FontSize.sm, textAlign: 'center' },
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   toggleBtn: {
     flex: 1,
-    height: 40,
+    height: scale(40),
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     justifyContent: 'center',

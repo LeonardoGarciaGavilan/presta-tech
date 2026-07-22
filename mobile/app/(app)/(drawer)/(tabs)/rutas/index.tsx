@@ -12,7 +12,7 @@ import { ScreenContainer } from '@/components/ui/screen-container';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 const ROL_ADMIN = 'ADMIN';
 
 export default function RutasListScreen() {
@@ -83,7 +83,7 @@ export default function RutasListScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={[styles.cardIcon, { backgroundColor: colors.routeBg }]}>
-            <Ionicons name="map-outline" size={20} color={colors.route} />
+            <Ionicons name="map-outline" size={scale(20)} color={colors.route} />
           </View>
           <View style={styles.cardInfo}>
             <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
@@ -115,11 +115,11 @@ export default function RutasListScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Cobrador: ${item.usuario.nombre}`}
               >
-                <Ionicons name="person-outline" size={12} color={isAdmin ? colors.primary : colors.textTertiary} />
+                <Ionicons name="person-outline" size={scale(12)} color={isAdmin ? colors.primary : colors.textTertiary} />
                 <Text style={[styles.cobradorText, { color: isAdmin ? colors.primary : colors.textTertiary }]}>
                   {item.usuario.nombre}
                 </Text>
-                {isAdmin && <Ionicons name="chevron-forward" size={12} color={colors.primary} />}
+                {isAdmin && <Ionicons name="chevron-forward" size={scale(12)} color={colors.primary} />}
               </Pressable>
             )}
             {isAdmin && !item.usuario && (
@@ -132,7 +132,7 @@ export default function RutasListScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Asignar cobrador"
               >
-                <Ionicons name="person-add-outline" size={12} color={colors.primary} />
+                <Ionicons name="person-add-outline" size={scale(12)} color={colors.primary} />
                 <Text style={[styles.cobradorText, { color: colors.primary }]}>
                   Asignar cobrador
                 </Text>
@@ -140,7 +140,7 @@ export default function RutasListScreen() {
             )}
           </View>
           <View style={styles.clientCount}>
-            <Ionicons name="people-outline" size={12} color={colors.textTertiary} />
+            <Ionicons name="people-outline" size={scale(12)} color={colors.textTertiary} />
             <Text style={[styles.clientCountText, { color: colors.textTertiary }]}>
               {item.clientes?.length ?? 0} clientes
             </Text>
@@ -156,7 +156,7 @@ export default function RutasListScreen() {
       <ScreenContainer>
         <View style={styles.list}>
           {[1, 2, 3].map((i) => (
-            <SkeletonCard key={i} lines={3} style={{ marginBottom: 12 }} />
+            <SkeletonCard key={i} lines={3} style={{ marginBottom: scale(12) }} />
           ))}
         </View>
       </ScreenContainer>
@@ -270,7 +270,7 @@ export default function RutasListScreen() {
               >
                 <Ionicons
                   name={asignarUsuarioId === u.id ? 'radio-button-on' : 'radio-button-off'}
-                  size={18}
+                  size={scale(18)}
                   color={asignarUsuarioId === u.id ? colors.primary : colors.textTertiary}
                 />
                 <Text style={[styles.usuarioName, { color: colors.text }]}>{u.nombre}</Text>
@@ -296,7 +296,7 @@ export default function RutasListScreen() {
           accessibilityRole="button"
           accessibilityLabel="Crear ruta"
         >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
+          <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
         </Pressable>
       )}
     </ScreenContainer>
@@ -306,7 +306,7 @@ export default function RutasListScreen() {
 const styles = StyleSheet.create({
   list: {
     padding: Spacing.md,
-    paddingBottom: 100,
+    paddingBottom: scale(100),
   },
   card: {
     borderRadius: BorderRadius.lg,
@@ -319,8 +319,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   cardIcon: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -334,11 +334,11 @@ const styles = StyleSheet.create({
   },
   cardDesc: {
     fontSize: FontSize.sm,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   inactiveBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
   inactiveText: {
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   cobradorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
   },
   cobradorText: {
     fontSize: FontSize.xs,
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   clientCount: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
   },
   clientCountText: {
     fontSize: FontSize.xs,
@@ -419,11 +419,11 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    bottom: scale(24),
+    right: scale(24),
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,

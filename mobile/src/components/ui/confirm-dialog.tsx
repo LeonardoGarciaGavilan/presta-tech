@@ -1,6 +1,6 @@
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/app-button';
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface ConfirmDialogProps {
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     textAlign: 'center',
     marginBottom: Spacing.lg,
-    lineHeight: 22,
+    lineHeight: scale(22),
   },
   actions: {
     flexDirection: 'row',

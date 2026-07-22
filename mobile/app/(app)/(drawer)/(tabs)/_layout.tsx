@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { CompanyHeader } from '@/components/ui/company-header';
 import { useTheme } from '@/components/ui/theme-provider';
+import { scale } from '@/constants/theme';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -24,12 +25,12 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.05,
           shadowRadius: 8,
-          height: 60 + insets.bottom,
+          height: scale(60) + insets.bottom,
           paddingBottom: insets.bottom + 8,
-          paddingTop: 4,
+          paddingTop: scale(4),
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: scale(11),
           fontWeight: '600',
         },
       }}

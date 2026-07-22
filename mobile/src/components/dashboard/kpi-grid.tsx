@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { Portfolio, Today } from '@/types/dashboard.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -24,7 +24,7 @@ function KPICard({ icon, iconColor, bgColor, value, label }: KPICardProps) {
   return (
     <View style={[styles.card, { backgroundColor: colors.kpiBackground }]}>
       <View style={[styles.iconWrap, { backgroundColor: bgColor }]}>
-        <Ionicons name={icon} size={20} color={iconColor} />
+        <Ionicons name={icon} size={scale(20)} color={iconColor} />
       </View>
       <Text style={[styles.value, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit accessibilityRole="text">
         {value}
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: scale(12),
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconWrap: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   label: {
     fontSize: FontSize.xs,

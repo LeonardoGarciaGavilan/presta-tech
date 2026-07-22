@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import { SkeletonCard, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
-import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, Fonts, FontWeight, IoniconsName, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { ESTADO_CONFIG, ACCIONES_FLOW_CONFIG } from '@/constants/prestamos.constants';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import type { ApiError } from '@/types/api.types';
@@ -27,20 +27,23 @@ import RefinanciarModal from '@/components/prestamos/refinanciar-modal';
 
 const FLOW_ACCION_CONFIG = ACCIONES_FLOW_CONFIG;
 
-const InfoItemBase = ({ label, value }: { label: string; value: string }) => (
-  <View style={infoStyles.item}>
-    <Text style={infoStyles.label}>{label}</Text>
-    <Text style={infoStyles.value} numberOfLines={2}>{value || '—'}</Text>
-  </View>
-);
+const InfoItemBase = ({ label, value }: { label: string; value: string }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={infoStyles.item}>
+      <Text style={[infoStyles.label, { color: colors.textTertiary }]}>{label}</Text>
+      <Text style={infoStyles.value} numberOfLines={2}>{value || '—'}</Text>
+    </View>
+  );
+};
 
 const InfoItem = memo(InfoItemBase);
 InfoItem.displayName = 'InfoItem';
 
 const infoStyles = StyleSheet.create({
   item: { marginBottom: Spacing.xs },
-  label: { fontSize: 10, color: '#94A3B8', fontWeight: FontWeight.medium, textTransform: 'uppercase', letterSpacing: 0.5 },
-  value: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: 1 },
+  label: { fontSize: scale(10), fontWeight: FontWeight.medium, textTransform: 'uppercase', letterSpacing: scale(0.5) },
+  value: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, marginTop: scale(1) },
 });
 
 const CuotaBadgeBase = ({ pagada, vencida }: { pagada: boolean; vencida: boolean }) => {
@@ -59,10 +62,10 @@ CuotaBadge.displayName = 'CuotaBadge';
 
 const badgeStyles = StyleSheet.create({
   badge: {
-    fontSize: 10,
+    fontSize: scale(10),
     fontWeight: FontWeight.bold,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     overflow: 'hidden',
@@ -167,8 +170,8 @@ export default function PrestamoDetalleScreen() {
       <ScreenContainer style={[styles.screen, { backgroundColor: colors.background }]}>
         <View style={styles.skeletonContainer}>
           <SkeletonCard lines={2} />
-          <SkeletonCard lines={4} style={{ marginTop: 16 }} />
-          <SkeletonCard lines={6} style={{ marginTop: 16 }} />
+          <SkeletonCard lines={4} style={{ marginTop: scale(16) }} />
+          <SkeletonCard lines={6} style={{ marginTop: scale(16) }} />
         </View>
       </ScreenContainer>
     );
@@ -199,7 +202,7 @@ export default function PrestamoDetalleScreen() {
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
         </Pressable>
         <View style={styles.headerInfo}>
           <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
@@ -210,7 +213,7 @@ export default function PrestamoDetalleScreen() {
           </Text>
         </View>
         <View style={[styles.estadoBadge, { backgroundColor: estadoCfg.bg }]} accessibilityRole="text" accessibilityLabel={`Estado: ${estadoCfg.label}`}>
-          <Ionicons name={estadoCfg.icon as IoniconsName} size={12} color={estadoCfg.color} />
+          <Ionicons name={estadoCfg.icon as IoniconsName} size={scale(12)} color={estadoCfg.color} />
           <Text style={[styles.estadoBadgeText, { color: estadoCfg.color }]}>{estadoCfg.label}</Text>
         </View>
       </View>
@@ -223,11 +226,11 @@ export default function PrestamoDetalleScreen() {
             <>
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'EN_REVISION', estado: 'EN_REVISION' }); setShowFlowModal(true); }}
-                style={[styles.actionButton, { backgroundColor: '#6D28D9' }]}
+                style={[styles.actionButton, { backgroundColor: colors.info }]}
                 accessibilityRole="button"
                 accessibilityLabel="Revisar préstamo"
               >
-                <Ionicons name="search-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="search-outline" size={scale(16)} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Revisar</Text>
               </Pressable>
               <Pressable
@@ -236,7 +239,7 @@ export default function PrestamoDetalleScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Rechazar préstamo"
               >
-                <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="close-circle-outline" size={scale(16)} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Rechazar</Text>
               </Pressable>
             </>
@@ -245,11 +248,11 @@ export default function PrestamoDetalleScreen() {
             <>
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'APROBADO', estado: 'APROBADO' }); setShowFlowModal(true); }}
-                style={[styles.actionButton, { backgroundColor: '#047857' }]}
+                style={[styles.actionButton, { backgroundColor: colors.success }]}
                 accessibilityRole="button"
                 accessibilityLabel="Aprobar préstamo"
               >
-                <Ionicons name="checkmark-circle-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle-outline" size={scale(16)} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Aprobar</Text>
               </Pressable>
               <Pressable
@@ -258,7 +261,7 @@ export default function PrestamoDetalleScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Rechazar préstamo"
               >
-                <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="close-circle-outline" size={scale(16)} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Rechazar</Text>
               </Pressable>
             </>
@@ -271,7 +274,7 @@ export default function PrestamoDetalleScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Rechazar préstamo"
               >
-                <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="close-circle-outline" size={scale(16)} color="#FFFFFF" />
                 <Text style={styles.actionButtonText}>Rechazar</Text>
               </Pressable>
             </>
@@ -281,11 +284,11 @@ export default function PrestamoDetalleScreen() {
           {puedePagar && (
             <Pressable
               onPress={() => router.push(`/caja/pago?prestamoId=${prestamo.id}`)}
-              style={[styles.actionButton, { backgroundColor: '#16A34A' }]}
+              style={[styles.actionButton, { backgroundColor: colors.success }]}
               accessibilityRole="button"
               accessibilityLabel="Cobrar préstamo"
             >
-              <Ionicons name="cash" size={16} color="#FFFFFF" />
+              <Ionicons name="cash" size={scale(16)} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Cobrar</Text>
             </Pressable>
           )}
@@ -294,22 +297,22 @@ export default function PrestamoDetalleScreen() {
           {puedeDesembolsar && (
             <Pressable
               onPress={() => setShowDesembolsoModal(true)}
-              style={[styles.actionButton, { backgroundColor: '#1A56DB' }]}
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
               accessibilityRole="button"
               accessibilityLabel="Desembolsar préstamo"
             >
-              <Ionicons name="cash" size={16} color="#FFFFFF" />
+              <Ionicons name="cash" size={scale(16)} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Desembolsar</Text>
             </Pressable>
           )}
           {puedeRefinanciar && (
             <Pressable
               onPress={() => setShowRefinanciarModal(true)}
-              style={[styles.actionButton, { backgroundColor: '#6D28D9' }]}
+              style={[styles.actionButton, { backgroundColor: colors.info }]}
               accessibilityRole="button"
               accessibilityLabel="Refinanciar préstamo"
             >
-              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+              <Ionicons name="refresh" size={scale(16)} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Refinanciar</Text>
             </Pressable>
           )}
@@ -321,7 +324,7 @@ export default function PrestamoDetalleScreen() {
               accessibilityRole="button"
               accessibilityLabel="Cancelar préstamo"
             >
-              <Ionicons name="close" size={16} color="#FFFFFF" />
+              <Ionicons name="close" size={scale(16)} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>{isCancelando ? '...' : 'Cancelar'}</Text>
             </Pressable>
           )}
@@ -339,8 +342,8 @@ export default function PrestamoDetalleScreen() {
               ]}
             >
               <View style={styles.infoCardHeader}>
-                <Text style={styles.infoCardTitle}>Cliente</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+                <Text style={[styles.infoCardTitle, { color: colors.textTertiary }]}>Cliente</Text>
+                <Ionicons name="chevron-forward" size={scale(14)} color={colors.textTertiary} />
               </View>
               <InfoItem label="Nombre" value={`${cliente.nombre} ${cliente.apellido || ''}`} />
               <InfoItem label="Cédula" value={cliente.cedula} />
@@ -359,7 +362,7 @@ export default function PrestamoDetalleScreen() {
             >
               <View style={styles.infoCardHeader}>
                 <Text style={[styles.infoCardTitle, { color: colors.success }]}>Garante</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+                <Ionicons name="chevron-forward" size={scale(14)} color={colors.textTertiary} />
               </View>
               <InfoItem label="Nombre" value={`${prestamo.garante.nombre} ${prestamo.garante.apellido || ''}`} />
               <InfoItem label="Cédula" value={prestamo.garante.cedula} />
@@ -369,7 +372,7 @@ export default function PrestamoDetalleScreen() {
 
           {/* Condiciones */}
           <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={styles.infoCardTitle}>Condiciones</Text>
+            <Text style={[styles.infoCardTitle, { color: colors.textTertiary }]}>Condiciones</Text>
             <InfoItem label="Monto original" value={formatCurrency(prestamo.monto)} />
             <InfoItem label="Monto total" value={formatCurrency(prestamo.montoTotal)} />
             <InfoItem label="Tasa" value={prestamo.tasaInteres > 0 ? `${prestamo.tasaInteres}%` : 'Cuota fija'} />
@@ -381,7 +384,7 @@ export default function PrestamoDetalleScreen() {
 
           {/* Estado actual */}
           <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={styles.infoCardTitle}>Estado actual</Text>
+            <Text style={[styles.infoCardTitle, { color: colors.textTertiary }]}>Estado actual</Text>
             <InfoItem label="Saldo pendiente" value={formatCurrency(prestamo.saldoPendiente)} />
             <InfoItem label="Mora acumulada" value={formatCurrency(prestamo.moraAcumulada)} />
             <InfoItem
@@ -400,17 +403,17 @@ export default function PrestamoDetalleScreen() {
                   {progresoPorc}%
                 </Text>
               </View>
-              <View style={styles.progressBar}>
+              <View style={[styles.progressBar, { backgroundColor: colors.borderLight }]}>
                 <View style={[styles.progressFill, { width: `${progresoPorc}%`, backgroundColor: colors.primary }]} />
               </View>
               <View style={styles.progressFooter}>
-                <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                <Text style={{ fontSize: scale(10), color: colors.textTertiary }}>
                   {cuotasPendientes.length} pendientes
                   {cuotasVencidas.length > 0 && (
                     <Text style={{ color: colors.error }}> ({cuotasVencidas.length} vencidas)</Text>
                   )}
                 </Text>
-                <Text style={{ fontSize: 10, color: colors.textTertiary }}>{cuotas.length} total</Text>
+                <Text style={{ fontSize: scale(10), color: colors.textTertiary }}>{cuotas.length} total</Text>
               </View>
             </View>
           </View>
@@ -418,7 +421,7 @@ export default function PrestamoDetalleScreen() {
 
         {/* Tabs: Cuotas / Pagos */}
         <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.tabHeader}>
+            <View style={[styles.tabHeader, { borderBottomColor: colors.border }]}>
             {[
               { key: 'cuotas', label: `Cuotas (${cuotas.length})` },
               { key: 'pagos', label: `Pagos (${pagos.length})` },
@@ -447,7 +450,7 @@ export default function PrestamoDetalleScreen() {
           {/* Cuotas tab */}
           {tab === 'cuotas' && (
             <>
-              <View style={styles.cuotaFilters}>
+              <View style={[styles.cuotaFilters, { borderBottomColor: colors.borderLight }]}>
                 {FILTROS_CUOTAS.map(f => (
                   <Pressable
                     key={f.id}
@@ -544,11 +547,11 @@ export default function PrestamoDetalleScreen() {
                 <Text style={[styles.viewAllLinkText, { color: colors.primary }]}>
                   Ver todos los pagos
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                <Ionicons name="chevron-forward" size={scale(16)} color={colors.primary} />
               </Pressable>
               {pagos.length === 0 ? (
                 <View style={styles.tabEmpty}>
-                  <Ionicons name="cash-outline" size={40} color={colors.textTertiary} style={{ opacity: 0.3 }} />
+                  <Ionicons name="cash-outline" size={scale(40)} color={colors.textTertiary} style={{ opacity: 0.3 }} />
                   <Text style={[styles.tabEmptyText, { color: colors.textTertiary, marginTop: Spacing.sm }]}>
                     Aún no hay pagos registrados
                   </Text>
@@ -591,7 +594,7 @@ export default function PrestamoDetalleScreen() {
                         </Text>
                       </View>
                       {p.usuario && (
-                        <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: Spacing.xs }}>
+                        <Text style={{ fontSize: scale(10), color: colors.textTertiary, marginTop: Spacing.xs }}>
                           Registrado por: {p.usuario.nombre}
                         </Text>
                       )}
@@ -667,16 +670,16 @@ const styles = StyleSheet.create({
   },
   headerInfo: { flex: 1, marginHorizontal: Spacing.sm },
   headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  headerSub: { fontSize: FontSize.xs, fontFamily: 'monospace', marginTop: 1 },
+  headerSub: { fontSize: FontSize.xs, fontFamily: Fonts.mono, marginTop: scale(1) },
   estadoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.sm,
   },
-  estadoBadgeText: { fontSize: 10, fontWeight: FontWeight.bold },
+  estadoBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   scrollContent: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   actionRow: {
     flexDirection: 'row',
@@ -709,11 +712,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   infoCardTitle: {
-    fontSize: 10,
+    fontSize: scale(10),
     fontWeight: FontWeight.bold,
-    color: '#94A3B8',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: scale(0.5),
     marginBottom: Spacing.sm,
   },
   progressHeader: {
@@ -722,8 +724,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#F1F5F9',
+    height: scale(8),
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -744,7 +745,6 @@ const styles = StyleSheet.create({
   tabHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
   tabBtn: {
     flex: 1,
@@ -759,7 +759,6 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     padding: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
     flexWrap: 'wrap',
   },
   cuotaFilterChip: {
@@ -769,7 +768,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cuotaFilterText: {
-    fontSize: 10,
+    fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
   tabEmpty: {
@@ -811,12 +810,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cuotaAmtLabel: {
-    fontSize: 9,
+    fontSize: FontSize.xs,
   },
   cuotaAmtVal: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   cuotaCardTotal: {
     flexDirection: 'row',
@@ -839,30 +838,14 @@ const styles = StyleSheet.create({
   },
   pagoMetodo: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
   pagoMetodoText: {
-    fontSize: 10,
+    fontSize: scale(10),
     fontWeight: FontWeight.semibold,
   },
 
-  summaryCard: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.sm + 2,
-    marginBottom: Spacing.md,
-    gap: 6,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  summaryText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
   viewAllLink: {
     flexDirection: 'row',
     alignItems: 'center',

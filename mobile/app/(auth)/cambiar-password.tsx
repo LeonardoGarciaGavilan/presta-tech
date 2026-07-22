@@ -24,7 +24,7 @@ import type { ApiError } from '@/types/api.types';
 import { AppInput } from '@/components/ui/app-input';
 import { AppButton } from '@/components/ui/app-button';
 import { useToast } from '@/components/ui/toast';
-import { BorderRadius, FontSize, FontWeight, Shadows, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale} from '@/constants/theme';
 function getStrength(
   password: string,
 ): { level: number; label: string; color: string; met: boolean[] } {
@@ -171,7 +171,7 @@ export default function CambiarPasswordScreen() {
                 >
                   <Ionicons
                     name="lock-closed"
-                    size={32}
+                    size={scale(32)}
                     color={colors.warning}
                   />
                 </View>
@@ -199,7 +199,7 @@ export default function CambiarPasswordScreen() {
               >
                 <Ionicons
                   name="information-circle"
-                  size={16}
+                  size={scale(16)}
                   color={colors.warning}
                 />
                 <Text
@@ -265,7 +265,7 @@ export default function CambiarPasswordScreen() {
                                 ? 'checkmark-circle'
                                 : 'ellipse-outline'
                             }
-                            size={14}
+                            size={scale(14)}
                             color={
                               strength.met[idx]
                                 ? colors.success
@@ -315,7 +315,7 @@ export default function CambiarPasswordScreen() {
                               ? 'checkmark-circle'
                               : 'close-circle'
                           }
-                          size={20}
+                          size={scale(20)}
                           color={
                             doPasswordsMatch
                               ? colors.success
@@ -340,7 +340,7 @@ export default function CambiarPasswordScreen() {
                 >
                   <Ionicons
                     name="alert-circle"
-                    size={16}
+                    size={scale(16)}
                     color={colors.error}
                   />
                   <Text style={[styles.errorText, { color: colors.error }]}>
@@ -359,7 +359,7 @@ export default function CambiarPasswordScreen() {
           </Animated.View>
 
           <Pressable style={styles.whatsappRow} onPress={handleWhatsApp}>
-            <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+            <Ionicons name="logo-whatsapp" size={scale(18)} color="#25D366" />
             <Text style={[styles.whatsappText, { color: colors.textTertiary }]}>
               ¿Problemas? Chatea con nosotros
             </Text>
@@ -395,9 +395,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: scale(64),
+    height: scale(64),
+    borderRadius: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     textAlign: 'center',
     paddingHorizontal: Spacing.sm,
-    lineHeight: 20,
+    lineHeight: scale(20),
   },
   warningBanner: {
     flexDirection: 'row',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   warningText: {
     flex: 1,
     fontSize: FontSize.xs,
-    lineHeight: 18,
+    lineHeight: scale(18),
   },
   strengthRow: {
     flexDirection: 'row',
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   },
   strengthBar: {
     flex: 1,
-    height: 4,
+    height: scale(4),
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   strengthLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    width: 40,
+    width: scale(40),
     textAlign: 'right',
   },
   requirements: {

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
 import { AppButton } from '@/components/ui/app-button';
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface LocationPickerProps {
@@ -71,7 +71,7 @@ export default function LocationPicker({
             { backgroundColor: colors.errorLight, borderColor: colors.error },
           ]}
         >
-          <Ionicons name="alert-circle" size={14} color={colors.error} />
+          <Ionicons name="alert-circle" size={scale(14)} color={colors.error} />
           <Text style={[styles.errorText, { color: colors.error }]}>
             {locError || error}
           </Text>
@@ -88,7 +88,7 @@ export default function LocationPicker({
             },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+          <Ionicons name="checkmark-circle" size={scale(16)} color={colors.success} />
           <View style={styles.successContent}>
             <Text style={[styles.successTitle, { color: colors.success }]}>
               ✓ Ubicación guardada
@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
   successCoords: {
     fontSize: FontSize.xs,
     fontFamily: 'monospace',
-    marginTop: 2,
+    marginTop: scale(2),
   },
 });

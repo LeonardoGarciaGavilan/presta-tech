@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 const ALERTA_COLORS: Record<TipoAlerta, string> = {
@@ -129,7 +129,7 @@ function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCard
         onPress={() => onMarkRead(alerta)}
         style={[styles.swipeAction, { backgroundColor: colors.success }]}
       >
-        <Ionicons name="checkmark-done" size={22} color="#FFFFFF" />
+        <Ionicons name="checkmark-done" size={scale(22)} color="#FFFFFF" />
         <Text style={styles.swipeActionText}>Leida</Text>
       </Pressable>
     );
@@ -151,7 +151,7 @@ function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCard
       >
         <View style={styles.topRow}>
           <View style={[styles.iconWrap, { backgroundColor: tipoColor + '18' }]}>
-            <Ionicons name={icon} size={20} color={tipoColor} />
+            <Ionicons name={icon} size={scale(20)} color={tipoColor} />
           </View>
           <View style={styles.info}>
             <Text
@@ -175,7 +175,7 @@ function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCard
 
         {context && (
           <View style={[styles.contextRow, { backgroundColor: tipoColor + '08' }]}>
-            <Ionicons name="information-circle-outline" size={14} color={tipoColor} />
+            <Ionicons name="information-circle-outline" size={scale(14)} color={tipoColor} />
             <Text style={[styles.contextText, { color: tipoColor }]} numberOfLines={1}>
               {context}
             </Text>
@@ -199,7 +199,7 @@ function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCard
                 hitSlop={6}
                 style={styles.linkButton}
               >
-                <Ionicons name="open-outline" size={16} color={colors.primary} />
+                <Ionicons name="open-outline" size={scale(16)} color={colors.primary} />
               </Pressable>
             )}
           </View>
@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   iconWrap: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -236,17 +236,17 @@ const styles = StyleSheet.create({
   },
   clienteName: {
     fontSize: FontSize.md,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   descripcion: {
     fontSize: FontSize.sm,
-    lineHeight: 20,
+    lineHeight: scale(20),
   },
   dot: {
-    width: 8,
-    height: 8,
+    width: scale(8),
+    height: scale(8),
     borderRadius: 4,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   contextRow: {
     flexDirection: 'row',
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
   tipoBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
   tipoBadgeText: {
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   swipeAction: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 80,
+    width: scale(80),
     marginBottom: Spacing.sm,
     borderRadius: BorderRadius.lg,
   },
@@ -303,6 +303,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    marginTop: 2,
+    marginTop: scale(2),
   },
 });

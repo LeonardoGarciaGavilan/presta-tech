@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface ScrollToTopButtonProps {
@@ -55,7 +55,7 @@ export default function ScrollToTopButton({
         accessibilityLabel="Volver arriba"
         accessibilityRole="button"
       >
-        <Ionicons name="chevron-up" size={24} color={colors.primary} />
+        <Ionicons name="chevron-up" size={scale(24)} color={colors.primary} />
       </Pressable>
     </Animated.View>
   );
@@ -66,15 +66,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 24,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: scale(2) },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     zIndex: 100,

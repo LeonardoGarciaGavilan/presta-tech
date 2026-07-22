@@ -20,7 +20,7 @@ import Animated, {
 
 import { useAuthBootstrap } from '@/hooks/use-auth-bootstrap';
 import { useAuthStore } from '@/store/auth.store';
-import { Colors, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { Colors, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -106,13 +106,13 @@ function SplashScreen({
   backgroundColor: string;
   primaryColor: string;
 }) {
-  const scale = useSharedValue(0.6);
+  const logoScale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    scale.value = withSpring(1, { damping: 10, stiffness: 80 });
+    logoScale.value = withSpring(1, { damping: 10, stiffness: 80 });
     opacity.value = withTiming(1, { duration: 500 });
-  }, [scale, opacity]);
+  }, [logoScale, opacity]);
 
   const pulse = useSharedValue(1);
   useEffect(() => {
@@ -127,7 +127,7 @@ function SplashScreen({
   }, [pulse]);
 
   const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: logoScale.value }],
     opacity: opacity.value,
   }));
 
@@ -146,7 +146,7 @@ function SplashScreen({
               pulseStyle,
             ]}
           >
-            <Ionicons name="trending-up" size={56} color={primaryColor} />
+            <Ionicons name="trending-up" size={scale(56)} color={primaryColor} />
           </Animated.View>
           <Text style={[styles.splashTitle, { color: primaryColor }]}>
             PrestaTech
@@ -171,9 +171,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   splashIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: scale(100),
+    height: scale(100),
+    borderRadius: scale(50),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,

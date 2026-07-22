@@ -1,6 +1,6 @@
 import { Pressable, Text, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 
 interface DateNavigatorProps {
   selectedDate: string;
@@ -20,7 +20,7 @@ export function DateNavigator({
   return (
     <View style={[styles.dateRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Pressable onPress={() => onNavigate(-1)} hitSlop={8}>
-        <Ionicons name="chevron-back" size={20} color={colors.primary} />
+        <Ionicons name="chevron-back" size={scale(20)} color={colors.primary} />
       </Pressable>
       <Pressable onPress={onToday}>
         <Text style={[styles.dateText, { color: colors.text }]}>
@@ -28,7 +28,7 @@ export function DateNavigator({
         </Text>
       </Pressable>
       <Pressable onPress={() => onNavigate(1)} hitSlop={8}>
-        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        <Ionicons name="chevron-forward" size={scale(20)} color={colors.primary} />
       </Pressable>
     </View>
   );

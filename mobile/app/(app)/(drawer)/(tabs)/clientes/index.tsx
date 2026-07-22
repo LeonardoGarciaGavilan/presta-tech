@@ -13,7 +13,7 @@ import ScrollToTopButton from '@/components/ui/scroll-to-top';
 import SearchBar from '@/components/ui/search-bar';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 const PAGE_SIZE = 20;
@@ -63,10 +63,15 @@ export default function ClientesListScreen() {
     refetch,
   } = useClientesInfinite(search, verInactivos);
 
-  const clientes = useMemo(
-    () => data?.pages.flatMap((page) => page.data) ?? [],
-    [data],
-  );
+  const clientes = useMemo(() => {
+    const all = data?.pages.flatMap((page) => page.data) ?? [];
+    const seen = new Set<string>();
+    return all.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, [data]);
 
   const totalClientes = data?.pages[0]?.total ?? 0;
 
@@ -130,7 +135,7 @@ export default function ClientesListScreen() {
         </View>
         <View style={styles.list}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <SkeletonCard key={i} lines={3} style={{ marginBottom: 8 }} />
+            <SkeletonCard key={i} lines={3} style={{ marginBottom: scale(8) }} />
           ))}
         </View>
       </View>
@@ -193,7 +198,7 @@ export default function ClientesListScreen() {
         >
           <Ionicons
             name={verInactivos ? 'checkmark-circle' : 'eye-off-outline'}
-            size={14}
+            size={scale(14)}
             color={verInactivos ? colors.secondary : colors.primary}
           />
           <Text
@@ -331,7 +336,7 @@ export default function ClientesListScreen() {
         accessibilityRole="button"
         accessibilityLabel="Crear cliente"
       >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
+        <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
       </Pressable>
     </View>
   );
@@ -362,12 +367,12 @@ const styles = StyleSheet.create({
   },
   filterCount: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   filterToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderRadius: BorderRadius.sm,
@@ -379,7 +384,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: Spacing.md,
-    paddingBottom: 100,
+    paddingBottom: scale(100),
   },
   separator: {},
   footerLoader: {
@@ -393,9 +398,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,

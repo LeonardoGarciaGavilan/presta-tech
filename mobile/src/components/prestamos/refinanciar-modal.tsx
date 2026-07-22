@@ -1,67 +1,74 @@
 import { useCallback, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRefinanciarPrestamo } from '@/hooks/use-prestamos';
 import { AppButton } from '@/components/ui/app-button';
+import { AppInput } from '@/components/ui/app-input';
 import { useTheme } from '@/components/ui/theme-provider';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { useToast } from '@/components/ui/toast';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 
-const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: any) => {
-  const { colorScheme, colors } = useTheme();
+interface RefinanciarModalProps {
+  visible: boolean;
+  onClose: () => void;
+  prestamoId: string;
+  onSuccess?: () => void;
+}
+
+const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: RefinanciarModalProps) => {
+  const { colors } = useTheme();
+  const { showToast } = useToast();
   const refinanciarMutation = useRefinanciarPrestamo();
   const [nuevasCuotas, setNuevasCuotas] = useState('');
   const [nuevaTasa, setNuevaTasa] = useState('');
 
   const handleRefinanciar = useCallback(async () => {
-    if (!nuevasCuotas || !nuevaTasa) return;
+    const cuotasNum = parseInt(nuevasCuotas, 10);
+    const tasaNum = parseFloat(nuevaTasa);
+    if (!cuotasNum || cuotasNum <= 0 || !tasaNum || tasaNum <= 0) {
+      showToast('Ingresa valores válidos', 'error');
+      return;
+    }
     try {
       await refinanciarMutation.mutateAsync({
         id: prestamoId,
-        data: { nuevasCuotas: parseInt(nuevasCuotas), nuevaTasa: parseFloat(nuevaTasa) },
+        data: { nuevasCuotas: cuotasNum, nuevaTasa: tasaNum },
       });
       onSuccess?.();
       onClose();
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Error al refinanciar');
+      showToast(err?.message || 'Error al refinanciar', 'error');
     }
-  }, [nuevasCuotas, nuevaTasa, prestamoId, refinanciarMutation, onSuccess, onClose]);
+  }, [nuevasCuotas, nuevaTasa, prestamoId, refinanciarMutation, onSuccess, onClose, showToast]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={refiStyles.overlay}
+        style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={[refiStyles.overlay, { backgroundColor: colors.overlay }]}>
-          <View style={[refiStyles.card, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[refiStyles.headerBar, { backgroundColor: '#6D28D9' }]}>
-              <Ionicons name="refresh" size={22} color="#FFFFFF" />
-              <Text style={refiStyles.title}>Refinanciar Préstamo</Text>
+        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
+            <View style={[styles.headerBar, { backgroundColor: colors.primary }]}>
+              <Ionicons name="refresh" size={scale(22)} color="#FFFFFF" />
+              <Text style={[styles.title, { color: '#FFFFFF' }]}>Refinanciar Préstamo</Text>
             </View>
-            <ScrollView style={refiStyles.body} keyboardShouldPersistTaps="handled">
-              <Text style={[refiStyles.label, { color: colors.textSecondary }]}>
-                Nuevo número de cuotas
-              </Text>
-              <TextInput
+            <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
+              <AppInput
+                label="Nuevo número de cuotas"
+                placeholder="Ej: 12"
+                keyboardType="numeric"
                 value={nuevasCuotas}
                 onChangeText={setNuevasCuotas}
-                placeholder="Ej: 12"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="numeric"
-                style={[refiStyles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
               />
-              <Text style={[refiStyles.label, { color: colors.textSecondary }]}>
-                Nueva tasa de interés (%)
-              </Text>
-              <TextInput
+              <AppInput
+                label="Nueva tasa de interés (%)"
+                placeholder="Ej: 3.5"
+                keyboardType="decimal-pad"
                 value={nuevaTasa}
                 onChangeText={setNuevaTasa}
-                placeholder="Ej: 3.5"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="decimal-pad"
-                style={[refiStyles.input, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
               />
-              <View style={refiStyles.actions}>
+              <View style={styles.actions}>
                 <AppButton title="Cancelar" onPress={onClose} variant="ghost" style={{ flex: 1 }} />
                 <AppButton
                   title="Refinanciar"
@@ -79,7 +86,7 @@ const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: any) => {
   );
 };
 
-const refiStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'center',
@@ -98,16 +105,8 @@ const refiStyles = StyleSheet.create({
     gap: Spacing.sm,
     padding: Spacing.md,
   },
-  title: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.bold },
+  title: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   body: { padding: Spacing.md },
-  label: { fontSize: FontSize.sm, marginBottom: Spacing.xs },
-  input: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.md,
-  },
   actions: { flexDirection: 'row', gap: Spacing.sm },
 });
 

@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import type { Cliente } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -24,7 +24,7 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 
   return (
     <View style={styles.infoRow}>
-      <Ionicons name={icon} size={15} color={colors.textTertiary} />
+      <Ionicons name={icon} size={scale(15)} color={colors.textTertiary} />
       <View style={styles.infoContent}>
         <Text style={[styles.label, { color: colors.textTertiary }]}>
           {label}
@@ -53,7 +53,7 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
         ]}
       >
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          <Ionicons name="person-outline" size={16} color={colors.primary} />{' '}
+          <Ionicons name="person-outline" size={scale(16)} color={colors.primary} />{' '}
           Información General
         </Text>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -72,7 +72,7 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
         ]}
       >
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          <Ionicons name="call-outline" size={16} color={colors.primary} />{' '}
+          <Ionicons name="call-outline" size={scale(16)} color={colors.primary} />{' '}
           Contacto
         </Text>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -91,7 +91,7 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
         ]}
       >
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          <Ionicons name="location-outline" size={16} color={colors.primary} />{' '}
+          <Ionicons name="location-outline" size={scale(16)} color={colors.primary} />{' '}
           Dirección
         </Text>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -110,7 +110,7 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
           ]}
         >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            <Ionicons name="briefcase-outline" size={16} color={colors.primary} />{' '}
+            <Ionicons name="briefcase-outline" size={scale(16)} color={colors.primary} />{' '}
             Laboral
           </Text>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -132,7 +132,7 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
           ]}
         >
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            <Ionicons name="document-text-outline" size={16} color={colors.primary} />{' '}
+            <Ionicons name="document-text-outline" size={scale(16)} color={colors.primary} />{' '}
             Observaciones
           </Text>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   divider: {
-    height: 1,
+    height: scale(1),
     marginBottom: Spacing.sm,
   },
   infoRow: {
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FontSize.xs,
-    marginBottom: 1,
+    marginBottom: scale(1),
   },
   value: {
     fontSize: FontSize.md,
@@ -183,6 +183,6 @@ const styles = StyleSheet.create({
   },
   observations: {
     fontSize: FontSize.sm,
-    lineHeight: 20,
+    lineHeight: scale(20),
   },
 });

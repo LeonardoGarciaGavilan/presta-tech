@@ -10,7 +10,7 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import { usePrestamos, usePrestamo } from '@/hooks/use-prestamos';
 import { useCajaActiva } from '@/hooks/use-caja';
-import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatCedula } from '@/utils/formatters';
 import type { Prestamo } from '@/types/prestamo.types';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -42,7 +42,7 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
     return (
       <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={styles.centerContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+          <Ionicons name="alert-circle-outline" size={scale(48)} color={colors.error} />
           <Text style={[styles.centerTitle, { color: colors.text }]}>Préstamo no encontrado</Text>
           <AppButton title="Volver" onPress={() => router.back()} variant="ghost" />
         </View>
@@ -54,7 +54,7 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
     return (
       <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={styles.centerContainer}>
-          <Ionicons name="lock-closed-outline" size={48} color={colors.warning} />
+          <Ionicons name="lock-closed-outline" size={scale(48)} color={colors.warning} />
           <Text style={[styles.centerTitle, { color: colors.text }]}>Caja cerrada</Text>
           <Text style={[styles.centerSubtitle, { color: colors.textTertiary }]}>
             Debes abrir la caja antes de registrar un pago
@@ -136,14 +136,14 @@ function SearchPaymentMode() {
           }}
         >
           <View style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
+            width: scale(36),
+            height: scale(36),
+            borderRadius: scale(18),
             backgroundColor: '#E0F2FE',
             justifyContent: 'center',
             alignItems: 'center',
           }}>
-            <Ionicons name="person" size={20} color={colors.primary} />
+            <Ionicons name="person" size={scale(20)} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text }}>
@@ -152,18 +152,18 @@ function SearchPaymentMode() {
             <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>
               {cliente?.cedula ? formatCedula(cliente.cedula) : '—'} · {formatCurrency(item.monto)} · {item.numeroCuotas} cuotas
             </Text>
-            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: 2 }}>
-              <Text style={{ fontSize: 10, color: colors.primary, fontWeight: FontWeight.bold }}>
+            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: scale(2) }}>
+              <Text style={{ fontSize: scale(10), color: colors.primary, fontWeight: FontWeight.bold }}>
                 Saldo: {formatCurrency(item.saldoPendiente)}
               </Text>
               {item.moraAcumulada > 0 && (
-                <Text style={{ fontSize: 10, color: colors.error, fontWeight: FontWeight.bold }}>
+                <Text style={{ fontSize: scale(10), color: colors.error, fontWeight: FontWeight.bold }}>
                   Mora: {formatCurrency(item.moraAcumulada)}
                 </Text>
               )}
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+          <Ionicons name="chevron-forward" size={scale(16)} color={colors.textTertiary} />
         </Pressable>
       );
     },
@@ -213,7 +213,7 @@ function SearchPaymentMode() {
               backgroundColor: colors.surfaceElevated,
               paddingHorizontal: Spacing.md,
             }}>
-              <Ionicons name="search" size={18} color={colors.textTertiary} />
+              <Ionicons name="search" size={scale(18)} color={colors.textTertiary} />
               <TextInput
                 value={search}
                 onChangeText={handleSearch}
@@ -225,7 +225,7 @@ function SearchPaymentMode() {
               />
               {search ? (
                 <Pressable onPress={() => { setSearch(''); setDebouncedSearch(''); }} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+                  <Ionicons name="close-circle" size={scale(18)} color={colors.textTertiary} />
                 </Pressable>
               ) : null}
             </View>

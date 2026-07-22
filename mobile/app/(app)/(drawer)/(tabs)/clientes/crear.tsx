@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import { asignarRuta } from '@/api/rutas.api';
 import type { ClienteFormData } from '@/schemas/cliente.schema';
 import type { ApiError } from '@/types/api.types';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 export default function CrearClienteScreen() {
@@ -74,10 +74,10 @@ export default function CrearClienteScreen() {
   );
 
   return (
-    <ScreenContainer style={styles.flex}>
+    <ScreenContainer style={[styles.flex, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
         </Pressable>
         <View style={styles.headerInfo}>
           <Text style={[styles.title, { color: colors.text }]}>
@@ -122,6 +122,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: FontSize.sm,
-    marginTop: 2,
+    marginTop: scale(2),
   },
 });

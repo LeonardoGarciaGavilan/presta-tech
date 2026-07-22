@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -55,7 +55,7 @@ export default function ActionConfirmModal({
         <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
             <View style={[styles.headerBar, { backgroundColor: colorAccion }]}>
-              <Ionicons name={icon as IoniconsName} size={22} color="#FFFFFF" />
+              <Ionicons name={icon as IoniconsName} size={scale(22)} color="#FFFFFF" />
               <Text style={styles.title}>{titulo}</Text>
             </View>
             <ScrollView
@@ -69,21 +69,21 @@ export default function ActionConfirmModal({
                 <View style={[styles.summaryCard, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
                   {cliente && (
                     <View style={styles.summaryRow}>
-                      <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
+                      <Ionicons name="person-outline" size={scale(14)} color={colors.textSecondary} />
                       <Text style={[styles.summaryText, { color: colors.text }]}>
                         {cliente.nombre} {cliente.apellido ?? ''}
                       </Text>
                     </View>
                   )}
                   <View style={styles.summaryRow}>
-                    <Ionicons name="cash-outline" size={14} color={colors.textSecondary} />
+                    <Ionicons name="cash-outline" size={scale(14)} color={colors.textSecondary} />
                     <Text style={[styles.summaryText, { color: colors.text }]}>
                       {formatCurrency(prestamo.monto)}
                     </Text>
                   </View>
                   {prestamo.numeroCuotas && (
                     <View style={styles.summaryRow}>
-                      <Ionicons name="repeat-outline" size={14} color={colors.textSecondary} />
+                      <Ionicons name="repeat-outline" size={scale(14)} color={colors.textSecondary} />
                       <Text style={[styles.summaryText, { color: colors.text }]}>
                         {prestamo.numeroCuotas} cuotas · {prestamo.frecuenciaPago}
                       </Text>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   desc: {
     fontSize: FontSize.sm,
     marginBottom: Spacing.md,
-    lineHeight: 20,
+    lineHeight: scale(20),
   },
   motivoLabel: {
     fontSize: FontSize.sm,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     fontSize: FontSize.sm,
-    minHeight: 80,
+    minHeight: scale(80),
     textAlignVertical: 'top',
     marginBottom: Spacing.md,
   },
@@ -187,12 +187,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.sm + 2,
     marginBottom: Spacing.md,
-    gap: 6,
+    gap: scale(6),
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: scale(6),
   },
   summaryText: {
     fontSize: FontSize.sm,

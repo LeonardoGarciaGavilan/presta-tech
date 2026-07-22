@@ -9,7 +9,7 @@ import { Colors,
   FontWeight,
   Spacing,
   BorderRadius,
-  Shadows } from '@/constants/theme';
+  Shadows, scale} from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { useConfiguracion,
   useGuardarConfiguracion } from '@/hooks/use-configuracion';
@@ -128,7 +128,7 @@ export default function ConfiguracionScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.centerContent}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+          <Ionicons name="alert-circle-outline" size={scale(48)} color={colors.error} />
           <Text style={[styles.errorTitle, { color: colors.text }]}>
             Error al cargar configuración
           </Text>
@@ -157,7 +157,7 @@ export default function ConfiguracionScreen() {
               { backgroundColor: colors.infoLight, borderColor: colors.info },
             ]}
           >
-            <Ionicons name="lock-closed" size={16} color={colors.info} />
+            <Ionicons name="lock-closed" size={scale(16)} color={colors.info} />
             <Text style={[styles.readOnlyText, { color: colors.info }]}>
               Solo el administrador puede modificar la configuración
             </Text>
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     color: 'rgba(255,255,255,0.8)',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: scale(1),
     marginBottom: Spacing.md,
   },
   summaryGrid: {
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.7)',
-    marginTop: 2,
+    marginTop: scale(2),
   },
   fieldContainer: {
     marginBottom: Spacing.md,
@@ -441,15 +441,15 @@ const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
+    height: scale(48),
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
   },
   toggleDot: {
-    width: 16,
-    height: 16,
+    width: scale(16),
+    height: scale(16),
     borderRadius: 8,
   },
   toggleLabel: {

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import type { Cliente } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -76,7 +76,7 @@ export default function SearchableSelect({
             </Text>
           </View>
           <Pressable onPress={handleClear} hitSlop={8}>
-            <Ionicons name="close-circle" size={20} color={textColor} />
+            <Ionicons name="close-circle" size={scale(20)} color={textColor} />
           </Pressable>
         </View>
       </View>
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    height: 48,
+    height: scale(48),
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   suggestionSub: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   selectedItem: {
     flexDirection: 'row',
@@ -189,6 +189,6 @@ const styles = StyleSheet.create({
   },
   selectedSub: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
 });

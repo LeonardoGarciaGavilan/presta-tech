@@ -18,7 +18,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useToast } from '@/components/ui/toast';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 export default function GestionRutaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme, colors } = useTheme();
@@ -164,7 +164,7 @@ export default function GestionRutaScreen() {
             style={[styles.addBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
             onPress={() => setShowAdd(true)}
           >
-            <Ionicons name="add" size={16} color={colors.primary} />
+            <Ionicons name="add" size={scale(16)} color={colors.primary} />
             <Text style={[styles.addBtnText, { color: colors.primary }]}>Agregar</Text>
           </Pressable>
         </View>
@@ -192,7 +192,7 @@ export default function GestionRutaScreen() {
         >
           <Ionicons
             name="chevron-up"
-            size={18}
+            size={scale(18)}
             color={index === 0 ? colors.disabled : colors.primary}
           />
         </Pressable>
@@ -203,12 +203,12 @@ export default function GestionRutaScreen() {
         >
           <Ionicons
             name="chevron-down"
-            size={18}
+            size={scale(18)}
             color={index === clientes.length - 1 ? colors.disabled : colors.primary}
           />
         </Pressable>
         <Pressable onPress={() => setRemoveId(item.id)} hitSlop={8}>
-          <Ionicons name="trash-outline" size={18} color={colors.error} />
+          <Ionicons name="trash-outline" size={scale(18)} color={colors.error} />
         </Pressable>
       </View>
     </View>
@@ -249,7 +249,7 @@ export default function GestionRutaScreen() {
             <ScrollView keyboardShouldPersistTaps="handled" style={styles.addModalScroll}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Agregar Cliente</Text>
               <View style={[styles.searchInput, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Ionicons name="search" size={18} color={colors.textTertiary} />
+                <Ionicons name="search" size={scale(18)} color={colors.textTertiary} />
                 <TextInput
                   ref={addSearchRef}
                   style={[styles.searchField, { color: colors.text }]}
@@ -267,11 +267,11 @@ export default function GestionRutaScreen() {
                   style={[styles.resultRow, { borderBottomColor: colors.border }]}
                   onPress={() => handleAddCliente(item.id)}
                 >
-                  <Ionicons name="person-outline" size={18} color={colors.textSecondary} />
+                  <Ionicons name="person-outline" size={scale(18)} color={colors.textSecondary} />
                   <Text style={[styles.resultName, { color: colors.text }]}>
                     {item.nombre} {item.apellido || ''}
                   </Text>
-                  <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                  <Ionicons name="add-circle-outline" size={scale(18)} color={colors.primary} />
                 </Pressable>
               ))}
               {searching && (
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderRadius: BorderRadius.sm,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   clienteOrder: {
-    width: 24,
+    width: scale(24),
     alignItems: 'center',
   },
   orderNum: {
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   resultsList: {
-    maxHeight: 300,
+    maxHeight: scale(300),
   },
   searchStatus: {
     textAlign: 'center',

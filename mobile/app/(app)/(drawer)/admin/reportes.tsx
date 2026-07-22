@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import { useCobros, useCarteraVencida, useEstadoGeneral, useReporteCliente, useReporteCajas } from '@/hooks/use-reportes';
 import { useClientes } from '@/hooks/use-clientes';
@@ -258,13 +258,13 @@ export default function ReportesScreen() {
               onPress={() => setShowClienteModal(true)}
               style={[styles.clienteSelector, { backgroundColor: colors.background, borderColor: colors.border }]}
             >
-              <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
+              <Ionicons name="search-outline" size={scale(18)} color={colors.textTertiary} />
               <Text style={[styles.clienteSelectorText, { color: clienteSelected ? colors.text : colors.textTertiary }]}>
                 {clienteSelected ? clienteSelected.nombre : 'Buscar cliente...'}
               </Text>
               {clienteSelected && (
                 <TouchableOpacity onPress={() => setClienteSelected(null)} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+                  <Ionicons name="close-circle" size={scale(18)} color={colors.textTertiary} />
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
@@ -588,7 +588,7 @@ export default function ReportesScreen() {
               onPress={handleGenerate}
               style={[styles.generateBtn, { backgroundColor: colors.primary }]}
             >
-              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="refresh-outline" size={scale(18)} color="#FFFFFF" />
               <Text style={styles.generateBtnText}>Generar reporte</Text>
             </TouchableOpacity>
 
@@ -597,14 +597,14 @@ export default function ReportesScreen() {
               <View>{renderData()}</View>
             ) : shouldFetch && !loading && !currentData ? (
               <View style={styles.emptyState}>
-                <Ionicons name="alert-circle-outline" size={48} color={colors.textTertiary} />
+                <Ionicons name="alert-circle-outline" size={scale(48)} color={colors.textTertiary} />
                 <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
                   No se encontraron datos
                 </Text>
               </View>
             ) : !shouldFetch ? (
               <View style={styles.emptyState}>
-                <Ionicons name="bar-chart-outline" size={48} color={colors.textTertiary} />
+                <Ionicons name="bar-chart-outline" size={scale(48)} color={colors.textTertiary} />
                 <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
                   Selecciona filtros y genera el reporte
                 </Text>
@@ -634,9 +634,9 @@ export default function ReportesScreen() {
                   >
                     <Ionicons
                       name={t.icon}
-                      size={14}
+                      size={scale(14)}
                       color={active ? '#FFFFFF' : colors.textSecondary}
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: scale(4) }}
                     />
                     <Text
                       style={[
@@ -665,7 +665,7 @@ export default function ReportesScreen() {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Seleccionar cliente</Text>
                 <TouchableOpacity onPress={() => setShowClienteModal(false)} hitSlop={8}>
-                  <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
               <TextInput
@@ -697,7 +697,7 @@ export default function ReportesScreen() {
                         {item.cedula}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                    <Ionicons name="chevron-forward" size={scale(18)} color={colors.textTertiary} />
                   </TouchableOpacity>
                 )}
                 ListEmptyComponent={
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
+    paddingVertical: scale(8),
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     marginRight: Spacing.sm,
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
     marginBottom: Spacing.md,
@@ -756,38 +756,38 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.lg,
     marginRight: Spacing.sm,
-    minWidth: 100,
+    minWidth: scale(100),
     alignItems: 'center',
   },
   kpiValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 1 },
+  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: scale(1) },
   itemCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     padding: Spacing.sm,
     marginBottom: Spacing.xs,
   },
-  itemTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  itemTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: scale(2) },
   itemTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, flex: 1, marginRight: Spacing.xs },
-  itemSub: { fontSize: FontSize.xs, marginBottom: 4 },
-  itemMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
+  itemSub: { fontSize: FontSize.xs, marginBottom: scale(4) },
+  itemMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: scale(2) },
   itemMetaText: { fontSize: FontSize.xs },
   itemMonto: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  itemBreakdown: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, flexWrap: 'wrap' },
+  itemBreakdown: { flexDirection: 'row', alignItems: 'center', gap: scale(4), marginTop: scale(4), flexWrap: 'wrap' },
   breakdownLabel: { fontSize: FontSize.xs },
   breakdownValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginRight: Spacing.sm },
   badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(1),
     borderRadius: BorderRadius.sm,
   },
-  badgeText: { fontSize: 10, fontWeight: FontWeight.bold },
+  badgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl * 2, gap: Spacing.sm },
   emptyText: { fontSize: FontSize.sm, textAlign: 'center' },
   clienteSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.sm,
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   modalTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   searchInput: {
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
@@ -821,9 +821,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   clienteAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -833,10 +833,10 @@ const styles = StyleSheet.create({
   clienteItemCedula: { fontSize: FontSize.xs },
   pagosSection: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1 },
   pagosTitle: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginBottom: Spacing.xs },
-  pagoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: 2 },
-  pagoFecha: { fontSize: FontSize.xs, width: 80 },
+  pagoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: scale(2) },
+  pagoFecha: { fontSize: FontSize.xs, width: scale(80) },
   pagoMonto: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, flex: 1, textAlign: 'right', marginRight: Spacing.xs },
-  pagoMore: { fontSize: FontSize.xs, marginTop: 2 },
+  pagoMore: { fontSize: FontSize.xs, marginTop: scale(2) },
   usuarioRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -845,6 +845,6 @@ const styles = StyleSheet.create({
   },
   usuarioInfo: { flex: 1 },
   usuarioName: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  usuarioMeta: { fontSize: FontSize.xs, marginTop: 1 },
+  usuarioMeta: { fontSize: FontSize.xs, marginTop: scale(1) },
   usuarioTotal: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
 });

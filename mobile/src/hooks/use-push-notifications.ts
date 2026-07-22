@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useMutation } from '@tanstack/react-query';
@@ -24,10 +25,14 @@ export function usePushNotifications() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const saveTokenMutation = useMutation({
     mutationFn: async (token: string) => {
       return client.patch('/usuarios/push-token', { pushToken: token });
+    },
+    onError: (error) => {
+      console.warn('Error guardando push token:', error);
     },
   });
 
@@ -40,12 +45,34 @@ export function usePushNotifications() {
   const saveTokenRef = useRef(saveTokenMutation);
   saveTokenRef.current = saveTokenMutation;
 
+  const registerAndSaveToken = useCallback(async () => {
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        saveTokenRef.current.mutate(token);
+      }
+    } catch (error) {
+      console.warn('Error registrando push token:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAdmin) return;
 
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        saveTokenRef.current.mutate(token);
+    registerAndSaveToken();
+
+    const tokenSub = Notifications.addPushTokenListener((token) => {
+      if (token?.data) {
+        saveTokenRef.current.mutate(token.data);
+      }
+    });
+
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      const prev = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (prev.match(/inactive|background/) && nextState === 'active') {
+        registerAndSaveToken();
       }
     });
 
@@ -66,10 +93,12 @@ export function usePushNotifications() {
       });
 
     return () => {
+      tokenSub.remove();
+      appStateSub.remove();
       receivedSub.remove();
       if (responseListener.current) {
         responseListener.current.remove();
       }
     };
-  }, [isAdmin]);
+  }, [isAdmin, registerAndSaveToken]);
 }

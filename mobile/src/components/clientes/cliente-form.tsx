@@ -7,7 +7,7 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import PickerField from '@/components/ui/picker-field';
 import { clienteSchema, type ClienteFormData } from '@/schemas/cliente.schema';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { unformatIngresosInput } from '@/utils/formatters';
 import { useCedulaSignedUrl } from '@/hooks/use-clientes';
 import { useQueryClient } from '@tanstack/react-query';
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   textArea: {
-    height: 120,
+    height: scale(120),
     textAlignVertical: 'top',
   },
   spacer: {

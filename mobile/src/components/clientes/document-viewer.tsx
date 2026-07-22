@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } fr
 import { Ionicons } from '@expo/vector-icons';
 
 import { useCedulaSignedUrl } from '@/hooks/use-clientes';
-import { BorderRadius, FontSize, FontWeight, Shadows, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale} from '@/constants/theme';
 import type { Cliente } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -42,7 +42,7 @@ function CedulaImage({
           <ActivityIndicator size="small" color={colors.primary} />
         </View>
         <View style={styles.docLabel}>
-          <Ionicons name={iconName} size={14} color={colors.textTertiary} />
+          <Ionicons name={iconName} size={scale(14)} color={colors.textTertiary} />
           <Text style={[styles.docLabelText, { color: colors.textTertiary }]}>
             {label}
           </Text>
@@ -62,7 +62,7 @@ function CedulaImage({
         <View style={styles.docPlaceholder}>
           <Ionicons
             name="image-outline"
-            size={32}
+            size={scale(32)}
             color={colors.textTertiary}
           />
           <Text style={[styles.docError, { color: colors.error }]}>
@@ -70,7 +70,7 @@ function CedulaImage({
           </Text>
           {onRetry && (
             <Pressable onPress={onRetry} style={styles.retryBtn}>
-              <Ionicons name="refresh" size={16} color={colors.primary} />
+              <Ionicons name="refresh" size={scale(16)} color={colors.primary} />
               <Text style={[styles.retryText, { color: colors.primary }]}>
                 Reintentar
               </Text>
@@ -78,7 +78,7 @@ function CedulaImage({
           )}
         </View>
         <View style={styles.docLabel}>
-          <Ionicons name={iconName} size={14} color={colors.textTertiary} />
+          <Ionicons name={iconName} size={scale(14)} color={colors.textTertiary} />
           <Text style={[styles.docLabelText, { color: colors.textTertiary }]}>
             {label}
           </Text>
@@ -101,7 +101,7 @@ function CedulaImage({
         resizeMode="cover"
       />
       <View style={styles.docLabel}>
-        <Ionicons name={iconName} size={14} color={colors.primary} />
+        <Ionicons name={iconName} size={scale(14)} color={colors.primary} />
         <Text style={[styles.docLabelText, { color: colors.text }]}>
           {label}
         </Text>
@@ -143,7 +143,7 @@ export default function DocumentViewer({ cliente }: DocumentViewerProps) {
         onPress={() => setIsExpanded((prev) => !prev)}
       >
         <View style={styles.headerLeft}>
-          <Ionicons name="id-card-outline" size={18} color={colors.text} />
+          <Ionicons name="id-card-outline" size={scale(18)} color={colors.text} />
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Documentos
           </Text>
@@ -160,7 +160,7 @@ export default function DocumentViewer({ cliente }: DocumentViewerProps) {
         </View>
         <Ionicons
           name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
+          size={scale(20)}
           color={colors.textTertiary}
         />
       </Pressable>
@@ -222,7 +222,7 @@ export default function DocumentViewer({ cliente }: DocumentViewerProps) {
               onPress={() => setSelectedImage(null)}
               style={styles.closeButton}
             >
-              <Ionicons name="close-circle" size={32} color="#FFFFFF" />
+              <Ionicons name="close-circle" size={scale(32)} color="#FFFFFF" />
             </Pressable>
           </Pressable>
         </Pressable>
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   },
   badge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 1,
+    paddingVertical: scale(1),
     borderRadius: BorderRadius.sm,
   },
   badgeText: {
@@ -277,21 +277,21 @@ const styles = StyleSheet.create({
   },
   docImage: {
     width: '100%',
-    height: 140,
+    height: scale(140),
   },
   docPlaceholder: {
-    height: 140,
+    height: scale(140),
     justifyContent: 'center',
     alignItems: 'center',
   },
   docError: {
     fontSize: FontSize.xs,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     marginTop: Spacing.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   docLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     padding: Spacing.sm,
   },
   docLabelText: {
@@ -329,6 +329,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -40,
     right: 0,
-    padding: 4,
+    padding: scale(4),
   },
 });

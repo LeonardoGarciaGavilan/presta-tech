@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import { useEmpleados,
   useEmpleadosResumen,
   useCrearEmpleado,
@@ -335,7 +335,7 @@ export default function EmpleadosScreen() {
               onPress={() => setTab(t.key)}
               style={[styles.tab, active && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
             >
-              <Ionicons name={t.icon} size={16} color={active ? colors.primary : colors.textTertiary} />
+              <Ionicons name={t.icon} size={scale(16)} color={active ? colors.primary : colors.textTertiary} />
               <Text style={[styles.tabLabel, { color: active ? colors.primary : colors.textTertiary }]}>
                 {t.label}
               </Text>
@@ -373,7 +373,7 @@ export default function EmpleadosScreen() {
         </View>
       </View>
       <TouchableOpacity onPress={() => setToggleTarget(item)} hitSlop={8} style={styles.cardAction}>
-        <Ionicons name={item.activo ? 'close-circle-outline' : 'checkmark-circle-outline'} size={20} color={item.activo ? colors.error : colors.success} />
+        <Ionicons name={item.activo ? 'close-circle-outline' : 'checkmark-circle-outline'} size={scale(20)} color={item.activo ? colors.error : colors.success} />
       </TouchableOpacity>
     </TouchableOpacity>
   ), [colors]);
@@ -389,7 +389,7 @@ export default function EmpleadosScreen() {
         ListHeaderComponent={
           <View>
             <TouchableOpacity onPress={openCreate} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
-              <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="person-add-outline" size={scale(18)} color="#FFFFFF" />
               <Text style={styles.actionBtnText}>Nuevo empleado</Text>
             </TouchableOpacity>
             <View style={styles.statsGrid}>
@@ -422,10 +422,10 @@ export default function EmpleadosScreen() {
               </View>
             )}
             <View style={[styles.searchInput, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-              <Ionicons name="search" size={16} color={colors.textTertiary} />
+              <Ionicons name="search" size={scale(16)} color={colors.textTertiary} />
               <TextInput style={[styles.searchField, { color: colors.text }]} placeholder="Buscar..." placeholderTextColor={colors.textTertiary}
                 value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} />
-              {search ? <TouchableOpacity onPress={() => setSearch('')} hitSlop={6}><Ionicons name="close-circle" size={16} color={colors.textTertiary} /></TouchableOpacity> : null}
+              {search ? <TouchableOpacity onPress={() => setSearch('')} hitSlop={6}><Ionicons name="close-circle" size={scale(16)} color={colors.textTertiary} /></TouchableOpacity> : null}
             </View>
             <View style={styles.filterRow}>
               <TouchableOpacity onPress={() => setMostrarInactivos(false)}
@@ -442,7 +442,7 @@ export default function EmpleadosScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="people-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>{search ? 'No se encontraron empleados' : 'No hay empleados registrados'}</Text>
           </View>
         }
@@ -466,22 +466,22 @@ export default function EmpleadosScreen() {
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{emp.nombre} {emp.apellido}</Text>
           <Text style={[styles.cardSub, { color: colors.textSecondary }]}>{emp.cargo}</Text>
           {estado && (
-            <View style={[styles.badge, { backgroundColor: ec + '18', alignSelf: 'flex-start', marginTop: 2 }]}>
+            <View style={[styles.badge, { backgroundColor: ec + '18', alignSelf: 'flex-start', marginTop: scale(2) }]}>
               <View style={[styles.dot, { backgroundColor: ec }]} />
               <Text style={[styles.badgeText, { color: ec }]}>{el}</Text>
             </View>
           )}
-          {!estado && <Text style={[styles.cardMeta, { color: colors.textTertiary, marginTop: 2 }]}>Sin registro</Text>}
+          {!estado && <Text style={[styles.cardMeta, { color: colors.textTertiary, marginTop: scale(2) }]}>Sin registro</Text>}
         </View>
         <View style={styles.asiQuick}>
           <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'PRESENTE')} style={[styles.asiBtn, { backgroundColor: '#16A34A18' }]}>
-            <Ionicons name="checkmark" size={18} color="#16A34A" />
+            <Ionicons name="checkmark" size={scale(18)} color="#16A34A" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'AUSENTE')} style={[styles.asiBtn, { backgroundColor: '#DC262618' }]}>
-            <Ionicons name="close" size={18} color="#DC2626" />
+            <Ionicons name="close" size={scale(18)} color="#DC2626" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'TARDANZA')} style={[styles.asiBtn, { backgroundColor: '#D9770618' }]}>
-            <Ionicons name="time-outline" size={18} color="#D97706" />
+            <Ionicons name="time-outline" size={scale(18)} color="#D97706" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => {
             setAsiDetalleTarget(emp.id);
@@ -492,7 +492,7 @@ export default function EmpleadosScreen() {
               observacion: asi?.observacion ?? '',
             });
           }} hitSlop={6}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={colors.textTertiary} />
+            <Ionicons name="ellipsis-horizontal" size={scale(20)} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -540,7 +540,7 @@ export default function EmpleadosScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="calendar-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No hay empleados activos</Text>
           </View>
         }
@@ -581,7 +581,7 @@ export default function EmpleadosScreen() {
           <View>
             {empleados && empleados.length > 0 && (
               <TouchableOpacity onPress={openPagoForm} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
-                <Ionicons name="cash-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="cash-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Registrar pago</Text>
               </TouchableOpacity>
             )}
@@ -604,7 +604,7 @@ export default function EmpleadosScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="cash-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="cash-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No hay pagos registrados</Text>
           </View>
         }
@@ -631,7 +631,7 @@ export default function EmpleadosScreen() {
             )}
             {descEmpId ? (
               <TouchableOpacity onPress={openDescForm} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
-                <Ionicons name="pricetag-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="pricetag-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Nuevo descuento</Text>
               </TouchableOpacity>
             ) : null}
@@ -660,7 +660,7 @@ export default function EmpleadosScreen() {
             </View>
             {!item.aplicado && (
               <TouchableOpacity onPress={() => setDeleteDescTarget(item.id)} hitSlop={8}>
-                <Ionicons name="trash-outline" size={18} color={colors.error} />
+                <Ionicons name="trash-outline" size={scale(18)} color={colors.error} />
               </TouchableOpacity>
             )}
           </View>
@@ -668,7 +668,7 @@ export default function EmpleadosScreen() {
         ListEmptyComponent={
           descEmpId ? (
             <View style={styles.emptyState}>
-              <Ionicons name="pricetag-outline" size={48} color={colors.textTertiary} />
+              <Ionicons name="pricetag-outline" size={scale(48)} color={colors.textTertiary} />
               <Text style={[styles.emptyText, { color: colors.textTertiary }]}>Sin descuentos pendientes</Text>
             </View>
           ) : null
@@ -694,7 +694,7 @@ export default function EmpleadosScreen() {
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>{isEditing ? 'Editar empleado' : 'Nuevo empleado'}</Text>
-                <TouchableOpacity onPress={closeForm} hitSlop={8}><Ionicons name="close" size={24} color={colors.textTertiary} /></TouchableOpacity>
+                <TouchableOpacity onPress={closeForm} hitSlop={8}><Ionicons name="close" size={scale(24)} color={colors.textTertiary} /></TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 <View style={styles.formRow}>
@@ -732,7 +732,7 @@ export default function EmpleadosScreen() {
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>Registrar asistencia</Text>
-                <TouchableOpacity onPress={() => setAsiDetalleTarget(null)} hitSlop={8}><Ionicons name="close" size={24} color={colors.textTertiary} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => setAsiDetalleTarget(null)} hitSlop={8}><Ionicons name="close" size={scale(24)} color={colors.textTertiary} /></TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 <Text style={styles.fieldLabel}>Estado</Text>
@@ -766,7 +766,7 @@ export default function EmpleadosScreen() {
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>Registrar pago</Text>
-                <TouchableOpacity onPress={() => setShowPagoForm(false)} hitSlop={8}><Ionicons name="close" size={24} color={colors.textTertiary} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowPagoForm(false)} hitSlop={8}><Ionicons name="close" size={scale(24)} color={colors.textTertiary} /></TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {empleados && (
@@ -801,7 +801,7 @@ export default function EmpleadosScreen() {
                         <TouchableOpacity key={d.id} onPress={() => setPagoForm((p) => ({
                           ...p, descuentoIds: sel ? p.descuentoIds.filter((id) => id !== d.id) : [...p.descuentoIds, d.id],
                         }))} style={[styles.pagoDescItem, { backgroundColor: sel ? colors.primaryLight : colors.surface, borderColor: colors.border }]}>
-                          <Ionicons name={sel ? 'checkbox' : 'square-outline'} size={20} color={sel ? colors.primary : colors.textTertiary} />
+                          <Ionicons name={sel ? 'checkbox' : 'square-outline'} size={scale(20)} color={sel ? colors.primary : colors.textTertiary} />
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.cardSub, { color: colors.text }]}>{d.descripcion}</Text>
                             <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>{TIPO_DESC_LABELS[d.tipo]} · {formatFullCurrency(d.monto)}</Text>
@@ -830,7 +830,7 @@ export default function EmpleadosScreen() {
             <Pressable style={[styles.sheet, { backgroundColor: colors.surfaceElevated }]}>
               <View style={styles.sheetHeader}>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>Nuevo descuento</Text>
-                <TouchableOpacity onPress={() => setShowDescForm(false)} hitSlop={8}><Ionicons name="close" size={24} color={colors.textTertiary} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowDescForm(false)} hitSlop={8}><Ionicons name="close" size={scale(24)} color={colors.textTertiary} /></TouchableOpacity>
               </View>
               <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {empleados && (
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Action button
-  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 44, borderRadius: BorderRadius.md, gap: Spacing.sm, marginBottom: Spacing.md, ...Shadows.sm },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: scale(44), borderRadius: BorderRadius.md, gap: Spacing.sm, marginBottom: Spacing.md, ...Shadows.sm },
   actionBtnText: { color: '#FFFFFF', fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
 
   // Stats
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
   hoyBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Search + filter
-  searchInput: { flexDirection: 'row', alignItems: 'center', height: 40, borderWidth: 1, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
+  searchInput: { flexDirection: 'row', alignItems: 'center', height: scale(40), borderWidth: 1, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
   searchField: { flex: 1, fontSize: FontSize.sm, paddingVertical: 0 },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   filterChip: { paddingHorizontal: Spacing.md, paddingVertical: 5, borderRadius: BorderRadius.full, borderWidth: 1 },
@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
 
   // Card
   card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.sm, borderRadius: BorderRadius.md, borderWidth: 1, marginBottom: Spacing.xs },
-  avatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  avatar: { width: scale(44), height: scale(44), borderRadius: scale(22), justifyContent: 'center', alignItems: 'center' },
   avatarText: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
   cardInfo: { flex: 1 },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 1 },
@@ -928,12 +928,12 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: FontSize.xs },
   cardAction: { padding: Spacing.xs },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.sm },
-  dot: { width: 6, height: 6, borderRadius: 3 },
+  dot: { width: scale(6), height: scale(6), borderRadius: scale(3) },
   badgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
 
   // Asistencia
   asiHeader: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm, marginBottom: Spacing.sm },
-  asiHoyBtn: { height: 48, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  asiHoyBtn: { height: scale(48), paddingHorizontal: Spacing.md, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
   asiHoyText: { color: '#FFFFFF', fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   asiStats: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   asiStat: { flex: 1, borderRadius: BorderRadius.md, padding: Spacing.sm, alignItems: 'center' },
@@ -941,7 +941,7 @@ const styles = StyleSheet.create({
   asiStatLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 1 },
   asiSubtitle: { fontSize: FontSize.xs, marginBottom: Spacing.sm },
   asiQuick: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  asiBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  asiBtn: { width: scale(32), height: scale(32), borderRadius: scale(16), justifyContent: 'center', alignItems: 'center' },
   asiEstadoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.md },
   asiEstadoBtn: { paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, borderWidth: 1 },
   asiEstadoText: { fontSize: FontSize.xs },

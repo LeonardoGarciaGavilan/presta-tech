@@ -2,7 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { ProximoCobro, Today } from '@/types/dashboard.types';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -21,7 +21,7 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
           Cobros de hoy
         </Text>
         <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="checkmark-circle" size={32} color={colors.success} />
+          <Ionicons name="checkmark-circle" size={scale(32)} color={colors.success} />
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             No hay cobros pendientes hoy
           </Text>
@@ -59,14 +59,14 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
               <View style={styles.itemMeta}>
                 {cobro.telefono && (
                   <View style={styles.metaRow}>
-                    <Ionicons name="call-outline" size={12} color={colors.textTertiary} />
+                    <Ionicons name="call-outline" size={scale(12)} color={colors.textTertiary} />
                     <Text style={[styles.metaText, { color: colors.textTertiary }]}>
                       {cobro.telefono}
                     </Text>
                   </View>
                 )}
                 <View style={styles.metaRow}>
-                  <Ionicons name="receipt-outline" size={12} color={colors.textTertiary} />
+                  <Ionicons name="receipt-outline" size={scale(12)} color={colors.textTertiary} />
                   <Text style={[styles.metaText, { color: colors.textTertiary }]}>
                     Cuota #{cobro.numero}
                   </Text>
@@ -95,7 +95,7 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
         <Text style={[styles.verTodosText, { color: colors.primary }]}>
           Ver todos los cobros
         </Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+        <Ionicons name="chevron-forward" size={scale(16)} color={colors.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     fontSize: FontSize.sm,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   listCard: {
     borderRadius: BorderRadius.lg,
@@ -139,12 +139,12 @@ const styles = StyleSheet.create({
   itemMeta: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
   },
   metaText: {
     fontSize: FontSize.xs,
@@ -159,13 +159,13 @@ const styles = StyleSheet.create({
   mora: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   verTodos: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingVertical: Spacing.md,
     marginTop: Spacing.sm,
     borderWidth: 1,

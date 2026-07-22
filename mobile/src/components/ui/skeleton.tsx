@@ -8,7 +8,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-import { BorderRadius } from '@/constants/theme';
+import { BorderRadius, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface SkeletonProps {
@@ -66,18 +66,18 @@ export function SkeletonCard({
   return (
     <View style={[styles.card, style]}>
       <View style={styles.cardHeader}>
-        <Skeleton width={40} height={40} borderRadius={BorderRadius.full} />
+        <Skeleton width={scale(40)} height={scale(40)} borderRadius={BorderRadius.full} />
         <View style={styles.cardHeaderText}>
-          <Skeleton width="60%" height={16} />
-          <Skeleton width="40%" height={12} style={{ marginTop: 4 }} />
+          <Skeleton width="60%" height={scale(16)} />
+          <Skeleton width="40%" height={scale(12)} style={{ marginTop: scale(4) }} />
         </View>
       </View>
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
           key={i}
           width={`${Math.max(50, 100 - i * 15)}%`}
-          height={12}
-          style={{ marginTop: 8 }}
+          height={scale(12)}
+          style={{ marginTop: scale(8) }}
         />
       ))}
     </View>
@@ -89,9 +89,9 @@ export function SkeletonKPIGrid() {
     <View style={styles.kpiGrid}>
       {[1, 2, 3, 4].map((i) => (
         <View key={i} style={styles.kpiItem}>
-          <Skeleton width={36} height={36} borderRadius={BorderRadius.md} />
-          <Skeleton width="70%" height={24} style={{ marginTop: 8 }} />
-          <Skeleton width="50%" height={12} style={{ marginTop: 4 }} />
+          <Skeleton width={scale(36)} height={scale(36)} borderRadius={BorderRadius.md} />
+          <Skeleton width="70%" height={scale(24)} style={{ marginTop: scale(8) }} />
+          <Skeleton width="50%" height={scale(12)} style={{ marginTop: scale(4) }} />
         </View>
       ))}
     </View>
@@ -101,26 +101,26 @@ export function SkeletonKPIGrid() {
 const styles = StyleSheet.create({
   skeleton: {},
   card: {
-    padding: 16,
+    padding: scale(16),
     borderRadius: BorderRadius.lg,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   cardHeaderText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: scale(12),
   },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: scale(12),
   },
   kpiItem: {
     width: '47%',
-    padding: 16,
+    padding: scale(16),
     borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },

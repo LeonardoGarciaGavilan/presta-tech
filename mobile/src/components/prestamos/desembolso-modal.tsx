@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, Te
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 
 const FREQ_LABEL: Record<string, string> = {
@@ -50,9 +50,9 @@ export default function DesembolsoModal({
       >
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[styles.modalHeaderBar, { backgroundColor: '#1A56DB' }]}>
-              <Ionicons name="cash" size={24} color="#FFFFFF" />
-              <Text style={styles.modalTitle}>Desembolsar Préstamo</Text>
+            <View style={[styles.modalHeaderBar, { backgroundColor: colors.primary }]}>
+              <Ionicons name="cash" size={scale(24)} color="#FFFFFF" />
+              <Text style={[styles.modalTitle, { color: '#FFFFFF' }]}>Desembolsar Préstamo</Text>
             </View>
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
@@ -61,8 +61,8 @@ export default function DesembolsoModal({
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
                 Cuotas: {numeroCuotas} · {tasaInteres > 0 ? `${tasaInteres}% ${FREQ_LABEL[frecuenciaPago] || frecuenciaPago}` : 'Cuota fija'}
               </Text>
-              <View style={[styles.modalWarning, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                <Text style={{ color: '#92400E', fontSize: FontSize.xs }}>
+              <View style={[styles.modalWarning, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
+                <Text style={{ color: colors.warning, fontSize: FontSize.xs }}>
                   El monto saldrá de tu caja. Asegúrate de tener tu caja abierta antes de continuar.
                 </Text>
               </View>
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   confirmInput: {
-    height: 48,
+    height: scale(48),
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,

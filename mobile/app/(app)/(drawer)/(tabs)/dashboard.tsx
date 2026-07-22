@@ -10,6 +10,7 @@ import { QuickActions } from '@/components/dashboard/quick-actions';
 import { useDashboardMobile } from '@/hooks/use-dashboard';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/components/ui/theme-provider';
+import { scale } from '@/constants/theme';
 
 export default function DashboardScreen() {
   const { colorScheme, colors } = useTheme();
@@ -23,13 +24,13 @@ export default function DashboardScreen() {
           <View style={styles.heroSkeleton}>
             <Skeleton width="60%" height={28} />
             <Skeleton width="40%" height={16} style={{ marginTop: 8 }} />
-            <Skeleton width="100%" height={80} style={{ marginTop: 16, borderRadius: 16 }} />
+            <Skeleton width="100%" height={80} style={{ marginTop: scale(16), borderRadius: scale(16) }} />
           </View>
           <SkeletonKPIGrid />
           <View style={styles.listSkeleton}>
             <Skeleton width="50%" height={20} />
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} width="100%" height={60} style={{ marginTop: 8, borderRadius: 12 }} />
+              <Skeleton key={i} width="100%" height={60} style={{ marginTop: scale(8), borderRadius: scale(12) }} />
             ))}
           </View>
         </ScrollView>
@@ -87,15 +88,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: scale(32),
   },
   heroSkeleton: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: scale(16),
+    paddingTop: scale(16),
+    paddingBottom: scale(8),
   },
   listSkeleton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
   },
 });

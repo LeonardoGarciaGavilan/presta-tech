@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppButton } from '@/components/ui/app-button';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface EmptyStateProps {
@@ -24,7 +24,7 @@ export default function EmptyState({
 
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={64} color={colors.textTertiary} accessibilityRole="image" accessibilityLabel={title} />
+      <Ionicons name={icon} size={scale(64)} color={colors.textTertiary} accessibilityRole="image" accessibilityLabel={title} />
       <Text accessibilityRole="header" style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
       {subtitle && (
         <Text accessibilityRole="text" style={[styles.subtitle, { color: colors.textTertiary }]}>{subtitle}</Text>
@@ -54,10 +54,10 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     textAlign: 'center',
     marginTop: Spacing.sm,
-    lineHeight: 22,
+    lineHeight: scale(22),
   },
   action: {
     marginTop: Spacing.lg,
-    minWidth: 160,
+    minWidth: scale(160),
   },
 });

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sentry from '@sentry/react-native';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
 
@@ -57,7 +57,7 @@ function ErrorFallback({
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
         <View style={[styles.iconContainer, { backgroundColor: colors.errorLight }]}>
-          <Ionicons name="bug-outline" size={48} color={colors.error} />
+          <Ionicons name="bug-outline" size={scale(48)} color={colors.error} />
         </View>
 
         <Text style={[styles.title, { color: colors.text }]}>
@@ -102,9 +102,9 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
   iconContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: scale(88),
+    height: scale(88),
+    borderRadius: scale(44),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.lg,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   message: {
     fontSize: FontSize.md,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: scale(22),
     marginBottom: Spacing.lg,
   },
   errorDetails: {

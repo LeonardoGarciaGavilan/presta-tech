@@ -7,7 +7,7 @@ import { BorderRadius,
   FontSize,
   FontWeight,
   Shadows,
-  Spacing } from '@/constants/theme';
+  Spacing, scale} from '@/constants/theme';
 import { useAuditoria } from '@/hooks/use-auditoria';
 import { useEmpresas } from '@/hooks/use-empresas';
 import { useAuthStore } from '@/store/auth.store';
@@ -224,7 +224,7 @@ export default function AuditoriaScreen() {
           <View style={styles.cardTop}>
             <View style={styles.cardTopLeft}>
               <View style={[styles.tipoDot, { backgroundColor: tMeta.bg }]}>
-                <Ionicons name={tMeta.icon} size={14} color={tMeta.text} />
+                <Ionicons name={tMeta.icon} size={scale(14)} color={tMeta.text} />
               </View>
               <Text style={[styles.accion, { color: colors.text }]} numberOfLines={1}>
                 {item.accion}
@@ -333,10 +333,10 @@ export default function AuditoriaScreen() {
               >
                 <Ionicons
                   name="options-outline"
-                  size={16}
+                  size={scale(16)}
                   color={colors.textSecondary}
                 />
-                <Text style={[styles.chipText, { color: colors.textSecondary, marginLeft: 4 }]}>
+                <Text style={[styles.chipText, { color: colors.textSecondary, marginLeft: scale(4) }]}>
                   Filtros
                 </Text>
               </TouchableOpacity>
@@ -530,7 +530,7 @@ function DetalleContent({
           Detalle de Auditoría
         </Text>
         <TouchableOpacity onPress={onClose} hitSlop={8}>
-          <Ionicons name="close" size={24} color={colors.textTertiary} />
+          <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
         </TouchableOpacity>
       </View>
 
@@ -558,7 +558,7 @@ function DetalleContent({
             </Text>
             <Ionicons
               name={showExtra ? 'chevron-up' : 'chevron-down'}
-              size={14}
+              size={scale(14)}
               color={colors.primary}
             />
           </TouchableOpacity>
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 6,
+    paddingVertical: scale(6),
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   },
   filterBtn: {
     flex: 1,
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -670,13 +670,13 @@ const styles = StyleSheet.create({
   kpiScroll: { marginBottom: Spacing.sm },
   kpiScrollContent: { gap: Spacing.sm },
   kpiCard: {
-    minWidth: 80,
+    minWidth: scale(80),
     borderRadius: BorderRadius.lg,
     padding: Spacing.sm,
     alignItems: 'center',
   },
   kpiValue: { fontSize: FontSize.xl, fontWeight: FontWeight.bold },
-  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: 1 },
+  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: scale(1) },
   // result count
   resultCount: {
     fontSize: FontSize.xs,
@@ -702,8 +702,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   tipoDot: {
-    width: 28,
-    height: 28,
+    width: scale(28),
+    height: scale(28),
     borderRadius: BorderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -715,17 +715,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nivelBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
-  nivelText: { fontSize: 10, fontWeight: FontWeight.bold },
-  desc: { fontSize: FontSize.sm, marginTop: 4, marginLeft: 36 },
+  nivelText: { fontSize: scale(10), fontWeight: FontWeight.bold },
+  desc: { fontSize: FontSize.sm, marginTop: scale(4), marginLeft: scale(36) },
   cardMeta: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginTop: 4,
-    marginLeft: 36,
+    marginTop: scale(4),
+    marginLeft: scale(36),
   },
   metaText: { fontSize: FontSize.xs },
   // modal
@@ -752,24 +752,24 @@ const detalleStyles = StyleSheet.create({
   body: { padding: Spacing.lg },
   row: {
     flexDirection: 'row',
-    paddingVertical: 6,
+    paddingVertical: scale(6),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E7EB',
   },
-  label: { width: 110, fontSize: FontSize.xs, fontWeight: FontWeight.semibold, paddingTop: 2 },
+  label: { width: scale(110), fontSize: FontSize.xs, fontWeight: FontWeight.semibold, paddingTop: scale(2) },
   valueWrap: { flex: 1 },
   value: { fontSize: FontSize.sm },
   badge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
-  badgeText: { fontSize: 10, fontWeight: FontWeight.bold },
+  badgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   expandBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingVertical: Spacing.sm,
   },
   expandText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
@@ -782,11 +782,11 @@ const detalleStyles = StyleSheet.create({
   datosSection: { marginTop: Spacing.md },
   datosTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
   datosBlock: { marginBottom: Spacing.sm },
-  datosLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginBottom: 2 },
+  datosLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginBottom: scale(2) },
   closeBtn: {
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.md,
-    height: 44,
+    height: scale(44),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',

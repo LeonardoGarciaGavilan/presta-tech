@@ -3,7 +3,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface LocationViewProps {
@@ -44,7 +44,7 @@ export default function LocationView({
       ]}
     >
       <View style={styles.coordsRow}>
-        <Ionicons name="location-sharp" size={16} color={colors.primary} />
+        <Ionicons name="location-sharp" size={scale(16)} color={colors.primary} />
         <Text style={[styles.coords, { color: colors.text }]}>
           {latitud.toFixed(5)}, {longitud.toFixed(5)}
         </Text>
@@ -61,7 +61,7 @@ export default function LocationView({
             },
           ]}
         >
-          <Ionicons name="navigate" size={16} color={colors.primary} />
+          <Ionicons name="navigate" size={scale(16)} color={colors.primary} />
           <Text style={[styles.actionText, { color: colors.primary }]}>
             Google Maps
           </Text>
@@ -79,7 +79,7 @@ export default function LocationView({
         >
           <Ionicons
             name={copied ? 'checkmark' : 'copy-outline'}
-            size={16}
+            size={scale(16)}
             color={copied ? colors.success : colors.textSecondary}
           />
           <Text
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: scale(6),
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,

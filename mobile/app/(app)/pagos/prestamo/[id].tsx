@@ -7,7 +7,7 @@ import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { usePagosDePrestamo } from '@/hooks/use-pagos';
 import { usePrestamo } from '@/hooks/use-prestamos';
-import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
@@ -56,7 +56,7 @@ export default function PagosPrestamoScreen() {
         </Text>
       </View>
       {item.usuario && (
-        <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: Spacing.xs }}>
+        <Text style={{ fontSize: scale(10), color: colors.textTertiary, marginTop: Spacing.xs }}>
           Registrado por: {item.usuario.nombre}
         </Text>
       )}
@@ -140,17 +140,17 @@ const styles = {
   pagoDate: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   pagoMetodoBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   } as AppStyles,
-  pagoMetodoText: { fontSize: 10, fontWeight: FontWeight.bold },
+  pagoMetodoText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   pagoAmountsRow: {
     flexDirection: 'row',
     gap: Spacing.xs,
   } as AppStyles,
   pagoAmountItem: { flex: 1, alignItems: 'center' } as AppStyles,
-  pagoAmountLabel: { fontSize: 9 },
-  pagoAmountValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: 1 },
+  pagoAmountLabel: { fontSize: scale(9) },
+  pagoAmountValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: scale(1) },
   pagoTotalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -84,7 +84,7 @@ export default function EstadoCuentaScreen() {
         <GeneratedDate date={data.fechaGenerado} colors={colors} />
         <KpiGrid data={data} colors={colors} />
         {data.prestamos.map((p) => (
-          <PrestamoEstadoCuentaCard key={p.id} prestamo={p} colors={colors} />
+          <PrestamoEstadoCuentaCard key={p.id} prestamo={p} />
         ))}
         <View style={{ height: Spacing.xl }} />
       </ScrollView>

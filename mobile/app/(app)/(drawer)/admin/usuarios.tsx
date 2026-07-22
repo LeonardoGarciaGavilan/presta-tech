@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { useUsuarios,
   useCrearUsuario,
@@ -274,14 +274,14 @@ export default function UsuariosScreen() {
               hitSlop={8}
               style={[styles.actionBtn, { backgroundColor: colors.primaryLight }]}
             >
-              <Ionicons name="create-outline" size={18} color={colors.primary} />
+              <Ionicons name="create-outline" size={scale(18)} color={colors.primary} />
             </Pressable>
             <Pressable
               onPress={() => setResetTarget(item)}
               hitSlop={8}
               style={[styles.actionBtn, { backgroundColor: colors.warningLight }]}
             >
-              <Ionicons name="key-outline" size={18} color={colors.warning} />
+              <Ionicons name="key-outline" size={scale(18)} color={colors.warning} />
             </Pressable>
             <Pressable
               onPress={() => {
@@ -299,7 +299,7 @@ export default function UsuariosScreen() {
             >
               <Ionicons
                 name={item.activo ? 'close-outline' : 'checkmark-outline'}
-                size={18}
+                size={scale(18)}
                 color={item.activo ? colors.error : colors.success}
               />
             </Pressable>
@@ -380,7 +380,7 @@ export default function UsuariosScreen() {
 
         {usuariosFiltrados.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="people-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
               {search || filtroRol !== 'Todos' || filtroEstado !== 'Todos'
                 ? 'No hay usuarios que coincidan con los filtros'
@@ -407,14 +407,14 @@ export default function UsuariosScreen() {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Nuevo usuario</Text>
                 <TouchableOpacity onPress={closeCrear} hitSlop={8}>
-                  <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
 
               {crearResult ? (
                 <View>
                   <View style={[styles.successBox, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
-                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    <Ionicons name="checkmark-circle" size={scale(20)} color={colors.success} />
                     <Text style={[styles.successText, { color: colors.success }]}>
                       Usuario creado exitosamente
                     </Text>
@@ -461,7 +461,7 @@ export default function UsuariosScreen() {
                     searchable={false}
                   />
                   <View style={[styles.infoBox, { backgroundColor: colors.infoLight, borderColor: colors.info }]}>
-                    <Ionicons name="information-circle" size={16} color={colors.info} />
+                    <Ionicons name="information-circle" size={scale(16)} color={colors.info} />
                     <Text style={[styles.infoText, { color: colors.info }]}>
                       Se asignará una contraseña automáticamente
                     </Text>
@@ -490,7 +490,7 @@ export default function UsuariosScreen() {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>Editar usuario</Text>
                 <TouchableOpacity onPress={() => setEditUser(null)} hitSlop={8}>
-                  <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
               <ScrollView
@@ -528,7 +528,7 @@ export default function UsuariosScreen() {
                   >
                     <Ionicons
                       name={editForm.activo ? 'checkmark-circle' : 'close-circle'}
-                      size={18}
+                      size={scale(18)}
                       color={editForm.activo ? colors.success : colors.error}
                     />
                     <Text
@@ -580,7 +580,7 @@ export default function UsuariosScreen() {
             {resetResult ? (
               <View>
                 <View style={[styles.successBox, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Ionicons name="checkmark-circle" size={scale(20)} color={colors.success} />
                   <Text style={[styles.successText, { color: colors.success }]}>
                     Contraseña reseteada
                   </Text>
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   filtersSection: {
     paddingBottom: Spacing.md,
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: FontSize.sm,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   userBadges: {
     flexDirection: 'row',
@@ -713,8 +713,8 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   actionBtn: {
-    width: 34,
-    height: 34,
+    width: scale(34),
+    height: scale(34),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
   passwordText: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-    letterSpacing: 2,
+    letterSpacing: scale(2),
   },
   passwordHint: {
     fontSize: FontSize.xs,
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     textAlign: 'center',
     marginBottom: Spacing.sm,
-    lineHeight: 22,
+    lineHeight: scale(22),
   },
   confirmHint: {
     fontSize: FontSize.sm,

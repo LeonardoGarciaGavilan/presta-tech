@@ -12,7 +12,7 @@ import { AppInput } from '@/components/ui/app-input';
 import DatePickerField from '@/components/ui/date-picker-field';
 import SearchableSelect from '@/components/ui/searchable-select';
 import { useToast } from '@/components/ui/toast';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { FrecuenciaPago } from '@/types/prestamo.types';
 import type { ApiError } from '@/types/api.types';
@@ -160,7 +160,7 @@ export default function NuevoPrestamoScreen() {
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Pressable onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
           </Pressable>
           <View style={styles.headerInfo}>
             <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">Nuevo Préstamo</Text>
@@ -171,7 +171,7 @@ export default function NuevoPrestamoScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Mode selector */}
           <View style={styles.section}>
-            <View style={styles.modeToggle}>
+            <View style={[styles.modeToggle, { backgroundColor: colors.surface }]}>
               <Pressable
                 onPress={() => setModoRapido(false)}
                 style={[styles.modeBtn, !modoRapido && { backgroundColor: colors.primary }]}
@@ -179,7 +179,7 @@ export default function NuevoPrestamoScreen() {
                 accessibilityState={{ selected: !modoRapido }}
                 accessibilityLabel="Modo normal"
               >
-                <Text style={[styles.modeBtnText, !modoRapido && { color: '#FFFFFF' }]}>Normal</Text>
+                <Text style={[styles.modeBtnText, { color: !modoRapido ? '#FFFFFF' : colors.textSecondary }]}>Normal</Text>
               </Pressable>
               <Pressable
                 onPress={() => setModoRapido(true)}
@@ -188,7 +188,7 @@ export default function NuevoPrestamoScreen() {
                 accessibilityState={{ selected: modoRapido }}
                 accessibilityLabel="Modo rápido"
               >
-                <Text style={[styles.modeBtnText, modoRapido && { color: '#FFFFFF' }]}>Rápido</Text>
+                <Text style={[styles.modeBtnText, { color: modoRapido ? '#FFFFFF' : colors.textSecondary }]}>Rápido</Text>
               </Pressable>
             </View>
             <Text style={[styles.modeHint, { color: colors.textTertiary }]}>
@@ -253,17 +253,17 @@ export default function NuevoPrestamoScreen() {
                 <View style={styles.subToggle}>
                   <Pressable
                     onPress={() => setModoCalculo('PAGO')}
-                    style={[styles.subBtn, modoCalculo === 'PAGO' && { backgroundColor: colors.primary }]}
+                    style={[styles.subBtn, { borderColor: colors.border }, modoCalculo === 'PAGO' && { backgroundColor: colors.primary }]}
                   >
-                    <Text style={[styles.subBtnText, modoCalculo === 'PAGO' && { color: '#FFFFFF' }]}>
+                    <Text style={[styles.subBtnText, { color: modoCalculo === 'PAGO' ? '#FFFFFF' : colors.textSecondary }]}>
                       Pago por período
                     </Text>
                   </Pressable>
                   <Pressable
                     onPress={() => setModoCalculo('GANANCIA')}
-                    style={[styles.subBtn, modoCalculo === 'GANANCIA' && { backgroundColor: colors.primary }]}
+                    style={[styles.subBtn, { borderColor: colors.border }, modoCalculo === 'GANANCIA' && { backgroundColor: colors.primary }]}
                   >
-                    <Text style={[styles.subBtnText, modoCalculo === 'GANANCIA' && { color: '#FFFFFF' }]}>
+                    <Text style={[styles.subBtnText, { color: modoCalculo === 'GANANCIA' ? '#FFFFFF' : colors.textSecondary }]}>
                       Ganancia deseada
                     </Text>
                   </Pressable>
@@ -416,7 +416,7 @@ export default function NuevoPrestamoScreen() {
               <ResumenItem title={modoRapido ? 'Ganancia total' : 'Total intereses'} value={formatCurrency(preview.totalIntereses)} />
               <ResumenItem title={modoRapido ? 'Total a cobrar' : 'Monto total a pagar'} value={formatCurrency(preview.montoTotal)} highlight />
               <ResumenItem title={modoRapido ? `Pago ${FREQ_LABEL[frecuenciaPago]}` : 'Cuota mensual'} value={formatCurrency(preview.cuotaInicial)} />
-              <ResumenItem title="N° de cuotas" value={`${numeroCuotas} cuotas`} />
+              <ResumenItem title="N° de cuotas" value={`${modoRapido ? duracion : numeroCuotas} cuotas`} />
               {modoRapido && duracion && (
                 <ResumenItem title="Duración" value={`${duracion} ${DURACION_LABEL[frecuenciaPago]}`} />
               )}
@@ -424,8 +424,8 @@ export default function NuevoPrestamoScreen() {
               {/* Progress bar */}
               {preview.montoTotal > 0 && (
                 <View style={{ marginTop: Spacing.sm }}>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${(parseFloat(monto || '0') / preview.montoTotal) * 100}%` }]} />
+                  <View style={[styles.progressBar, { backgroundColor: colors.borderLight }]}>
+                    <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${(parseFloat(monto || '0') / preview.montoTotal) * 100}%` }]} />
                   </View>
                   <View style={styles.progressLabels}>
                     <Text style={[styles.progressLabelText, { color: colors.primary }]}>
@@ -446,7 +446,7 @@ export default function NuevoPrestamoScreen() {
                 <Text style={[styles.tablaToggleText, { color: colors.primary }]}>
                   {showTabla ? 'Ocultar' : 'Ver'} tabla de amortización
                 </Text>
-                <Ionicons name={showTabla ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+                <Ionicons name={showTabla ? 'chevron-up' : 'chevron-down'} size={scale(16)} color={colors.primary} />
               </Pressable>
 
               {showTabla && preview.cuotas && (
@@ -482,8 +482,8 @@ export default function NuevoPrestamoScreen() {
               )}
 
               {warnings.tasaAlta && (
-                <View style={[styles.warningBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                  <Text style={{ color: '#92400E', fontSize: FontSize.xs }}>{warnings.tasaAlta}</Text>
+                <View style={[styles.warningBox, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
+                  <Text style={{ color: colors.warning, fontSize: FontSize.xs }}>{warnings.tasaAlta}</Text>
                 </View>
               )}
             </View>
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: FontSize.sm,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   content: {
     padding: Spacing.md,
@@ -556,9 +556,8 @@ const styles = StyleSheet.create({
   },
   modeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
     borderRadius: BorderRadius.md,
-    padding: 2,
+    padding: scale(2),
   },
   modeBtn: {
     flex: 1,
@@ -569,7 +568,6 @@ const styles = StyleSheet.create({
   modeBtnText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: '#64748B',
   },
   modeHint: {
     fontSize: FontSize.xs,
@@ -590,13 +588,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
   },
   subBtnText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    color: '#64748B',
   },
   dualInput: {
     flexDirection: 'row',
@@ -607,7 +603,7 @@ const styles = StyleSheet.create({
   },
   dualInputText: {
     flex: 1,
-    height: 48,
+    height: scale(48),
     paddingHorizontal: Spacing.md,
     fontSize: FontSize.md,
   },
@@ -628,7 +624,7 @@ const styles = StyleSheet.create({
   calcValue: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   freqGrid: {
     flexDirection: 'row',
@@ -661,15 +657,13 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#F1F5F9',
+    height: scale(8),
     borderRadius: 4,
     overflow: 'hidden',
     flexDirection: 'row',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#1A56DB',
     borderRadius: 4,
   },
   progressLabels: {
@@ -717,12 +711,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cuotaAmtLabel: {
-    fontSize: 10,
+    fontSize: FontSize.xs,
   },
   cuotaAmtVal: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   errorText: {
     fontSize: FontSize.xs,

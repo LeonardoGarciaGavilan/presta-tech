@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { BorderRadius, Colors, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
@@ -83,19 +83,19 @@ export function AppButton({
 }: AppButtonProps) {
   const { colorScheme, colors } = useTheme();
   const isDisabled = disabled || loading;
-  const scale = useSharedValue(1);
+  const pressScale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: pressScale.value }],
   }));
 
   const handlePressIn = useCallback(() => {
-    scale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
-  }, [scale]);
+    pressScale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
+  }, [pressScale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-  }, [scale]);
+    pressScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  }, [pressScale]);
 
   return (
     <AnimatedTouchable
@@ -123,7 +123,7 @@ export function AppButton({
           {icon && (
             <Ionicons
               name={icon}
-              size={iconSize}
+              size={scale(iconSize)}
               color={getTextColor(variant, isDisabled, colors)}
               style={styles.icon}
             />
@@ -144,7 +144,7 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   button: {
-    height: 48,
+    height: scale(48),
     borderRadius: BorderRadius.md,
     flexDirection: 'row',
     justifyContent: 'center',

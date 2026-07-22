@@ -29,7 +29,7 @@ import type { ClienteFormData } from '@/schemas/cliente.schema';
 import { useAuthStore } from '@/store/auth.store';
 import type { ApiError } from '@/types/api.types';
 import type { Prestamo } from '@/types/cliente.types';
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Fonts, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -168,7 +168,7 @@ export default function ClienteDetalleScreen() {
         <View style={styles.skeletonContainer}>
           <SkeletonCard lines={2} />
           <SkeletonKPIGrid />
-          <SkeletonCard lines={5} style={{ marginTop: 16 }} />
+          <SkeletonCard lines={5} style={{ marginTop: scale(16) }} />
         </View>
       </ScreenContainer>
     );
@@ -218,7 +218,7 @@ export default function ClienteDetalleScreen() {
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Pressable onPress={goBack} hitSlop={8}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="close" size={scale(24)} color={colors.text} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
             Editar Cliente
@@ -251,7 +251,7 @@ export default function ClienteDetalleScreen() {
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Pressable onPress={goBack} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
         </Pressable>
         <View style={styles.headerInfo}>
           <Text
@@ -262,7 +262,7 @@ export default function ClienteDetalleScreen() {
           </Text>
         </View>
         <Pressable onPress={() => setIsEditing(true)} hitSlop={8}>
-          <Ionicons name="pencil" size={22} color={colors.primary} />
+          <Ionicons name="pencil" size={scale(22)} color={colors.primary} />
         </Pressable>
       </View>
 
@@ -288,7 +288,7 @@ export default function ClienteDetalleScreen() {
             <ClienteAvatar
               nombre={cliente.nombre}
               activo={cliente.activo}
-              size={56}
+              size={scale(56)}
             />
             <View style={styles.heroInfo}>
               <Text style={[styles.heroName, { color: colors.text }]}>
@@ -337,7 +337,7 @@ export default function ClienteDetalleScreen() {
                   >
                     <Ionicons
                       name="git-network-outline"
-                      size={12}
+                      size={scale(12)}
                       color={colors.route}
                     />
                     <Text
@@ -366,8 +366,8 @@ export default function ClienteDetalleScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-              <Ionicons name="flash-outline" size={16} color={colors.textSecondary} />
+            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
+              <Ionicons name="flash-outline" size={scale(16)} color={colors.textSecondary} />
               <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
                 Acciones rápidas
               </Text>
@@ -443,7 +443,7 @@ export default function ClienteDetalleScreen() {
                 )
               }
             >
-              <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+              <Ionicons name="document-text-outline" size={scale(20)} color={colors.primary} />
               <View style={styles.estadoCuentaText}>
                 <Text style={[styles.estadoCuentaTitle, { color: colors.primary }]}>
                   Estado de Cuenta
@@ -452,7 +452,7 @@ export default function ClienteDetalleScreen() {
                   Ver detalle completo de préstamos, cuotas y pagos
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              <Ionicons name="chevron-forward" size={scale(18)} color={colors.primary} />
             </Pressable>
           </View>
         )}
@@ -473,8 +473,8 @@ export default function ClienteDetalleScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-              <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
+              <Ionicons name="location-outline" size={scale(16)} color={colors.textSecondary} />
               <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
                 Ubicación
               </Text>
@@ -502,8 +502,8 @@ export default function ClienteDetalleScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-              <Ionicons name="briefcase-outline" size={16} color={colors.textSecondary} />
+            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
+              <Ionicons name="briefcase-outline" size={scale(16)} color={colors.textSecondary} />
               <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
                 Información Financiera
               </Text>
@@ -511,7 +511,7 @@ export default function ClienteDetalleScreen() {
             <View style={styles.finRow}>
               <Ionicons
                 name="trending-up-outline"
-                size={16}
+                size={scale(16)}
                 color={colors.textSecondary}
               />
               <Text style={[styles.finLabel, { color: colors.textSecondary }]}>
@@ -526,7 +526,12 @@ export default function ClienteDetalleScreen() {
 
         {/* Préstamos */}
         {prestamos.length > 0 && (
-          <View style={styles.sectionCard}>
+          <View
+            style={[
+              styles.sectionCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
             <Text
               style={[styles.sectionTitle, { color: colors.textSecondary }]}
             >
@@ -657,7 +662,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   headerSpacer: {
-    width: 32,
+    width: scale(32),
   },
   scroll: {
     flex: 1,
@@ -687,19 +692,19 @@ const styles = StyleSheet.create({
   heroBadges: {
     flexDirection: 'row',
     gap: Spacing.xs,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
   badgeDotSmall: {
-    width: 6,
-    height: 6,
+    width: scale(6),
+    height: scale(6),
     borderRadius: 3,
   },
   badgeLabel: {
@@ -708,7 +713,7 @@ const styles = StyleSheet.create({
   },
   heroSub: {
     fontSize: FontSize.xs,
-    marginTop: 4,
+    marginTop: scale(4),
   },
   sectionCard: {
     borderRadius: BorderRadius.lg,
@@ -754,7 +759,7 @@ const styles = StyleSheet.create({
   },
   garantiaId: {
     fontSize: FontSize.sm,
-    fontFamily: 'monospace',
+    fontFamily: Fonts.mono,
   },
   garantiaMonto: {
     fontSize: FontSize.sm,
@@ -777,7 +782,7 @@ const styles = StyleSheet.create({
   },
   estadoCuentaSub: {
     fontSize: FontSize.xs,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   adminActions: {
     marginTop: Spacing.md,

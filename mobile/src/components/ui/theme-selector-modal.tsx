@@ -1,7 +1,7 @@
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import type { ThemeMode } from '@/store/theme.store';
 import { useTheme } from './theme-provider';
 
@@ -47,7 +47,7 @@ export function ThemeSelectorModal({ visible, onClose }: ThemeSelectorModalProps
               >
                 <Ionicons
                   name={icon}
-                  size={22}
+                  size={scale(22)}
                   color={isSelected ? colors.primary : colors.text}
                 />
                 <Text
@@ -59,7 +59,7 @@ export function ThemeSelectorModal({ visible, onClose }: ThemeSelectorModalProps
                   {label}
                 </Text>
                 {isSelected && (
-                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                  <Ionicons name="checkmark-circle" size={scale(22)} color={colors.primary} />
                 )}
               </TouchableOpacity>
             );

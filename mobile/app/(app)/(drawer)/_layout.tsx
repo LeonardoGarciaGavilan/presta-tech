@@ -6,9 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { DrawerContentScrollView, type DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Colors, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
-import { logout } from '@/api/auth.api';
+import { logout, clearPushToken } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -35,13 +35,13 @@ function DrawerItem({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: Spacing.md,
-        paddingVertical: 14,
+        paddingVertical: scale(14),
         marginHorizontal: Spacing.sm,
         borderRadius: BorderRadius.md,
       }}
     >
       <View style={{ position: 'relative' }}>
-        <Ionicons name={icon} size={22} color={colors.textSecondary} style={{ marginRight: Spacing.md }} />
+        <Ionicons name={icon} size={scale(22)} color={colors.textSecondary} style={{ marginRight: Spacing.md }} />
         {badge != null && badge > 0 && (
           <View
             style={{
@@ -49,15 +49,15 @@ function DrawerItem({
               top: -4,
               right: -2,
               backgroundColor: colors.error,
-              borderRadius: 8,
-              minWidth: 16,
-              height: 16,
+              borderRadius: scale(8),
+              minWidth: scale(16),
+              height: scale(16),
               justifyContent: 'center',
               alignItems: 'center',
-              paddingHorizontal: 4,
+              paddingHorizontal: scale(4),
             }}
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: FontWeight.bold }}>
+            <Text style={{ color: '#FFFFFF', fontSize: scale(10), fontWeight: FontWeight.bold }}>
               {badge > 99 ? '99+' : badge}
             </Text>
           </View>
@@ -82,6 +82,11 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    try {
+      await clearPushToken();
+    } catch {
+      // ignore — token may already be null
+    }
     try {
       await logout();
     } catch {
@@ -115,9 +120,9 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
       >
         <View
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: 26,
+            width: scale(52),
+            height: scale(52),
+            borderRadius: scale(26),
             backgroundColor: colors.primary,
             justifyContent: 'center',
             alignItems: 'center',
@@ -131,7 +136,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           <Text style={{ color: colors.text, fontSize: FontSize.md, fontWeight: FontWeight.semibold }}>
             {user?.nombre || 'Usuario'}
           </Text>
-          <Text style={{ color: colors.textTertiary, fontSize: FontSize.sm, marginTop: 2 }}>
+          <Text style={{ color: colors.textTertiary, fontSize: FontSize.sm, marginTop: scale(2) }}>
             {user?.email}
           </Text>
           <View
@@ -139,7 +144,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
               marginTop: Spacing.xs,
               backgroundColor: colors.primaryLight,
               paddingHorizontal: Spacing.sm,
-              paddingVertical: 2,
+              paddingVertical: scale(2),
               borderRadius: BorderRadius.sm,
               alignSelf: 'flex-start',
             }}
@@ -178,7 +183,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
                   fontSize: FontSize.xs,
                   fontWeight: FontWeight.semibold,
                   textTransform: 'uppercase',
-                  letterSpacing: 1,
+                  letterSpacing: scale(1),
                 }}
               >
                 Administración
@@ -202,7 +207,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
       <View style={{ paddingBottom: insets.bottom + Spacing.sm }}>
         <View
           style={{
-            height: 1,
+            height: scale(1),
             backgroundColor: colors.border,
             marginHorizontal: Spacing.lg,
             marginBottom: Spacing.sm,
@@ -215,12 +220,12 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: Spacing.md,
-            paddingVertical: 14,
+            paddingVertical: scale(14),
             marginHorizontal: Spacing.sm,
             borderRadius: BorderRadius.md,
           }}
         >
-          <Ionicons name="log-out-outline" size={22} color={colors.error} style={{ marginRight: Spacing.md }} />
+          <Ionicons name="log-out-outline" size={scale(22)} color={colors.error} style={{ marginRight: Spacing.md }} />
           <Text style={{ color: colors.error, fontSize: FontSize.md, fontWeight: FontWeight.medium }}>
             Cerrar sesión
           </Text>
@@ -253,7 +258,7 @@ export default function DrawerLayout() {
         drawerType: 'front',
         drawerStyle: {
           backgroundColor: colors.background,
-          width: 280,
+          width: scale(280),
         },
         swipeEdgeWidth: 40,
       }}

@@ -9,7 +9,8 @@ import { Colors,
   FontWeight,
   Spacing,
   BorderRadius,
-  Shadows } from '@/constants/theme';
+  Shadows,
+  scale } from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { logout } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
@@ -150,7 +151,7 @@ export default function PerfilScreen() {
     >
       <Ionicons
         name={toast.type === 'success' ? 'checkmark-circle' : 'alert-circle'}
-        size={18}
+        size={scale(18)}
         color={toast.type === 'success' ? colors.success : colors.error}
       />
       <Text
@@ -293,7 +294,7 @@ export default function PerfilScreen() {
                 },
               ]}
             >
-              <Ionicons name="alert-circle" size={14} color={colors.error} />
+              <Ionicons name="alert-circle" size={scale(14)} color={colors.error} />
               <Text style={[styles.pwErrorText, { color: colors.error }]}>
                 {pwError}
               </Text>
@@ -342,7 +343,7 @@ export default function PerfilScreen() {
                     ? 'checkmark-circle'
                     : 'close-circle'
                 }
-                size={16}
+                size={scale(16)}
                 color={
                   perfil?.empresa?.activa ? colors.success : colors.error
                 }
@@ -492,9 +493,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
+    width: scale(60),
+    height: scale(60),
+    borderRadius: scale(16),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -516,7 +517,7 @@ const styles = StyleSheet.create({
   heroEmail: {
     fontSize: FontSize.xs,
     color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
+    marginTop: scale(2),
   },
   heroBadges: {
     flexDirection: 'row',
@@ -528,7 +529,7 @@ const styles = StyleSheet.create({
   rolBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
   rolBadgeText: {

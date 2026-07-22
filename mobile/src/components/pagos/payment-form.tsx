@@ -7,7 +7,7 @@ import { AppInput } from '@/components/ui/app-input';
 import PickerField from '@/components/ui/picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useRegistrarPago, useSaldarPrestamo } from '@/hooks/use-pagos';
-import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import type { Cuota, MetodoPago, Prestamo } from '@/types/prestamo.types';
@@ -173,7 +173,7 @@ export default function PaymentForm({
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Pressable onPress={onBack} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
           </Pressable>
           <View style={styles.headerInfo}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Registrar Pago</Text>
@@ -187,14 +187,14 @@ export default function PaymentForm({
         {/* Loan summary */}
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.summaryRow}>
-            <Ionicons name="cash-outline" size={16} color={colors.primary} />
+            <Ionicons name="cash-outline" size={scale(16)} color={colors.primary} />
             <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Préstamo:</Text>
             <Text style={[styles.summaryValue, { color: colors.text }]}>
               {formatCurrency(prestamo.monto)} · {prestamo.numeroCuotas} cuotas
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Ionicons name="trending-down-outline" size={16} color={colors.warning} />
+            <Ionicons name="trending-down-outline" size={scale(16)} color={colors.warning} />
             <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Saldo pendiente:</Text>
             <Text style={[styles.summaryValue, { color: colors.warning }]}>
               {formatCurrency(prestamo.saldoPendiente)}
@@ -202,7 +202,7 @@ export default function PaymentForm({
           </View>
           {prestamo.moraAcumulada > 0 && (
             <View style={styles.summaryRow}>
-              <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+              <Ionicons name="alert-circle-outline" size={scale(16)} color={colors.error} />
               <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Mora acumulada:</Text>
               <Text style={[styles.summaryValue, { color: colors.error }]}>
                 {formatCurrency(prestamo.moraAcumulada)}
@@ -210,7 +210,7 @@ export default function PaymentForm({
             </View>
           )}
           <View style={styles.summaryRow}>
-            <Ionicons name="repeat-outline" size={16} color={colors.textTertiary} />
+            <Ionicons name="repeat-outline" size={scale(16)} color={colors.textTertiary} />
             <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Cuotas:</Text>
             <Text style={[styles.summaryValue, { color: colors.text }]}>
               {cuotas.filter((c: Cuota) => c.pagada).length}/{cuotas.length} pagadas
@@ -252,7 +252,7 @@ export default function PaymentForm({
 
         {excedente > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
-            <Ionicons name="information-circle" size={14} color={colors.success} />
+            <Ionicons name="information-circle" size={scale(14)} color={colors.success} />
             <Text style={[styles.badgeText, { color: colors.success }]}>
               Excedente: {formatCurrency(excedente)} será aplicado como abono a capital de cuotas futuras
             </Text>
@@ -261,7 +261,7 @@ export default function PaymentForm({
 
         {montoIngresado > montoMaximo + 0.01 && (
           <View style={[styles.badge, { backgroundColor: '#FEF2F2', borderColor: colors.error }]}>
-            <Ionicons name="warning" size={14} color={colors.error} />
+            <Ionicons name="warning" size={scale(14)} color={colors.error} />
             <Text style={[styles.badgeText, { color: colors.error }]}>
               El monto excede el saldo pendiente ({formatCurrency(montoMaximo)})
             </Text>
@@ -285,7 +285,7 @@ export default function PaymentForm({
             >
               <Ionicons
                 name={METODO_PAGO_ICONS[m.value] as IoniconsName}
-                size={20}
+                size={scale(20)}
                 color={metodo === m.value ? colors.primary : colors.textTertiary}
               />
               <Text
@@ -354,7 +354,7 @@ export default function PaymentForm({
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#16A34A' }]}>
-                <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+                <Ionicons name="checkmark-circle" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Confirmar Pago</Text>
               </View>
               <View style={styles.modalBody}>
@@ -385,7 +385,7 @@ export default function PaymentForm({
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
-                <Ionicons name="flash" size={22} color="#FFFFFF" />
+                <Ionicons name="flash" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Saldar Préstamo</Text>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -464,7 +464,7 @@ export default function PaymentForm({
           <View style={[styles.reciboCard, { backgroundColor: colors.surfaceElevated }]}>
             <View style={styles.reciboContent}>
               <View style={styles.reciboHeader}>
-                <Ionicons name="checkmark-circle" size={48} color="#16A34A" />
+                <Ionicons name="checkmark-circle" size={scale(48)} color="#16A34A" />
                 <Text style={[styles.reciboTitle, { color: colors.text }]}>Pago Registrado</Text>
               </View>
 
@@ -522,7 +522,7 @@ export default function PaymentForm({
 
                   {reciboData?.pago?.abonoCapital > 0 && (
                     <View style={[styles.badge, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC', marginTop: Spacing.sm }]}>
-                      <Ionicons name="arrow-forward" size={14} color="#16A34A" />
+                      <Ionicons name="arrow-forward" size={scale(14)} color="#16A34A" />
                       <Text style={[styles.badgeText, { color: '#16A34A' }]}>
                         Abono a capital: {formatCurrency(reciboData.pago.abonoCapital)}
                       </Text>
@@ -531,7 +531,7 @@ export default function PaymentForm({
 
                   {reciboData?.prestamo?.saldoPendiente <= 0.01 && (
                     <View style={[styles.badge, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC', marginTop: Spacing.sm }]}>
-                      <Ionicons name="checkmark-done-circle" size={16} color="#16A34A" />
+                      <Ionicons name="checkmark-done-circle" size={scale(16)} color="#16A34A" />
                       <Text style={[styles.badgeText, { color: '#16A34A', fontWeight: FontWeight.bold }]}>
                         ¡Préstamo completamente pagado!
                       </Text>
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   },
   headerInfo: { flex: 1, marginLeft: Spacing.sm },
   headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  headerSub: { fontSize: FontSize.xs, marginTop: 1 },
+  headerSub: { fontSize: FontSize.xs, marginTop: scale(1) },
   scrollContent: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   sectionTitle: {
     fontSize: FontSize.sm,
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     marginBottom: Spacing.xs,
   },
-  summaryLabel: { fontSize: FontSize.xs, width: 120 },
+  summaryLabel: { fontSize: FontSize.xs, width: scale(120) },
   summaryValue: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold, flex: 1 },
   montoInfo: { marginTop: Spacing.xs, marginBottom: Spacing.xs },
   montoInfoText: { fontSize: FontSize.xs },
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   saldarTotalRow: { borderTopWidth: 1 },
   formLabel: { fontSize: FontSize.sm, marginBottom: Spacing.xs },
   confirmInput: {
-    height: 48,
+    height: scale(48),
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
   reciboContent: { padding: Spacing.md },
   reciboHeader: { alignItems: 'center', paddingVertical: Spacing.md },
   reciboTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, marginTop: Spacing.sm },
-  reciboDivider: { height: 1, marginVertical: Spacing.md },
+  reciboDivider: { height: scale(1), marginVertical: Spacing.md },
   reciboFieldRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   reciboGridItem: { flex: 1, alignItems: 'center' },
-  reciboGridLabel: { fontSize: FontSize.xs, marginBottom: 2 },
+  reciboGridLabel: { fontSize: FontSize.xs, marginBottom: scale(2) },
   reciboGridValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   reciboTotal: {
     flexDirection: 'row',

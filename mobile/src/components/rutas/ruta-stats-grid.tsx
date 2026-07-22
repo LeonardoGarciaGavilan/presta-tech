@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet } from 'react-native';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import type { ResumenVistaDia } from '@/types/rutas.types';
 
@@ -53,6 +53,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.medium,
-    marginTop: 1,
+    marginTop: scale(1),
   },
 });

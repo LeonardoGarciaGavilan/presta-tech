@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing, getColor } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing, getColor, scale} from '@/constants/theme';
 import { formatCurrency, formatDateShort } from '@/utils/formatters';
 import type { PrestamoEstadoCuenta } from '@/types/cliente.types';
 import InfoRow from '@/components/ui/info-row';
+import { useTheme } from '@/components/ui/theme-provider';
 
 const ESTADO_LABEL: Record<string, string> = {
   ACTIVO: 'Activo',
@@ -23,10 +24,10 @@ const ESTADO_ACCENT: Record<string, 'success' | 'danger' | 'info' | 'warning'> =
 
 interface PrestamoEstadoCuentaCardProps {
   prestamo: PrestamoEstadoCuenta;
-  colors: any;
 }
 
-export default function PrestamoEstadoCuentaCard({ prestamo, colors }: PrestamoEstadoCuentaCardProps) {
+export default function PrestamoEstadoCuentaCard({ prestamo }: PrestamoEstadoCuentaCardProps) {
+  const { colors } = useTheme();
   const [showCuotas, setShowCuotas] = useState(false);
   const [showPagos, setShowPagos] = useState(false);
 
@@ -86,7 +87,7 @@ export default function PrestamoEstadoCuentaCard({ prestamo, colors }: PrestamoE
 
       {prestamo.proximaFecha && (
         <View style={[styles.nextPayment, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
-          <Ionicons name="calendar" size={14} color={colors.primary} />
+          <Ionicons name="calendar" size={scale(14)} color={colors.primary} />
           <Text style={[styles.nextPaymentText, { color: colors.primary }]}>
             Próximo pago: {formatDateShort(prestamo.proximaFecha)} — {formatCurrency(prestamo.proximaMonto)}
           </Text>
@@ -94,20 +95,19 @@ export default function PrestamoEstadoCuentaCard({ prestamo, colors }: PrestamoE
       )}
 
       {prestamo.cuotasPendientesDetalle.length > 0 && (
-        <TouchableOpacity
-          style={[styles.collapseBtn, { borderTopColor: colors.borderLight }]}
+        <Pressable
+          style={({ pressed }) => [styles.collapseBtn, { borderTopColor: colors.borderLight }, { opacity: pressed ? 0.7 : 1 }]}
           onPress={() => setShowCuotas(!showCuotas)}
-          activeOpacity={0.7}
         >
           <Ionicons
             name={showCuotas ? 'chevron-up' : 'chevron-down'}
-            size={16}
+            size={scale(16)}
             color={colors.textSecondary}
           />
           <Text style={[styles.collapseLabel, { color: colors.textSecondary }]}>
             Cuotas pendientes ({prestamo.cuotasPendientesDetalle.length})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
 
       {showCuotas && prestamo.cuotasPendientesDetalle.length > 0 && (
@@ -149,20 +149,19 @@ export default function PrestamoEstadoCuentaCard({ prestamo, colors }: PrestamoE
       )}
 
       {prestamo.pagos.length > 0 && (
-        <TouchableOpacity
-          style={[styles.collapseBtn, { borderTopColor: colors.borderLight }]}
+        <Pressable
+          style={({ pressed }) => [styles.collapseBtn, { borderTopColor: colors.borderLight }, { opacity: pressed ? 0.7 : 1 }]}
           onPress={() => setShowPagos(!showPagos)}
-          activeOpacity={0.7}
         >
           <Ionicons
             name={showPagos ? 'chevron-up' : 'chevron-down'}
-            size={16}
+            size={scale(16)}
             color={colors.textSecondary}
           />
           <Text style={[styles.collapseLabel, { color: colors.textSecondary }]}>
             Historial de pagos ({prestamo.pagos.length})
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
 
       {showPagos && prestamo.pagos.length > 0 && (
@@ -219,7 +218,7 @@ const styles = StyleSheet.create({
   },
   badge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   },
   badgeText: {
@@ -241,7 +240,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   infoGrid: {
-    gap: 4,
+    gap: scale(4),
     marginBottom: Spacing.md,
   },
   progressSection: {
@@ -250,7 +249,7 @@ const styles = StyleSheet.create({
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: scale(4),
   },
   progressLabel: {
     fontSize: FontSize.xs,
@@ -260,18 +259,18 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   progressBar: {
-    height: 6,
-    borderRadius: 3,
+    height: scale(6),
+    borderRadius: scale(3),
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: scale(3),
   },
   nextPayment: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: scale(6),
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.sm,
@@ -286,7 +285,7 @@ const styles = StyleSheet.create({
   collapseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingVertical: Spacing.sm,
     borderTopWidth: 1,
   },
@@ -310,27 +309,27 @@ const styles = StyleSheet.create({
   },
   tableCell: {},
   colNum: {
-    width: 40,
+    width: scale(40),
   },
   colDate: {
     flex: 1,
   },
   colMonto: {
-    width: 80,
+    width: scale(80),
     textAlign: 'right',
   },
   colStatus: {
-    width: 72,
+    width: scale(72),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: scale(3),
   },
   colStatusText: {
-    width: 72,
+    width: scale(72),
   },
   statusDot: {
-    width: 6,
-    height: 6,
+    width: scale(6),
+    height: scale(6),
     borderRadius: 3,
   },
   statusLabel: {},
@@ -353,7 +352,7 @@ const styles = StyleSheet.create({
   },
   pagoCobrador: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   pagoRight: {
     alignItems: 'flex-end',
@@ -363,7 +362,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
   },
   pagoDetalle: {
-    fontSize: 10,
-    marginTop: 1,
+    fontSize: FontSize.xs,
+    marginTop: scale(1),
   },
 });

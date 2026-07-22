@@ -7,7 +7,7 @@ import { useResumenCaja, useAuditoriaCaja } from '@/hooks/use-caja';
 import { obtenerPago } from '@/api/pagos.api';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import { useToast } from '@/components/ui/toast';
-import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
@@ -195,7 +195,7 @@ export default function DetalleSesionModal({ visible, cajaId, caja, onClose }: P
               </View>
             </View>
             <Pressable onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={colors.text} />
+              <Ionicons name="close" size={scale(24)} color={colors.text} />
             </Pressable>
           </View>
 
@@ -383,13 +383,13 @@ function ResumenTab({
           {resumenData.pagos.map((p: any) => (
             <View key={p.id} style={[s.pagoRow, { borderBottomColor: colors.borderLight }]}>
               <Pressable onPress={() => onReimprimir(p.id)} hitSlop={8} style={s.reprintIcon}>
-                <Ionicons name="print-outline" size={18} color={colors.primary} />
+                <Ionicons name="print-outline" size={scale(18)} color={colors.primary} />
               </Pressable>
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                 <Text style={{ fontSize: FontSize.xs, fontWeight: FontWeight.semibold, color: colors.text }}>
                   {p.prestamo?.cliente?.nombre} {p.prestamo?.cliente?.apellido || ''}
                 </Text>
-                <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                <Text style={{ fontSize: scale(10), color: colors.textTertiary }}>
                   {formatDateTime(p.createdAt)} · {p.metodo}
                 </Text>
               </View>
@@ -411,7 +411,7 @@ function ResumenTab({
                 <Text style={{ fontSize: FontSize.xs, fontWeight: FontWeight.semibold, color: colors.text }}>
                   {d.prestamo?.cliente?.nombre} {d.prestamo?.cliente?.apellido || ''}
                 </Text>
-                <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                <Text style={{ fontSize: scale(10), color: colors.textTertiary }}>
                   {d.concepto || 'Desembolso'} · {formatDateTime(d.createdAt)}
                 </Text>
               </View>
@@ -466,7 +466,7 @@ function AuditoriaTab({
           <Text style={[s.sectionTitle, { color: '#991B1B' }]}>Alertas</Text>
           {auditoria.validaciones.alertas.map((alerta: string, i: number) => (
             <View key={i} style={s.alertaRow}>
-              <Ionicons name="alert-circle" size={16} color="#DC2626" />
+              <Ionicons name="alert-circle" size={scale(16)} color="#DC2626" />
               <Text style={{ fontSize: FontSize.xs, color: '#991B1B', marginLeft: Spacing.xs, flex: 1 }}>
                 {alerta}
               </Text>
@@ -492,19 +492,19 @@ function AuditoriaTab({
                 {i > 0 && <View style={[s.timelineDot, { backgroundColor: colors.borderLight }]} />}
                 <View style={s.timelineRow}>
                   <View style={[s.timelineIcon, { backgroundColor: tipoColor + '20' }]}>
-                    <Ionicons name={config.icon} size={18} color={tipoColor} />
+                    <Ionicons name={config.icon} size={scale(18)} color={tipoColor} />
                   </View>
                   <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: FontSize.xs, fontWeight: FontWeight.semibold, color: colors.text }}>
                         {config.label}
                       </Text>
-                      <Text style={{ fontSize: 10, color: colors.textTertiary }}>
+                      <Text style={{ fontSize: scale(10), color: colors.textTertiary }}>
                         {formatHour(mov.fecha)}
                       </Text>
                     </View>
                     {mov.descripcion && (
-                      <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>
+                      <Text style={{ fontSize: scale(10), color: colors.textTertiary, marginTop: scale(1) }}>
                         {mov.descripcion}
                       </Text>
                     )}
@@ -536,7 +536,7 @@ function AuditoriaTab({
             </Text>
             <Ionicons
               name={auditoria.validaciones.secuenciaValida ? 'checkmark-circle' : 'close-circle'}
-              size={18}
+              size={scale(18)}
               color={auditoria.validaciones.secuenciaValida ? '#16A34A' : '#DC2626'}
             />
           </View>
@@ -546,7 +546,7 @@ function AuditoriaTab({
             </Text>
             <Ionicons
               name={auditoria.validaciones.diferenciaJustificada ? 'checkmark-circle' : 'close-circle'}
-              size={18}
+              size={scale(18)}
               color={auditoria.validaciones.diferenciaJustificada ? '#16A34A' : '#DC2626'}
             />
           </View>
@@ -608,7 +608,7 @@ const s = {
   } as AppStyles,
   infoLabel: { fontSize: FontSize.xs, flex: 1 },
   infoValue: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, flex: 1, textAlign: 'right' },
-  divider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
+  divider: { height: scale(1), marginVertical: Spacing.sm } as AppStyles,
   resumenGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -622,7 +622,7 @@ const s = {
     alignItems: 'center',
   } as AppStyles,
   resumenValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold } as AppStyles,
-  resumenLabel: { fontSize: FontSize.xs, marginTop: 2, textAlign: 'center' } as AppStyles,
+  resumenLabel: { fontSize: FontSize.xs, marginTop: scale(2), textAlign: 'center' } as AppStyles,
   sectionCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -646,9 +646,9 @@ const s = {
     borderBottomWidth: 1,
   } as AppStyles,
   reprintIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     alignItems: 'center',
     justifyContent: 'center',
   } as AppStyles,
@@ -666,7 +666,7 @@ const s = {
   } as AppStyles,
   reconLabel: { fontSize: FontSize.xs },
   reconValue: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
-  reconDivider: { height: 1, marginVertical: Spacing.xs } as AppStyles,
+  reconDivider: { height: scale(1), marginVertical: Spacing.xs } as AppStyles,
   alertaCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -684,15 +684,15 @@ const s = {
     paddingVertical: Spacing.xs,
   } as AppStyles,
   timelineIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     alignItems: 'center',
     justifyContent: 'center',
   } as AppStyles,
   timelineDot: {
-    height: 1,
-    marginLeft: 18,
+    height: scale(1),
+    marginLeft: scale(18),
     marginVertical: 1,
   } as AppStyles,
 } as const;

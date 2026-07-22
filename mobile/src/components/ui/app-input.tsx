@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useState } from 'react';
 import { type TextInputProps, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import { formatCedula, formatIngresosInput, formatPhone } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -100,7 +100,7 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput({
           >
             <Ionicons
               name={isSecure ? 'eye-off-outline' : 'eye-outline'}
-              size={20}
+              size={scale(20)}
               color={colors.textTertiary}
             />
           </Pressable>
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
+    height: scale(48),
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   inputMultiline: {
     height: undefined,
-    minHeight: 100,
+    minHeight: scale(100),
     textAlignVertical: 'top',
     paddingVertical: 0,
   },

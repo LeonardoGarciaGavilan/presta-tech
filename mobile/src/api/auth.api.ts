@@ -32,6 +32,10 @@ export async function logoutAll(): Promise<void> {
   await client.post(AUTH_API.LOGOUT_ALL);
 }
 
+export async function clearPushToken(): Promise<void> {
+  await client.delete('/usuarios/push-token');
+}
+
 export async function getCurrentUser(): Promise<User> {
   const response = await client.get<User>(AUTH_API.ME);
   return response.data;

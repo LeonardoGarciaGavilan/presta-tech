@@ -10,7 +10,7 @@ import EmptyState from '@/components/ui/empty-state';
 import DetalleSesionModal from '@/components/caja/detalle-sesion-modal';
 import { useToast } from '@/components/ui/toast';
 import { useCajas, useCerrarCaja } from '@/hooks/use-caja';
-import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -142,7 +142,7 @@ export default function CajasActivasScreen() {
                   {caja.usuario?.nombre || '—'}
                 </Text>
                 <View style={[styles.riskBadge, { backgroundColor: cfg.bg }]}>
-                  <Ionicons name={cfg.icon} size={10} color={cfg.color} />
+                  <Ionicons name={cfg.icon} size={scale(10)} color={cfg.color} />
                   <Text style={[styles.riskBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
                 </View>
               </View>
@@ -158,7 +158,7 @@ export default function CajasActivasScreen() {
           {razones.length > 0 && (
             <View style={[styles.razonesBox, { backgroundColor: cfg.bg }]}>
               {razones.map((r, i) => (
-                <Text key={i} style={{ fontSize: 9, color: cfg.color }}>{r}</Text>
+                <Text key={i} style={{ fontSize: scale(9), color: cfg.color }}>{r}</Text>
               ))}
             </View>
           )}
@@ -187,7 +187,7 @@ export default function CajasActivasScreen() {
           </View>
 
           <View style={[styles.esperadoRow, { borderTopColor: colors.borderLight }]}>
-            <Ionicons name="calculator-outline" size={14} color={colors.textTertiary} />
+            <Ionicons name="calculator-outline" size={scale(14)} color={colors.textTertiary} />
             <Text style={[styles.esperadoLabel, { color: colors.textTertiary }]}>Esperado</Text>
             <Text style={[styles.esperadoValue, { color: colors.text }]}>
               {formatCurrency(caja.esperadoCalc ?? 0)}
@@ -196,8 +196,8 @@ export default function CajasActivasScreen() {
 
           {nivel !== 'normal' && razones.length > 0 && (
             <View style={[styles.recomendacionBox, { borderTopColor: colors.borderLight }]}>
-              <Ionicons name="bulb-outline" size={12} color={cfg.color} />
-              <Text style={{ fontSize: 9, color: cfg.color, flex: 1 }}>
+              <Ionicons name="bulb-outline" size={scale(12)} color={cfg.color} />
+              <Text style={{ fontSize: scale(9), color: cfg.color, flex: 1 }}>
                 {nivel === 'critico'
                   ? 'Revisar inmediatamente'
                   : 'Monitorear situación'}
@@ -214,7 +214,7 @@ export default function CajasActivasScreen() {
             }}
             style={[styles.cerrarButton, { borderColor: colors.border }]}
           >
-            <Ionicons name="lock-closed-outline" size={14} color={colors.textTertiary} />
+            <Ionicons name="lock-closed-outline" size={scale(14)} color={colors.textTertiary} />
             <Text style={[styles.cerrarButtonText, { color: colors.textTertiary }]}>Cerrar Caja</Text>
           </Pressable>
         </Pressable>
@@ -227,7 +227,7 @@ export default function CajasActivasScreen() {
     ? () => (
         <View style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.kpiHeader}>
-            <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
+            <Ionicons name="shield-checkmark" size={scale(18)} color={colors.primary} />
             <Text style={[styles.kpiTitle, { color: colors.text }]}>
               Control de Cajas
             </Text>
@@ -305,7 +305,7 @@ export default function CajasActivasScreen() {
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
               <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
-                <Ionicons name="lock-closed" size={22} color="#FFFFFF" />
+                <Ionicons name="lock-closed" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Cerrar Caja</Text>
               </View>
               <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
@@ -369,7 +369,7 @@ export default function CajasActivasScreen() {
                         const dif = monto - esperado;
                         return dif === 0 ? 'checkmark-circle' : 'alert-circle';
                       })()}
-                      size={16}
+                      size={scale(16)}
                       color={(() => {
                         const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
                         const esperado = closeTarget.esperadoCalc ?? 0;
@@ -439,36 +439,36 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   } as AppStyles,
-  userName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, marginBottom: 1 },
+  userName: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, marginBottom: scale(1) },
   dateText: { fontSize: FontSize.xs },
   riskBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: scale(3),
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   } as AppStyles,
-  riskBadgeText: { fontSize: 9, fontWeight: FontWeight.bold },
+  riskBadgeText: { fontSize: scale(9), fontWeight: FontWeight.bold },
   openBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   } as AppStyles,
-  openBadgeText: { fontSize: 10, fontWeight: FontWeight.bold, color: '#16A34A' },
+  openBadgeText: { fontSize: scale(10), fontWeight: FontWeight.bold, color: '#16A34A' },
   razonesBox: {
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
     marginTop: Spacing.xs,
   } as AppStyles,
-  divider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
+  divider: { height: scale(1), marginVertical: Spacing.sm } as AppStyles,
   statsGrid: {
     flexDirection: 'row',
     gap: Spacing.sm,
   } as AppStyles,
   statItem: { flex: 1, alignItems: 'center' } as AppStyles,
-  statLabel: { fontSize: 9 },
-  statValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: 1 },
+  statLabel: { fontSize: scale(9) },
+  statValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginTop: scale(1) },
   esperadoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -517,8 +517,8 @@ const styles = {
   } as AppStyles,
   kpiItem: { flex: 1, alignItems: 'center' } as AppStyles,
   kpiValue: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  kpiLabel: { fontSize: 9, marginTop: 1 },
-  kpiDivider: { height: 1, marginVertical: Spacing.sm } as AppStyles,
+  kpiLabel: { fontSize: scale(9), marginTop: scale(1) },
+  kpiDivider: { height: scale(1), marginVertical: Spacing.sm } as AppStyles,
   kpiTotals: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -556,7 +556,7 @@ const styles = {
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: scale(2),
   } as AppStyles,
   diferenciaPreview: {
     flexDirection: 'row',

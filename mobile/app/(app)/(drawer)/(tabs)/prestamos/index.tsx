@@ -13,7 +13,7 @@ import { SkeletonCard } from '@/components/ui/skeleton';
 import ActionConfirmModal from '@/components/ui/action-confirm-modal';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { ESTADO_CONFIG as BASE_ESTADO_CONFIG, ACCIONES_FLOW_CONFIG } from '@/constants/prestamos.constants';
 import { formatCurrency } from '@/utils/formatters';
 import { useCambiarEstadoPrestamo,
@@ -36,10 +36,13 @@ const ESTADOS_FILTRO: { label: string; value: EstadoPrestamo | '' }[] = [
   { label: 'Rechazado', value: 'RECHAZADO' },
 ];
 
-const ACCION_CONFIG: Record<string, { titulo: string; desc: string; icon: string; color: string; pedirMotivo: boolean }> = {
-  ...ACCIONES_FLOW_CONFIG,
-  DESEMBOLSAR: { titulo: 'Desembolsar Préstamo', desc: 'Se generarán las cuotas, el monto saldrá de tu caja.', icon: 'cash-outline', color: '#1A56DB', pedirMotivo: false },
-};
+function buildAccionConfig(primaryColor: string) {
+  const base: Record<string, { titulo: string; desc: string; icon: string; color: string; pedirMotivo: boolean }> = {
+    ...ACCIONES_FLOW_CONFIG,
+  };
+  base.DESEMBOLSAR = { titulo: 'Desembolsar Préstamo', desc: 'Se generarán las cuotas, el monto saldrá de tu caja.', icon: 'cash-outline', color: primaryColor, pedirMotivo: false };
+  return base;
+}
 
 function usePrestamosInfinite(search: string, estado: EstadoPrestamo | '') {
   return useInfiniteQuery({
@@ -147,13 +150,13 @@ export default function PrestamosListScreen() {
       const enFlujoAdmin = isAdmin && ['SOLICITADO', 'EN_REVISION', 'APROBADO'].includes(item.estado);
 
       return (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View key={item.id}>
           <PrestamoCard
             prestamo={item}
             onPress={() => router.push(`/prestamos/${item.id}`)}
           />
           {enFlujoAdmin && (
-            <View style={styles.cardActions}>
+            <View style={[styles.cardActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {item.estado === 'SOLICITADO' && (
                 <>
                   <Pressable
@@ -199,11 +202,11 @@ export default function PrestamosListScreen() {
                   {puedeDesembolsar && (
                     <Pressable
                       onPress={() => abrirModal(item, 'DESEMBOLSAR', 'ACTIVO')}
-                      style={[styles.actionBtn, { backgroundColor: '#E8EFFB', borderColor: colors.primary }]}
+                      style={[styles.actionBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
                       accessibilityRole="button"
                       accessibilityLabel="Desembolsar préstamo"
                     >
-                      <Ionicons name="cash" size={14} color={colors.primary} />
+                      <Ionicons name="cash" size={scale(14)} color={colors.primary} />
                       <Text style={[styles.actionBtnText, { color: colors.primary }]}>Desembolsar</Text>
                     </Pressable>
                   )}
@@ -230,6 +233,7 @@ export default function PrestamosListScreen() {
     [],
   );
 
+  const ACCION_CONFIG = useMemo(() => buildAccionConfig(colors.primary), [colors.primary]);
   const ESTADO_CONFIG = BASE_ESTADO_CONFIG;
 
   if (isLoading && !data) {
@@ -244,7 +248,7 @@ export default function PrestamosListScreen() {
         </View>
         <View style={styles.list}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <SkeletonCard key={i} lines={3} style={{ marginBottom: 8 }} />
+            <SkeletonCard key={i} lines={3} style={{ marginBottom: scale(8) }} />
           ))}
         </View>
       </View>
@@ -296,7 +300,7 @@ export default function PrestamosListScreen() {
         </Text>
       </View>
 
-      <View style={{ height: 36 }}>
+      <View style={{ height: scale(36) }}>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -414,7 +418,7 @@ export default function PrestamosListScreen() {
         accessibilityRole="button"
         accessibilityLabel="Solicitar préstamo"
       >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
+        <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
       </Pressable>
 
       <ActionConfirmModal
@@ -456,7 +460,7 @@ const styles = StyleSheet.create({
   },
   filterCount: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   chipsContainer: {
     paddingHorizontal: Spacing.md,
@@ -475,27 +479,24 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: Spacing.md,
-    paddingBottom: 100,
-  },
-  card: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    padding: Spacing.md,
+    paddingBottom: scale(100),
   },
   cardActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
   },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.sm,
@@ -516,9 +517,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,

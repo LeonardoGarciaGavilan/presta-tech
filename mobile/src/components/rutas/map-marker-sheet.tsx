@@ -2,7 +2,7 @@ import { memo, useCallback } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { formatCurrency } from '@/utils/formatters';
 import type { ClienteVistaDia } from '@/types/rutas.types';
@@ -61,7 +61,7 @@ function MapMarkerSheet({
             )}
           </View>
           <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
-            <Ionicons name="close" size={20} color={colors.textSecondary} />
+            <Ionicons name="close" size={scale(20)} color={colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -73,7 +73,7 @@ function MapMarkerSheet({
           )}
           {visitadoHoy ? (
             <View style={[styles.badge, { backgroundColor: colors.successLight }]}>
-              <Ionicons name="checkmark" size={12} color={colors.success} />
+              <Ionicons name="checkmark" size={scale(12)} color={colors.success} />
               <Text style={[styles.badgeText, { color: colors.success }]}>Visitado</Text>
             </View>
           ) : debeVisitar ? (
@@ -98,7 +98,7 @@ function MapMarkerSheet({
               style={[styles.actionBtn, { backgroundColor: colors.primary }]}
               onPress={() => onCobrar(cliente)}
             >
-              <Ionicons name="cash-outline" size={18} color="#FFF" />
+              <Ionicons name="cash-outline" size={scale(18)} color="#FFF" />
               <Text style={styles.actionBtnText}>Cobrar</Text>
             </Pressable>
           )}
@@ -115,7 +115,7 @@ function MapMarkerSheet({
           >
             <Ionicons
               name={visitadoHoy ? 'close-circle-outline' : 'checkmark-circle-outline'}
-              size={18}
+              size={scale(18)}
               color={visitadoHoy ? colors.textSecondary : colors.success}
             />
             <Text
@@ -135,7 +135,7 @@ function MapMarkerSheet({
               style={[styles.secondaryBtn, { borderColor: colors.border }]}
               onPress={handleNavigate}
             >
-              <Ionicons name="navigate-outline" size={16} color={colors.primary} />
+              <Ionicons name="navigate-outline" size={scale(16)} color={colors.primary} />
               <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>Navegar</Text>
             </Pressable>
           )}
@@ -143,7 +143,7 @@ function MapMarkerSheet({
             style={[styles.secondaryBtn, { borderColor: colors.border }]}
             onPress={() => onVerDetalle(info.id)}
           >
-            <Ionicons name="person-outline" size={16} color={colors.primary} />
+            <Ionicons name="person-outline" size={scale(16)} color={colors.primary} />
             <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>Ver perfil</Text>
           </Pressable>
         </View>
@@ -176,8 +176,8 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
   },
   handle: {
-    width: 40,
-    height: 4,
+    width: scale(40),
+    height: scale(4),
     borderRadius: 2,
     backgroundColor: '#D1D5DB',
     alignSelf: 'center',
@@ -189,9 +189,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   orderBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   phone: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   closeBtn: {
     padding: Spacing.xs,
@@ -220,9 +220,9 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: scale(3),
     borderRadius: BorderRadius.sm,
   },
   badgeText: {
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: scale(6),
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.md,
   },
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: scale(6),
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,

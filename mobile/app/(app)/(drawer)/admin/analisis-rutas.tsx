@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { useResumenRutas } from '@/hooks/use-rutas';
 import type { ResumenRuta } from '@/types/rutas.types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -149,7 +149,7 @@ export default function AnalisisRutasScreen() {
               </Text>
             </View>
             <View style={[styles.estadoBadge, { backgroundColor: cfg.bg }]}>
-              <Ionicons name={cfg.icon} size={14} color={cfg.color} />
+              <Ionicons name={cfg.icon} size={scale(14)} color={cfg.color} />
               <Text style={[styles.estadoText, { color: cfg.color }]}>{estado}</Text>
             </View>
           </View>
@@ -223,7 +223,7 @@ export default function AnalisisRutasScreen() {
           <View>
             {/* Timestamp + refresh */}
             <View style={styles.timestampRow}>
-              <Ionicons name="time-outline" size={14} color={colors.textTertiary} />
+              <Ionicons name="time-outline" size={scale(14)} color={colors.textTertiary} />
               <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
                 {data?.timestamp ? `Actualizado ${formatTimeAgo(data.timestamp)}` : 'Sin datos'}
               </Text>
@@ -261,7 +261,7 @@ export default function AnalisisRutasScreen() {
             {rutasCriticas.length > 0 && (
               <View style={[styles.alertBanner, { backgroundColor: colors.errorLight, borderColor: colors.error }]}>
                 <View style={styles.alertHeader}>
-                  <Ionicons name="warning" size={18} color={colors.error} />
+                  <Ionicons name="warning" size={scale(18)} color={colors.error} />
                   <Text style={[styles.alertTitle, { color: colors.error }]}>
                     Rutas con eficiencia crítica
                   </Text>
@@ -278,7 +278,7 @@ export default function AnalisisRutasScreen() {
             {rutasAlerta.length > 0 && (
               <View style={[styles.alertBanner, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
                 <View style={styles.alertHeader}>
-                  <Ionicons name="alert-circle" size={18} color={colors.warning} />
+                  <Ionicons name="alert-circle" size={scale(18)} color={colors.warning} />
                   <Text style={[styles.alertTitle, { color: colors.warning }]}>
                     Rutas con seguimiento
                   </Text>
@@ -298,7 +298,7 @@ export default function AnalisisRutasScreen() {
             {recomendaciones.length > 0 && (
               <View style={[styles.recCard, { backgroundColor: colors.infoLight, borderColor: colors.info }]}>
                 <View style={styles.alertHeader}>
-                  <Ionicons name="bulb-outline" size={18} color={colors.info} />
+                  <Ionicons name="bulb-outline" size={scale(18)} color={colors.info} />
                   <Text style={[styles.alertTitle, { color: colors.info }]}>Recomendaciones</Text>
                 </View>
                 {recomendaciones.map((r, i) => (
@@ -375,7 +375,7 @@ export default function AnalisisRutasScreen() {
                         </Text>
                       </View>
                       <View style={[styles.estadoBadge, { backgroundColor: cfg.bg }]}>
-                        <Ionicons name={cfg.icon} size={14} color={cfg.color} />
+                        <Ionicons name={cfg.icon} size={scale(14)} color={cfg.color} />
                         <Text style={[styles.estadoText, { color: cfg.color }]}>
                           {c.eficienciaMedia.toFixed(0)}%
                         </Text>
@@ -390,7 +390,7 @@ export default function AnalisisRutasScreen() {
             {topRoute && (
               <View style={[styles.topRouteCard, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
                 <View style={styles.alertHeader}>
-                  <Ionicons name="trophy" size={18} color={colors.success} />
+                  <Ionicons name="trophy" size={scale(18)} color={colors.success} />
                   <Text style={[styles.alertTitle, { color: colors.success }]}>
                     Mejor ruta: {topRoute.nombre}
                   </Text>
@@ -421,7 +421,7 @@ export default function AnalisisRutasScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="map-outline" size={48} color={colors.textTertiary} />
+            <Ionicons name="map-outline" size={scale(48)} color={colors.textTertiary} />
             <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
               No hay datos de rutas disponibles aún
             </Text>
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   alertBanner: {
     borderRadius: BorderRadius.lg,
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   alertItem: {
     fontSize: FontSize.xs,
     marginLeft: Spacing.xl,
-    lineHeight: 18,
+    lineHeight: scale(18),
   },
   recCard: {
     borderRadius: BorderRadius.lg,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   distBar: {
     flexDirection: 'row',
-    height: 24,
+    height: scale(24),
     borderRadius: BorderRadius.sm,
     overflow: 'hidden',
     marginBottom: Spacing.sm,
@@ -528,8 +528,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   distDot: {
-    width: 8,
-    height: 8,
+    width: scale(8),
+    height: scale(8),
     borderRadius: 4,
   },
   distLegendText: {
@@ -544,9 +544,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   cobradorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   },
   cobradorDetail: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   topRouteCard: {
     borderRadius: BorderRadius.lg,
@@ -577,9 +577,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   topRouteAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   },
   topRouteDetail: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   rutaCard: {
     borderRadius: BorderRadius.lg,
@@ -611,8 +611,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   rutaRank: {
-    width: 32,
-    height: 32,
+    width: scale(32),
+    height: scale(32),
     borderRadius: BorderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -630,14 +630,14 @@ const styles = StyleSheet.create({
   },
   rutaCobrador: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   estadoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: scale(3),
     borderRadius: BorderRadius.sm,
   },
   estadoText: {
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   },
   rutaStatLabel: {
     fontSize: FontSize.xs,
-    marginTop: 1,
+    marginTop: scale(1),
   },
   rutaMeta: {
     flexDirection: 'row',

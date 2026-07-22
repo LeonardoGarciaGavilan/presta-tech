@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { BorderRadius, Colors, FontSize, FontWeight, Spacing, Shadows, getColor } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, FontWeight, Spacing, Shadows, getColor, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface KpiCardProps {
@@ -34,19 +34,19 @@ function KpiCardBase({
   delay = 0,
 }: KpiCardProps) {
   const { colors } = useTheme();
-  const scale = useSharedValue(0.8);
+  const animScale = useSharedValue(0.8);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      scale.value = withSpring(1, { damping: 12, stiffness: 200 });
+      animScale.value = withSpring(1, { damping: 12, stiffness: 200 });
       opacity.value = withSpring(1);
     }, delay);
     return () => clearTimeout(timer);
-  }, [delay, scale, opacity]);
+  }, [delay, animScale, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: animScale.value }],
     opacity: opacity.value,
   }));
 
@@ -72,7 +72,7 @@ function KpiCardBase({
       >
         <Ionicons
           name={icon}
-          size={20}
+          size={scale(20)}
           color={getColor(colors, accentColors.icon)}
         />
       </View>
@@ -93,8 +93,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconWrap: {
-    width: 36,
-    height: 36,
+    width: scale(36),
+    height: scale(36),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   label: {
     fontSize: FontSize.xs,

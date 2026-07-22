@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, scale, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface SearchBarProps {
@@ -70,7 +70,7 @@ export default function SearchBar({
     >
       <Ionicons
         name="search"
-        size={20}
+        size={scale(20)}
         color={colors.textTertiary}
         style={styles.icon}
       />
@@ -88,7 +88,7 @@ export default function SearchBar({
         <Pressable onPress={handleClear} hitSlop={8} style={styles.clearButton} accessibilityRole="button" accessibilityLabel="Limpiar búsqueda">
           <Ionicons
             name="close-circle"
-            size={20}
+            size={scale(20)}
             color={colors.textTertiary}
           />
         </Pressable>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
+    height: scale(48),
     borderWidth: 1,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,

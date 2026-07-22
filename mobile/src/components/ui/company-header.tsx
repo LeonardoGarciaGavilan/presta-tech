@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from 'expo-router';
 
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/components/ui/theme-provider';
 import { ThemeSelectorModal } from '@/components/ui/theme-selector-modal';
@@ -35,7 +35,7 @@ export function CompanyHeader() {
     >
       <View
         style={{
-          height: 52,
+          height: scale(52),
           paddingHorizontal: Spacing.md,
           flexDirection: 'row',
           alignItems: 'center',
@@ -52,7 +52,7 @@ export function CompanyHeader() {
             accessibilityHint="Abre el menú de navegación"
             style={{ marginRight: Spacing.sm }}
           >
-            <Ionicons name="menu-outline" size={26} color={colors.text} />
+            <Ionicons name="menu-outline" size={scale(26)} color={colors.text} />
           </TouchableOpacity>
         )}
         <Text
@@ -78,7 +78,7 @@ export function CompanyHeader() {
           accessibilityHint="Abre el selector de tema"
           style={{ marginLeft: Spacing.sm }}
         >
-          <Ionicons name={themeIcon} size={24} color={colors.text} />
+          <Ionicons name={themeIcon} size={scale(24)} color={colors.text} />
         </TouchableOpacity>
       </View>
 

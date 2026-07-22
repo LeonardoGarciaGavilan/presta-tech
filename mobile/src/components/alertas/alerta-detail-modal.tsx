@@ -3,7 +3,7 @@ import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
-import { FontSize, FontWeight, Spacing, BorderRadius } from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -143,7 +143,7 @@ export default function AlertaDetailModal({
         >
           <View style={[styles.header, { backgroundColor: tipoColor + '12', borderBottomColor: colors.border }]}>
             <View style={[styles.headerIcon, { backgroundColor: tipoColor + '20' }]}>
-              <Ionicons name={icon} size={28} color={tipoColor} />
+              <Ionicons name={icon} size={scale(28)} color={tipoColor} />
             </View>
             <View style={styles.headerInfo}>
               <Text style={[styles.headerTitle, { color: tipoColor }]}>
@@ -154,7 +154,7 @@ export default function AlertaDetailModal({
               </Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={colors.textSecondary} />
+              <Ionicons name="close" size={scale(22)} color={colors.textSecondary} />
             </Pressable>
           </View>
 
@@ -180,14 +180,14 @@ export default function AlertaDetailModal({
             )}
 
             <View style={styles.metaRow}>
-              <Ionicons name="time-outline" size={14} color={colors.textTertiary} />
+              <Ionicons name="time-outline" size={scale(14)} color={colors.textTertiary} />
               <Text style={[styles.metaText, { color: colors.textTertiary }]}>
                 {formatFullDate(alerta.createdAt)}
               </Text>
             </View>
             {alerta.usuarioNombre !== 'Sistema' && (
               <View style={styles.metaRow}>
-                <Ionicons name="person-outline" size={14} color={colors.textTertiary} />
+                <Ionicons name="person-outline" size={scale(14)} color={colors.textTertiary} />
                 <Text style={[styles.metaText, { color: colors.textTertiary }]}>
                   {alerta.usuarioNombre}
                 </Text>
@@ -257,8 +257,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerIcon: {
-    width: 48,
-    height: 48,
+    width: scale(48),
+    height: scale(48),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -270,12 +270,12 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: scale(0.5),
   },
   headerClient: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    marginTop: 2,
+    marginTop: scale(2),
   },
   closeBtn: {
     padding: Spacing.xs,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: FontSize.md,
-    lineHeight: 22,
+    lineHeight: scale(22),
     marginBottom: Spacing.md,
   },
   detailSection: {
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: scale(0.5),
     marginBottom: Spacing.sm,
   },
   detailRow: {

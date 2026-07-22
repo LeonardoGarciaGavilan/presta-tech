@@ -2,26 +2,16 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { Prestamo } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePrestamoEstados } from '@/hooks/use-prestamo-estados';
 
 interface PrestamoCardProps {
   prestamo: Prestamo;
   onPress: () => void;
 }
-
-const ESTADO_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  SOLICITADO: { label: 'Solicitado', color: '#0369A1', bg: '#E0F2FE', icon: 'time-outline' },
-  EN_REVISION: { label: 'En Revisión', color: '#6D28D9', bg: '#EDE9FE', icon: 'search-outline' },
-  APROBADO: { label: 'Aprobado', color: '#047857', bg: '#D1FAE5', icon: 'checkmark-circle-outline' },
-  RECHAZADO: { label: 'Rechazado', color: '#B91C1C', bg: '#FEE2E2', icon: 'close-circle-outline' },
-  ACTIVO: { label: 'Activo', color: '#16A34A', bg: '#F0FDF4', icon: 'checkmark-circle' },
-  ATRASADO: { label: 'Atrasado', color: '#DC2626', bg: '#FEF2F2', icon: 'alert-circle' },
-  PAGADO: { label: 'Pagado', color: '#64748B', bg: '#F1F5F9', icon: 'checkmark-done-circle' },
-  CANCELADO: { label: 'Cancelado', color: '#7E22CE', bg: '#F3E8FF', icon: 'ban-outline' },
-};
 
 function calcularSaldoReal(prestamo: Prestamo): number {
   if (prestamo.saldoPendiente > 0) return prestamo.saldoPendiente;
@@ -50,7 +40,8 @@ function nombreCliente(prestamo: Prestamo): string {
 
 function PrestamoCardBase({ prestamo, onPress }: PrestamoCardProps) {
   const { colors } = useTheme();
-  const config = ESTADO_CONFIG[prestamo.estado] || ESTADO_CONFIG.ACTIVO;
+  const estados = usePrestamoEstados();
+  const config = estados[prestamo.estado] || estados.ACTIVO;
   const saldoReal = calcularSaldoReal(prestamo);
 
   return (
@@ -70,7 +61,7 @@ function PrestamoCardBase({ prestamo, onPress }: PrestamoCardProps) {
     >
       <View style={styles.header}>
         <View style={[styles.badge, { backgroundColor: config.bg }]}>
-          <Ionicons name={config.icon as IoniconsName} size={14} color={config.color} />
+          <Ionicons name={config.icon as IoniconsName} size={scale(14)} color={config.color} />
           <Text style={[styles.badgeText, { color: config.color }]}>
             {config.label}
           </Text>
@@ -83,12 +74,12 @@ function PrestamoCardBase({ prestamo, onPress }: PrestamoCardProps) {
       {prestamo.cliente && (
         <View style={styles.clientRow}>
           <View style={styles.clientInfo}>
-            <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
+            <Ionicons name="person-outline" size={scale(13)} color={colors.textSecondary} />
             <Text style={[styles.clientName, { color: colors.text }]} numberOfLines={1}>
               {nombreCliente(prestamo)}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+          <Ionicons name="chevron-forward" size={scale(16)} color={colors.textTertiary} />
         </View>
       )}
 
@@ -121,7 +112,7 @@ function PrestamoCardBase({ prestamo, onPress }: PrestamoCardProps) {
 
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <View style={styles.footerItem}>
-          <Ionicons name="calendar-outline" size={12} color={colors.textTertiary} />
+          <Ionicons name="calendar-outline" size={scale(12)} color={colors.textTertiary} />
           <Text style={[styles.footerText, { color: colors.textTertiary }]}>
             Vence: {formatDate(prestamo.fechaVencimiento)}
           </Text>
@@ -146,9 +137,9 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: scale(3),
     borderRadius: BorderRadius.sm,
   },
   badgeText: {
@@ -169,7 +160,7 @@ const styles = StyleSheet.create({
   clientInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
     flex: 1,
   },
   clientName: {
@@ -188,7 +179,7 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     fontSize: FontSize.xs,
-    marginBottom: 2,
+    marginBottom: scale(2),
     textAlign: 'center',
   },
   amountValue: {
@@ -207,7 +198,7 @@ const styles = StyleSheet.create({
   footerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: scale(4),
   },
   footerText: {
     fontSize: FontSize.xs,

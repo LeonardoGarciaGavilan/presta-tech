@@ -1,4 +1,32 @@
-import { Platform } from 'react-native';
+import { Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+// ── Responsive Scaling ──────────────────────────────────────────────
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BASE_WIDTH = 375; // iPhone standard design width
+
+const widthFactor = SCREEN_WIDTH / BASE_WIDTH;
+const platformFactor = Platform.OS === 'android' ? 0.87 : 1;
+const combinedFactor = widthFactor * platformFactor;
+
+/**
+ * Scale a size value based on screen width and platform.
+ * Use for spacing, heights, widths, border-radius, etc.
+ */
+export function scale(size: number): number {
+  return Math.round(size * combinedFactor);
+}
+
+/**
+ * Scale a font size with less aggressive growth.
+ * `factor` controls how much the width-based scaling applies (0 = no scale, 1 = full scale).
+ */
+export function moderateScale(size: number, factor: number = 0.5): number {
+  const adjusted = size * platformFactor;
+  return Math.round(adjusted + (widthFactor * adjusted - adjusted) * factor);
+}
+
+// ── Colors ──────────────────────────────────────────────────────────
 
 export const Colors = {
   light: {
@@ -95,32 +123,38 @@ export const Colors = {
   },
 };
 
+// ── Spacing ─────────────────────────────────────────────────────────
+
 export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-} as const;
+  xs: scale(4),
+  sm: scale(8),
+  md: scale(16),
+  lg: scale(24),
+  xl: scale(32),
+  xxl: scale(48),
+};
+
+// ── Border Radius ───────────────────────────────────────────────────
 
 export const BorderRadius = {
-  sm: 6,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: scale(6),
+  md: scale(12),
+  lg: scale(16),
+  xl: scale(24),
   full: 9999,
-} as const;
+};
+
+// ── Font Size ───────────────────────────────────────────────────────
 
 export const FontSize = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 24,
-  xxl: 32,
-  title: 40,
-} as const;
+  xs: moderateScale(12),
+  sm: moderateScale(14),
+  md: moderateScale(16),
+  lg: moderateScale(18),
+  xl: moderateScale(24),
+  xxl: moderateScale(32),
+  title: moderateScale(40),
+};
 
 export const FontWeight = {
   regular: '400' as const,
@@ -188,8 +222,6 @@ export const Shadows = {
     default: {},
   }),
 };
-
-import { Ionicons } from '@expo/vector-icons';
 
 export type IoniconsName = keyof typeof Ionicons.glyphMap;
 

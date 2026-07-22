@@ -2,7 +2,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/components/ui/theme-provider';
-import { FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 
 interface PageHeaderProps {
   title: string;
@@ -16,7 +16,7 @@ export function PageHeader({ title, right }: PageHeaderProps) {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        height: 48,
+        height: scale(48),
         paddingHorizontal: Spacing.sm,
         gap: Spacing.xs,
       }}
@@ -29,14 +29,14 @@ export function PageHeader({ title, right }: PageHeaderProps) {
         accessibilityLabel="Volver"
         accessibilityHint="Regresa a la pantalla anterior"
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: scale(36),
+          height: scale(36),
+          borderRadius: scale(18),
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Ionicons name="arrow-back" size={22} color={colors.primary} />
+        <Ionicons name="arrow-back" size={scale(22)} color={colors.primary} />
       </TouchableOpacity>
       <Text
         numberOfLines={1}

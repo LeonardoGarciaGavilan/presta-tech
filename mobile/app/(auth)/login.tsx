@@ -20,7 +20,7 @@ import type { ApiError } from '@/types/api.types';
 import { AppInput } from '@/components/ui/app-input';
 import { AppButton } from '@/components/ui/app-button';
 import { useToast } from '@/components/ui/toast';
-import { BorderRadius, FontSize, FontWeight, Shadows, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale } from '@/constants/theme';
 import storage from '@/utils/storage';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -167,7 +167,7 @@ export default function LoginScreen() {
             >
               <Ionicons
                 name="shield-checkmark"
-                size={40}
+                size={scale(40)}
                 color={colors.primary}
               />
             </View>
@@ -235,7 +235,7 @@ export default function LoginScreen() {
               >
                 <Ionicons
                   name={rememberEmail ? 'checkbox' : 'square-outline'}
-                  size={20}
+                  size={scale(20)}
                   color={
                     rememberEmail ? colors.primary : colors.textTertiary
                   }
@@ -259,7 +259,7 @@ export default function LoginScreen() {
                 >
                   <Ionicons
                     name="alert-circle"
-                    size={16}
+                    size={scale(16)}
                     color={colors.error}
                   />
                   <Text style={[styles.errorText, { color: colors.error }]}>
@@ -292,7 +292,7 @@ export default function LoginScreen() {
           </Animated.View>
 
           <Pressable style={styles.whatsappRow} onPress={handleWhatsApp}>
-            <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+            <Ionicons name="logo-whatsapp" size={scale(18)} color="#25D366" />
             <Text style={[styles.whatsappText, { color: colors.textTertiary }]}>
               ¿Problemas para iniciar? Chatea con nosotros
             </Text>
@@ -326,9 +326,9 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: scale(72),
+    height: scale(72),
+    borderRadius: scale(36),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
