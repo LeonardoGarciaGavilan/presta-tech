@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,8 +10,8 @@ import { clienteSchema, type ClienteFormData } from '@/schemas/cliente.schema';
 import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { unformatIngresosInput } from '@/utils/formatters';
 import { useCedulaSignedUrl } from '@/hooks/use-clientes';
+import { useRutas } from '@/hooks/use-rutas';
 import { useQueryClient } from '@tanstack/react-query';
-import { listarRutas, type Ruta } from '@/api/rutas.api';
 import CascadingPicker from './cascading-picker';
 import AppMapView from './map-view';
 import CedulaUploadSection from './cedula-upload-section';
@@ -99,15 +99,9 @@ export default function ClienteForm({
     if (initialLongitud != null) return Number(initialLongitud);
     return null;
   });
-  const [rutas, setRutas] = useState<Ruta[]>([]);
+  const { data: rutas = [] } = useRutas();
   const [rutaId, setRutaId] = useState<string | null | undefined>(initialRutaId);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-
-  useEffect(() => {
-    listarRutas()
-      .then(setRutas)
-      .catch(() => {});
-  }, []);
 
   const handleRutaSelect = useCallback(
     (nombre: string) => {

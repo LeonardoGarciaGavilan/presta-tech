@@ -8,6 +8,7 @@ import type {
   ReordenRequest,
   GenerarDiaRequest,
 } from '@/types/rutas.types';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 export function useRutas() {
   return useQuery({
@@ -72,9 +73,61 @@ export function useEliminarRuta() {
 
 export function useMarcarVisitado() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: ({ rcId, visitado }: { rcId: string; visitado: boolean }) =>
-      rutasApi.marcarVisitado(rcId, visitado),
+    mutationFn: async ({ rcId, visitado, rutaId, fecha }: { rcId: string; visitado: boolean; rutaId?: string; fecha?: string }) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/rutas/clientes/${rcId}/visita`,
+          method: 'PATCH',
+          data: { visitado },
+          queryKeys: [
+            ['rutas'],
+            ...(rutaId && fecha ? [['rutas', rutaId, 'dia', fecha]] : []),
+          ] as string[][],
+          tempId: `visita_temp_${Date.now()}`,
+          tempDisplay: {
+            rcId,
+            visitado,
+          },
+        });
+        if (rutaId && fecha) {
+          queryClient.setQueryData(
+            ['rutas', rutaId, 'dia', fecha],
+            (old: any) => {
+              if (!old || !old.clientes) return old;
+              return {
+                ...old,
+                clientes: old.clientes.map((c: any) =>
+                  c.rutaClienteId === rcId || c.id === rcId
+                    ? { ...c, visitado }
+                    : c,
+                ),
+              };
+            },
+          );
+        }
+        queryClient.setQueriesData(
+          { queryKey: ['rutas'] },
+          (old: any) => {
+            if (!old) return old;
+            if (Array.isArray(old)) {
+              return old.map((ruta: any) => ({
+                ...ruta,
+                clientes: ruta.clientes?.map((c: any) =>
+                  c.rutaClienteId === rcId || c.id === rcId
+                    ? { ...c, visitado }
+                    : c,
+                ),
+              }));
+            }
+            return old;
+          },
+        );
+        return { rcId, visitado, esOffline: true };
+      }
+      return rutasApi.marcarVisitado(rcId, visitado);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rutas'] });
     },
@@ -83,8 +136,57 @@ export function useMarcarVisitado() {
 
 export function useResetVisitados() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: () => rutasApi.resetVisitados(),
+    mutationFn: async (params?: { rutaId?: string; fecha?: string }) => {
+      const { rutaId, fecha } = params || {};
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: '/rutas/reset-visitados',
+          method: 'POST',
+          data: {},
+          queryKeys: [
+            ['rutas'],
+            ...(rutaId && fecha ? [['rutas', rutaId, 'dia', fecha]] : []),
+          ] as string[][],
+          tempId: `reset_visitas_temp_${Date.now()}`,
+          tempDisplay: { accion: 'reset_visitados' },
+        });
+        if (rutaId && fecha) {
+          queryClient.setQueryData(
+            ['rutas', rutaId, 'dia', fecha],
+            (old: any) => {
+              if (!old || !old.clientes) return old;
+              return {
+                ...old,
+                clientes: old.clientes.map((c: any) => ({
+                  ...c,
+                  visitado: false,
+                })),
+              };
+            },
+          );
+        }
+        queryClient.setQueriesData(
+          { queryKey: ['rutas'] },
+          (old: any) => {
+            if (!old) return old;
+            if (Array.isArray(old)) {
+              return old.map((ruta: any) => ({
+                ...ruta,
+                clientes: ruta.clientes?.map((c: any) => ({
+                  ...c,
+                  visitado: false,
+                })),
+              }));
+            }
+            return old;
+          },
+        );
+        return { esOffline: true };
+      }
+      return rutasApi.resetVisitados();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rutas'] });
     },
@@ -93,11 +195,28 @@ export function useResetVisitados() {
 
 export function useGenerarDia(id: string) {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: (data: GenerarDiaRequest) =>
-      rutasApi.generarRutaDia(id, data),
+    mutationFn: async (data: GenerarDiaRequest) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/rutas/${id}/generar-dia`,
+          method: 'POST',
+          data,
+          queryKeys: [['rutas', id], ['rutas', id, 'dia'], ['rutas']],
+          tempId: `generar_dia_temp_${Date.now()}`,
+          tempDisplay: {
+            rutaId: id,
+            fecha: data.fecha,
+          },
+        });
+        return { id, esOffline: true } as any;
+      }
+      return rutasApi.generarRutaDia(id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rutas', id, 'dia'] });
+      queryClient.invalidateQueries({ queryKey: ['rutas'] });
     },
   });
 }

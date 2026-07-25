@@ -10,6 +10,8 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import { usePrestamos, usePrestamo } from '@/hooks/use-prestamos';
 import { useCajaActiva } from '@/hooks/use-caja';
+import { getNetworkStatus } from '@/hooks/use-network-status';
+import { searchPrestamosOffline, getAllCachedPrestamos } from '@/services/search-index';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatCedula } from '@/utils/formatters';
 import type { Prestamo } from '@/types/prestamo.types';
@@ -104,11 +106,22 @@ function SearchPaymentMode() {
     debouncedSearch ? { search: debouncedSearch, limit: 20 } : undefined,
   );
   const prestamos = useMemo(() => {
+    const network = getNetworkStatus();
+
+    if (!network.isOnline) {
+      const cached = debouncedSearch
+        ? searchPrestamosOffline(debouncedSearch)
+        : getAllCachedPrestamos();
+      return cached.filter(
+        (p: any) => p.estado === 'ACTIVO' || p.estado === 'ATRASADO',
+      );
+    }
+
     if (!prestamosData?.data) return [];
     return prestamosData.data.filter(
       (p: any) => p.estado === 'ACTIVO' || p.estado === 'ATRASADO',
     );
-  }, [prestamosData]);
+  }, [prestamosData, debouncedSearch]);
 
   // Selected prestamo for payment
   const [selectedPrestamo, setSelectedPrestamo] = useState<Prestamo | null>(null);

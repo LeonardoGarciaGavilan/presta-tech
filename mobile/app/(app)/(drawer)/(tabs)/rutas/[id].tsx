@@ -142,7 +142,7 @@ export default function VistaDiaScreen() {
 
   const handleReset = useCallback(async () => {
     try {
-      await resetVisitados();
+      await resetVisitados({});
       showToast('Visitados reseteado', 'success');
       setResetConfirm(false);
     } catch (err: any) {

@@ -5,10 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { CompanyHeader } from '@/components/ui/company-header';
 import { useTheme } from '@/components/ui/theme-provider';
 import { scale } from '@/constants/theme';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { colorScheme, colors } = useTheme();
+  const { pendingCount } = useNetworkContext();
 
   return (
     <Tabs
@@ -93,6 +95,21 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="sincronizacion"
+        options={{
+          title: 'Sincronización',
+          tabBarLabel: 'Sync',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sync-outline" size={size} color={color} />
+          ),
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#EF4444',
+            fontSize: scale(10),
+          },
         }}
       />
     </Tabs>

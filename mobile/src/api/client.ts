@@ -4,6 +4,7 @@ import { AUTH_PUBLIC_ROUTES } from '@/constants/auth.constants';
 import { tokenStorage } from '@/utils/token-storage';
 import { handleApiError } from '@/utils/error-handler';
 import { waitForRefresh } from '@/api/refresh-manager';
+import { getNetworkStatus } from '@/hooks/use-network-status';
 import { API_CONFIG } from './config';
 
 const client = axios.create(API_CONFIG);
@@ -41,7 +42,14 @@ client.interceptors.response.use(
     return response;
   },
   async (error) => {
+    const network = getNetworkStatus();
     const apiError = handleApiError(error);
+
+    if (!network.isOnline && apiError.code === 'NETWORK_ERROR') {
+      (apiError as any).isOffline = true;
+      (apiError as any).isQueued = false;
+    }
+
     const originalRequest = error.config as
       | (AxiosRequestConfig & { _retry?: boolean })
       | undefined;

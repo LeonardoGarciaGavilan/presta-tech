@@ -16,8 +16,12 @@ export async function listar(
   inactivos?: boolean,
 ): Promise<PaginatedClientesResponse> {
   const endpoint = inactivos ? `${ENDPOINT}/inactivos` : ENDPOINT;
+  const params: any = { ...filters };
+  if (filters?.ids) {
+    params.ids = Array.isArray(filters.ids) ? filters.ids.join(',') : filters.ids;
+  }
   const response = await client.get<PaginatedClientesResponse>(endpoint, {
-    params: filters,
+    params,
   });
   return response.data;
 }

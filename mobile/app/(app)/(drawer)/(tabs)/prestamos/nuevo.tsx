@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCrearPrestamo } from '@/hooks/use-prestamos';
 import { useClienteSearch, useGaranteSearch } from '@/hooks/use-entity-search';
 import { usePrestamoPreview } from '@/hooks/use-prestamo-preview';
+import { useConfiguracion } from '@/hooks/use-configuracion';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import DatePickerField from '@/components/ui/date-picker-field';
@@ -43,6 +44,7 @@ export default function NuevoPrestamoScreen() {
   const { colors } = useTheme();
   const { mutateAsync: crearPrestamo, isPending: isCreando } = useCrearPrestamo();
   const { showToast } = useToast();
+  const { data: configuracion } = useConfiguracion();
 
   const [modoRapido, setModoRapido] = useState(true);
   const [modoCalculo, setModoCalculo] = useState<'PAGO' | 'GANANCIA'>('PAGO');
@@ -110,14 +112,23 @@ export default function NuevoPrestamoScreen() {
     const e: Record<string, string> = {};
     const montoNum = parseFloat(monto);
     if (!clienteSearch.entity) e.cliente = 'Selecciona un cliente';
-    if (!monto || montoNum <= 0) e.monto = 'Ingresa un monto válido';
+    if (!monto || montoNum <= 0) {
+      e.monto = 'Ingresa un monto válido';
+    } else {
+      if (configuracion?.montoMinimoPrestamo && montoNum < configuracion.montoMinimoPrestamo) {
+        e.monto = `El monto mínimo es ${formatCurrency(configuracion.montoMinimoPrestamo)}`;
+      }
+      if (configuracion?.montoMaximoPrestamo && montoNum > configuracion.montoMaximoPrestamo) {
+        e.monto = `El monto máximo es ${formatCurrency(configuracion.montoMaximoPrestamo)}`;
+      }
+    }
     if (!modoRapido && (!tasaInteres || parseFloat(tasaInteres) <= 0)) e.tasaInteres = 'Ingresa una tasa válida';
     if (!modoRapido && (!numeroCuotas || parseInt(numeroCuotas) < 1)) e.numeroCuotas = 'Ingresa un número de cuotas válido';
     if (modoRapido && (!duracion || parseInt(duracion, 10) < 1)) e.duracion = 'Ingresa una duración válida';
     if (!frecuenciaPago) e.frecuenciaPago = 'Selecciona la frecuencia';
     if (!fechaInicio) e.fechaInicio = 'Selecciona la fecha de inicio';
     return e;
-  }, [clienteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, modoRapido, duracion]);
+  }, [clienteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, modoRapido, duracion, configuracion]);
 
   const handleSubmit = useCallback(async () => {
     const errs = validate();

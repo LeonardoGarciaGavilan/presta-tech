@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listar } from '@/api/clientes.api';
+import { getNetworkStatus } from '@/hooks/use-network-status';
+import {
+  searchClientesOffline,
+  searchPrestamosOffline,
+  getAllCachedClientes,
+} from '@/services/search-index';
 import type { Cliente } from '@/types/cliente.types';
+import type { Prestamo } from '@/types/prestamo.types';
 
 interface UseEntitySearchOptions {
   excludeId?: string;
@@ -24,6 +31,21 @@ interface UseEntitySearchReturn {
   buscando: boolean;
 }
 
+export function searchCachedClientes(_queryClient: any, searchText: string): Cliente[] {
+  return searchClientesOffline(searchText);
+}
+
+export function searchCachedPrestamos(
+  _queryClient: any,
+  searchText: string,
+): Prestamo[] {
+  return searchPrestamosOffline(searchText);
+}
+
+export function getAllOfflineClientes(): Cliente[] {
+  return getAllCachedClientes();
+}
+
 export function useEntitySearch({
   excludeId,
   minChars = 2,
@@ -42,21 +64,38 @@ export function useEntitySearch({
       setSugerencias([]);
       return;
     }
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setBuscando(true);
-      try {
-        const res = await listar({ page: 1, limit, search: searchText });
-        let results = res.data.slice(0, limit);
-        if (excludeId) {
-          results = results.filter((c) => c.id !== excludeId);
+      const network = getNetworkStatus();
+
+      if (!network.isOnline) {
+        try {
+          let results = searchClientesOffline(searchText, excludeId);
+          setSugerencias(results.slice(0, limit));
+          setShowSugerencias(true);
+        } catch {
+          setSugerencias([]);
+        } finally {
+          setBuscando(false);
         }
-        setSugerencias(results.slice(0, limit));
-        setShowSugerencias(true);
-      } catch {
-        setSugerencias([]);
-      } finally {
-        setBuscando(false);
+        return;
       }
+
+      listar({ page: 1, limit, search: searchText })
+        .then((res) => {
+          let results = res.data.slice(0, limit);
+          if (excludeId) {
+            results = results.filter((c) => c.id !== excludeId);
+          }
+          setSugerencias(results);
+          setShowSugerencias(true);
+        })
+        .catch(() => {
+          setSugerencias([]);
+        })
+        .finally(() => {
+          setBuscando(false);
+        });
     }, debounceMs);
     return () => clearTimeout(timer);
   }, [searchText, excludeId, minChars, limit, debounceMs]);

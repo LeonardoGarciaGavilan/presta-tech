@@ -7,6 +7,7 @@ import { obtenerCajaActiva,
   obtenerAuditoriaCaja,
   obtenerCajas } from '@/api/caja.api';
 import type { AbrirCajaDto, CerrarCajaDto } from '@/types/caja.types';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 export function useCajaActiva(fecha?: string) {
   return useQuery({
@@ -17,24 +18,110 @@ export function useCajaActiva(fecha?: string) {
 
 export function useAbrirCaja() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: (dto: AbrirCajaDto) => abrirCaja(dto),
+    mutationFn: async (dto: AbrirCajaDto) => {
+      if (!network.isOnline) {
+        const tempId = `caja_temp_${Date.now()}`;
+        await addToOfflineQueue({
+          endpoint: '/caja/abrir',
+          method: 'POST',
+          data: dto,
+          queryKeys: [['caja', 'activa'], ['caja', 'historial'], ['caja', 'lista'], ['caja', 'resumen']],
+          tempId,
+          tempDisplay: {
+            montoInicial: dto.montoInicial,
+            fecha: dto.fecha || new Date().toISOString(),
+            estado: 'ABIERTA',
+          },
+        });
+        const cajaData = {
+          id: tempId,
+          montoInicial: dto.montoInicial,
+          estado: 'ABIERTA',
+          fecha: dto.fecha || new Date().toISOString(),
+          horaApertura: new Date().toISOString(),
+          totalIngresos: 0,
+          totalEgresos: 0,
+          cantidadMovimientos: 0,
+          usuarioId: '',
+          empresaId: '',
+          resumen: {
+            totalIngresos: 0,
+            totalEgresos: 0,
+            cantidadMovimientos: 0,
+            porMetodo: {},
+            pagos: [],
+            desembolsos: [],
+          },
+          esOffline: true,
+        };
+        queryClient.setQueriesData(
+          { queryKey: ['caja', 'activa'] },
+          cajaData,
+        );
+        return {
+          id: tempId,
+          montoInicial: dto.montoInicial,
+          estado: 'ABIERTA',
+          fecha: dto.fecha || new Date().toISOString(),
+          horaApertura: cajaData.horaApertura,
+          totalIngresos: 0,
+          totalEgresos: 0,
+          cantidadMovimientos: 0,
+          usuarioId: '',
+          empresaId: '',
+        };
+      }
+      return abrirCaja(dto);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['caja', 'activa'] });
       queryClient.invalidateQueries({ queryKey: ['caja', 'historial'] });
       queryClient.invalidateQueries({ queryKey: ['caja', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: ['caja', 'resumen'] });
     },
   });
 }
 
 export function useCerrarCaja() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: CerrarCajaDto }) => cerrarCaja(id, dto),
+    mutationFn: async ({ id, dto }: { id: string; dto: CerrarCajaDto }) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/caja/${id}/cerrar`,
+          method: 'PATCH',
+          data: dto,
+          queryKeys: [['caja', 'activa'], ['caja', 'historial'], ['caja', 'lista'], ['caja', 'resumen'], ['prestamos']],
+          tempId: `cerrar_temp_${Date.now()}`,
+          tempDisplay: {
+            cajaId: id,
+            montoCierre: dto.montoCierre,
+            observaciones: dto.observaciones,
+          },
+        });
+        queryClient.setQueriesData(
+          { queryKey: ['caja', 'activa'] },
+          null,
+        );
+        return {
+          cajaId: id,
+          esperado: 0,
+          montoCierre: dto.montoCierre,
+          diferencia: 0,
+          estado: 'CERRADA',
+          esOffline: true,
+        };
+      }
+      return cerrarCaja(id, dto);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['caja', 'activa'] });
       queryClient.invalidateQueries({ queryKey: ['caja', 'historial'] });
       queryClient.invalidateQueries({ queryKey: ['caja', 'lista'] });
+      queryClient.invalidateQueries({ queryKey: ['caja', 'resumen'] });
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
     },
   });

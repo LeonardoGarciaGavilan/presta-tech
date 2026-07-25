@@ -9,15 +9,71 @@ import type {
   CreatePagoDto,
   SaldarPrestamoDto,
 } from '@/types/prestamo.types';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 export function useRegistrarPago() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: (dto: CreatePagoDto) => registrarPago(dto),
+    mutationFn: async (dto: CreatePagoDto) => {
+      if (!network.isOnline) {
+        const item = await addToOfflineQueue({
+          endpoint: '/pagos',
+          method: 'POST',
+          data: dto,
+          queryKeys: [
+            ['pagos'],
+            ['pagos', 'resumen'],
+            ['pagos', 'todos'],
+            ['pagos', 'prestamo', dto.prestamoId],
+            ['prestamos', dto.prestamoId],
+            ['prestamos'],
+            ['caja'],
+          ],
+          tempId: `pago_temp_${Date.now()}`,
+          tempDisplay: {
+            montoPagado: dto.montoPagado,
+            metodo: dto.metodo,
+          },
+        });
+        return {
+          pago: {
+            id: item.tempId,
+            montoTotal: dto.montoPagado,
+            capital: dto.montoPagado,
+            interes: 0,
+            mora: 0,
+            metodo: dto.metodo,
+            referencia: dto.referencia || null,
+            observacion: dto.observacion || null,
+            createdAt: new Date().toISOString(),
+            usuarioId: '',
+            prestamoId: dto.prestamoId,
+            cajaId: null,
+          },
+          prestamo: {
+            id: dto.prestamoId,
+            monto: 0,
+            saldoPendiente: 0,
+          },
+          cliente: {
+            nombre: 'Pendiente de sincronización',
+            apellido: '',
+            cedula: '',
+          },
+          cuota: null,
+          usuario: { nombre: '' },
+          esOffline: true,
+          pendingSync: true,
+        };
+      }
+      return registrarPago(dto);
+    },
     onSuccess: (_data) => {
       const prestamoId = _data?.pago?.prestamoId || _data?.prestamo?.id;
       if (prestamoId) {
         queryClient.invalidateQueries({ queryKey: ['prestamos', prestamoId] });
+        queryClient.invalidateQueries({ queryKey: ['pagos', 'prestamo', prestamoId] });
       }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
       queryClient.invalidateQueries({ queryKey: ['pagos', 'resumen'] });
@@ -52,17 +108,50 @@ export function useResumenPagos() {
 
 export function useSaldarPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       prestamoId,
       dto,
     }: {
       prestamoId: string;
       dto: SaldarPrestamoDto;
-    }) => saldarPrestamo(prestamoId, dto),
+    }) => {
+      if (!network.isOnline) {
+        const item = await addToOfflineQueue({
+          endpoint: `/pagos/saldar/${prestamoId}`,
+          method: 'POST',
+          data: dto,
+          queryKeys: [
+            ['prestamos', prestamoId],
+            ['prestamos'],
+            ['pagos', 'prestamo', prestamoId],
+            ['pagos', 'resumen'],
+            ['pagos', 'todos'],
+            ['caja'],
+          ],
+          tempId: `saldar_temp_${Date.now()}`,
+          tempDisplay: {
+            prestamoId,
+            metodo: dto.metodo,
+          },
+        });
+        return {
+          cajaId: null,
+          esperado: 0,
+          montoCierre: 0,
+          diferencia: 0,
+          estado: 'PAGADO',
+          esOffline: true,
+          tempId: item.tempId,
+        };
+      }
+      return saldarPrestamo(prestamoId, dto);
+    },
     onSuccess: (_data, { prestamoId }) => {
       queryClient.invalidateQueries({ queryKey: ['prestamos', prestamoId] });
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
+      queryClient.invalidateQueries({ queryKey: ['pagos', 'prestamo', prestamoId] });
       queryClient.invalidateQueries({ queryKey: ['pagos', 'resumen'] });
       queryClient.invalidateQueries({ queryKey: ['pagos', 'todos'] });
       queryClient.invalidateQueries({ queryKey: ['caja'] });

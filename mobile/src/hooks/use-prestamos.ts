@@ -19,6 +19,7 @@ import type {
   RefinanciarPrestamoDto,
   PrestamosFilters,
 } from '@/types/prestamo.types';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 export function usePrestamos(filters?: PrestamosFilters) {
   return useQuery({
@@ -38,8 +39,33 @@ export function usePrestamo(id: string) {
 
 export function useCrearPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: (data: CreatePrestamoRequest) => crear(data),
+    mutationFn: async (data: CreatePrestamoRequest) => {
+      if (!network.isOnline) {
+        const tempId = `prestamo_temp_${Date.now()}`;
+        await addToOfflineQueue({
+          endpoint: '/prestamos',
+          method: 'POST',
+          data,
+          queryKeys: [['prestamos'], ['clientes']],
+          tempId,
+          tempDisplay: {
+            clienteNombre: data.clienteId,
+            monto: data.monto,
+            estado: 'SOLICITADO',
+          },
+        });
+        return {
+          id: tempId,
+          ...data,
+          estado: 'SOLICITADO',
+          saldoPendiente: data.monto,
+          esOffline: true,
+        };
+      }
+      return crear(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -49,14 +75,35 @@ export function useCrearPrestamo() {
 
 export function useActualizarPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       id,
       data,
     }: {
       id: string;
       data: Partial<CreatePrestamoRequest>;
-    }) => actualizar(id, data),
+    }) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/prestamos/${id}`,
+          method: 'PATCH',
+          data,
+          queryKeys: [['prestamos', id], ['prestamos']],
+          tempId: `update_prestamo_temp_${Date.now()}`,
+          tempDisplay: {
+            prestamoId: id,
+            cambios: Object.keys(data),
+          },
+        });
+        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+          ...old,
+          ...data,
+        }));
+        return { id, ...data, esOffline: true } as any;
+      }
+      return actualizar(id, data);
+    },
     onSuccess: (_data, { id }) => {
       queryClient.setQueryData(['prestamos', id], _data);
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
@@ -66,8 +113,28 @@ export function useActualizarPrestamo() {
 
 export function useCancelarPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: (id: string) => cancelar(id),
+    mutationFn: async (id: string) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/prestamos/${id}/cancelar`,
+          method: 'PATCH',
+          data: {},
+          queryKeys: [['prestamos', id], ['prestamos']],
+          tempId: `cancelar_prestamo_temp_${Date.now()}`,
+          tempDisplay: {
+            prestamoId: id,
+          },
+        });
+        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+          ...old,
+          estado: 'CANCELADO',
+        }));
+        return { id, estado: 'CANCELADO', esOffline: true } as any;
+      }
+      return cancelar(id);
+    },
     onSuccess: (_data, id) => {
       queryClient.setQueryData(['prestamos', id], _data);
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
@@ -77,14 +144,36 @@ export function useCancelarPrestamo() {
 
 export function useCambiarEstadoPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       id,
       data,
     }: {
       id: string;
       data: CambiarEstadoDto;
-    }) => cambiarEstado(id, data),
+    }) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/prestamos/${id}/estado`,
+          method: 'PATCH',
+          data,
+          queryKeys: [['prestamos', id], ['prestamos']],
+          tempId: `estado_temp_${Date.now()}`,
+          tempDisplay: {
+            prestamoId: id,
+            nuevoEstado: data.estado,
+            motivo: data.motivo,
+          },
+        });
+        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+          ...old,
+          estado: data.estado,
+        }));
+        return { id, estado: data.estado, esOffline: true };
+      }
+      return cambiarEstado(id, data);
+    },
     onSuccess: (_data, { id }) => {
       queryClient.setQueryData(['prestamos', id], _data);
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
@@ -94,8 +183,28 @@ export function useCambiarEstadoPrestamo() {
 
 export function useDesembolsarPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: (id: string) => desembolsar(id),
+    mutationFn: async (id: string) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/prestamos/${id}/desembolsar`,
+          method: 'PATCH',
+          data: {},
+          queryKeys: [['prestamos', id], ['prestamos']],
+          tempId: `desembolso_temp_${Date.now()}`,
+          tempDisplay: {
+            prestamoId: id,
+          },
+        });
+        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+          ...old,
+          estado: 'ACTIVO',
+        }));
+        return { id, estado: 'ACTIVO', esOffline: true };
+      }
+      return desembolsar(id);
+    },
     onSuccess: (_data, id) => {
       queryClient.setQueryData(['prestamos', id], _data);
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
@@ -105,14 +214,36 @@ export function useDesembolsarPrestamo() {
 
 export function useRefinanciarPrestamo() {
   const queryClient = useQueryClient();
+  const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       id,
       data,
     }: {
       id: string;
       data: RefinanciarPrestamoDto;
-    }) => refinanciar(id, data),
+    }) => {
+      if (!network.isOnline) {
+        await addToOfflineQueue({
+          endpoint: `/prestamos/${id}/refinanciar`,
+          method: 'PATCH',
+          data,
+          queryKeys: [['prestamos', id], ['prestamos']],
+          tempId: `refinanciar_temp_${Date.now()}`,
+          tempDisplay: {
+            prestamoId: id,
+            nuevasCuotas: data.nuevasCuotas,
+            nuevaTasa: data.nuevaTasa,
+          },
+        });
+        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+          ...old,
+          estado: 'REFINANCIADO',
+        }));
+        return { id, estado: 'REFINANCIADO', esOffline: true } as any;
+      }
+      return refinanciar(id, data);
+    },
     onSuccess: (_data, { id }) => {
       queryClient.setQueryData(['prestamos', id], _data);
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });

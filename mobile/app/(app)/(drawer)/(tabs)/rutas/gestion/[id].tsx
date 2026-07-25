@@ -8,7 +8,8 @@ import { useRuta,
   useActualizarRuta,
   useQuitarClienteRuta,
   useReordenarRuta } from '@/hooks/use-rutas';
-import { listar } from '@/api/clientes.api';
+import { getNetworkStatus } from '@/hooks/use-network-status';
+import { searchClientesOffline } from '@/services/search-index';
 import { agregarClienteRuta } from '@/api/rutas.api';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { PageHeader } from '@/components/ui/page-header';
@@ -99,8 +100,18 @@ export default function GestionRutaScreen() {
     }
     setSearching(true);
     try {
-      const res = await listar({ search: text, limit: 10 });
-      setAddResults(res.data.filter(
+      const network = getNetworkStatus();
+      let results: any[];
+
+      if (!network.isOnline) {
+        results = searchClientesOffline(text);
+      } else {
+        const { listar } = await import('@/api/clientes.api');
+        const res = await listar({ search: text, limit: 10 });
+        results = res.data;
+      }
+
+      setAddResults(results.filter(
         (c: any) => !clientes.some((rc) => rc.cliente.id === c.id),
       ));
     } catch {

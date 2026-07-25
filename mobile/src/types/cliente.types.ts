@@ -82,6 +82,7 @@ export interface ClientesFilters {
   page?: number;
   limit?: number;
   search?: string;
+  ids?: string[];
 }
 
 export interface PaginatedClientesResponse {

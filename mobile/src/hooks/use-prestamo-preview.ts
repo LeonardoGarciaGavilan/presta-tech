@@ -1,7 +1,69 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCalcularTabla } from '@/hooks/use-prestamos';
+import { getNetworkStatus } from '@/hooks/use-network-status';
 import { formatCurrency } from '@/utils/formatters';
-import type { FrecuenciaPago, TablaAmortizacion } from '@/types/prestamo.types';
+import type { CuotaPreview, FrecuenciaPago, TablaAmortizacion } from '@/types/prestamo.types';
+
+const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
+  DIARIO: 1,
+  SEMANAL: 7,
+  QUINCENAL: 15,
+  MENSUAL: 30,
+};
+
+function calcularAmortizacionLocal(
+  monto: number,
+  tasaInteres: number,
+  numeroCuotas: number,
+  frecuenciaPago: FrecuenciaPago,
+  fechaInicio?: string,
+): TablaAmortizacion {
+  const tasaMensual = tasaInteres / 100;
+  const diasPeriodo = DIAS_FRECUENCIA[frecuenciaPago];
+  const tasaPeriodo = tasaMensual * (diasPeriodo / 30);
+
+  let cuotaFija: number;
+  if (tasaPeriodo === 0) {
+    cuotaFija = monto / numeroCuotas;
+  } else {
+    const factor = Math.pow(1 + tasaPeriodo, numeroCuotas);
+    cuotaFija = (monto * tasaPeriodo * factor) / (factor - 1);
+  }
+
+  const startDate = fechaInicio ? new Date(fechaInicio) : new Date();
+  const cuotas: CuotaPreview[] = [];
+  let saldo = monto;
+  let totalIntereses = 0;
+
+  for (let i = 1; i <= numeroCuotas; i++) {
+    const interes = Math.round(saldo * tasaPeriodo * 100) / 100;
+    const capital = i === numeroCuotas ? saldo : Math.round((cuotaFija - interes) * 100) / 100;
+    const montoCuota = Math.round((capital + interes) * 100) / 100;
+    saldo = Math.round((saldo - capital) * 100) / 100;
+
+    const fecha = new Date(startDate);
+    fecha.setDate(fecha.getDate() + diasPeriodo * i);
+
+    cuotas.push({
+      numero: i,
+      monto: montoCuota,
+      capital,
+      interes,
+      fechaVencimiento: fecha.toISOString().split('T')[0],
+      saldoRestante: Math.max(0, saldo),
+    });
+
+    totalIntereses += interes;
+  }
+
+  return {
+    montoTotal: Math.round((monto + totalIntereses) * 100) / 100,
+    totalIntereses: Math.round(totalIntereses * 100) / 100,
+    cuotaInicial: cuotas[0]?.monto ?? 0,
+    tasaPeriodo,
+    cuotas,
+  };
+}
 
 interface UsePrestamoPreviewParams {
   modoRapido: boolean;
@@ -51,33 +113,18 @@ export function usePrestamoPreview({
           if (pagoVal > 0) {
             const totalCobrar = pagoVal * duracionVal;
             setIsCalculando(true);
-            calcularMutation({
-              monto: montoVal,
-              tasaInteres: 0,
-              numeroCuotas: duracionVal,
-              frecuenciaPago,
-              fechaInicio,
-            })
-              .then((res) => {
-                setPreview({
-                  ...res,
-                  montoTotal: totalCobrar,
-                  totalIntereses: totalCobrar - montoVal,
-                  cuotaInicial: Math.round(pagoVal),
-                });
-              })
-              .catch(() => setPreview(null))
-              .finally(() => setIsCalculando(false));
-          } else {
-            setPreview(null);
-          }
-        } else {
-          const gananciaVal = parseFloat(gananciaDeseada);
-          if (gananciaVal >= 0) {
-            const totalCobrar = montoVal + gananciaVal;
-            if (totalCobrar > montoVal) {
-              const cuotaIdeal = totalCobrar / duracionVal;
-              setIsCalculando(true);
+
+            const network = getNetworkStatus();
+            if (!network.isOnline) {
+              const res = calcularAmortizacionLocal(montoVal, 0, duracionVal, frecuenciaPago, fechaInicio);
+              setPreview({
+                ...res,
+                montoTotal: totalCobrar,
+                totalIntereses: totalCobrar - montoVal,
+                cuotaInicial: Math.round(pagoVal),
+              });
+              setIsCalculando(false);
+            } else {
               calcularMutation({
                 monto: montoVal,
                 tasaInteres: 0,
@@ -89,12 +136,53 @@ export function usePrestamoPreview({
                   setPreview({
                     ...res,
                     montoTotal: totalCobrar,
-                    totalIntereses: gananciaVal,
-                    cuotaInicial: Math.round(cuotaIdeal),
+                    totalIntereses: totalCobrar - montoVal,
+                    cuotaInicial: Math.round(pagoVal),
                   });
                 })
                 .catch(() => setPreview(null))
                 .finally(() => setIsCalculando(false));
+            }
+          } else {
+            setPreview(null);
+          }
+        } else {
+          const gananciaVal = parseFloat(gananciaDeseada);
+          if (gananciaVal >= 0) {
+            const totalCobrar = montoVal + gananciaVal;
+            if (totalCobrar > montoVal) {
+              const cuotaIdeal = totalCobrar / duracionVal;
+              setIsCalculando(true);
+
+              const network = getNetworkStatus();
+              if (!network.isOnline) {
+                const res = calcularAmortizacionLocal(montoVal, 0, duracionVal, frecuenciaPago, fechaInicio);
+                setPreview({
+                  ...res,
+                  montoTotal: totalCobrar,
+                  totalIntereses: gananciaVal,
+                  cuotaInicial: Math.round(cuotaIdeal),
+                });
+                setIsCalculando(false);
+              } else {
+                calcularMutation({
+                  monto: montoVal,
+                  tasaInteres: 0,
+                  numeroCuotas: duracionVal,
+                  frecuenciaPago,
+                  fechaInicio,
+                })
+                  .then((res) => {
+                    setPreview({
+                      ...res,
+                      montoTotal: totalCobrar,
+                      totalIntereses: gananciaVal,
+                      cuotaInicial: Math.round(cuotaIdeal),
+                    });
+                  })
+                  .catch(() => setPreview(null))
+                  .finally(() => setIsCalculando(false));
+              }
             } else {
               setPreview(null);
             }
@@ -111,16 +199,23 @@ export function usePrestamoPreview({
       const cuotasVal = parseInt(numeroCuotas);
       if (montoVal > 0 && tasaVal > 0 && cuotasVal > 0) {
         setIsCalculando(true);
-        calcularMutation({
-          monto: montoVal,
-          tasaInteres: tasaVal,
-          numeroCuotas: cuotasVal,
-          frecuenciaPago,
-          fechaInicio,
-        })
-          .then(setPreview)
-          .catch(() => setPreview(null))
-          .finally(() => setIsCalculando(false));
+
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          setPreview(calcularAmortizacionLocal(montoVal, tasaVal, cuotasVal, frecuenciaPago, fechaInicio));
+          setIsCalculando(false);
+        } else {
+          calcularMutation({
+            monto: montoVal,
+            tasaInteres: tasaVal,
+            numeroCuotas: cuotasVal,
+            frecuenciaPago,
+            fechaInicio,
+          })
+            .then(setPreview)
+            .catch(() => setPreview(null))
+            .finally(() => setIsCalculando(false));
+        }
       } else {
         setPreview(null);
       }

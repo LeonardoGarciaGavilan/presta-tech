@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sentry from '@sentry/react-native';
@@ -24,6 +24,13 @@ import { Colors, FontSize, FontWeight, scale, Spacing } from '@/constants/theme'
 import { ToastProvider } from '@/components/ui/toast';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { NetworkProvider } from '@/components/providers/network-provider';
+import { BackgroundPrefetch } from '@/components/providers/background-prefetch';
+import { buildClienteIndex, buildPrestamoIndex } from '@/services/search-index';
+import type { PaginatedClientesResponse } from '@/types/cliente.types';
+import type { PaginatedPrestamosResponse } from '@/types/prestamo.types';
+import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
+import type { PersistedClient } from '@tanstack/react-query-persist-client';
 
 // Disable font scaling globally for consistent text sizing across devices
 (Text as any).defaultProps = { ...(Text as any).defaultProps, allowFontScaling: false };
@@ -41,8 +48,6 @@ if (SENTRY_DSN) {
 }
 
 function RootLayout() {
-  useAuthBootstrap();
-
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const colorScheme = useColorScheme();
   const [queryClient] = useState(
@@ -57,6 +62,7 @@ function RootLayout() {
           },
           mutations: {
             retry: 1,
+            networkMode: 'offlineFirst',
           },
         },
       }),
@@ -64,17 +70,77 @@ function RootLayout() {
 
   const currentColors = Colors[colorScheme ?? 'light'];
 
-  useEffect(() => {
-    const asyncStoragePersister = createAsyncStoragePersister({
-      storage: AsyncStorage,
-    });
+  useAuthBootstrap(queryClient);
 
-    persistQueryClient({
+  const asyncStoragePersister = useMemo(
+    () =>
+      createAsyncStoragePersister({
+        storage: AsyncStorage,
+        serialize: (client: PersistedClient) => {
+          const json = JSON.stringify(client);
+          return compressToUTF16(json);
+        },
+        deserialize: (cachedString: string) => {
+          const json = decompressFromUTF16(cachedString);
+          if (!json) throw new Error('Failed to decompress cache');
+          return JSON.parse(json);
+        },
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    const [unsubscribePersist] = persistQueryClient({
       queryClient,
       persister: asyncStoragePersister,
       maxAge: 1000 * 60 * 60 * 24,
     });
-  }, [queryClient]);
+
+    const rebuildIndexes = () => {
+      const clienteQueries = queryClient.getQueriesData<PaginatedClientesResponse>({
+        queryKey: ['clientes'],
+      });
+      const allClientes: PaginatedClientesResponse['data'] = [];
+      const seenC = new Set<string>();
+      for (const [, data] of clienteQueries) {
+        if (!data?.data) continue;
+        for (const c of data.data) {
+          if (!seenC.has(c.id)) {
+            seenC.add(c.id);
+            allClientes.push(c);
+          }
+        }
+      }
+      if (allClientes.length > 0) buildClienteIndex(allClientes);
+
+      const prestamoQueries = queryClient.getQueriesData<PaginatedPrestamosResponse>({
+        queryKey: ['prestamos'],
+      });
+      const allPrestamos: PaginatedPrestamosResponse['data'] = [];
+      const seenP = new Set<string>();
+      for (const [, data] of prestamoQueries) {
+        if (!data?.data) continue;
+        for (const p of data.data) {
+          if (!seenP.has(p.id)) {
+            seenP.add(p.id);
+            allPrestamos.push(p);
+          }
+        }
+      }
+      if (allPrestamos.length > 0) buildPrestamoIndex(allPrestamos);
+    };
+
+    rebuildIndexes();
+
+    const unsubscribeCache = queryClient.getQueryCache().subscribe(() => {
+      rebuildIndexes();
+    });
+
+    return () => {
+      unsubscribePersist();
+      unsubscribeCache();
+    };
+  }, [queryClient, asyncStoragePersister]);
 
   if (!isHydrated) {
     return <SplashScreen backgroundColor={currentColors.background} primaryColor={currentColors.primary} />;
@@ -85,13 +151,16 @@ function RootLayout() {
       <ThemeProvider>
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <ToastProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(app)" />
-              </Stack>
-            </ToastProvider>
+            <NetworkProvider>
+              <BackgroundPrefetch />
+              <ToastProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(app)" />
+                </Stack>
+              </ToastProvider>
+            </NetworkProvider>
           </QueryClientProvider>
         </ErrorBoundary>
       </ThemeProvider>
