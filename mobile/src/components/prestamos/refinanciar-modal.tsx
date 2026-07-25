@@ -44,16 +44,15 @@ const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: Refinanci
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={[styles.overlay, { backgroundColor: colors.overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[styles.headerBar, { backgroundColor: colors.primary }]}>
-              <Ionicons name="refresh" size={scale(22)} color="#FFFFFF" />
-              <Text style={[styles.title, { color: '#FFFFFF' }]}>Refinanciar Préstamo</Text>
-            </View>
-            <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
+        <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
+          <View style={[styles.headerBar, { backgroundColor: colors.primary }]}>
+            <Ionicons name="refresh" size={scale(22)} color="#FFFFFF" />
+            <Text style={[styles.title, { color: '#FFFFFF' }]}>Refinanciar Préstamo</Text>
+          </View>
+          <ScrollView style={styles.body} keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ paddingBottom: Spacing.sm }}>
               <AppInput
                 label="Nuevo número de cuotas"
                 placeholder="Ej: 12"
@@ -80,7 +79,6 @@ const RefinanciarModal = ({ visible, onClose, prestamoId, onSuccess }: Refinanci
               </View>
             </ScrollView>
           </View>
-        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -107,7 +105,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
   body: { padding: Spacing.md },
-  actions: { flexDirection: 'row', gap: Spacing.sm },
+  actions: { flexDirection: 'row', gap: Spacing.sm, flexShrink: 0 },
 });
 
 export default RefinanciarModal;

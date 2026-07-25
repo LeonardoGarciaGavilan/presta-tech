@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Keyboard, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Keyboard, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -14,7 +14,7 @@ import ActionConfirmModal from '@/components/ui/action-confirm-modal';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
-import { ESTADO_CONFIG as BASE_ESTADO_CONFIG, ACCIONES_FLOW_CONFIG } from '@/constants/prestamos.constants';
+import { usePrestamoEstados, useAccionesFlow } from '@/hooks/use-prestamo-estados';
 import { formatCurrency } from '@/utils/formatters';
 import { useCambiarEstadoPrestamo,
   useDesembolsarPrestamo,
@@ -35,14 +35,6 @@ const ESTADOS_FILTRO: { label: string; value: EstadoPrestamo | '' }[] = [
   { label: 'Aprobado', value: 'APROBADO' },
   { label: 'Rechazado', value: 'RECHAZADO' },
 ];
-
-function buildAccionConfig(primaryColor: string) {
-  const base: Record<string, { titulo: string; desc: string; icon: string; color: string; pedirMotivo: boolean }> = {
-    ...ACCIONES_FLOW_CONFIG,
-  };
-  base.DESEMBOLSAR = { titulo: 'Desembolsar Préstamo', desc: 'Se generarán las cuotas, el monto saldrá de tu caja.', icon: 'cash-outline', color: primaryColor, pedirMotivo: false };
-  return base;
-}
 
 function usePrestamosInfinite(search: string, estado: EstadoPrestamo | '') {
   return useInfiniteQuery({
@@ -233,8 +225,12 @@ export default function PrestamosListScreen() {
     [],
   );
 
-  const ACCION_CONFIG = useMemo(() => buildAccionConfig(colors.primary), [colors.primary]);
-  const ESTADO_CONFIG = BASE_ESTADO_CONFIG;
+  const accionesFlow = useAccionesFlow();
+  const ACCION_CONFIG: Record<string, { titulo: string; desc: string; icon: string; color: string; pedirMotivo: boolean }> = useMemo(() => ({
+    ...accionesFlow,
+    DESEMBOLSAR: { titulo: 'Desembolsar Préstamo', desc: 'Se generarán las cuotas, el monto saldrá de tu caja.', icon: 'cash-outline', color: colors.primary, pedirMotivo: false },
+  }), [accionesFlow, colors.primary]);
+  const ESTADO_CONFIG = usePrestamoEstados();
 
   if (isLoading && !data) {
     return (

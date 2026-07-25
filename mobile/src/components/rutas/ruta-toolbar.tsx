@@ -6,11 +6,11 @@ type FilterType = 'todos' | 'pendientes' | 'visitados';
 
 interface RutaToolbarProps {
   filter: FilterType;
-  viewMode: 'list' | 'map';
+  mapa: boolean;
   sortByCercania: boolean;
   colors: any;
   onFilterChange: (filter: FilterType) => void;
-  onViewModeChange: () => void;
+  onToggleMapa: () => void;
   onSortChange: () => void;
 }
 
@@ -22,11 +22,11 @@ const FILTER_LABELS: Record<FilterType, string> = {
 
 export function RutaToolbar({
   filter,
-  viewMode,
+  mapa,
   sortByCercania,
   colors,
   onFilterChange,
-  onViewModeChange,
+  onToggleMapa,
   onSortChange,
 }: RutaToolbarProps) {
   return (
@@ -70,13 +70,16 @@ export function RutaToolbar({
           />
         </Pressable>
         <Pressable
-          style={[styles.viewToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={onViewModeChange}
+          style={[styles.viewToggle, {
+            backgroundColor: mapa ? colors.primary : colors.surface,
+            borderColor: mapa ? colors.primary : colors.border,
+          }]}
+          onPress={onToggleMapa}
         >
           <Ionicons
-            name={viewMode === 'list' ? 'map-outline' : 'list-outline'}
+            name="map-outline"
             size={scale(16)}
-            color={colors.primary}
+            color={mapa ? '#FFF' : colors.primary}
           />
         </Pressable>
       </View>

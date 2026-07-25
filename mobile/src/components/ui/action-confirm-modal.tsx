@@ -49,20 +49,20 @@ export default function ActionConfirmModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={[styles.overlay, { backgroundColor: colors.overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[styles.headerBar, { backgroundColor: colorAccion }]}>
-              <Ionicons name={icon as IoniconsName} size={scale(22)} color="#FFFFFF" />
-              <Text style={styles.title}>{titulo}</Text>
-            </View>
-            <ScrollView
-              style={styles.body}
-              keyboardShouldPersistTaps="handled"
-              bounces={false}
-            >
+        <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
+          <View style={[styles.headerBar, { backgroundColor: colorAccion }]}>
+            <Ionicons name={icon as IoniconsName} size={scale(22)} color="#FFFFFF" />
+            <Text style={styles.title}>{titulo}</Text>
+          </View>
+          <ScrollView
+            style={styles.body}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            contentContainerStyle={{ paddingBottom: Spacing.sm }}
+          >
               <Text style={[styles.desc, { color: colors.textSecondary }]}>{desc}</Text>
 
               {prestamo && (
@@ -126,7 +126,6 @@ export default function ActionConfirmModal({
               </View>
             </ScrollView>
           </View>
-        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -181,6 +180,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: Spacing.sm,
+    flexShrink: 0,
   },
   summaryCard: {
     borderRadius: BorderRadius.md,

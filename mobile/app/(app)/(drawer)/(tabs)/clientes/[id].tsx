@@ -18,7 +18,6 @@ import ClienteQuickActions from '@/components/clientes/cliente-quick-actions';
 import DocumentViewer from '@/components/clientes/document-viewer';
 import LocationView from '@/components/clientes/location-view';
 import AppMapView from '@/components/clientes/map-view';
-import { AppButton } from '@/components/ui/app-button';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import EmptyState from '@/components/ui/empty-state';
 import ScrollToTopButton from '@/components/ui/scroll-to-top';
@@ -81,6 +80,7 @@ export default function ClienteDetalleScreen() {
   const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
   const [dialogAction, setDialogAction] = useState<DialogAction>(null);
   const [currentRutaId, setCurrentRutaId] = useState<string | null | undefined>(undefined);
@@ -270,6 +270,7 @@ export default function ClienteDetalleScreen() {
         ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        scrollEnabled={scrollEnabled}
         onScroll={(e) => {
           const y = e.nativeEvent.contentOffset.y;
           setShowScrollTop(y > 300);
@@ -472,6 +473,8 @@ export default function ClienteDetalleScreen() {
               styles.sectionCard,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
+            onTouchStart={() => setScrollEnabled(false)}
+            onTouchEnd={() => setScrollEnabled(true)}
           >
             <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
               <Ionicons name="location-outline" size={scale(16)} color={colors.textSecondary} />
@@ -526,12 +529,7 @@ export default function ClienteDetalleScreen() {
 
         {/* Préstamos */}
         {prestamos.length > 0 && (
-          <View
-            style={[
-              styles.sectionCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
+          <>
             <Text
               style={[styles.sectionTitle, { color: colors.textSecondary }]}
             >
@@ -546,7 +544,7 @@ export default function ClienteDetalleScreen() {
                 />
               ))}
             </View>
-          </View>
+          </>
         )}
 
         {/* Garantías */}
@@ -586,23 +584,39 @@ export default function ClienteDetalleScreen() {
 
         {/* Admin Actions */}
         {isAdmin && (
-          <View style={styles.adminActions}>
-            {cliente.activo ? (
-              <AppButton
-                title="Deshabilitar cliente"
-                onPress={() => setDialogAction('eliminar')}
-                variant="danger"
-                icon="ban-outline"
-              />
-            ) : (
-              <AppButton
-                title="Reactivar cliente"
-                onPress={() => setDialogAction('reactivar')}
-                variant="secondary"
-                icon="refresh-outline"
-              />
-            )}
-          </View>
+          cliente.activo ? (
+            <Pressable
+              onPress={() => setDialogAction('eliminar')}
+              style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
+              accessibilityRole="button"
+              accessibilityLabel="Deshabilitar cliente"
+            >
+              <View style={[styles.navIcon, { backgroundColor: colors.errorLight }]}>
+                <Ionicons name="ban-outline" size={scale(22)} color={colors.error} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.navButtonText, { color: colors.error }]}>Deshabilitar cliente</Text>
+                <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Desactivar acceso del cliente</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={scale(18)} color={colors.error} />
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => setDialogAction('reactivar')}
+              style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
+              accessibilityRole="button"
+              accessibilityLabel="Reactivar cliente"
+            >
+              <View style={[styles.navIcon, { backgroundColor: colors.successLight }]}>
+                <Ionicons name="refresh-outline" size={scale(22)} color={colors.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.navButtonText, { color: colors.success }]}>Reactivar cliente</Text>
+                <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Restaurar acceso del cliente</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={scale(18)} color={colors.success} />
+            </Pressable>
+          )
         )}
 
         <View style={styles.bottomSpacer} />
@@ -784,8 +798,29 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     marginTop: scale(2),
   },
-  adminActions: {
-    marginTop: Spacing.md,
+  navButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  navIcon: {
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navButtonText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    flex: 1,
+  },
+  navButtonSub: {
+    fontSize: FontSize.xs,
   },
   bottomSpacer: {
     height: Spacing.xxl,

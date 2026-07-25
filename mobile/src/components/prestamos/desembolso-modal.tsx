@@ -45,16 +45,15 @@ export default function DesembolsoModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancelar}>
       <KeyboardAvoidingView
-        style={styles.modalOverlay}
+        style={[styles.overlay, { backgroundColor: colors.overlay }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[styles.modalHeaderBar, { backgroundColor: colors.primary }]}>
-              <Ionicons name="cash" size={scale(24)} color="#FFFFFF" />
-              <Text style={[styles.modalTitle, { color: '#FFFFFF' }]}>Desembolsar Préstamo</Text>
-            </View>
-            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+        <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
+          <View style={[styles.headerBar, { backgroundColor: colors.primary }]}>
+            <Ionicons name="cash" size={scale(24)} color="#FFFFFF" />
+            <Text style={[styles.title, { color: '#FFFFFF' }]}>Desembolsar Préstamo</Text>
+          </View>
+          <ScrollView style={styles.body} keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ paddingBottom: Spacing.sm }}>
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
                 Monto a desembolsar: <Text style={{ fontWeight: FontWeight.bold, color: colors.text }}>{formatCurrency(monto)}</Text>
               </Text>
@@ -76,7 +75,7 @@ export default function DesembolsoModal({
                 placeholderTextColor={colors.textTertiary}
                 style={[styles.confirmInput, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
               />
-              <View style={styles.modalActions}>
+              <View style={styles.actions}>
                 <AppButton
                   title="Cancelar"
                   onPress={handleCancelar}
@@ -93,37 +92,36 @@ export default function DesembolsoModal({
               </View>
             </ScrollView>
           </View>
-        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xl,
   },
-  modalCard: {
+  card: {
     width: '100%',
     maxWidth: 380,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
   },
-  modalHeaderBar: {
+  headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
   },
-  modalTitle: {
+  title: {
     color: '#FFFFFF',
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
   },
-  modalBody: {
+  body: {
     padding: Spacing.md,
   },
   modalLabel: {
@@ -150,8 +148,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: FontWeight.bold,
   },
-  modalActions: {
+  actions: {
     flexDirection: 'row',
     gap: Spacing.sm,
+    flexShrink: 0,
   },
 });

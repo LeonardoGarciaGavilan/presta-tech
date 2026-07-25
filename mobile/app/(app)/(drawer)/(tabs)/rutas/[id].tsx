@@ -51,13 +51,14 @@ export default function VistaDiaScreen() {
 
   const today = dateToISO(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [mapa, setMapa] = useState(false);
   const [filter, setFilter] = useState<'todos' | 'pendientes' | 'visitados'>('todos');
   const [sortByCercania, setSortByCercania] = useState(false);
 
   const [cobroCliente, setCobroCliente] = useState<ClienteVistaDia | null>(null);
   const [mapSelectedCliente, setMapSelectedCliente] = useState<ClienteVistaDia | null>(null);
   const [cobradorLocation, setCobradorLocation] = useState<Coordinate | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   const { data: ruta } = useRuta(id ?? '');
   const {
@@ -106,7 +107,12 @@ export default function VistaDiaScreen() {
 
   const clientes = useMemo(() => {
     if (!vistaDia?.clientes) return [];
-    let items = [...vistaDia.clientes];
+    const seen = new Set<string>();
+    let items = vistaDia.clientes.filter((c) => {
+      if (seen.has(c.rutaClienteId)) return false;
+      seen.add(c.rutaClienteId);
+      return true;
+    });
     if (sortByCercania) {
       items.sort((a, b) => {
         const la = a.cliente.latitud ?? 0;
@@ -212,6 +218,19 @@ export default function VistaDiaScreen() {
     ? (resumen.visitadosHoy / resumen.totalClientes) * 100
     : 0;
 
+  const mapMarkers = useMemo(() => vistaDia?.clientes
+    ?.filter((c) => c.cliente.latitud && c.cliente.longitud)
+    .map((c) => ({
+      id: c.rutaClienteId,
+      latitude: c.cliente.latitud!,
+      longitude: c.cliente.longitud!,
+      title: `${c.cliente.nombre} ${c.cliente.apellido || ''}`,
+      description: `RD$ ${formatCurrency(c.totalACobrar)}`,
+      order: c.orden,
+      isVisited: c.visitadoHoy,
+      isOverdue: c.tieneAtrasados,
+    })) ?? [], [vistaDia?.clientes]);
+
   if (isLoading) {
     return <LoadingScreen message="Cargando ruta..." />;
   }
@@ -232,26 +251,18 @@ export default function VistaDiaScreen() {
 
   if (!vistaDia || !ruta) return null;
 
-  const mapMarkers = vistaDia.clientes
-    .filter((c) => c.cliente.latitud && c.cliente.longitud)
-    .map((c) => ({
-      id: c.rutaClienteId,
-      latitude: c.cliente.latitud!,
-      longitude: c.cliente.longitud!,
-      title: `${c.cliente.nombre} ${c.cliente.apellido || ''}`,
-      description: `RD$ ${formatCurrency(c.totalACobrar)}`,
-      order: c.orden,
-      isVisited: c.visitadoHoy,
-      isOverdue: c.tieneAtrasados,
-    }));
+  const showMap = mapa;
+  const mapHeight = 450;
 
   return (
     <ScreenContainer>
       <PageHeader title={ruta.nombre} />
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         nestedScrollEnabled
+        scrollEnabled={scrollEnabled}
         refreshControl={
           <RefreshControl
             refreshing={isFetching}
@@ -298,29 +309,33 @@ export default function VistaDiaScreen() {
 
         <RutaToolbar
           filter={filter}
-          viewMode={viewMode}
+          mapa={mapa}
           sortByCercania={sortByCercania}
           colors={colors}
           onFilterChange={setFilter}
-          onViewModeChange={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+          onToggleMapa={() => setMapa((p) => !p)}
           onSortChange={() => setSortByCercania((p) => !p)}
         />
 
-        {/* Map View */}
-        {viewMode === 'map' && (
-          <View style={{ marginBottom: Spacing.md }}>
+        {/* Map — inside ScrollView, like the web */}
+        {showMap && (
+          <View
+            style={styles.mapSection}
+            onTouchStart={() => setScrollEnabled(false)}
+            onTouchEnd={() => setScrollEnabled(true)}
+          >
             {mapMarkers.length > 0 ? (
               <AppMapView
                 markers={mapMarkers}
                 readOnly
-                height={500}
+                height={mapHeight}
                 showPolyline
                 fitToMarkers
                 userLocation={cobradorLocation ?? undefined}
                 onMarkerPress={handleMapMarkerPress}
               />
             ) : (
-              <View style={[styles.noMap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.noMap, { backgroundColor: colors.surface, borderColor: colors.border, height: mapHeight }]}>
                 <Ionicons name="map-outline" size={scale(32)} color={colors.textTertiary} />
                 <Text style={[styles.noMapText, { color: colors.textTertiary }]}>
                   Sin ubicaciones en esta ruta
@@ -331,29 +346,27 @@ export default function VistaDiaScreen() {
         )}
 
         {/* Client List */}
-        {viewMode === 'list' && (
-          <View style={styles.clientList}>
-            {clientes.length === 0 ? (
-              <EmptyState
-                icon="checkmark-circle-outline"
-                title={filter === 'visitados' ? 'Sin visitados' : filter === 'pendientes' ? 'Todo visitado' : 'Sin clientes'}
-                subtitle={filter !== 'todos' ? 'Cambia el filtro para ver más' : 'No hay clientes en esta ruta para esta fecha'}
+        <View style={styles.clientList}>
+          {clientes.length === 0 ? (
+            <EmptyState
+              icon="checkmark-circle-outline"
+              title={filter === 'visitados' ? 'Sin visitados' : filter === 'pendientes' ? 'Todo visitado' : 'Sin clientes'}
+              subtitle={filter !== 'todos' ? 'Cambia el filtro para ver más' : 'No hay clientes en esta ruta para esta fecha'}
+            />
+          ) : (
+            clientes.map((item) => (
+              <ClienteCardItemMemo
+                key={item.rutaClienteId}
+                item={item}
+                colors={colors}
+                onToggleVisita={handleToggleVisita}
+                onCobroRapido={handleCobroRapido}
+                marcando={marcando}
+                isAdmin={isAdmin}
               />
-            ) : (
-              clientes.map((item) => (
-                <ClienteCardItemMemo
-                  key={item.rutaClienteId}
-                  item={item}
-                  colors={colors}
-                  onToggleVisita={handleToggleVisita}
-                  onCobroRapido={handleCobroRapido}
-                  marcando={marcando}
-                  isAdmin={isAdmin}
-                />
-              ))
-            )}
-          </View>
-        )}
+            ))
+          )}
+        </View>
 
         {/* Bottom Actions */}
         {vistaDia && (
@@ -539,6 +552,9 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.md,
     paddingBottom: Spacing.xxl,
+  },
+  mapSection: {
+    marginBottom: Spacing.md,
   },
   progressSection: {
     marginBottom: Spacing.md,

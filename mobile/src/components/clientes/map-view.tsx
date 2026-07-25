@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { OSMView, TILE_CONFIGS } from 'expo-osm-sdk';
 import type { OSMViewRef, MarkerConfig, PolylineConfig, Coordinate, MapRegion } from 'expo-osm-sdk';
 import * as Location from 'expo-location';
+import { captureRef } from 'react-native-view-shot';
 
 import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -57,8 +58,52 @@ export default function AppMapView({
 }: MapViewProps) {
   const { colorScheme, colors } = useTheme();
   const mapRef = useRef<OSMViewRef>(null);
+  const markerRefs = useRef<Map<string, View>>(new Map());
   const [gpsLoading, setGpsLoading] = useState(false);
   const [currentRegion, setCurrentRegion] = useState<MapRegion | null>(null);
+  const [markerUris, setMarkerUris] = useState<Map<string, string>>(new Map());
+  const markerUrisRef = useRef(markerUris);
+  markerUrisRef.current = markerUris;
+
+  useEffect(() => {
+    if (!markers || markers.length === 0) return;
+    let cancelled = false;
+    const currentUris = markerUrisRef.current;
+    const generate = async () => {
+      const newUris = new Map<string, string>();
+      for (const m of markers) {
+        if (m.order == null) continue;
+        const state = m.isVisited ? 'v' : m.isOverdue ? 'o' : 'p';
+        const key = `${m.order}_${state}`;
+        if (currentUris.has(key)) {
+          newUris.set(key, currentUris.get(key)!);
+          continue;
+        }
+        try {
+          const refKey = `marker_${m.id}`;
+          const ref = markerRefs.current.get(refKey);
+          if (!ref) continue;
+          const uri = await captureRef(ref, {
+            format: 'png',
+            quality: 1,
+            result: 'tmpfile',
+          });
+          newUris.set(key, uri);
+        } catch {
+          // marker ref not ready yet
+        }
+      }
+      if (!cancelled && newUris.size > 0) {
+        setMarkerUris((prev) => {
+          const merged = new Map(prev);
+          newUris.forEach((v, k) => merged.set(k, v));
+          return merged;
+        });
+      }
+    };
+    generate();
+    return () => { cancelled = true; };
+  }, [markers]);
 
   const hasSingleCoord = latitude != null && longitude != null;
   const hasMultiple = markers != null && markers.length > 0;
@@ -112,13 +157,18 @@ export default function AppMapView({
       });
     } else if (hasMultiple) {
       result.push(
-        ...markers!.map((m) => ({
-          id: m.id,
-          coordinate: { latitude: m.latitude, longitude: m.longitude },
-          title: m.title || (m.order != null ? `#${m.order}` : undefined),
-          description: m.description,
-          icon: getMarkerIcon(m),
-        })),
+        ...markers!.map((m) => {
+          const state = m.isVisited ? 'v' : m.isOverdue ? 'o' : 'p';
+          const uriKey = `${m.order}_${state}`;
+          const uri = m.order != null ? markerUris.get(uriKey) : undefined;
+          return {
+            id: m.id,
+            coordinate: { latitude: m.latitude, longitude: m.longitude },
+            title: m.title || (m.order != null ? `#${m.order}` : undefined),
+            description: m.description,
+            icon: uri ? { uri, size: scale(40) } : getMarkerIcon(m),
+          };
+        }),
       );
     }
 
@@ -133,7 +183,7 @@ export default function AppMapView({
     }
 
     return result;
-  }, [hasSingleCoord, readOnly, longitude, latitude, hasMultiple, markers, colors.primary, userLocation]);
+  }, [hasSingleCoord, readOnly, longitude, latitude, hasMultiple, markers, colors.primary, userLocation, markerUris]);
 
   const polylineData: PolylineConfig[] = useMemo(() => {
     if (!showPolyline || !hasMultiple || !markers) return [];
@@ -147,8 +197,11 @@ export default function AppMapView({
     ];
   }, [showPolyline, hasMultiple, markers, colors.primary]);
 
+  const hasFitRef = useRef(false);
   useEffect(() => {
     if (!fitToMarkers || !markers || markers.length < 2) return;
+    if (hasFitRef.current) return;
+    hasFitRef.current = true;
     const coords = markers.map((m) => ({ latitude: m.latitude, longitude: m.longitude }));
     mapRef.current?.fitRouteInView(coords);
   }, [fitToMarkers, markers]);
@@ -375,6 +428,26 @@ export default function AppMapView({
           Mapa: OpenStreetMap · OpenFreeMap
         </Text>
       )}
+
+      {hasMultiple && markers && (
+        <View style={styles.hiddenMarkers}>
+          {markers.map((m) => {
+            if (m.order == null) return null;
+            const color = m.isVisited ? '#16A34A' : m.isOverdue ? '#EA580C' : '#DC2626';
+            return (
+              <View
+                key={`ref_${m.id}`}
+                ref={(ref) => {
+                  if (ref) markerRefs.current.set(`marker_${m.id}`, ref);
+                }}
+                style={[styles.markerTemplate, { backgroundColor: color }]}
+              >
+                <Text style={styles.markerTemplateText}>{m.order}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -434,6 +507,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  hiddenMarkers: {
+    position: 'absolute',
+    opacity: 0,
+    width: 0,
+    height: 0,
+  },
+  markerTemplate: {
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  markerTemplateText: {
+    color: '#FFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
   },
   badge: {
     flexDirection: 'row',

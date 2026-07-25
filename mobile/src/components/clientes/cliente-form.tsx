@@ -101,6 +101,7 @@ export default function ClienteForm({
   });
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [rutaId, setRutaId] = useState<string | null | undefined>(initialRutaId);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   useEffect(() => {
     listarRutas()
@@ -215,6 +216,7 @@ export default function ClienteForm({
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        scrollEnabled={scrollEnabled}
       >
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -366,7 +368,11 @@ export default function ClienteForm({
         />
       </View>
 
-      <View style={styles.section}>
+      <View
+        style={styles.section}
+        onTouchStart={() => setScrollEnabled(false)}
+        onTouchEnd={() => setScrollEnabled(true)}
+      >
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
           Ubicación en mapa
         </Text>
