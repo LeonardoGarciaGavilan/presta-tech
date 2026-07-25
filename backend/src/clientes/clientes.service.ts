@@ -44,9 +44,14 @@ export class ClientesService {
     pagina = 1,
     porPagina = 20,
     search = '',
+    ids?: string[],
   ): Promise<PaginatedResult<any>> {
     const skip = (pagina - 1) * porPagina;
     const where: any = { empresaId, activo: true };
+
+    if (ids && ids.length > 0) {
+      where.id = { in: ids };
+    }
 
     if (search?.trim()) {
       const q = search.trim();

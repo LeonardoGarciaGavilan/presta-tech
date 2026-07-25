@@ -30,9 +30,11 @@ export class ClientesController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('search') search: string,
+    @Query('ids') ids?: string,
   ) {
     const porPagina = Math.min(limit, 1000);
-    return this.clientesService.findAll(empresaId, page, porPagina, search);
+    const parsedIds = ids ? ids.split(',').filter(Boolean) : undefined;
+    return this.clientesService.findAll(empresaId, page, porPagina, search, parsedIds);
   }
 
   @Get('inactivos')
