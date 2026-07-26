@@ -1144,7 +1144,7 @@ export class PrestamosService {
         pagada: false,
         mora: 0,
         fechaVencimiento: { lt: hoy },
-        prestamo: { empresaId, estado: EstadoPrestamo.ACTIVO },
+        prestamo: { empresaId, estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] } },
       },
     });
 
