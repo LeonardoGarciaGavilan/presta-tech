@@ -163,7 +163,7 @@ export default function RutasListScreen() {
     );
   }
 
-  if (error) {
+  if (error && !rutas) {
     return (
       <ScreenContainer>
         <EmptyState

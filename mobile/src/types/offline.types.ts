@@ -39,8 +39,6 @@ export interface PrefetchConfig {
   configuracion: boolean;
 }
 
-export const OFFLINE_QUEUE_KEY = 'sas_prestamos_offline_queue';
-export const OFFLINE_MAX_QUEUE_SIZE = 200;
 export const OFFLINE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const OFFLINE_MAX_RETRIES = 5;
 export const OFFLINE_BACKOFF_BASE_MS = 1000;

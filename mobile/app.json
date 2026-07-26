@@ -66,6 +66,12 @@
       "@react-native-community/datetimepicker",
       "@sentry/react-native",
       [
+        "expo-sqlite",
+        {
+          "enableFTS": true
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

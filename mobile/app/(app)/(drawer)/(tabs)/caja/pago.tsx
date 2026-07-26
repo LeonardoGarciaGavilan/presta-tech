@@ -11,7 +11,7 @@ import EmptyState from '@/components/ui/empty-state';
 import { usePrestamos, usePrestamo } from '@/hooks/use-prestamos';
 import { useCajaActiva } from '@/hooks/use-caja';
 import { getNetworkStatus } from '@/hooks/use-network-status';
-import { searchPrestamosOffline, getAllCachedPrestamos } from '@/services/search-index';
+import { searchPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatCedula } from '@/utils/formatters';
 import type { Prestamo } from '@/types/prestamo.types';
@@ -110,7 +110,7 @@ function SearchPaymentMode() {
 
     if (!network.isOnline) {
       const cached = debouncedSearch
-        ? searchPrestamosOffline(debouncedSearch)
+        ? searchPrestamos(debouncedSearch)
         : getAllCachedPrestamos();
       return cached.filter(
         (p: any) => p.estado === 'ACTIVO' || p.estado === 'ATRASADO',

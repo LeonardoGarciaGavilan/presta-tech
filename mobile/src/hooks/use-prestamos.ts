@@ -20,6 +20,8 @@ import type {
   PrestamosFilters,
 } from '@/types/prestamo.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { getPrestamoById } from '@/db/prestamos-db';
+import { getNetworkStatus } from '@/hooks/use-network-status';
 
 export function usePrestamos(filters?: PrestamosFilters) {
   return useQuery({
@@ -32,7 +34,18 @@ export function usePrestamos(filters?: PrestamosFilters) {
 export function usePrestamo(id: string) {
   return useQuery({
     queryKey: ['prestamos', id],
-    queryFn: () => obtener(id),
+    queryFn: async () => {
+      try {
+        return await obtener(id);
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getPrestamoById(id);
+          if (local) return local;
+        }
+        throw new Error('Préstamo no encontrado');
+      }
+    },
     enabled: !!id,
   });
 }

@@ -24,23 +24,37 @@ export function useAuthBootstrap(queryClient?: QueryClient) {
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
+        const network = getNetworkStatus();
 
-        if (!refreshToken) {
-          return;
+        if (!network.isOnline) {
+          const accessToken = await tokenStorage.getAccessToken();
+          if (accessToken) {
+            try {
+              const user = await getCurrentUser();
+              setUser(user);
+            } catch {
+              // Token expired offline — keep last session, don't clearSession()
+            }
+          } else {
+            return;
+          }
+        } else {
+          if (!refreshToken) {
+            return;
+          }
+
+          const success = await waitForRefresh();
+          if (!success) {
+            return;
+          }
+
+          const user = await getCurrentUser();
+          setUser(user);
         }
-
-        const success = await waitForRefresh();
-
-        if (!success) {
-          return;
-        }
-
-        const user = await getCurrentUser();
-        setUser(user);
 
         if (queryClient) {
-          const network = getNetworkStatus();
-          if (network.isOnline) {
+          const net = getNetworkStatus();
+          if (net.isOnline) {
             try {
               await prefetchCritical(queryClient);
             } catch {
@@ -49,7 +63,10 @@ export function useAuthBootstrap(queryClient?: QueryClient) {
           }
         }
       } catch {
-        await clearSession();
+        const net = getNetworkStatus();
+        if (net.isOnline) {
+          await clearSession();
+        }
       } finally {
         setLoading(false);
         setHydrated();

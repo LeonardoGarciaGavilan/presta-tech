@@ -19,13 +19,15 @@ import {
   addToQueue as addToQueueFn,
   recoverSyncingItems,
   removeStaleItems,
-} from '@/services/offline-queue';
+} from '@/db/offline-queue-db';
 import { syncNow, onSyncProgress, onSyncComplete } from '@/services/sync-manager';
 import type { OfflineQueueItem, SyncProgress } from '@/types/offline.types';
 
 interface NetworkContextValue {
   network: NetworkStatus;
   isSyncing: boolean;
+  bannerVisible: boolean;
+  setBannerVisible: (visible: boolean) => void;
   pendingCount: number;
   failedCount: number;
   lastSyncAt: number | null;
@@ -49,6 +51,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const network = useNetworkStatus();
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [bannerVisible, setBannerVisible] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
@@ -161,6 +164,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     () => ({
       network,
       isSyncing,
+      bannerVisible,
+      setBannerVisible,
       pendingCount,
       failedCount,
       lastSyncAt,
@@ -172,6 +177,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     [
       network,
       isSyncing,
+      bannerVisible,
+      setBannerVisible,
       pendingCount,
       failedCount,
       lastSyncAt,

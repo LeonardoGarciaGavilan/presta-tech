@@ -12,7 +12,7 @@ import {
   removeFromQueue,
   findDuplicate,
   getQueueStats,
-} from '@/services/offline-queue';
+} from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 
 type ProgressListener = (progress: SyncProgress) => void;

@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { listar } from '@/api/clientes.api';
 import { getNetworkStatus } from '@/hooks/use-network-status';
-import {
-  searchClientesOffline,
-  searchPrestamosOffline,
-  getAllCachedClientes,
-} from '@/services/search-index';
+import { searchClientes } from '@/db/clientes-db';
 import type { Cliente } from '@/types/cliente.types';
 import type { Prestamo } from '@/types/prestamo.types';
+import { searchPrestamos } from '@/db/prestamos-db';
 
 interface UseEntitySearchOptions {
   excludeId?: string;
@@ -32,17 +29,18 @@ interface UseEntitySearchReturn {
 }
 
 export function searchCachedClientes(_queryClient: any, searchText: string): Cliente[] {
-  return searchClientesOffline(searchText);
+  return searchClientes(searchText);
 }
 
 export function searchCachedPrestamos(
   _queryClient: any,
   searchText: string,
 ): Prestamo[] {
-  return searchPrestamosOffline(searchText);
+  return searchPrestamos(searchText);
 }
 
 export function getAllOfflineClientes(): Cliente[] {
+  const { getAllCachedClientes } = require('@/db/clientes-db');
   return getAllCachedClientes();
 }
 
@@ -70,7 +68,7 @@ export function useEntitySearch({
 
       if (!network.isOnline) {
         try {
-          let results = searchClientesOffline(searchText, excludeId);
+          let results = searchClientes(searchText, excludeId);
           setSugerencias(results.slice(0, limit));
           setShowSugerencias(true);
         } catch {

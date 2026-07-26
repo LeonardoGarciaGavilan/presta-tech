@@ -1,5 +1,4 @@
 import type { QueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { listar as listarClientes } from '@/api/clientes.api';
 import { listar as listarPrestamos } from '@/api/prestamos.api';
@@ -8,15 +7,21 @@ import { listarRutas, listarUsuarios } from '@/api/rutas.api';
 import { obtenerResumenPagos } from '@/api/pagos.api';
 import { getDashboardMobile } from '@/api/dashboard.api';
 import { obtenerConfiguracion } from '@/api/configuracion.api';
+import {
+  syncClientesToDb,
+  syncPrestamosToDb,
+  syncRutasToDb,
+  syncConfigToDb,
+} from '@/services/data-sync';
+import { getLastSyncAt, setLastSyncAt } from '@/db/sync-meta-db';
 
-const PREFETCH_TIMESTAMP_KEY = 'sas_prestamos_last_prefetch';
 const PREFETCH_INTERVAL_MS = 30 * 60 * 1000;
 
 async function safeFetch<T>(
   queryClient: QueryClient,
   queryKey: readonly unknown[],
   fetchFn: () => Promise<T>,
-  options?: { staleTime?: number; gcTime?: number },
+  options?: { staleTime?: number; persistFn?: (data: T) => void },
 ): Promise<boolean> {
   try {
     const existing = queryClient.getQueryData(queryKey);
@@ -26,6 +31,15 @@ async function safeFetch<T>(
     queryClient.setQueryData(queryKey, data, {
       updatedAt: Date.now(),
     });
+
+    if (options?.persistFn && data) {
+      try {
+        options.persistFn(data);
+      } catch {
+        // Non-critical: SQLite persistence failed
+      }
+    }
+
     return true;
   } catch (error) {
     if (__DEV__) {
@@ -50,6 +64,7 @@ export async function prefetchCritical(
     }),
     safeFetch(queryClient, ['rutas'], () => listarRutas(), {
       staleTime: 5 * 60 * 1000,
+      persistFn: (data) => syncRutasToDb(data as any),
     }),
     safeFetch(queryClient, ['rutas', 'usuarios'], () => listarUsuarios(), {
       staleTime: 30 * 60 * 1000,
@@ -59,6 +74,7 @@ export async function prefetchCritical(
     }),
     safeFetch(queryClient, ['configuracion'], () => obtenerConfiguracion(), {
       staleTime: 30 * 60 * 1000,
+      persistFn: (data) => syncConfigToDb(data as any),
     }),
   ]);
 
@@ -87,7 +103,13 @@ export async function prefetchSecondary(
         queryClient,
         ['clientes', { page: 1, limit: clienteIds.length }],
         () => listarClientes({ page: 1, limit: clienteIds.length, ids: clienteIds }),
-        { staleTime: 10 * 60 * 1000 },
+        {
+          staleTime: 10 * 60 * 1000,
+          persistFn: (data) => {
+            const res = data as any;
+            if (res?.data) syncClientesToDb(res.data);
+          },
+        },
       ),
     ]);
     clientResults.forEach((r) => (r.status === 'fulfilled' && r.value ? success++ : failed++));
@@ -98,7 +120,13 @@ export async function prefetchSecondary(
       queryClient,
       ['prestamos', { page: 1, limit: 200 }],
       () => listarPrestamos({ page: 1, limit: 200 }),
-      { staleTime: 10 * 60 * 1000 },
+      {
+        staleTime: 10 * 60 * 1000,
+        persistFn: (data) => {
+          const res = data as any;
+          if (res?.data) syncPrestamosToDb(res.data);
+        },
+      },
     ),
   ]);
   prestamoResults.forEach((r) => (r.status === 'fulfilled' && r.value ? success++ : failed++));
@@ -136,16 +164,15 @@ export async function prefetchAll(
 
   await prefetchDashboard(queryClient);
 
-  await AsyncStorage.setItem(PREFETCH_TIMESTAMP_KEY, Date.now().toString());
+  setLastSyncAt(Date.now());
 
   return { success, failed };
 }
 
 export async function shouldPrefetch(): Promise<boolean> {
   try {
-    const lastStr = await AsyncStorage.getItem(PREFETCH_TIMESTAMP_KEY);
-    if (!lastStr) return true;
-    const last = parseInt(lastStr, 10);
+    const last = getLastSyncAt();
+    if (!last) return true;
     return Date.now() - last > PREFETCH_INTERVAL_MS;
   } catch {
     return true;

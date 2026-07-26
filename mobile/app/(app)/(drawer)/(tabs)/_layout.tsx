@@ -49,6 +49,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="caja"
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('caja', { screen: 'index' });
+          },
+        })}
         options={{
           title: 'Caja',
           tabBarLabel: 'Caja',
@@ -59,6 +65,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="prestamos"
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('prestamos', { screen: 'index' });
+          },
+        })}
         options={{
           title: 'Préstamos',
           tabBarLabel: 'Préstamos',

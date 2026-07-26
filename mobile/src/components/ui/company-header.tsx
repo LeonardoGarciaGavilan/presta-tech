@@ -8,6 +8,7 @@ import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/components/ui/theme-provider';
 import { ThemeSelectorModal } from '@/components/ui/theme-selector-modal';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 export function CompanyHeader() {
   const [showThemeModal, setShowThemeModal] = useState(false);
@@ -16,6 +17,7 @@ export function CompanyHeader() {
   const companyName = useAuthStore((s) => s.user?.empresa);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
+  const { bannerVisible } = useNetworkContext();
 
   const drawerNav = useNavigation('/(app)/(drawer)') as unknown as {
     toggleDrawer: () => void;
@@ -27,7 +29,7 @@ export function CompanyHeader() {
   return (
     <View
       style={{
-        paddingTop: insets.top,
+        paddingTop: bannerVisible ? 0 : insets.top,
         backgroundColor: colors.background,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,

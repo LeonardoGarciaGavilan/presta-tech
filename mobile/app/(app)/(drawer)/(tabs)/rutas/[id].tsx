@@ -235,7 +235,7 @@ export default function VistaDiaScreen() {
     return <LoadingScreen message="Cargando ruta..." />;
   }
 
-  if (error) {
+  if (error && !vistaDia) {
     return (
       <ScreenContainer>
         <EmptyState

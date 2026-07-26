@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenContainer } from '@/components/ui/screen-container';
+import { PageHeader } from '@/components/ui/page-header';
 import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { usePagosDePrestamo } from '@/hooks/use-pagos';
@@ -15,6 +16,7 @@ import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 export default function PagosPrestamoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme, colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const { data: prestamo } = usePrestamo(id!);
   const { data: pagos, isLoading, refetch } = usePagosDePrestamo(id!);
@@ -65,14 +67,9 @@ export default function PagosPrestamoScreen() {
 
   return (
     <ScreenContainer style={[styles.screen, { backgroundColor: colors.background }]}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: `Pagos - ${prestamo?.cliente?.nombre || ''}`,
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      <View style={{ paddingTop: insets.top }}>
+        <PageHeader title={`Pagos - ${prestamo?.cliente?.nombre || ''}`} />
+      </View>
 
       <FlatList
         data={pagos}

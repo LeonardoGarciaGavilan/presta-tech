@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { ProximoCobro, Today } from '@/types/dashboard.types';
@@ -13,6 +13,7 @@ interface UpcomingCollectionsProps {
 
 export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps) {
   const { colorScheme, colors } = useTheme();
+  const navigation = useNavigation();
 
   if (cobros.length === 0) {
     return (
@@ -90,7 +91,7 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
       <TouchableOpacity
         style={[styles.verTodos, { borderColor: colors.border }]}
         activeOpacity={0.6}
-        onPress={() => router.push('/caja/pago')}
+        onPress={() => (navigation as any).navigate('caja', { screen: 'pago' })}
       >
         <Text style={[styles.verTodosText, { color: colors.primary }]}>
           Ver todos los cobros

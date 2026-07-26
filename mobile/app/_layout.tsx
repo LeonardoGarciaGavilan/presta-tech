@@ -26,9 +26,7 @@ import { ThemeProvider } from '@/components/ui/theme-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NetworkProvider } from '@/components/providers/network-provider';
 import { BackgroundPrefetch } from '@/components/providers/background-prefetch';
-import { buildClienteIndex, buildPrestamoIndex } from '@/services/search-index';
-import type { PaginatedClientesResponse } from '@/types/cliente.types';
-import type { PaginatedPrestamosResponse } from '@/types/prestamo.types';
+import { DatabaseProvider } from '@/db/provider';
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
 import type { PersistedClient } from '@tanstack/react-query-persist-client';
 
@@ -96,49 +94,8 @@ function RootLayout() {
       maxAge: 1000 * 60 * 60 * 24,
     });
 
-    const rebuildIndexes = () => {
-      const clienteQueries = queryClient.getQueriesData<PaginatedClientesResponse>({
-        queryKey: ['clientes'],
-      });
-      const allClientes: PaginatedClientesResponse['data'] = [];
-      const seenC = new Set<string>();
-      for (const [, data] of clienteQueries) {
-        if (!data?.data) continue;
-        for (const c of data.data) {
-          if (!seenC.has(c.id)) {
-            seenC.add(c.id);
-            allClientes.push(c);
-          }
-        }
-      }
-      if (allClientes.length > 0) buildClienteIndex(allClientes);
-
-      const prestamoQueries = queryClient.getQueriesData<PaginatedPrestamosResponse>({
-        queryKey: ['prestamos'],
-      });
-      const allPrestamos: PaginatedPrestamosResponse['data'] = [];
-      const seenP = new Set<string>();
-      for (const [, data] of prestamoQueries) {
-        if (!data?.data) continue;
-        for (const p of data.data) {
-          if (!seenP.has(p.id)) {
-            seenP.add(p.id);
-            allPrestamos.push(p);
-          }
-        }
-      }
-      if (allPrestamos.length > 0) buildPrestamoIndex(allPrestamos);
-    };
-
-    rebuildIndexes();
-
-    const unsubscribeCache = queryClient.getQueryCache().subscribe(() => {
-      rebuildIndexes();
-    });
-
     return () => {
       unsubscribePersist();
-      unsubscribeCache();
     };
   }, [queryClient, asyncStoragePersister]);
 
@@ -150,18 +107,20 @@ function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <ErrorBoundary>
-          <QueryClientProvider client={queryClient}>
-            <NetworkProvider>
-              <BackgroundPrefetch />
-              <ToastProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(app)" />
-                </Stack>
-              </ToastProvider>
-            </NetworkProvider>
-          </QueryClientProvider>
+          <DatabaseProvider>
+            <QueryClientProvider client={queryClient}>
+              <NetworkProvider>
+                <BackgroundPrefetch />
+                <ToastProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(app)" />
+                  </Stack>
+                </ToastProvider>
+              </NetworkProvider>
+            </QueryClientProvider>
+          </DatabaseProvider>
         </ErrorBoundary>
       </ThemeProvider>
     </SafeAreaProvider>
