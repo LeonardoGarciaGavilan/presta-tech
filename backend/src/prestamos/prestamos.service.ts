@@ -630,7 +630,13 @@ export class PrestamosService {
       data.fechaAprobacion = new Date();
     }
 
-    const updated = await this.prisma.prestamo.update({ where: { id }, data });
+    const updated = await this.prisma.prestamo.update({
+      where: { id },
+      data,
+      include: {
+        cliente: { select: { id: true, nombre: true, apellido: true, cedula: true, telefono: true, celular: true } },
+      },
+    });
 
     const clienteNombre =
       `${prestamo.cliente?.nombre ?? ''} ${prestamo.cliente?.apellido ?? ''}`.trim();
@@ -1061,6 +1067,9 @@ export class PrestamosService {
     const updated = await this.prisma.prestamo.update({
       where: { id },
       data: { estado: EstadoPrestamo.CANCELADO },
+      include: {
+        cliente: { select: { id: true, nombre: true, apellido: true, cedula: true, telefono: true, celular: true } },
+      },
     });
 
     const clienteNombre =
