@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 import { upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
-import { upsertPrestamos } from '@/db/prestamos-db';
+import { upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
 import { upsertRutas, upsertRutaClientes, getRutas } from '@/db/rutas-db';
 import { setConfiguracion, getConfiguracion } from '@/db/config-db';
 import { setLastSyncAt } from '@/db/sync-meta-db';
@@ -62,6 +62,14 @@ export function hydrateFromDb(queryClient: QueryClient): void {
   const cachedConfig = getConfiguracion();
   if (cachedConfig) {
     queryClient.setQueryData(['configuracion'], cachedConfig);
+  }
+
+  const cachedPrestamos = getAllCachedPrestamos();
+  if (cachedPrestamos.length > 0) {
+    queryClient.setQueryData(
+      ['prestamos', { page: 1, limit: 200 }],
+      { data: cachedPrestamos, total: cachedPrestamos.length, pagina: 1, porPagina: 200, totalPaginas: 1 },
+    );
   }
 
   setLastSyncAt(Date.now());

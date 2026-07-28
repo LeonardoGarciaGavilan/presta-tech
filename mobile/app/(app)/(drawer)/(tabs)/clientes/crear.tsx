@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useQueryClient } from '@tanstack/react-query';
 
 import { useCrearCliente } from '@/hooks/use-clientes';
 import { uploadCedula } from '@/api/clientes.api';
@@ -19,7 +18,6 @@ export default function CrearClienteScreen() {
   const { colorScheme, colors } = useTheme();
   const { mutateAsync, isPending } = useCrearCliente();
   const { showToast } = useToast();
-  const queryClient = useQueryClient();
   const [rutaId, setRutaId] = useState<string | null | undefined>(undefined);
   const pendingUploadsRef = useRef<Array<{ tipo: 'cedula-frontal' | 'cedula-trasera'; uri: string }>>([]);
 
@@ -43,34 +41,36 @@ export default function CrearClienteScreen() {
     async (data: ClienteFormData) => {
       try {
         const cliente = await mutateAsync(data);
-        if (rutaId) {
-          await asignarRuta(cliente.id, rutaId).catch(() => showToast('No se pudo asignar la ruta', 'error'));
-        }
-        const uploadResults = await Promise.allSettled(
-          pendingUploadsRef.current.map((pending) =>
+
+        showToast('Cliente creado exitosamente', 'success');
+        router.replace('/clientes');
+
+        Promise.allSettled([
+          rutaId
+            ? asignarRuta(cliente.id, rutaId).catch(() =>
+                showToast('No se pudo asignar la ruta', 'error'),
+              )
+            : Promise.resolve(),
+          ...pendingUploadsRef.current.map((pending) =>
             uploadCedula(cliente.id, pending.tipo, pending.uri),
           ),
-        );
-        const failedUploads = uploadResults.filter(
-          (r) => r.status === 'rejected',
-        );
-        if (failedUploads.length > 0) {
-          showToast(
-            `No se pudieron subir ${failedUploads.length} documento(s)`,
-            'error',
+        ]).then((results) => {
+          const failedUploads = results.filter(
+            (r) => r.status === 'rejected',
           );
-        } else if (uploadResults.length > 0) {
-          showToast('Documentos subidos correctamente', 'success');
-        }
-        showToast('Cliente creado exitosamente', 'success');
-        await queryClient.invalidateQueries({ queryKey: ['clientes'] });
-        setTimeout(() => router.replace('/clientes'), 500);
+          if (failedUploads.length > 0) {
+            showToast(
+              `No se pudieron subir ${failedUploads.length} documento(s)`,
+              'error',
+            );
+          }
+        });
       } catch (error) {
         const { message } = error as ApiError;
         throw new Error(message || 'No fue posible crear el cliente.');
       }
     },
-    [mutateAsync, showToast, queryClient, rutaId],
+    [mutateAsync, showToast, rutaId],
   );
 
   return (

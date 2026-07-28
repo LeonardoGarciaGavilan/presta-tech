@@ -69,15 +69,9 @@ export function useRegistrarPago() {
       }
       return registrarPago(dto);
     },
-    onSuccess: (_data) => {
-      const prestamoId = _data?.pago?.prestamoId || _data?.prestamo?.id;
-      if (prestamoId) {
-        queryClient.invalidateQueries({ queryKey: ['prestamos', prestamoId] });
-        queryClient.invalidateQueries({ queryKey: ['pagos', 'prestamo', prestamoId] });
-      }
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
-      queryClient.invalidateQueries({ queryKey: ['pagos', 'resumen'] });
-      queryClient.invalidateQueries({ queryKey: ['pagos', 'todos'] });
+      queryClient.invalidateQueries({ queryKey: ['pagos'] });
       queryClient.invalidateQueries({ queryKey: ['caja'] });
     },
   });
@@ -148,12 +142,9 @@ export function useSaldarPrestamo() {
       }
       return saldarPrestamo(prestamoId, dto);
     },
-    onSuccess: (_data, { prestamoId }) => {
-      queryClient.invalidateQueries({ queryKey: ['prestamos', prestamoId] });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
-      queryClient.invalidateQueries({ queryKey: ['pagos', 'prestamo', prestamoId] });
-      queryClient.invalidateQueries({ queryKey: ['pagos', 'resumen'] });
-      queryClient.invalidateQueries({ queryKey: ['pagos', 'todos'] });
+      queryClient.invalidateQueries({ queryKey: ['pagos'] });
       queryClient.invalidateQueries({ queryKey: ['caja'] });
     },
   });

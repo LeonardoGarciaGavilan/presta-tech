@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/api/auth.api';
 import { waitForRefresh } from '@/api/refresh-manager';
 import { clearSession } from '@/utils/session';
 import { prefetchCritical } from '@/services/prefetch-manager';
+import { hydrateFromDb } from '@/services/data-sync';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 
 export function useAuthBootstrap(queryClient?: QueryClient) {
@@ -60,6 +61,8 @@ export function useAuthBootstrap(queryClient?: QueryClient) {
             } catch {
               // Non-critical, ignore prefetch errors
             }
+          } else {
+            hydrateFromDb(queryClient);
           }
         }
       } catch {

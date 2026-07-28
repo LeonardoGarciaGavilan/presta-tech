@@ -1,9 +1,15 @@
-import { eq, like, sql, inArray } from 'drizzle-orm';
+import { eq, like, or, sql, inArray } from 'drizzle-orm';
 import { db } from './index';
-import { prestamos, cuotas } from './schema';
+import { prestamos, cuotas, clientes } from './schema';
 import type { Prestamo, Cuota } from '@/types/prestamo.types';
 
 function rowToPrestamo(row: typeof prestamos.$inferSelect): Prestamo {
+  const clienteRow = db
+    .select()
+    .from(clientes)
+    .where(eq(clientes.id, row.clienteId))
+    .get();
+
   return {
     id: row.id,
     monto: row.monto,
@@ -30,7 +36,9 @@ function rowToPrestamo(row: typeof prestamos.$inferSelect): Prestamo {
     empresaId: row.empresaId,
     createdAt: row.createdAt,
     historialRefinanciamiento: row.historialRefinanciamiento ? JSON.parse(row.historialRefinanciamiento) : null,
-    cliente: { id: row.clienteId, nombre: '', cedula: '', apellido: null, telefono: null, celular: null },
+    cliente: clienteRow
+      ? { id: clienteRow.id, nombre: clienteRow.nombre, apellido: clienteRow.apellido, cedula: clienteRow.cedula, telefono: clienteRow.telefono, celular: clienteRow.celular }
+      : { id: row.clienteId, nombre: '', cedula: '', apellido: null, telefono: null, celular: null },
     cuotas: [],
     pagos: [],
   };
@@ -144,16 +152,37 @@ export function searchPrestamos(term: string): Prestamo[] {
   const normalized = term.toLowerCase().trim();
   const pattern = `%${normalized}%`;
 
+  const matchingClienteIds = db
+    .select({ id: clientes.id })
+    .from(clientes)
+    .where(
+      or(
+        like(sql`lower(${clientes.nombre})`, pattern),
+        like(sql`lower(${clientes.apellido})`, pattern),
+        like(sql`lower(${clientes.cedula})`, pattern),
+        like(
+          sql`lower(${clientes.nombre} || ' ' || coalesce(${clientes.apellido}, ''))`,
+          pattern,
+        ),
+      ),
+    )
+    .all()
+    .map((r) => r.id);
+
+  if (matchingClienteIds.length === 0) return [];
+
   const rows = db
     .select()
     .from(prestamos)
-    .where(
-      like(sql`lower(${prestamos.clienteId})`, pattern),
-    )
+    .where(inArray(prestamos.clienteId, matchingClienteIds))
     .limit(20)
     .all();
 
-  return rows.map(rowToPrestamo);
+  return rows.map((row) => {
+    const p = rowToPrestamo(row);
+    p.cuotas = getCuotasByPrestamoId(p.id);
+    return p;
+  });
 }
 
 export function getPrestamosByClienteId(clienteId: string): Prestamo[] {
@@ -189,7 +218,11 @@ export function getCuotasByPrestamoId(prestamoId: string): Cuota[] {
 
 export function getAllCachedPrestamos(): Prestamo[] {
   const rows = db.select().from(prestamos).all();
-  return rows.map(rowToPrestamo);
+  return rows.map((row) => {
+    const p = rowToPrestamo(row);
+    p.cuotas = getCuotasByPrestamoId(p.id);
+    return p;
+  });
 }
 
 export function clearPrestamos(): void {

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
@@ -80,6 +80,14 @@ export default function CajaScreen() {
 
   const handleCerrarCaja = useCallback(async () => {
     if (!cajaAbierta) return;
+    if (cajaAbierta.id.startsWith('caja_temp_')) {
+      Alert.alert(
+        'Caja sin sincronizar',
+        'Debes sincronizar la apertura de caja antes de cerrarla. Ve a Sincronización y presiona "Sincronizar ahora".',
+      );
+      setShowCerrarModal(false);
+      return;
+    }
     const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
     try {
       const result = await cerrarCajaFn({

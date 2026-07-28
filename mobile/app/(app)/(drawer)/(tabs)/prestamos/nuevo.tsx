@@ -155,7 +155,7 @@ export default function NuevoPrestamoScreen() {
       }
       const result = await crearPrestamo(payload);
       showToast('Préstamo creado exitosamente', 'success');
-      setTimeout(() => router.replace(`/prestamos/${result.id}`), 500);
+      router.replace(`/prestamos/${result.id}`);
     } catch (error) {
       const { message } = error as ApiError;
       showToast(message || 'No se pudo crear el préstamo', 'error');

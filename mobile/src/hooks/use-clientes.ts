@@ -13,6 +13,8 @@ import type {
   ClientesFilters,
 } from '@/types/cliente.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { getClienteById } from '@/db/clientes-db';
+import { getNetworkStatus } from '@/hooks/use-network-status';
 
 export function useClientes(filters?: ClientesFilters) {
   return useQuery({
@@ -25,7 +27,18 @@ export function useClientes(filters?: ClientesFilters) {
 export function useCliente(id: string) {
   return useQuery({
     queryKey: ['clientes', id],
-    queryFn: () => obtener(id),
+    queryFn: async () => {
+      try {
+        return await obtener(id);
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getClienteById(id);
+          if (local) return local;
+        }
+        throw new Error('Cliente no encontrado');
+      }
+    },
     enabled: !!id,
   });
 }

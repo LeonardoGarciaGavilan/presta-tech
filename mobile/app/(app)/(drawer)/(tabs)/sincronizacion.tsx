@@ -266,7 +266,7 @@ export default function SincronizacionScreen() {
   const { colors, colorScheme } = useTheme();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { network, isSyncing, pendingCount, failedCount, lastSyncAt, triggerSync } = useNetworkContext();
+  const { network, isSyncing, pendingCount, failedCount, lastSyncAt, triggerSync, retryFailed } = useNetworkContext();
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -298,6 +298,12 @@ export default function SincronizacionScreen() {
     triggerSync();
     setTimeout(loadItems, 1000);
   }, [triggerSync, loadItems]);
+
+  const handleRetryFailed = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    retryFailed();
+    setTimeout(loadItems, 1000);
+  }, [retryFailed, loadItems]);
 
   const handleClear = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -515,6 +521,27 @@ export default function SincronizacionScreen() {
             Forzar recarga de datos
           </Text>
         </TouchableOpacity>
+
+        {/* Reintentar fallidos */}
+        {failedCount > 0 && (
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.error }]}
+            onPress={handleRetryFailed}
+            disabled={isSyncing}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Reintentar ${failedCount} operaciones fallidas`}
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="refresh-outline" size={scale(18)} color="#FFFFFF" />
+            )}
+            <Text style={styles.retryButtonText}>
+              Reintentar fallidos ({failedCount})
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Cola de operaciones */}
         <View style={styles.section}>
@@ -750,6 +777,21 @@ const styles = StyleSheet.create({
   reloadText: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
   },
   section: {
     marginBottom: Spacing.lg,

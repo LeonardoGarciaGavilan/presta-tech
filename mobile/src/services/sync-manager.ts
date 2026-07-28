@@ -14,6 +14,9 @@ import {
   getQueueStats,
 } from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
+import { db } from '@/db';
+import { offlineQueue } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 type ProgressListener = (progress: SyncProgress) => void;
 type CompletionListener = (result: {
@@ -74,6 +77,25 @@ function isRetryableError(error: any): boolean {
   const status = error?.statusCode;
   if (!status) return true;
   return status === 408 || status === 429 || (status >= 500 && status < 600);
+}
+
+function replaceTempIdInData(obj: any, oldId: string, newId: string): void {
+  if (obj === null || obj === undefined) return;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      replaceTempIdInData(item, oldId, newId);
+    }
+    return;
+  }
+  if (typeof obj === 'object') {
+    for (const key of Object.keys(obj)) {
+      if (obj[key] === oldId) {
+        obj[key] = newId;
+      } else if (typeof obj[key] === 'object') {
+        replaceTempIdInData(obj[key], oldId, newId);
+      }
+    }
+  }
 }
 
 function getErrorMessage(error: any): string {
@@ -137,6 +159,22 @@ export async function processItem(
             }
             return old;
           });
+        }
+
+        const allPending = getPendingItems();
+        for (const pending of allPending) {
+          const parsed = typeof pending.data === 'string' ? JSON.parse(pending.data) : JSON.parse(JSON.stringify(pending.data));
+          replaceTempIdInData(parsed, item.tempId, serverData.id);
+          const updatedStr = JSON.stringify(parsed);
+          if (updatedStr !== JSON.stringify(pending.data)) {
+            db.update(offlineQueue)
+              .set({ data: updatedStr })
+              .where(eq(offlineQueue.id, pending.id))
+              .run();
+            if (__DEV__) {
+              console.log(`[Sync] Updated queue item ${pending.id}: replaced ${item.tempId} → ${serverData.id}`);
+            }
+          }
         }
       }
     }

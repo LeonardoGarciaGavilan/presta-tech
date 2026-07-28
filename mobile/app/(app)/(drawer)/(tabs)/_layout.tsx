@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { CompanyHeader } from '@/components/ui/company-header';
@@ -50,9 +51,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="caja"
         listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate('caja', { screen: 'index' });
+          blur: () => {
+            const state = navigation.getState();
+            const cajaRoute = state.routes.find((r: any) => r.name === 'caja');
+            if (cajaRoute?.state?.key) {
+              navigation.dispatch({
+                ...CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'index' }],
+                }),
+                target: cajaRoute.state.key,
+              });
+            }
           },
         })}
         options={{
@@ -65,12 +75,6 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="prestamos"
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate('prestamos', { screen: 'index' });
-          },
-        })}
         options={{
           title: 'Préstamos',
           tabBarLabel: 'Préstamos',

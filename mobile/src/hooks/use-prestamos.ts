@@ -2,6 +2,7 @@ import { useQuery,
   useMutation,
   useQueryClient,
   keepPreviousData } from '@tanstack/react-query';
+import type { Prestamo } from '@/types/prestamo.types';
 import { listar,
   obtener,
   crear,
@@ -32,9 +33,15 @@ export function usePrestamos(filters?: PrestamosFilters) {
 }
 
 export function usePrestamo(id: string) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['prestamos', id],
     queryFn: async () => {
+      if (id.startsWith('prestamo_temp_')) {
+        const cached = queryClient.getQueryData<Prestamo>(['prestamos', id]);
+        if (cached) return cached;
+        throw new Error('Préstamo no encontrado');
+      }
       try {
         return await obtener(id);
       } catch {
@@ -69,13 +76,39 @@ export function useCrearPrestamo() {
             estado: 'SOLICITADO',
           },
         });
-        return {
+        const tempPrestamo: Prestamo = {
           id: tempId,
-          ...data,
-          estado: 'SOLICITADO',
+          clienteId: data.clienteId,
+          monto: data.monto,
+          tasaInteres: data.tasaInteres,
+          numeroCuotas: data.numeroCuotas,
+          montoTotal: data.montoTotal ?? data.monto,
           saldoPendiente: data.monto,
-          esOffline: true,
+          cuotaMensual: 0,
+          frecuenciaPago: data.frecuenciaPago,
+          fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
+          fechaVencimiento: '',
+          moraAcumulada: 0,
+          estado: 'SOLICITADO',
+          refinanciado: false,
+          vecesRefinanciado: 0,
+          historialRefinanciamiento: null,
+          motivoRechazo: null,
+          solicitadoPor: null,
+          aprobadoPor: null,
+          fechaAprobacion: null,
+          fechaDesembolso: null,
+          modoRapido: data.modoRapido ?? false,
+          createdAt: new Date().toISOString(),
+          empresaId: '',
+          garanteId: data.garanteId ?? null,
+          cliente: { id: data.clienteId, nombre: '...', cedula: '...', apellido: null, telefono: null, celular: null },
+          cuotas: [],
+          pagos: [],
         };
+        (tempPrestamo as any).esOffline = true;
+        queryClient.setQueryData(['prestamos', tempId], tempPrestamo);
+        return tempPrestamo;
       }
       return crear(data);
     },

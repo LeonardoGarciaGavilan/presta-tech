@@ -92,27 +92,31 @@ export async function prefetchSecondary(
   let success = 0;
   let failed = 0;
 
-  const rutas = queryClient.getQueryData<any[]>(['rutas']);
-  const clienteIds = rutas
-    ?.flatMap((r: any) => (r.clientes || []).map((c: any) => c.id))
-    .filter(Boolean) ?? [];
+  const PAGE_SIZE = 200;
+  let allClientes: any[] = [];
+  let page = 1;
+  let totalPaginas = 1;
 
-  if (clienteIds.length > 0) {
-    const clientResults = await Promise.allSettled([
-      safeFetch(
-        queryClient,
-        ['clientes', { page: 1, limit: clienteIds.length }],
-        () => listarClientes({ page: 1, limit: clienteIds.length, ids: clienteIds }),
-        {
-          staleTime: 10 * 60 * 1000,
-          persistFn: (data) => {
-            const res = data as any;
-            if (res?.data) syncClientesToDb(res.data);
-          },
-        },
-      ),
-    ]);
-    clientResults.forEach((r) => (r.status === 'fulfilled' && r.value ? success++ : failed++));
+  try {
+    do {
+      const res: any = await listarClientes({ page, limit: PAGE_SIZE });
+      if (res?.data) {
+        allClientes = allClientes.concat(res.data);
+        syncClientesToDb(res.data);
+      }
+      totalPaginas = res?.totalPaginas ?? 1;
+      page++;
+    } while (page <= totalPaginas);
+
+    if (allClientes.length > 0) {
+      queryClient.setQueryData(
+        ['clientes', { page: 1, limit: allClientes.length }],
+        { data: allClientes, total: allClientes.length, pagina: 1, porPagina: allClientes.length, totalPaginas: 1 },
+      );
+      success++;
+    }
+  } catch {
+    failed++;
   }
 
   const prestamoResults = await Promise.allSettled([

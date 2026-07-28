@@ -90,6 +90,9 @@ export function useCerrarCaja() {
   return useMutation({
     mutationFn: async ({ id, dto }: { id: string; dto: CerrarCajaDto }) => {
       if (!network.isOnline) {
+        if (id.startsWith('caja_temp_')) {
+          throw new Error('CAJA_TEMP_OFFLINE');
+        }
         await addToOfflineQueue({
           endpoint: `/caja/${id}/cerrar`,
           method: 'PATCH',

@@ -9,18 +9,42 @@ import type {
   GenerarDiaRequest,
 } from '@/types/rutas.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { getRutas, getRutaById } from '@/db/rutas-db';
+import { getNetworkStatus } from '@/hooks/use-network-status';
 
 export function useRutas() {
   return useQuery({
     queryKey: ['rutas'],
-    queryFn: rutasApi.listarRutas,
+    queryFn: async () => {
+      try {
+        return await rutasApi.listarRutas();
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getRutas();
+          if (local.length > 0) return local;
+        }
+        throw new Error('Error al cargar rutas');
+      }
+    },
   });
 }
 
 export function useRuta(id: string) {
   return useQuery({
     queryKey: ['rutas', id],
-    queryFn: () => rutasApi.obtenerRuta(id),
+    queryFn: async () => {
+      try {
+        return await rutasApi.obtenerRuta(id);
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getRutaById(id);
+          if (local) return local;
+        }
+        throw new Error('Ruta no encontrada');
+      }
+    },
     enabled: !!id,
   });
 }

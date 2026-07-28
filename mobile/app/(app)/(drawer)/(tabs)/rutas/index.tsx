@@ -22,12 +22,11 @@ export default function RutasListScreen() {
 
   const { data: rutas, isLoading, error, refetch, isFetching } = useRutas();
   const { mutateAsync: eliminar } = useEliminarRuta();
-  const { mutateAsync: crear } = useCrearRuta();
+  const { mutateAsync: crear, isPending: creating } = useCrearRuta();
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [asignarRutaId, setAsignarRutaId] = useState<string | null>(null);
   const [asignarUsuarioId, setAsignarUsuarioId] = useState('');
@@ -37,7 +36,6 @@ export default function RutasListScreen() {
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
-    setCreating(true);
     try {
       await crear({ nombre: newName.trim(), descripcion: newDesc.trim() || undefined });
       setShowCreate(false);
@@ -45,8 +43,6 @@ export default function RutasListScreen() {
       setNewDesc('');
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Error al crear ruta');
-    } finally {
-      setCreating(false);
     }
   }, [newName, newDesc, crear]);
 

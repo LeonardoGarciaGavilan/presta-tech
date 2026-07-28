@@ -20,7 +20,7 @@ import {
   recoverSyncingItems,
   removeStaleItems,
 } from '@/db/offline-queue-db';
-import { syncNow, onSyncProgress, onSyncComplete } from '@/services/sync-manager';
+import { syncNow, retryFailed as retryFailedFn, onSyncProgress, onSyncComplete } from '@/services/sync-manager';
 import type { OfflineQueueItem, SyncProgress } from '@/types/offline.types';
 
 interface NetworkContextValue {
@@ -36,6 +36,7 @@ interface NetworkContextValue {
     item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey'>,
   ) => Promise<OfflineQueueItem>;
   triggerSync: () => Promise<void>;
+  retryFailed: () => Promise<void>;
   refreshStats: () => Promise<void>;
 }
 
@@ -81,6 +82,20 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
           refreshStats();
         }, 5000);
       }
+    } finally {
+      isSyncingRef.current = false;
+      setIsSyncing(false);
+      await refreshStats();
+    }
+  }, [network.isOnline, queryClient, refreshStats]);
+
+  const retryFailed = useCallback(async () => {
+    if (isSyncingRef.current || !network.isOnline) return;
+    isSyncingRef.current = true;
+    setIsSyncing(true);
+    try {
+      await retryFailedFn(queryClient);
+      setLastSyncAt(Date.now());
     } finally {
       isSyncingRef.current = false;
       setIsSyncing(false);
@@ -172,6 +187,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       syncProgress,
       addToOfflineQueue,
       triggerSync,
+      retryFailed,
       refreshStats,
     }),
     [
@@ -185,6 +201,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       syncProgress,
       addToOfflineQueue,
       triggerSync,
+      retryFailed,
       refreshStats,
     ],
   );
