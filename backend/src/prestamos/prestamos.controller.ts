@@ -22,6 +22,8 @@ import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
+import { Throttle } from '@nestjs/throttler';
 import { FrecuenciaPago } from '@prisma/client';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
 
@@ -33,6 +35,8 @@ export class PrestamosController {
   @Post()
   @Roles('ADMIN', 'EMPLEADO')
   @HttpCode(HttpStatus.CREATED)
+  @Idempotent()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   create(@Body() dto: CreatePrestamoDto, @Tenant() empresaId: string, @CurrentUser() user: any) {
     const usuarioId = user.sub ?? user.userId ?? user.id;
     return this.prestamosService.create(dto, empresaId, usuarioId);
@@ -163,6 +167,7 @@ export class PrestamosController {
 
   @Patch(':id/cancelar')
   @Roles('ADMIN')
+  @Idempotent()
   cancelar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
     const usuarioId = user.sub ?? user.userId ?? user.id;
     return this.prestamosService.cancelar(id, empresaId, usuarioId);
@@ -170,6 +175,7 @@ export class PrestamosController {
 
   @Patch(':id/estado')
   @Roles('ADMIN')
+  @Idempotent()
   cambiarEstado(
     @Param('id') id: string,
     @Body() body: { estado: string; motivo?: string },
@@ -188,6 +194,8 @@ export class PrestamosController {
 
   @Patch(':id/desembolsar')
   @Roles('ADMIN', 'EMPLEADO')
+  @Idempotent()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   desembolsar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
     const adminId = user.sub ?? user.userId ?? user.id;
     return this.prestamosService.desembolsar(id, empresaId, adminId);

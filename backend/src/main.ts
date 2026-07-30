@@ -5,6 +5,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
 const app = await NestFactory.create(AppModule);
@@ -46,6 +47,9 @@ expressApp.set('trust proxy', 1);
 
   // 🔒 WebSocket adapter
   app.useWebSocketAdapter(new IoAdapter(app));
+
+  // 🔒 Filtro global de excepciones Prisma — P2002 → 409 Conflict
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   // 🔒 Validación global de DTOs — rechaza campos no declarados
   app.useGlobalPipes(new ValidationPipe({

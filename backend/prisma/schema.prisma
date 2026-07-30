@@ -164,6 +164,7 @@ model Cuota {
   prestamoId       String
   prestamo         Prestamo  @relation(fields: [prestamoId], references: [id])
 
+  @@unique([prestamoId, numero])
   @@index([prestamoId])
   @@index([pagada, fechaVencimiento])
   @@index([prestamoId, pagada])
@@ -187,6 +188,7 @@ model Pago {
   prestamo    Prestamo    @relation(fields: [prestamoId], references: [id])
   usuario     Usuario     @relation(fields: [usuarioId], references: [id])
 
+  @@unique([prestamoId, montoTotal])
   @@index([prestamoId])
   @@index([createdAt])
   @@index([usuarioId])

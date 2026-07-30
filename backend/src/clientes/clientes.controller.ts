@@ -11,6 +11,8 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('clientes')
@@ -19,6 +21,8 @@ export class ClientesController {
 
   @Post()
   @Roles('ADMIN', 'EMPLEADO')
+  @Idempotent()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   create(@Body() dto: CreateClienteDto, @Tenant() empresaId: string) {
     return this.clientesService.create(dto, empresaId);
   }

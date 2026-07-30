@@ -13,6 +13,7 @@ import { EstadoPrestamo, MetodoPago } from '@prisma/client';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { startOfDay, differenceInDays } from 'date-fns';
 import { getFechaRD, getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
@@ -622,17 +623,35 @@ export class PagosService {
       return diffMs < 60_000;
     }) ?? null;
 
+    let moraCalculada = cuotaDelPago?.mora ?? pago.mora;
+    if (cuotaDelPago && cuotaDelPago.mora === 0 && new Date(cuotaDelPago.fechaVencimiento) < new Date(pago.createdAt)) {
+      try {
+        const config = await this.prisma.configuracion.findUnique({ where: { empresaId } });
+        if (config?.moraPorcentajeMensual) {
+          const diasAtraso = differenceInDays(
+            startOfDay(new Date(pago.createdAt)),
+            startOfDay(new Date(cuotaDelPago.fechaVencimiento)),
+          );
+          if (diasAtraso > (config.diasGracia ?? 0)) {
+            moraCalculada = Math.round(cuotaDelPago.monto * (config.moraPorcentajeMensual / 100) * 100) / 100;
+          }
+        }
+      } catch { /* usar valor almacenado */ }
+    }
+
     return {
       pago: {
-        id:          pago.id,
-        createdAt:   pago.createdAt,
-        montoTotal:  pago.montoTotal,
-        capital:     pago.capital,
-        interes:     pago.interes,
-        mora:        pago.mora,
-        metodo:      pago.metodo,
-        referencia:  pago.referencia,
-        observacion: pago.observacion,
+        id:            pago.id,
+        createdAt:     pago.createdAt,
+        montoTotal:    pago.montoTotal,
+        capital:       pago.capital,
+        interes:       pago.interes,
+        mora:          moraCalculada,
+        abonoCapital:  Math.max(0, Math.round((pago.montoTotal - pago.capital - pago.interes - pago.mora) * 100) / 100),
+        pagoCompleto:  !!(cuotaDelPago?.pagada && cuotaDelPago?.fechaPago),
+        metodo:        pago.metodo,
+        referencia:    pago.referencia,
+        observacion:   pago.observacion,
       },
       prestamo: {
         id:             pago.prestamo.id,
@@ -653,7 +672,7 @@ export class PagosService {
         monto:            cuotaDelPago.monto,
         capital:          cuotaDelPago.capital,
         interes:          cuotaDelPago.interes,
-        mora:             cuotaDelPago.mora,
+        mora:             moraCalculada,
         fechaVencimiento: cuotaDelPago.fechaVencimiento,
       } : null,
       usuario: { nombre: pago.usuario?.nombre ?? 'Sistema' },

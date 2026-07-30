@@ -15,6 +15,8 @@ import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('pagos')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -24,6 +26,8 @@ export class PagosController {
   @Post()
   @Roles('ADMIN', 'EMPLEADO')
   @HttpCode(HttpStatus.CREATED)
+  @Idempotent()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   registrar(@Body() dto: CreatePagoDto, @Tenant() empresaId: string, @CurrentUser() user: any) {
     return this.pagosService.registrarPago(
       dto,
@@ -58,6 +62,8 @@ export class PagosController {
 
   @Post('saldar/:id')
   @Roles('ADMIN', 'EMPLEADO')
+  @Idempotent()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   saldarPrestamo(
     @Param('id') id: string,
     @Body() body: { metodo: string; referencia?: string; observacion?: string },
