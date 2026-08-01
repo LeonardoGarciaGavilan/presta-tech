@@ -7,6 +7,7 @@ import { getSocket, connectSocket } from "../services/socket";
 
 // ─── Config visual ────────────────────────────────────────────────────────────
 const TIPO_CONFIG = {
+  SOLICITUD: { label: "Solicitud de Préstamo", icon: "📋", color: "sky" },
   REFINANCIAMIENTO: { label: "Refinanciamiento", icon: "🔄", color: "amber" },
   CAMBIO_FRECUENCIA: { label: "Cambio de Frecuencia", icon: "📅", color: "violet" },
   CAMBIO_TASA: { label: "Cambio de Tasa", icon: "📊", color: "blue" },

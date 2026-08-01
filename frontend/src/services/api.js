@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://presta-tech-production.
 
 
 const api = axios.create({
- baseURL: API_URL,
+ baseURL: `${API_URL}/api/v1`,
  withCredentials: true,
  timeout: 90000,
 });
