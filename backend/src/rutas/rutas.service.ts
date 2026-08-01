@@ -34,7 +34,17 @@ export class RutasService {
       where: { empresaId, ...(!isAdmin && { usuarioId }), activa: true },
       include: {
         usuario: { select: { id: true, nombre: true } },
-        clientes: { select: { id: true } },
+        clientes: {
+          select: {
+            id: true,
+            clienteId: true,
+            orden: true,
+            observacion: true,
+            visitadoHoy: true,
+            ultimaVisita: true,
+            fechaRuta: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -304,7 +314,7 @@ export class RutasService {
       where: { clienteId, ruta: { empresaId, activa: true } },
       include: { ruta: { select: { id: true, nombre: true } } },
     });
-    return rc ? { rutaClienteId: rc.id, rutaId: rc.ruta.id, rutaNombre: rc.ruta.nombre } : null;
+    return rc ? { rutaClienteId: rc.id, rutaId: rc.ruta.id, rutaNombre: rc.ruta.nombre } : { rutaId: null };
   }
 
   // ─── 17. ASIGNAR/CAMBIAR RUTA DE UN CLIENTE ──────────────────────────────
