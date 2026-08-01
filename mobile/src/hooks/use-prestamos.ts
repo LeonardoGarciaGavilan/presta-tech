@@ -21,13 +21,31 @@ import type {
   PrestamosFilters,
 } from '@/types/prestamo.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
-import { getPrestamoById } from '@/db/prestamos-db';
+import { getPrestamoById, upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
+import { useAuthStore } from '@/store/auth.store';
 
 export function usePrestamos(filters?: PrestamosFilters) {
   return useQuery({
     queryKey: ['prestamos', filters],
-    queryFn: () => listar(filters),
+    queryFn: async () => {
+      try {
+        return await listar(filters);
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getAllCachedPrestamos();
+          return {
+            data: local,
+            total: local.length,
+            pagina: 1,
+            porPagina: local.length,
+            totalPaginas: 1,
+          };
+        }
+        throw new Error('Error al cargar préstamos');
+      }
+    },
     placeholderData: keepPreviousData,
   });
 }
@@ -40,6 +58,11 @@ export function usePrestamo(id: string) {
       if (id.startsWith('prestamo_temp_')) {
         const cached = queryClient.getQueryData<Prestamo>(['prestamos', id]);
         if (cached) return cached;
+        const local = getPrestamoById(id);
+        if (local) {
+          queryClient.setQueryData(['prestamos', id], local);
+          return local;
+        }
         throw new Error('Préstamo no encontrado');
       }
       try {
@@ -64,6 +87,9 @@ export function useCrearPrestamo() {
     mutationFn: async (data: CreatePrestamoRequest) => {
       if (!network.isOnline) {
         const tempId = `prestamo_temp_${Date.now()}`;
+        const empresaId = useAuthStore.getState().user?.empresaId || '';
+        const now = new Date().toISOString();
+        const today = now.split('T')[0];
         await addToOfflineQueue({
           endpoint: '/prestamos',
           method: 'POST',
@@ -86,8 +112,8 @@ export function useCrearPrestamo() {
           saldoPendiente: data.monto,
           cuotaMensual: 0,
           frecuenciaPago: data.frecuenciaPago,
-          fechaInicio: data.fechaInicio || new Date().toISOString().split('T')[0],
-          fechaVencimiento: '',
+          fechaInicio: data.fechaInicio || today,
+          fechaVencimiento: today,
           moraAcumulada: 0,
           estado: 'SOLICITADO',
           refinanciado: false,
@@ -99,8 +125,8 @@ export function useCrearPrestamo() {
           fechaAprobacion: null,
           fechaDesembolso: null,
           modoRapido: data.modoRapido ?? false,
-          createdAt: new Date().toISOString(),
-          empresaId: '',
+          createdAt: now,
+          empresaId,
           garanteId: data.garanteId ?? null,
           cliente: { id: data.clienteId, nombre: '...', cedula: '...', apellido: null, telefono: null, celular: null },
           cuotas: [],
@@ -108,6 +134,7 @@ export function useCrearPrestamo() {
         };
         (tempPrestamo as any).esOffline = true;
         queryClient.setQueryData(['prestamos', tempId], tempPrestamo);
+        upsertPrestamos([tempPrestamo]);
         return tempPrestamo;
       }
       return crear(data);
@@ -212,17 +239,29 @@ export function useCambiarEstadoPrestamo() {
             motivo: data.motivo,
           },
         });
-        queryClient.setQueryData(['prestamos', id], (old: any) => ({
-          ...old,
-          estado: data.estado,
-        }));
         return { id, estado: data.estado, esOffline: true };
       }
       return cambiarEstado(id, data);
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['prestamos', id] });
+      const previous = queryClient.getQueryData(['prestamos', id]);
+      queryClient.setQueryData(['prestamos', id], (old: any) => {
+        if (!old) return old;
+        return { ...old, estado: data.estado };
+      });
+      return { previous, id };
+    },
     onSuccess: (_data, { id }) => {
-      queryClient.setQueryData(['prestamos', id], _data);
+      if (_data && !_data.esOffline) {
+        queryClient.setQueryData(['prestamos', id], _data);
+      }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
+    },
+    onError: (_err, { id }, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['prestamos', id], context.previous);
+      }
     },
   });
 }

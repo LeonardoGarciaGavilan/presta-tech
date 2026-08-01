@@ -155,7 +155,11 @@ export default function NuevoPrestamoScreen() {
       }
       const result = await crearPrestamo(payload);
       showToast('Préstamo creado exitosamente', 'success');
-      router.replace(`/prestamos/${result.id}`);
+      if ((result as any)?.esOffline) {
+        router.replace('/prestamos');
+      } else {
+        router.replace(`/prestamos/${result.id}`);
+      }
     } catch (error) {
       const { message } = error as ApiError;
       showToast(message || 'No se pudo crear el préstamo', 'error');

@@ -8,8 +8,12 @@ import { registrarPago,
 import type {
   CreatePagoDto,
   SaldarPrestamoDto,
+  Pago,
 } from '@/types/prestamo.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { insertPago } from '@/db/pagos-db';
+import { getCuotasByPrestamoId } from '@/db/prestamos-db';
+import { useAuthStore } from '@/store/auth.store';
 
 export function useRegistrarPago() {
   const queryClient = useQueryClient();
@@ -17,6 +21,8 @@ export function useRegistrarPago() {
   return useMutation({
     mutationFn: async (dto: CreatePagoDto) => {
       if (!network.isOnline) {
+        const usuarioId = useAuthStore.getState().user?.id || '';
+        const tempId = `pago_temp_${Date.now()}`;
         const item = await addToOfflineQueue({
           endpoint: '/pagos',
           method: 'POST',
@@ -30,27 +36,43 @@ export function useRegistrarPago() {
             ['prestamos'],
             ['caja'],
           ],
-          tempId: `pago_temp_${Date.now()}`,
+          tempId,
           tempDisplay: {
             montoPagado: dto.montoPagado,
             metodo: dto.metodo,
           },
         });
+        const now = new Date().toISOString();
+        const cuotas = getCuotasByPrestamoId(dto.prestamoId);
+        const cuotaTarget = dto.cuotaId
+          ? cuotas.find((c) => c.id === dto.cuotaId)
+          : cuotas.find((c) => !c.pagada);
+        let capital = dto.montoPagado;
+        let interes = 0;
+        let mora = 0;
+        if (cuotaTarget) {
+          mora = Math.min(dto.montoPagado, cuotaTarget.mora || 0);
+          const restante = dto.montoPagado - mora;
+          interes = Math.min(restante, cuotaTarget.interes || 0);
+          capital = restante - interes;
+        }
+        const syntheticPago: Pago = {
+          id: tempId,
+          montoTotal: dto.montoPagado,
+          capital: Math.max(0, capital),
+          interes: Math.max(0, interes),
+          mora: Math.max(0, mora),
+          metodo: dto.metodo,
+          referencia: dto.referencia || null,
+          observacion: dto.observacion || null,
+          createdAt: now,
+          usuarioId,
+          prestamoId: dto.prestamoId,
+          cajaId: null,
+        };
+        insertPago(syntheticPago);
         return {
-          pago: {
-            id: item.tempId,
-            montoTotal: dto.montoPagado,
-            capital: dto.montoPagado,
-            interes: 0,
-            mora: 0,
-            metodo: dto.metodo,
-            referencia: dto.referencia || null,
-            observacion: dto.observacion || null,
-            createdAt: new Date().toISOString(),
-            usuarioId: '',
-            prestamoId: dto.prestamoId,
-            cajaId: null,
-          },
+          pago: syntheticPago,
           prestamo: {
             id: dto.prestamoId,
             monto: 0,

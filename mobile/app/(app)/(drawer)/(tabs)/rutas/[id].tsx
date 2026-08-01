@@ -26,6 +26,7 @@ import type { ReciboData } from '@/utils/recibo-pdf';
 import type { ClienteVistaDia, ResumenVistaDia } from '@/types/rutas.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import { dateToISO } from '@/utils/formatters';
+import { getCuotaACobrar, getMontoCuotaACobrar } from '@/utils/rutas';
 import CobroRapidoModal from '@/components/rutas/cobro-rapido-modal';
 import MapMarkerSheet from '@/components/rutas/map-marker-sheet';
 import { DateNavigator } from '@/components/rutas/date-navigator';
@@ -185,15 +186,16 @@ export default function VistaDiaScreen() {
   const handleProcesarPago = useCallback(async (data: { metodo: 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE'; referencia?: string }) => {
     if (!cobroCliente) return;
     const prestamo = cobroCliente.prestamos?.[0];
-    if (!prestamo?.proximaCuota) {
+    const cuota = prestamo?.proximaCuota;
+    if (!cuota) {
       showToast('Sin cuotas pendientes', 'error');
       return;
     }
     try {
       const result = await registrarPago({
         prestamoId: prestamo.id,
-        cuotaId: prestamo.proximaCuota.id,
-        montoPagado: cobroCliente.totalACobrar,
+        cuotaId: cuota.id,
+        montoPagado: Math.round((cuota.monto + (cuota.mora || 0)) * 100) / 100,
         metodo: data.metodo,
         referencia: data.referencia,
       });
@@ -220,16 +222,21 @@ export default function VistaDiaScreen() {
 
   const mapMarkers = useMemo(() => vistaDia?.clientes
     ?.filter((c) => c.cliente.latitud && c.cliente.longitud)
-    .map((c) => ({
-      id: c.rutaClienteId,
-      latitude: c.cliente.latitud!,
-      longitude: c.cliente.longitud!,
-      title: `${c.cliente.nombre} ${c.cliente.apellido || ''}`,
-      description: `RD$ ${formatCurrency(c.totalACobrar)}`,
-      order: c.orden,
-      isVisited: c.visitadoHoy,
-      isOverdue: c.tieneAtrasados,
-    })) ?? [], [vistaDia?.clientes]);
+    .map((c) => {
+      const cuota = getCuotaACobrar(c);
+      return {
+        id: c.rutaClienteId,
+        latitude: c.cliente.latitud!,
+        longitude: c.cliente.longitud!,
+        title: `${c.cliente.nombre} ${c.cliente.apellido || ''}`,
+        description: cuota
+          ? `Cuota #${cuota.numero} · RD$ ${formatCurrency(getMontoCuotaACobrar(c))}`
+          : `RD$ ${formatCurrency(c.totalACobrar)}`,
+        order: c.orden,
+        isVisited: c.visitadoHoy,
+        isOverdue: c.tieneAtrasados,
+      };
+    }) ?? [], [vistaDia?.clientes]);
 
   if (isLoading) {
     return <LoadingScreen message="Cargando ruta..." />;
@@ -249,7 +256,19 @@ export default function VistaDiaScreen() {
     );
   }
 
-  if (!vistaDia || !ruta) return null;
+  if (!vistaDia || !ruta) {
+    return (
+      <ScreenContainer>
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Datos no disponibles"
+          subtitle="No se pudieron cargar los datos de la ruta. Verifica tu conexión."
+          actionLabel="Reintentar"
+          onAction={() => refetch()}
+        />
+      </ScreenContainer>
+    );
+  }
 
   const showMap = mapa;
   const mapHeight = 450;
@@ -450,8 +469,10 @@ function ClienteCardItem({
     cliente,
     debeVisitar,
     tieneAtrasados,
-    totalACobrar,
   } = item;
+
+  const cuota = getCuotaACobrar(item);
+  const montoCuota = cuota ? Math.round((cuota.monto + (cuota.mora || 0)) * 100) / 100 : 0;
 
   return (
     <View
@@ -522,16 +543,18 @@ function ClienteCardItem({
       {debeVisitar && (
         <View style={[styles.cobroRow, { borderTopColor: colors.border }]}>
           <View>
-            <Text style={[styles.cobroLabel, { color: colors.textTertiary }]}>A cobrar</Text>
+            <Text style={[styles.cobroLabel, { color: colors.textTertiary }]}>
+              {cuota ? `Cuota #${cuota.numero}` : 'A cobrar'}
+            </Text>
             <Text style={[styles.cobroAmount, { color: colors.text }]}>
-              RD$ {formatCurrency(totalACobrar)}
+              RD$ {formatCurrency(montoCuota)}
             </Text>
           </View>
           <Pressable
             style={[styles.cobrarBtn, { backgroundColor: colors.primary }]}
             onPress={() => onCobroRapido(item)}
             accessibilityRole="button"
-            accessibilityLabel={`Cobrar ${formatCurrency(totalACobrar)} a ${cliente.nombre}`}
+            accessibilityLabel={`Cobrar ${formatCurrency(montoCuota)} a ${cliente.nombre}`}
           >
             <Ionicons name="cash-outline" size={scale(16)} color="#FFF" />
             <Text style={styles.cobrarText}>Cobrar</Text>

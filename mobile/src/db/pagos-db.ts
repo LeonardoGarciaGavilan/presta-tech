@@ -63,6 +63,10 @@ export function upsertPagos(list: Pago[]): void {
   }
 }
 
+export function deletePago(id: string): void {
+  db.delete(pagos).where(eq(pagos.id, id)).run();
+}
+
 export function clearPagos(): void {
   db.delete(pagos).run();
 }

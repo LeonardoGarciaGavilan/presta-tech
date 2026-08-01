@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { formatCurrency } from '@/utils/formatters';
+import { getCuotaACobrar } from '@/utils/rutas';
 import type { ClienteVistaDia } from '@/types/rutas.types';
 
 interface MapMarkerSheetProps {
@@ -29,9 +30,11 @@ function MapMarkerSheet({
     cliente: info,
     debeVisitar,
     tieneAtrasados,
-    totalACobrar,
     orden,
   } = cliente;
+
+  const cuota = getCuotaACobrar(cliente);
+  const montoCuota = cuota ? Math.round((cuota.monto + (cuota.mora || 0)) * 100) / 100 : 0;
 
   const handleNavigate = useCallback(() => {
     if (info.latitud && info.longitud) {
@@ -85,9 +88,11 @@ function MapMarkerSheet({
 
         {debeVisitar && (
           <View style={[styles.amountRow, { borderTopColor: colors.border }]}>
-            <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>A cobrar</Text>
+            <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>
+              {cuota ? `Cuota #${cuota.numero}` : 'A cobrar'}
+            </Text>
             <Text style={[styles.amountValue, { color: colors.text }]}>
-              RD$ {formatCurrency(totalACobrar)}
+              RD$ {formatCurrency(montoCuota)}
             </Text>
           </View>
         )}

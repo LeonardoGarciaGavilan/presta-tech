@@ -1,0 +1,245 @@
+jest.mock('@/db/index', () => {
+  if (!(global as any).__mockDbStores) {
+    (global as any).__mockDbStores = new Map();
+  }
+  const stores = (global as any).__mockDbStores;
+
+  function getStore(table: any) {
+    if (!stores.has(table)) stores.set(table, []);
+    return stores.get(table);
+  }
+
+  return {
+    db: {
+      select: () => ({
+        from: (table: any) => ({
+          where: () => ({
+            get: () => getStore(table)[0] ?? null,
+            all: () => getStore(table),
+            orderBy: () => ({ all: () => getStore(table) }),
+          }),
+          all: () => getStore(table),
+        }),
+      }),
+      insert: (table: any) => ({
+        values: (data: any) => ({
+          onConflictDoUpdate: () => ({ run: () => {} }),
+          run: () => { getStore(table).push(data); },
+        }),
+      }),
+      update: (table: any) => ({
+        set: (data: any) => ({
+          where: () => ({
+            run: () => {
+              const s = getStore(table);
+              if (s.length > 0) Object.assign(s[0], data);
+            },
+          }),
+        }),
+      }),
+      delete: (table: any) => ({
+        where: () => ({ run: () => { getStore(table).length = 0; } }),
+        run: () => { getStore(table).length = 0; },
+      }),
+    },
+  };
+});
+
+jest.mock('@/api/client', () => {
+  const mockClient = jest.fn();
+  return { __esModule: true, default: mockClient };
+});
+
+jest.mock('@/db/offline-queue-db', () => ({
+  getPendingItems: jest.fn(),
+  getFailedItems: jest.fn(),
+  updateQueueItem: jest.fn(),
+  removeFromQueue: jest.fn(),
+  findDuplicate: jest.fn(),
+  getQueueStats: jest.fn(),
+}));
+
+jest.mock('@/hooks/use-network-status', () => ({
+  getNetworkStatus: jest.fn(),
+}));
+
+jest.mock('@/db/clientes-db', () => ({
+  upsertClientes: jest.fn(),
+}));
+
+jest.mock('@/db/prestamos-db', () => ({
+  upsertPrestamos: jest.fn(),
+}));
+
+jest.mock('@/db/pagos-db', () => ({
+  upsertPagos: jest.fn(),
+}));
+
+import client from '@/api/client';
+import {
+  getPendingItems, getFailedItems, updateQueueItem, removeFromQueue, findDuplicate,
+} from '@/db/offline-queue-db';
+import { getNetworkStatus } from '@/hooks/use-network-status';
+import { upsertClientes } from '@/db/clientes-db';
+import { upsertPrestamos } from '@/db/prestamos-db';
+import { upsertPagos } from '@/db/pagos-db';
+import { syncNow, processItem, isSyncing } from '@/services/sync-manager';
+import type { OfflineQueueItem } from '@/types/offline.types';
+
+const mockClient = client as jest.Mock;
+const mockGetPending = getPendingItems as jest.Mock;
+const mockUpdateQueue = updateQueueItem as jest.Mock;
+const mockRemoveQueue = removeFromQueue as jest.Mock;
+const mockFindDuplicate = findDuplicate as jest.Mock;
+const mockGetNetwork = getNetworkStatus as jest.Mock;
+const mockUpsertClientes = upsertClientes as jest.Mock;
+const mockUpsertPrestamos = upsertPrestamos as jest.Mock;
+const mockUpsertPagos = upsertPagos as jest.Mock;
+
+function makeItem(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem {
+  return {
+    id: 'item_1',
+    endpoint: '/clientes',
+    method: 'POST',
+    data: { nombre: 'Juan', cedula: '001-0000001-1' },
+    queryKeys: [['clientes']],
+    createdAt: Date.now(),
+    retryCount: 0,
+    status: 'pending',
+    tempId: 'temp_123',
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.useRealTimers();
+  mockGetNetwork.mockReturnValue({ isOnline: true });
+  mockClient.mockResolvedValue({ data: { id: 'server_1', nombre: 'Juan' }, status: 201 });
+  mockFindDuplicate.mockResolvedValue(null);
+  mockUpdateQueue.mockResolvedValue(undefined);
+  mockRemoveQueue.mockResolvedValue(undefined);
+
+  const s = (global as any).__mockDbStores;
+  if (s) {
+    for (const [, arr] of s) arr.length = 0;
+  }
+});
+
+describe('processItem', () => {
+  it('removes duplicate items', async () => {
+    mockFindDuplicate.mockResolvedValue({ id: 'existing_item', endpoint: '/clientes', method: 'POST' });
+    const result = await processItem(makeItem());
+    expect(result).toBe(true);
+    expect(mockRemoveQueue).toHaveBeenCalledWith('item_1');
+    expect(mockClient).not.toHaveBeenCalled();
+  });
+
+  it('sends request via client and removes from queue on success', async () => {
+    const result = await processItem(makeItem());
+    expect(result).toBe(true);
+    expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', { status: 'syncing' });
+    expect(mockClient).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST', url: '/clientes' }),
+    );
+    expect(mockRemoveQueue).toHaveBeenCalledWith('item_1');
+  });
+
+  it('uses empty data for DELETE requests', async () => {
+    mockClient.mockResolvedValue({ data: null, status: 204 });
+    const item = makeItem({ method: 'DELETE', data: { id: 'cli_1' } });
+    await processItem(item);
+    expect(mockClient).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'DELETE', data: undefined, params: { id: 'cli_1' } }),
+    );
+  });
+
+  it('upserts response data for POST /clientes on success', async () => {
+    mockClient.mockResolvedValue({ data: { id: 'server_1', nombre: 'Juan', empresaId: 'emp_1' } });
+    await processItem(makeItem({ endpoint: '/clientes', method: 'POST' }));
+    expect(mockUpsertClientes).toHaveBeenCalledWith([{ id: 'server_1', nombre: 'Juan', empresaId: 'emp_1' }]);
+  });
+
+  it('upserts response data for POST /prestamos on success', async () => {
+    mockClient.mockResolvedValue({ data: { id: 'server_1', monto: 10000 } });
+    await processItem(makeItem({ endpoint: '/prestamos', method: 'POST' }));
+    expect(mockUpsertPrestamos).toHaveBeenCalledWith([{ id: 'server_1', monto: 10000 }]);
+  });
+
+  it('upserts response data for POST /pagos on success', async () => {
+    mockClient.mockResolvedValue({ data: { id: 'server_1', montoTotal: 3000 } });
+    await processItem(makeItem({ endpoint: '/pagos', method: 'POST' }));
+    expect(mockUpsertPagos).toHaveBeenCalledWith([{ id: 'server_1', montoTotal: 3000 }]);
+  });
+
+  it('retries on network error if retryCount < max', async () => {
+    jest.useFakeTimers();
+    mockClient.mockRejectedValue({ statusCode: 500, message: 'Server Error' });
+    const item = makeItem({ retryCount: 0 });
+    const promise = processItem(item);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    jest.advanceTimersByTime(100000);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    const result = await promise;
+    expect(result).toBe(false);
+    expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', {
+      status: 'pending', retryCount: 1, lastError: 'Error temporal del servidor',
+    });
+  });
+
+  it('marks as failed when retries exhausted', async () => {
+    mockClient.mockRejectedValue({ statusCode: 500, message: 'Server Error' });
+    const item = makeItem({ retryCount: 5 });
+    const result = await processItem(item);
+    expect(result).toBe(false);
+    expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', {
+      status: 'failed', retryCount: 6, lastError: 'Error temporal del servidor',
+    });
+  });
+
+  it('marks as failed immediately for non-retryable errors', async () => {
+    mockClient.mockRejectedValue({ statusCode: 400, message: 'Bad Request' });
+    const result = await processItem(makeItem());
+    expect(result).toBe(false);
+    expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', expect.objectContaining({ status: 'failed' }));
+  });
+});
+
+describe('syncNow', () => {
+  beforeEach(() => {
+    mockGetPending.mockResolvedValue([]);
+  });
+
+  it('returns early if offline', async () => {
+    mockGetNetwork.mockReturnValue({ isOnline: false });
+    const result = await syncNow();
+    expect(result.synced).toBe(0);
+    expect(result.errors).toContain('Sin conexión a internet');
+  });
+
+  it('processes all pending items', async () => {
+    mockGetPending
+      .mockResolvedValueOnce([makeItem({ id: 'item_1' })])
+      .mockResolvedValueOnce([makeItem({ id: 'item_2' })])
+      .mockResolvedValueOnce([]);
+    mockClient.mockResolvedValue({ data: { id: 'server_1' }, status: 201 });
+
+    const result = await syncNow();
+    expect(result.synced).toBe(2);
+    expect(result.failed).toBe(0);
+  });
+
+  it('stops syncing if connection lost mid-sync', async () => {
+    mockGetPending
+      .mockResolvedValueOnce([makeItem({ id: 'item_1' })])
+      .mockResolvedValueOnce([]);
+    mockClient.mockRejectedValue({ statusCode: 500, message: 'Error' });
+    mockGetNetwork
+      .mockReturnValueOnce({ isOnline: true })
+      .mockReturnValueOnce({ isOnline: false });
+
+    const result = await syncNow();
+    expect(result.synced).toBe(0);
+    expect(result.errors).toContain('Conexión perdida durante sincronización');
+  });
+});

@@ -8,7 +8,8 @@ import { waitForRefresh } from '@/api/refresh-manager';
 import { clearSession } from '@/utils/session';
 import { prefetchCritical } from '@/services/prefetch-manager';
 import { hydrateFromDb } from '@/services/data-sync';
-import { getNetworkStatus } from '@/hooks/use-network-status';
+import { getCachedUser, setCachedUser } from '@/db/sync-meta-db';
+import type { User } from '@/types/auth.types';
 
 export function useAuthBootstrap(queryClient?: QueryClient) {
   const setUser = useAuthStore((state) => state.setUser);
@@ -25,51 +26,49 @@ export function useAuthBootstrap(queryClient?: QueryClient) {
 
       try {
         const refreshToken = await tokenStorage.getRefreshToken();
-        const network = getNetworkStatus();
+        const accessToken = await tokenStorage.getAccessToken();
 
-        if (!network.isOnline) {
-          const accessToken = await tokenStorage.getAccessToken();
-          if (accessToken) {
-            try {
-              const user = await getCurrentUser();
-              setUser(user);
-            } catch {
-              // Token expired offline — keep last session, don't clearSession()
-            }
-          } else {
-            return;
-          }
-        } else {
-          if (!refreshToken) {
-            return;
-          }
-
-          const success = await waitForRefresh();
-          if (!success) {
-            return;
-          }
-
-          const user = await getCurrentUser();
-          setUser(user);
+        if (!refreshToken && !accessToken) {
+          return;
         }
 
-        if (queryClient) {
-          const net = getNetworkStatus();
-          if (net.isOnline) {
-            try {
-              await prefetchCritical(queryClient);
-            } catch {
-              // Non-critical, ignore prefetch errors
+        let user: User | null = null;
+
+        try {
+          if (refreshToken) {
+            const refreshSuccess = await waitForRefresh();
+            if (refreshSuccess) {
+              user = await getCurrentUser();
+            } else {
+              const stillHasAccess = await tokenStorage.getAccessToken();
+              if (!stillHasAccess) return;
             }
-          } else {
-            hydrateFromDb(queryClient);
+          } else if (accessToken) {
+            user = await getCurrentUser();
+          }
+        } catch {
+          // API/network error — will try cache below
+        }
+
+        if (user) {
+          setUser(user);
+          setCachedUser(user);
+
+          if (queryClient) {
+            await prefetchCritical(queryClient);
+          }
+        } else {
+          const cachedUser = getCachedUser();
+          if (cachedUser) {
+            setUser(cachedUser);
+
+            if (queryClient) {
+              hydrateFromDb(queryClient);
+            }
           }
         }
       } catch {
-        const net = getNetworkStatus();
-        if (net.isOnline) {
-          await clearSession();
-        }
+        await clearSession();
       } finally {
         setLoading(false);
         setHydrated();

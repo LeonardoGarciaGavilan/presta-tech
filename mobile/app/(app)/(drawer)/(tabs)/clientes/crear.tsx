@@ -9,6 +9,7 @@ import { uploadCedula } from '@/api/clientes.api';
 import ClienteForm from '@/components/clientes/cliente-form';
 import { useToast } from '@/components/ui/toast';
 import { asignarRuta } from '@/api/rutas.api';
+import { useNetworkContext } from '@/components/providers/network-provider';
 import type { ClienteFormData } from '@/schemas/cliente.schema';
 import type { ApiError } from '@/types/api.types';
 import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
@@ -18,6 +19,7 @@ export default function CrearClienteScreen() {
   const { colorScheme, colors } = useTheme();
   const { mutateAsync, isPending } = useCrearCliente();
   const { showToast } = useToast();
+  const { network, addToOfflineQueue } = useNetworkContext();
   const [rutaId, setRutaId] = useState<string | null | undefined>(undefined);
   const pendingUploadsRef = useRef<Array<{ tipo: 'cedula-frontal' | 'cedula-trasera'; uri: string }>>([]);
 
@@ -41,36 +43,64 @@ export default function CrearClienteScreen() {
     async (data: ClienteFormData) => {
       try {
         const cliente = await mutateAsync(data);
+        const clienteId = cliente.id;
 
         showToast('Cliente creado exitosamente', 'success');
         router.replace('/clientes');
 
-        Promise.allSettled([
-          rutaId
-            ? asignarRuta(cliente.id, rutaId).catch(() =>
+        const offlineOps: Promise<any>[] = [];
+
+        if (rutaId) {
+          if (!network.isOnline) {
+            offlineOps.push(
+              addToOfflineQueue({
+                endpoint: `/rutas/cliente/${clienteId}/asignar`,
+                method: 'PATCH',
+                data: { rutaId },
+                queryKeys: [['clientes', clienteId], ['clientes'], ['rutas']],
+                tempId: `asignar_ruta_temp_${Date.now()}`,
+                tempDisplay: { clienteId, rutaId },
+              }),
+            );
+          } else {
+            offlineOps.push(
+              asignarRuta(clienteId, rutaId).catch(() =>
                 showToast('No se pudo asignar la ruta', 'error'),
-              )
-            : Promise.resolve(),
-          ...pendingUploadsRef.current.map((pending) =>
-            uploadCedula(cliente.id, pending.tipo, pending.uri),
-          ),
-        ]).then((results) => {
-          const failedUploads = results.filter(
-            (r) => r.status === 'rejected',
-          );
-          if (failedUploads.length > 0) {
-            showToast(
-              `No se pudieron subir ${failedUploads.length} documento(s)`,
-              'error',
+              ),
             );
           }
-        });
+        }
+
+        for (const pending of pendingUploadsRef.current) {
+          if (!network.isOnline) {
+            offlineOps.push(
+              addToOfflineQueue({
+                endpoint: `/clientes/${clienteId}/cedula`,
+                method: 'POST',
+                data: { tipo: pending.tipo, uri: pending.uri },
+                queryKeys: [['clientes', clienteId]],
+                tempId: `upload_cedula_temp_${Date.now()}`,
+                tempDisplay: { clienteId, tipo: pending.tipo },
+              }),
+            );
+          } else {
+            offlineOps.push(uploadCedula(clienteId, pending.tipo, pending.uri));
+          }
+        }
+
+        if (offlineOps.length > 0) {
+          const results = await Promise.allSettled(offlineOps);
+          const failed = results.filter((r) => r.status === 'rejected');
+          if (failed.length > 0) {
+            showToast(`${failed.length} operación(es) pendiente(s) de sincronización`, 'info');
+          }
+        }
       } catch (error) {
         const { message } = error as ApiError;
         throw new Error(message || 'No fue posible crear el cliente.');
       }
     },
-    [mutateAsync, showToast, rutaId],
+    [mutateAsync, showToast, rutaId, network.isOnline, addToOfflineQueue],
   );
 
   return (

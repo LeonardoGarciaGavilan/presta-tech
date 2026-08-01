@@ -1,3 +1,13 @@
+export interface RutaClienteResumen {
+  id: string;
+  clienteId: string;
+  orden?: number;
+  observacion?: string | null;
+  visitadoHoy?: boolean;
+  ultimaVisita?: string | null;
+  fechaRuta?: string | null;
+}
+
 export interface Ruta {
   id: string;
   nombre: string;
@@ -9,7 +19,7 @@ export interface Ruta {
     id: string;
     nombre: string;
   };
-  clientes?: { id: string }[];
+  clientes?: RutaClienteResumen[];
   createdAt?: string;
 }
 
@@ -42,11 +52,11 @@ export interface ProximaCuota {
   id: string;
   numero: number;
   monto: number;
+  capital: number;
+  interes: number;
   mora: number;
-  total: number;
   fechaVencimiento: string;
-  vencida: boolean;
-  frecuencia: string;
+  pagada: boolean;
 }
 
 export interface PrestamoVistaDia {

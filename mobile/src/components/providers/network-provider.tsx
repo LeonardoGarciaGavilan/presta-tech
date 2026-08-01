@@ -61,6 +61,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const bootSyncDoneRef = useRef(false);
   const isSyncingRef = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerSyncRef = useRef<() => Promise<void>>(async () => {});
 
   const refreshStats = useCallback(async () => {
     const stats = await getQueueStats();
@@ -73,21 +74,23 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     isSyncingRef.current = true;
     setIsSyncing(true);
     try {
-      const result = await syncNow(queryClient);
+      await syncNow(queryClient);
       setLastSyncAt(Date.now());
-
-      if (result.failed > 0 && retryTimeoutRef.current === null) {
-        retryTimeoutRef.current = setTimeout(() => {
-          retryTimeoutRef.current = null;
-          refreshStats();
-        }, 5000);
-      }
     } finally {
       isSyncingRef.current = false;
       setIsSyncing(false);
       await refreshStats();
+      const stats = await getQueueStats();
+      if (stats.pending > 0 && retryTimeoutRef.current === null) {
+        retryTimeoutRef.current = setTimeout(() => {
+          retryTimeoutRef.current = null;
+          triggerSyncRef.current();
+        }, 5000);
+      }
     }
   }, [network.isOnline, queryClient, refreshStats]);
+
+  triggerSyncRef.current = triggerSync;
 
   const retryFailed = useCallback(async () => {
     if (isSyncingRef.current || !network.isOnline) return;

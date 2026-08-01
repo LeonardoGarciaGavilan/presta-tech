@@ -26,7 +26,7 @@ function itemToRow(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount
     id: item.id,
     endpoint: item.endpoint,
     method: item.method,
-    data: JSON.stringify(item.data),
+    data: stableStringify(item.data),
     queryKeys: JSON.stringify(item.queryKeys),
     createdAt: item.createdAt,
     retryCount: item.retryCount,
@@ -46,6 +46,21 @@ function generateIdempotencyKey(): string {
   return `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+function stableStringify(obj: unknown): string {
+  return JSON.stringify(obj, (_key, value) => {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.keys(value).sort().reduce(
+        (acc: Record<string, unknown>, k) => {
+          acc[k] = value[k];
+          return acc;
+        },
+        {},
+      );
+    }
+    return value;
+  });
+}
+
 export function getQueue(): OfflineQueueItem[] {
   return db
     .select()
@@ -58,6 +73,14 @@ export function getQueue(): OfflineQueueItem[] {
 export function addToQueue(
   item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey'>,
 ): OfflineQueueItem {
+  const existing = findDuplicate(item.endpoint, item.method, item.data);
+  if (existing) {
+    if (__DEV__) {
+      console.log(`[Queue] Duplicate detected for ${item.endpoint}, reusing existing item ${existing.id}`);
+    }
+    return existing;
+  }
+
   const newItem = {
     ...item,
     id: generateId(),
@@ -118,11 +141,32 @@ export function getQueueStats(): {
   total: number;
   oldestAt: number | null;
 } {
-  const all = db.select().from(offlineQueue).all();
-  const pending = all.filter((i: typeof offlineQueue.$inferSelect) => i.status === 'pending').length;
-  const failed = all.filter((i: typeof offlineQueue.$inferSelect) => i.status === 'failed').length;
-  const oldestAt = all.length > 0 ? all[0].createdAt : null;
-  return { pending, failed, total: all.length, oldestAt };
+  const rows = db
+    .select({
+      status: offlineQueue.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(offlineQueue)
+    .groupBy(offlineQueue.status)
+    .all();
+
+  const pending = rows.find((r) => r.status === 'pending')?.count ?? 0;
+  const failed = rows.find((r) => r.status === 'failed')?.count ?? 0;
+  const total = rows.reduce((sum, r) => sum + r.count, 0);
+
+  const oldest = db
+    .select({ createdAt: offlineQueue.createdAt })
+    .from(offlineQueue)
+    .orderBy(offlineQueue.createdAt)
+    .limit(1)
+    .get();
+
+  return {
+    pending,
+    failed,
+    total,
+    oldestAt: oldest?.createdAt ?? null,
+  };
 }
 
 export function removeStaleItems(): number {
@@ -154,10 +198,11 @@ export function findDuplicate(
     .where(eq(offlineQueue.endpoint, endpoint))
     .all();
 
+  const serialized = stableStringify(data);
   const found = items.find(
     (item: typeof offlineQueue.$inferSelect) =>
       item.method === method &&
-      item.data === JSON.stringify(data) &&
+      item.data === serialized &&
       item.status !== 'failed',
   );
 

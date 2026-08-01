@@ -17,6 +17,9 @@ import { getNetworkStatus } from '@/hooks/use-network-status';
 import { db } from '@/db';
 import { offlineQueue } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { upsertClientes, deleteCliente } from '@/db/clientes-db';
+import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
+import { upsertPagos, deletePago } from '@/db/pagos-db';
 
 type ProgressListener = (progress: SyncProgress) => void;
 type CompletionListener = (result: {
@@ -149,16 +152,44 @@ export async function processItem(
       const serverData = response.data as any;
       if (serverData?.id && serverData.id !== item.tempId) {
         for (const key of item.queryKeys) {
-          queryClient.setQueryData(key, (old: any) => {
-            if (!old) return old;
-            if (old.id === item.tempId) return { ...old, id: serverData.id };
-            if (Array.isArray(old)) {
-              return old.map((item: any) =>
-                item.id === item.tempId ? { ...item, id: serverData.id } : item,
-              );
-            }
-            return old;
+          const allMatching = queryClient.getQueryCache().findAll({
+            queryKey: key,
+            exact: false,
           });
+          for (const query of allMatching) {
+            queryClient.setQueryData(query.queryKey, (old: any) => {
+              if (!old) return old;
+              if (old.id === item.tempId) return { ...old, id: serverData.id };
+              if (Array.isArray(old)) {
+                return old.map((i: any) =>
+                  i.id === item.tempId ? { ...i, id: serverData.id } : i,
+                );
+              }
+              if (old?.pages && Array.isArray(old.pages)) {
+                return {
+                  ...old,
+                  pages: old.pages.map((page: any) => {
+                    if (!page?.data || !Array.isArray(page.data)) return page;
+                    return {
+                      ...page,
+                      data: page.data.map((i: any) =>
+                        i.id === item.tempId ? { ...i, id: serverData.id } : i,
+                      ),
+                    };
+                  }),
+                };
+              }
+              if (old?.data && Array.isArray(old.data)) {
+                return {
+                  ...old,
+                  data: old.data.map((i: any) =>
+                    i.id === item.tempId ? { ...i, id: serverData.id } : i,
+                  ),
+                };
+              }
+              return old;
+            });
+          }
         }
 
         const allPending = getPendingItems();
@@ -175,6 +206,30 @@ export async function processItem(
               console.log(`[Sync] Updated queue item ${pending.id}: replaced ${item.tempId} → ${serverData.id}`);
             }
           }
+        }
+      }
+    }
+
+    if (response?.data) {
+      const endpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
+      if (endpoint === '/clientes' && item.method === 'POST') {
+        const data = Array.isArray(response.data) ? response.data : [response.data];
+        upsertClientes(data);
+      } else if (endpoint === '/prestamos' && item.method === 'POST') {
+        const data = Array.isArray(response.data) ? response.data : [response.data];
+        upsertPrestamos(data);
+      } else if (endpoint === '/pagos' && item.method === 'POST') {
+        const data = Array.isArray(response.data) ? response.data : [response.data];
+        upsertPagos(data);
+      }
+
+      if (item.tempId) {
+        if (endpoint === '/clientes' && item.method === 'POST') {
+          deleteCliente(item.tempId);
+        } else if (endpoint === '/prestamos' && item.method === 'POST') {
+          deletePrestamo(item.tempId);
+        } else if (endpoint === '/pagos' && item.method === 'POST') {
+          deletePago(item.tempId);
         }
       }
     }
@@ -220,6 +275,7 @@ export async function syncNow(queryClient?: QueryClient): Promise<{
   try {
     let pending = await getPendingItems();
     const total = pending.length;
+    const retryingIds = new Set<string>();
 
     while (pending.length > 0) {
       const item = pending[0];
@@ -234,10 +290,15 @@ export async function syncNow(queryClient?: QueryClient): Promise<{
           errors.push('Conexión perdida durante sincronización');
           break;
         }
-        failed++;
+        const stillPending = getPendingItems().some((i) => i.id === item.id);
+        if (stillPending) {
+          retryingIds.add(item.id);
+        } else {
+          failed++;
+        }
       }
 
-      pending = await getPendingItems();
+      pending = (await getPendingItems()).filter((i) => !retryingIds.has(i.id));
     }
   } finally {
     syncing = false;

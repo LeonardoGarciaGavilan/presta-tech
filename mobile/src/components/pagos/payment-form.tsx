@@ -462,7 +462,7 @@ export default function PaymentForm({
       <Modal visible={showRecibo} transparent animationType="fade" onRequestClose={handleCerrarRecibo}>
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.reciboCard, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={styles.reciboContent}>
+            <ScrollView contentContainerStyle={styles.reciboContent}>
               <View style={styles.reciboHeader}>
                 <Ionicons name="checkmark-circle" size={scale(48)} color="#16A34A" />
                 <Text style={[styles.reciboTitle, { color: colors.text }]}>Pago Registrado</Text>
@@ -555,7 +555,7 @@ export default function PaymentForm({
                   variant="primary"
                 />
               </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -678,7 +678,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
     maxHeight: '90%',
   },
   reciboContent: { padding: Spacing.md },

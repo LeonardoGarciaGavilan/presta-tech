@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,9 +33,10 @@ export default function CajaPagoScreen() {
 
 function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
   const { colorScheme, colors } = useTheme();
+  const queryClient = useQueryClient();
 
   const { data: prestamo, isLoading, refetch } = usePrestamo(prestamoId);
-  const { data: cajaActiva, isLoading: loadingCaja } = useCajaActiva();
+  const { data: cajaActiva, isLoading: loadingCaja, refetch: refetchCaja } = useCajaActiva();
 
   if (isLoading || loadingCaja) {
     return <LoadingScreen message="Cargando..." />;
@@ -71,11 +73,17 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
     );
   }
 
+  const afterPayment = useCallback(() => {
+    refetch();
+    refetchCaja();
+    queryClient.invalidateQueries({ queryKey: ['caja'] });
+  }, [refetch, refetchCaja, queryClient]);
+
   return (
     <PaymentForm
       prestamo={prestamo}
       onBack={() => router.back()}
-      afterPayment={refetch}
+      afterPayment={afterPayment}
       reciboCloseLabel="Cerrar"
     />
   );
@@ -128,6 +136,7 @@ function SearchPaymentMode() {
 
   const handleBack = useCallback(() => {
     setSelectedPrestamo(null);
+    router.back();
   }, []);
 
   const renderClienteItem = useCallback(

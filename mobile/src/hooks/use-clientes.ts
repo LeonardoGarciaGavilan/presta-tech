@@ -13,13 +13,31 @@ import type {
   ClientesFilters,
 } from '@/types/cliente.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
-import { getClienteById } from '@/db/clientes-db';
+import { getClienteById, upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
+import { useAuthStore } from '@/store/auth.store';
 
 export function useClientes(filters?: ClientesFilters) {
   return useQuery({
     queryKey: ['clientes', filters],
-    queryFn: () => listar(filters),
+    queryFn: async () => {
+      try {
+        return await listar(filters);
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getAllCachedClientes();
+          return {
+            data: local,
+            total: local.length,
+            pagina: 1,
+            porPagina: local.length,
+            totalPaginas: 1,
+          };
+        }
+        throw new Error('Error al cargar clientes');
+      }
+    },
     placeholderData: keepPreviousData,
   });
 }
@@ -50,6 +68,35 @@ export function useCrearCliente() {
     mutationFn: async (data: CreateClienteRequest) => {
       if (!network.isOnline) {
         const tempId = `cliente_temp_${Date.now()}`;
+        const empresaId = useAuthStore.getState().user?.empresaId || '';
+        const now = new Date().toISOString();
+        const syntheticCliente = {
+          id: tempId,
+          nombre: data.nombre,
+          apellido: data.apellido || '',
+          cedula: data.cedula,
+          telefono: data.telefono || '',
+          celular: data.celular || null,
+          email: data.email || null,
+          provincia: data.provincia || null,
+          municipio: data.municipio || null,
+          sector: data.sector || null,
+          direccion: data.direccion || null,
+          ocupacion: data.ocupacion || null,
+          empresaLaboral: data.empresaLaboral || null,
+          ingresos: data.ingresos || 0,
+          observaciones: data.observaciones || null,
+          latitud: data.latitud || null,
+          longitud: data.longitud || null,
+          activo: true,
+          coordsAproximadas: false,
+          cedulaFrontalPath: null,
+          cedulaTraseraPath: null,
+          empresaId,
+          createdAt: now,
+          updatedAt: now,
+          esOffline: true,
+        };
         await addToOfflineQueue({
           endpoint: '/clientes',
           method: 'POST',
@@ -62,31 +109,8 @@ export function useCrearCliente() {
             cedula: data.cedula,
           },
         });
-        return {
-          id: tempId,
-          nombre: data.nombre,
-          apellido: data.apellido || '',
-          cedula: data.cedula,
-          telefono: data.telefono || '',
-          email: data.email || null,
-          direccion: data.direccion || null,
-          ocupacion: data.ocupacion || null,
-          ingresos: data.ingresos || 0,
-          latitud: data.latitud || null,
-          longitud: data.longitud || null,
-          activo: true,
-          coordsAproximadas: false,
-          cedulaFrontalPath: null,
-          cedulaTraseraPath: null,
-          provincia: data.provincia || null,
-          municipio: data.municipio || null,
-          sector: data.sector || null,
-          celular: data.celular || null,
-          empresaLaboral: data.empresaLaboral || null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          esOffline: true,
-        };
+        upsertClientes([syntheticCliente]);
+        return syntheticCliente;
       }
       return crear(data);
     },

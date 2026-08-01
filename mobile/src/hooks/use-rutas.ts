@@ -9,7 +9,7 @@ import type {
   GenerarDiaRequest,
 } from '@/types/rutas.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
-import { getRutas, getRutaById } from '@/db/rutas-db';
+import { getRutas, getRutaById, upsertVistaDiaCache, getVistaDiaCache } from '@/db/rutas-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 
 export function useRutas() {
@@ -52,7 +52,20 @@ export function useRuta(id: string) {
 export function useVistaDia(id: string, fecha: string) {
   return useQuery({
     queryKey: ['rutas', id, 'dia', fecha],
-    queryFn: () => rutasApi.obtenerVistaDia(id, fecha),
+    queryFn: async () => {
+      try {
+        const data = await rutasApi.obtenerVistaDia(id, fecha);
+        upsertVistaDiaCache(id, fecha, data);
+        return data;
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const cached = getVistaDiaCache(id, fecha);
+          if (cached) return cached;
+        }
+        throw new Error('Error al cargar la vista del día');
+      }
+    },
     enabled: !!id && !!fecha,
     placeholderData: keepPreviousData,
   });
@@ -152,8 +165,13 @@ export function useMarcarVisitado() {
       }
       return rutasApi.marcarVisitado(rcId, visitado);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rutas'] });
+    onSuccess: (_data, { rutaId, fecha }) => {
+      const keys: any[][] = [['rutas']];
+      if (rutaId) keys.push(['rutas', rutaId]);
+      if (rutaId && fecha) keys.push(['rutas', rutaId, 'dia', fecha]);
+      for (const key of keys) {
+        queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }
@@ -211,8 +229,15 @@ export function useResetVisitados() {
       }
       return rutasApi.resetVisitados();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rutas'] });
+    onSuccess: (_data, params) => {
+      const rutaId = params?.rutaId;
+      const fecha = params?.fecha;
+      const keys: any[][] = [['rutas']];
+      if (rutaId) keys.push(['rutas', rutaId]);
+      if (rutaId && fecha) keys.push(['rutas', rutaId, 'dia', fecha]);
+      for (const key of keys) {
+        queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 }

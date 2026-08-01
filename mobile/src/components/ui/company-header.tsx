@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
@@ -17,11 +17,12 @@ export function CompanyHeader() {
   const companyName = useAuthStore((s) => s.user?.empresa);
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
-  const { bannerVisible } = useNetworkContext();
+  const { bannerVisible, pendingCount } = useNetworkContext();
 
   const drawerNav = useNavigation('/(app)/(drawer)') as unknown as {
     toggleDrawer: () => void;
   };
+  const router = useRouter();
 
   const themeIcon =
     themeMode === 'light' ? 'sunny-outline' : themeMode === 'dark' ? 'moon-outline' : 'phone-portrait-outline';
@@ -70,6 +71,38 @@ export function CompanyHeader() {
           {companyName || 'Mi Empresa'}
         </Text>
 
+        <TouchableOpacity
+          onPress={() => router.push('/sincronizacion')}
+          activeOpacity={0.6}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Sincronización"
+          accessibilityHint="Abre la pantalla de sincronización"
+          style={{ marginLeft: Spacing.sm, position: 'relative' }}
+        >
+          <Ionicons name="sync-outline" size={scale(24)} color={colors.text} />
+          {pendingCount > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -6,
+                backgroundColor: '#EF4444',
+                borderRadius: scale(8),
+                minWidth: scale(16),
+                height: scale(16),
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: scale(4),
+              }}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: scale(10), fontWeight: FontWeight.bold }}>
+                {pendingCount > 99 ? '99+' : pendingCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowThemeModal(true)}
           activeOpacity={0.6}

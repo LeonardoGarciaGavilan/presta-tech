@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from './index';
-import { rutas, rutaClientes } from './schema';
-import type { Ruta, RutaCliente } from '@/types/rutas.types';
+import { rutas, rutaClientes, syncMeta } from './schema';
+import type { Ruta, RutaCliente, VistaDiaResponse } from '@/types/rutas.types';
 
 function rowToRuta(row: typeof rutas.$inferSelect): Ruta {
   return {
@@ -96,6 +96,37 @@ export function updateVisitado(rcId: string, visitado: boolean): void {
     .set({ visitadoHoy: visitado })
     .where(eq(rutaClientes.id, rcId))
     .run();
+}
+
+export function upsertVistaDiaCache(rutaId: string, fecha: string, data: VistaDiaResponse): void {
+  const key = `vistadia:${rutaId}:${fecha}`;
+  db.insert(syncMeta)
+    .values({ key, value: JSON.stringify(data) })
+    .onConflictDoUpdate({
+      target: syncMeta.key,
+      set: { value: JSON.stringify(data) },
+    })
+    .run();
+}
+
+export function getVistaDiaCache(rutaId: string, fecha: string): VistaDiaResponse | null {
+  const key = `vistadia:${rutaId}:${fecha}`;
+  const row = db.select().from(syncMeta).where(eq(syncMeta.key, key)).get();
+  if (!row) return null;
+  try {
+    return JSON.parse(row.value) as VistaDiaResponse;
+  } catch {
+    return null;
+  }
+}
+
+export function getRutaClienteByClienteId(clienteId: string): RutaCliente | null {
+  const row = db
+    .select()
+    .from(rutaClientes)
+    .where(eq(rutaClientes.clienteId, clienteId))
+    .get();
+  return row ? rowToRutaCliente(row) : null;
 }
 
 export function clearRutas(): void {

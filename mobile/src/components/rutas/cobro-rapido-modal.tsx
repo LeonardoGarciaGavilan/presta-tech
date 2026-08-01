@@ -38,6 +38,11 @@ export default function CobroRapidoModal({
   const [pagoMetodo, setPagoMetodo] = useState<PagoMetodo>('EFECTIVO');
   const [pagoRef, setPagoRef] = useState('');
 
+  const cuotaACobrar = cliente?.prestamos?.[0]?.proximaCuota ?? null;
+  const totalCuota = cuotaACobrar
+    ? Math.round((cuotaACobrar.monto + (cuotaACobrar.mora || 0)) * 100) / 100
+    : 0;
+
   const handleConfirm = () => {
     onConfirm({
       metodo: pagoMetodo,
@@ -81,34 +86,26 @@ export default function CobroRapidoModal({
                   </Text>
                 )}
 
-                {cliente.prestamos?.map((p) => p.proximaCuota).filter(Boolean).length > 0 && (
+                {cuotaACobrar && (
                   <View style={styles.cobroCuotasSection}>
                     <Text style={[styles.cobroSectionLabel, { color: colors.textSecondary }]}>
-                      Cuotas pendientes
+                      Cuota a cobrar
                     </Text>
-                    {cliente.prestamos.map(
-                      (p) =>
-                        p.proximaCuota && (
-                          <View
-                            key={p.proximaCuota.id}
-                            style={[styles.cobroCuotaRow, { borderColor: colors.border }]}
-                          >
-                            <Text style={[styles.cobroCuotaNum, { color: colors.text }]}>
-                              Cuota #{p.proximaCuota.numero}
-                            </Text>
-                            <View>
-                              <Text style={[styles.cobroCuotaMonto, { color: colors.text }]}>
-                                RD$ {formatCurrency(p.proximaCuota.total)}
-                              </Text>
-                              {p.proximaCuota.mora > 0 && (
-                                <Text style={[styles.cobroCuotaMora, { color: colors.error }]}>
-                                  Mora: RD$ {formatCurrency(p.proximaCuota.mora)}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                        ),
-                    )}
+                    <View style={[styles.cobroCuotaRow, { borderColor: colors.border }]}>
+                      <Text style={[styles.cobroCuotaNum, { color: colors.text }]}>
+                        Cuota #{cuotaACobrar.numero}
+                      </Text>
+                      <View>
+                        <Text style={[styles.cobroCuotaMonto, { color: colors.text }]}>
+                          RD$ {formatCurrency(totalCuota)}
+                        </Text>
+                        {cuotaACobrar.mora > 0 && (
+                          <Text style={[styles.cobroCuotaMora, { color: colors.error }]}>
+                            Mora: RD$ {formatCurrency(cuotaACobrar.mora)}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
                   </View>
                 )}
 
@@ -117,7 +114,7 @@ export default function CobroRapidoModal({
                     Total a cobrar
                   </Text>
                   <Text style={[styles.cobroTotalAmount, { color: colors.primary }]}>
-                    RD$ {formatCurrency(cliente.totalACobrar)}
+                    RD$ {formatCurrency(totalCuota)}
                   </Text>
                 </View>
 
@@ -179,7 +176,7 @@ export default function CobroRapidoModal({
                   <AppButton
                     title="Cobrar"
                     loading={loading}
-                    disabled={!cliente.totalACobrar}
+                    disabled={!totalCuota}
                     onPress={handleConfirm}
                     icon="cash-outline"
                   />

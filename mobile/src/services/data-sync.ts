@@ -25,15 +25,15 @@ export function syncRutasToDb(rutas: Ruta[]): void {
   upsertRutas(rutas);
 
   const allRc = rutas.flatMap((r) =>
-    (r.clientes ?? []).map((rc: any) => ({
-      id: rc.id ?? `${r.id}_${rc.id}`,
+    (r.clientes ?? []).map((rc) => ({
+      id: rc.id,
       orden: rc.orden ?? 0,
       observacion: rc.observacion ?? null,
       visitadoHoy: rc.visitadoHoy ?? false,
       ultimaVisita: rc.ultimaVisita ?? null,
       fechaRuta: rc.fechaRuta ?? null,
       rutaId: r.id,
-      clienteId: rc.id,
+      clienteId: rc.clienteId,
     })),
   );
   if (allRc.length > 0) {

@@ -10,6 +10,8 @@ import { useCliente,
   useReactivarCliente } from '@/hooks/use-clientes';
 import ClienteForm from '@/components/clientes/cliente-form';
 import { obtenerRutaCliente, asignarRuta } from '@/api/rutas.api';
+import { getNetworkStatus } from '@/hooks/use-network-status';
+import { getRutaClienteByClienteId } from '@/db/rutas-db';
 import ClienteInfo from '@/components/clientes/cliente-info';
 import ClienteAvatar from '@/components/clientes/cliente-avatar';
 import KpiCard from '@/components/clientes/kpi-card';
@@ -93,9 +95,24 @@ export default function ClienteDetalleScreen() {
 
   useEffect(() => {
     if (id) {
+      const network = getNetworkStatus();
+      if (!network.isOnline) {
+        const local = getRutaClienteByClienteId(id);
+        if (local) {
+          setCurrentRutaId(local.rutaId);
+        }
+        return;
+      }
       obtenerRutaCliente(id)
-        .then((res) => setCurrentRutaId(res.rutaId))
-        .catch(() => showToast('No se pudo obtener la ruta del cliente', 'error'));
+        .then((res) => setCurrentRutaId(res?.rutaId ?? null))
+        .catch(() => {
+          const local = getRutaClienteByClienteId(id);
+          if (local) {
+            setCurrentRutaId(local.rutaId);
+            return;
+          }
+          showToast('No se pudo obtener la ruta del cliente', 'error');
+        });
     }
   }, [id, showToast]);
 

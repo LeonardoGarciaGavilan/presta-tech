@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-import { listar, eliminar, reactivar } from '@/api/clientes.api';
+import { listar } from '@/api/clientes.api';
 import ClienteCard from '@/components/clientes/cliente-card';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import EmptyState from '@/components/ui/empty-state';
@@ -15,6 +15,7 @@ import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useEliminarCliente, useReactivarCliente } from '@/hooks/use-clientes';
 
 const PAGE_SIZE = 20;
 
@@ -51,6 +52,8 @@ export default function ClientesListScreen() {
   const listRef = useRef<FlatList<any>>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { mutateAsync: eliminarMutation } = useEliminarCliente();
+  const { mutateAsync: reactivarMutation } = useReactivarCliente();
 
   const {
     data,
@@ -288,8 +291,7 @@ export default function ClientesListScreen() {
         onConfirm={async () => {
           if (!dialogClient) return;
           try {
-            await eliminar(dialogClient.id);
-            queryClient.invalidateQueries({ queryKey: ['clientes'] });
+            await eliminarMutation(dialogClient.id);
             setDialogAction(null);
             setDialogClient(null);
           } catch (err: any) {
@@ -306,8 +308,7 @@ export default function ClientesListScreen() {
         onConfirm={async () => {
           if (!dialogClient) return;
           try {
-            await reactivar(dialogClient.id);
-            queryClient.invalidateQueries({ queryKey: ['clientes'] });
+            await reactivarMutation(dialogClient.id);
             setDialogAction(null);
             setDialogClient(null);
           } catch (err: any) {

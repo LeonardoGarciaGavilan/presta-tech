@@ -22,6 +22,7 @@ export interface Garantia {
 }
 
 export interface RutaCliente {
+  rutaId?: string;
   ruta: {
     nombre: string;
   };

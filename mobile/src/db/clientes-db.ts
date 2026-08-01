@@ -1,6 +1,6 @@
 import { eq, like, or, sql, inArray } from 'drizzle-orm';
 import { db } from './index';
-import { clientes } from './schema';
+import { clientes, rutaClientes, rutas } from './schema';
 import type { Cliente } from '@/types/cliente.types';
 
 function rowToCliente(row: typeof clientes.$inferSelect): Cliente {
@@ -76,7 +76,26 @@ export function upsertClientes(list: Cliente[]): void {
 
 export function getClienteById(id: string): Cliente | null {
   const row = db.select().from(clientes).where(eq(clientes.id, id)).get();
-  return row ? rowToCliente(row) : null;
+  if (!row) return null;
+
+  const cliente = rowToCliente(row);
+  const rcs = db
+    .select({
+      rutaId: rutaClientes.rutaId,
+      rutaNombre: rutas.nombre,
+    })
+    .from(rutaClientes)
+    .innerJoin(rutas, eq(rutas.id, rutaClientes.rutaId))
+    .where(eq(rutaClientes.clienteId, id))
+    .all();
+
+  if (rcs.length > 0) {
+    cliente.rutaClientes = rcs.map((rc) => ({
+      rutaId: rc.rutaId,
+      ruta: { nombre: rc.rutaNombre },
+    }));
+  }
+  return cliente;
 }
 
 export function searchClientes(term: string, excludeId?: string): Cliente[] {

@@ -225,6 +225,11 @@ export function getAllCachedPrestamos(): Prestamo[] {
   });
 }
 
+export function deletePrestamo(id: string): void {
+  db.delete(cuotas).where(eq(cuotas.prestamoId, id)).run();
+  db.delete(prestamos).where(eq(prestamos.id, id)).run();
+}
+
 export function clearPrestamos(): void {
   db.delete(prestamos).run();
   db.delete(cuotas).run();

@@ -113,21 +113,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="sincronizacion"
-        options={{
-          title: 'Sincronización',
-          tabBarLabel: 'Sync',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sync-outline" size={size} color={color} />
-          ),
-          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: '#EF4444',
-            fontSize: scale(10),
-          },
-        }}
-      />
     </Tabs>
   );
 }
