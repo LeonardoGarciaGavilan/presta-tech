@@ -27,6 +27,7 @@ import { FinanzasModule } from './finanzas/finanzas.module';
 import { EmpleadosModule } from './empleados/empleados.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { SyncModule } from './sync/sync.module';
 import jwtConfig from './config/jwt.config';
 import supabaseConfig from './config/supabase.config';
 import { SupabaseModule } from './supabase/supabase.module';
@@ -86,6 +87,7 @@ import { SupabaseModule } from './supabase/supabase.module';
     EmpleadosModule,
     AuditoriaModule,
     DashboardModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [
