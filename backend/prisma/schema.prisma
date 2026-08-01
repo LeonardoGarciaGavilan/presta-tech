@@ -172,23 +172,24 @@ model Cuota {
 }
 
 model Pago {
-  id          String      @id @default(uuid())
-  montoTotal  Float
-  capital     Float
-  interes     Float
-  mora        Float       @default(0)
-  metodo      MetodoPago
-  referencia  String?
-  observacion String?
-  createdAt   DateTime    @default(now())
-  usuarioId   String
-  prestamoId  String
-  cajaId      String?
-  caja        CajaSesion? @relation(fields: [cajaId], references: [id])
-  prestamo    Prestamo    @relation(fields: [prestamoId], references: [id])
-  usuario     Usuario     @relation(fields: [usuarioId], references: [id])
+  id             String      @id @default(uuid())
+  montoTotal     Float
+  capital        Float
+  interes        Float
+  mora           Float       @default(0)
+  metodo         MetodoPago
+  referencia     String?
+  observacion    String?
+  idempotencyKey String?
+  createdAt      DateTime    @default(now())
+  usuarioId      String
+  prestamoId     String
+  cajaId         String?
+  caja           CajaSesion? @relation(fields: [cajaId], references: [id])
+  prestamo       Prestamo    @relation(fields: [prestamoId], references: [id])
+  usuario        Usuario     @relation(fields: [usuarioId], references: [id])
 
-  @@unique([prestamoId, montoTotal])
+  @@unique([idempotencyKey])
   @@index([prestamoId])
   @@index([createdAt])
   @@index([usuarioId])

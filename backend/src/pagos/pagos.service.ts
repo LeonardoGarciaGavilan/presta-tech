@@ -97,7 +97,94 @@ export class PagosService {
 
   // ─── REGISTRAR PAGO ───────────────────────────────────────────────────────
 
+  // Reconstruye la respuesta de un pago ya registrado (replay idempotente),
+  // con la misma forma que devuelve registrarPago.
+  private async respuestaPagoExistente(pagoId: string) {
+    const full = await this.prisma.pago.findFirst({
+      where: { id: pagoId },
+      include: {
+        prestamo: {
+          include: {
+            cliente: { select: { nombre: true, apellido: true, cedula: true } },
+            cuotas: { orderBy: { numero: 'asc' } },
+          },
+        },
+        usuario: { select: { nombre: true } },
+      },
+    });
+
+    if (!full) throw new NotFoundException('Pago no encontrado');
+
+    const saldoPendiente = Math.max(0, Math.round(
+      full.prestamo.cuotas
+        .filter((c) => !c.pagada)
+        .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100,
+    ) / 100);
+
+    const cuotaDelPago = full.prestamo.cuotas.find((c) => {
+      if (!c.fechaPago) return false;
+      const diffMs = Math.abs(
+        new Date(c.fechaPago).getTime() - new Date(full.createdAt).getTime(),
+      );
+      return diffMs < 60_000;
+    }) ?? null;
+
+    const pagoCompleto = !!(cuotaDelPago?.pagada && cuotaDelPago?.fechaPago);
+
+    return {
+      pago: {
+        id:            full.id,
+        createdAt:     full.createdAt,
+        montoTotal:    full.montoTotal,
+        capital:       full.capital,
+        interes:       full.interes,
+        mora:          full.mora,
+        abonoCapital:  Math.max(0, Math.round((full.montoTotal - full.capital - full.interes - full.mora) * 100) / 100),
+        pagoCompleto,
+        metodo:        full.metodo,
+        referencia:    full.referencia,
+        observacion:   full.observacion,
+      },
+      prestamo: {
+        id:             full.prestamo.id,
+        monto:          full.prestamo.monto,
+        numeroCuotas:   full.prestamo.numeroCuotas,
+        frecuenciaPago: full.prestamo.frecuenciaPago,
+        tasaInteres:    full.prestamo.tasaInteres,
+        saldoPendiente,
+      },
+      cliente: {
+        nombre:   full.prestamo.cliente.nombre,
+        apellido: full.prestamo.cliente.apellido,
+        cedula:   full.prestamo.cliente.cedula,
+      },
+      cuota: cuotaDelPago ? {
+        id:               cuotaDelPago.id,
+        numero:           cuotaDelPago.numero,
+        monto:            cuotaDelPago.monto,
+        capital:          cuotaDelPago.capital,
+        interes:          cuotaDelPago.interes,
+        mora:             cuotaDelPago.mora,
+        fechaVencimiento: cuotaDelPago.fechaVencimiento,
+        pagoCompleto,
+      } : null,
+      usuario: { nombre: full.usuario?.nombre ?? 'Sistema' },
+    };
+  }
+
   async registrarPago(dto: CreatePagoDto, empresaId: string, usuarioId: string) {
+    // ── Replay idempotente: si este intento ya se registró, devolver el pago
+    // existente en lugar de crear un duplicado (protección del sync offline).
+    if (dto.idempotencyKey) {
+      const existente = await this.prisma.pago.findFirst({
+        where: { prestamoId: dto.prestamoId, idempotencyKey: dto.idempotencyKey },
+        select: { id: true },
+      });
+      if (existente) {
+        return this.respuestaPagoExistente(existente.id);
+      }
+    }
+
     const caja = await this.assertCajaAbierta(empresaId, usuarioId);
     const prestamo = await this.assertPrestamo(dto.prestamoId, empresaId);
     const cuotasPendientes = prestamo.cuotas;
@@ -189,6 +276,7 @@ export class PagosService {
           referencia:  dto.referencia,
           observacion: dto.observacion,
           cajaId:      caja.id,
+          idempotencyKey: dto.idempotencyKey ?? null,
         },
       });
 
@@ -424,8 +512,21 @@ export class PagosService {
     metodo: string,
     referencia?: string,
     observacion?: string,
+    idempotencyKey?: string,
   ) {
     const metodoPago = metodo as MetodoPago;
+
+    // ── Replay idempotente: mismo comportamiento que registrarPago
+    if (idempotencyKey) {
+      const existente = await this.prisma.pago.findFirst({
+        where: { prestamoId, idempotencyKey },
+        select: { id: true },
+      });
+      if (existente) {
+        return this.respuestaPagoExistente(existente.id);
+      }
+    }
+
     const caja = await this.assertCajaAbierta(empresaId, usuarioId);
 
     const prestamo = await this.prisma.prestamo.findFirst({
@@ -465,6 +566,7 @@ export class PagosService {
           referencia:  referencia ?? null,
           observacion: observacion ?? 'Saldo total del préstamo',
           cajaId:      caja.id,
+          idempotencyKey: idempotencyKey ?? null,
         },
       });
 

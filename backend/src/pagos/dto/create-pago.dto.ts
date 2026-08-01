@@ -36,4 +36,13 @@ export class CreatePagoDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  /**
+   * Clave de idempotencia (usada por el sync offline para evitar duplicados).
+   * Si ya existe un pago con esta clave para el préstamo, se devuelve el
+   * existente en lugar de crear uno nuevo.
+   */
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
