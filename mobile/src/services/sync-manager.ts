@@ -6,6 +6,7 @@ import {
   OFFLINE_BACKOFF_BASE_MS,
 } from '@/types/offline.types';
 import {
+  getQueue,
   getPendingItems,
   getFailedItems,
   updateQueueItem,
@@ -192,14 +193,26 @@ export async function processItem(
           }
         }
 
-        const allPending = getPendingItems();
+        const allPending = getQueue();
         for (const pending of allPending) {
           const parsed = typeof pending.data === 'string' ? JSON.parse(pending.data) : JSON.parse(JSON.stringify(pending.data));
           replaceTempIdInData(parsed, item.tempId, serverData.id);
           const updatedStr = JSON.stringify(parsed);
-          if (updatedStr !== JSON.stringify(pending.data)) {
+          const hasEndpointRef = pending.endpoint.includes(item.tempId);
+          const newEndpoint = hasEndpointRef
+            ? pending.endpoint.split(item.tempId).join(serverData.id)
+            : pending.endpoint;
+          const serializedKeys = JSON.stringify(pending.queryKeys);
+          const newQueryKeys = serializedKeys.split(item.tempId).join(serverData.id);
+          const hasKeysRef = newQueryKeys !== serializedKeys;
+
+          if (updatedStr !== JSON.stringify(pending.data) || hasEndpointRef || hasKeysRef) {
+            const updates: Record<string, string> = {};
+            if (updatedStr !== JSON.stringify(pending.data)) updates.data = updatedStr;
+            if (hasEndpointRef) updates.endpoint = newEndpoint;
+            if (hasKeysRef) updates.queryKeys = newQueryKeys;
             db.update(offlineQueue)
-              .set({ data: updatedStr })
+              .set(updates)
               .where(eq(offlineQueue.id, pending.id))
               .run();
             if (__DEV__) {
