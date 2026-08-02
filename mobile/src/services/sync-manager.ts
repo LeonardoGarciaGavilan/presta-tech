@@ -21,6 +21,8 @@ import { eq } from 'drizzle-orm';
 import { upsertClientes, deleteCliente } from '@/db/clientes-db';
 import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
 import { upsertPagos, deletePago } from '@/db/pagos-db';
+import type { Pago } from '@/types/prestamo.types';
+import { useAuthStore } from '@/store/auth.store';
 
 type ProgressListener = (progress: SyncProgress) => void;
 type CompletionListener = (result: {
@@ -127,10 +129,20 @@ export async function processItem(
 
     await updateQueueItem(item.id, { status: 'syncing' });
 
+    let body = item.method !== 'DELETE' ? item.data : undefined;
+    if (
+      body !== undefined &&
+      item.idempotencyKey &&
+      item.endpoint.startsWith('/pagos')
+    ) {
+      const parsed = typeof body === 'string' ? JSON.parse(body) : { ...body };
+      body = { ...parsed, idempotencyKey: item.idempotencyKey };
+    }
+
     const response = await client({
       method: item.method,
       url: item.endpoint,
-      data: item.method !== 'DELETE' ? item.data : undefined,
+      data: body,
       params: item.method === 'DELETE' ? item.data : undefined,
       timeout: 15000,
       headers: item.idempotencyKey
@@ -150,7 +162,7 @@ export async function processItem(
     }
 
     if (queryClient && response?.data && item.tempId) {
-      const serverData = response.data as any;
+      const serverData = ((response.data as any)?.pago ?? response.data) as any;
       if (serverData?.id && serverData.id !== item.tempId) {
         for (const key of item.queryKeys) {
           const allMatching = queryClient.getQueryCache().findAll({
@@ -232,8 +244,23 @@ export async function processItem(
         const data = Array.isArray(response.data) ? response.data : [response.data];
         upsertPrestamos(data);
       } else if (endpoint === '/pagos' && item.method === 'POST') {
-        const data = Array.isArray(response.data) ? response.data : [response.data];
-        upsertPagos(data);
+        const serverPago = ((response.data as any)?.pago ?? response.data) as any;
+        const sp = Array.isArray(serverPago) ? serverPago[0] : serverPago;
+        const pago: Pago = {
+          id: sp.id,
+          montoTotal: sp.montoTotal,
+          capital: sp.capital + (sp.abonoCapital ?? 0),
+          interes: sp.interes,
+          mora: sp.mora ?? 0,
+          metodo: sp.metodo,
+          referencia: sp.referencia ?? null,
+          observacion: sp.observacion ?? null,
+          prestamoId: (item.data as any)?.prestamoId,
+          usuarioId: useAuthStore.getState().user?.id || '',
+          cajaId: sp.cajaId ?? null,
+          createdAt: sp.createdAt,
+        };
+        upsertPagos([pago]);
       }
 
       if (item.tempId) {

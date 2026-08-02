@@ -91,6 +91,7 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
 
 function SearchPaymentMode() {
   const { colorScheme, colors } = useTheme();
+  const queryClient = useQueryClient();
 
   // Search state
   const [search, setSearch] = useState('');
@@ -135,9 +136,13 @@ function SearchPaymentMode() {
   const [selectedPrestamo, setSelectedPrestamo] = useState<Prestamo | null>(null);
 
   const handleBack = useCallback(() => {
-    setSelectedPrestamo(null);
     router.back();
   }, []);
+
+  const handleNuevoPago = useCallback(() => {
+    setSelectedPrestamo(null);
+    queryClient.invalidateQueries({ queryKey: ['prestamos'] });
+  }, [queryClient]);
 
   const renderClienteItem = useCallback(
     ({ item }: { item: any }) => {
@@ -203,6 +208,7 @@ function SearchPaymentMode() {
         showCancelButton
         saldarCuotaThreshold={1}
         reciboCloseLabel="Nuevo Pago"
+        onReciboClose={handleNuevoPago}
       />
     );
   }

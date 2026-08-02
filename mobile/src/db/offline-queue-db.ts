@@ -1,8 +1,11 @@
-import { eq, lte, sql } from 'drizzle-orm';
+import { and, eq, inArray, lte, ne, sql } from 'drizzle-orm';
 import { db } from './index';
 import { offlineQueue } from './schema';
 import type { OfflineQueueItem, OfflineMethod } from '@/types/offline.types';
 import { OFFLINE_MAX_AGE_MS } from '@/types/offline.types';
+import { deletePago } from '@/db/pagos-db';
+import { deletePrestamo } from '@/db/prestamos-db';
+import { deleteCliente } from '@/db/clientes-db';
 
 function rowToItem(row: typeof offlineQueue.$inferSelect): OfflineQueueItem {
   return {
@@ -169,11 +172,20 @@ export function getQueueStats(): {
   };
 }
 
-export function removeStaleItems(): number {
+export function markStaleAsFailed(): number {
   const cutoff = Date.now() - OFFLINE_MAX_AGE_MS;
   const result = db
-    .delete(offlineQueue)
-    .where(lte(offlineQueue.createdAt, cutoff))
+    .update(offlineQueue)
+    .set({
+      status: 'failed',
+      lastError: 'Expirado por antigüedad (más de 7 días sin sincronizar)',
+    })
+    .where(
+      and(
+        lte(offlineQueue.createdAt, cutoff),
+        ne(offlineQueue.status, 'failed'),
+      ),
+    )
     .run();
   return result.changes;
 }
@@ -209,6 +221,34 @@ export function findDuplicate(
   return found ? rowToItem(found) : null;
 }
 
-export function clearQueue(): void {
-  db.delete(offlineQueue).run();
+/**
+ * Elimina SOLO los items fallidos indicados (nunca operaciones pendientes).
+ * Limpia además los registros temporales asociados (pagos/préstamos/clientes
+ * sintéticos) para no dejar datos "fantasma" en la BD local.
+ * Devuelve la cantidad de items realmente eliminados.
+ */
+export function clearFailedItems(ids: string[]): number {
+  if (ids.length === 0) return 0;
+
+  const idSet = new Set(ids);
+  const failed = getFailedItems().filter((i) => idSet.has(i.id));
+
+  for (const item of failed) {
+    if (!item.tempId) continue;
+    const endpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
+    if (endpoint === '/clientes' && item.method === 'POST') {
+      deleteCliente(item.tempId);
+    } else if (endpoint === '/prestamos' && item.method === 'POST') {
+      deletePrestamo(item.tempId);
+    } else if (endpoint === '/pagos' && item.method === 'POST') {
+      deletePago(item.tempId);
+    }
+  }
+
+  const finalIds = failed.map((i) => i.id);
+  if (finalIds.length > 0) {
+    db.delete(offlineQueue).where(inArray(offlineQueue.id, finalIds)).run();
+  }
+
+  return finalIds.length;
 }

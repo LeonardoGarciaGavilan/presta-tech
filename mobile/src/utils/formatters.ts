@@ -105,6 +105,21 @@ export function getTodayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+// Fecha actual en la zona horaria de República Dominicana (YYYY-MM-DD).
+export function getFechaRD(date: Date = new Date()): string {
+  const formatter = new Intl.DateTimeFormat('es-DO', {
+    timeZone: 'America/Santo_Domingo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(date);
+  const y = parts.find((p) => p.type === 'year')!.value;
+  const m = parts.find((p) => p.type === 'month')!.value;
+  const d = parts.find((p) => p.type === 'day')!.value;
+  return `${y}-${m}-${d}`;
+}
+
 export function getMonthStart(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;

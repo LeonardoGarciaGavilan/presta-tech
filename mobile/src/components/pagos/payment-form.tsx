@@ -22,6 +22,7 @@ interface PaymentFormProps {
   showCancelButton?: boolean;
   saldarCuotaThreshold?: number;
   reciboCloseLabel?: string;
+  onReciboClose?: () => void;
 }
 
 export default function PaymentForm({
@@ -32,6 +33,7 @@ export default function PaymentForm({
   showCancelButton = false,
   saldarCuotaThreshold = 0,
   reciboCloseLabel = 'Cerrar',
+  onReciboClose,
 }: PaymentFormProps) {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
@@ -149,8 +151,12 @@ export default function PaymentForm({
   const handleCerrarRecibo = useCallback(() => {
     setShowRecibo(false);
     setReciboData(null);
-    onBack();
-  }, [onBack]);
+    if (onReciboClose) {
+      onReciboClose();
+    } else {
+      onBack();
+    }
+  }, [onBack, onReciboClose]);
 
   const handlePressGuardarPDF = useCallback(async () => {
     if (!reciboData) return;
@@ -211,9 +217,9 @@ export default function PaymentForm({
           )}
           <View style={styles.summaryRow}>
             <Ionicons name="repeat-outline" size={scale(16)} color={colors.textTertiary} />
-            <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Cuotas:</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Cuota:</Text>
             <Text style={[styles.summaryValue, { color: colors.text }]}>
-              {cuotas.filter((c: Cuota) => c.pagada).length}/{cuotas.length} pagadas
+              #{cuotasPendientes[0]?.numero ?? '—'} de {prestamo.numeroCuotas}
             </Text>
           </View>
         </View>

@@ -16,8 +16,9 @@ import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/components/ui/theme-provider';
 import { useNetworkContext } from '@/components/providers/network-provider';
-import { getQueue, clearQueue } from '@/db/offline-queue-db';
+import { getQueue, clearFailedItems } from '@/db/offline-queue-db';
 import type { OfflineQueueItem } from '@/types/offline.types';
+import { reportQueueClear } from '@/api/sync.api';
 import { useQueryClient } from '@tanstack/react-query';
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -135,6 +136,17 @@ function getStatusConfig(
         icon: 'help-circle-outline' as const,
       };
   }
+}
+
+function getItemMonto(item: OfflineQueueItem): number | undefined {
+  const data = item.tempDisplay || item.data;
+  if (!data || typeof data !== 'object') return undefined;
+  const obj = data as Record<string, unknown>;
+  for (const key of ['montoPagado', 'montoCierre', 'montoInicial', 'monto', 'montoTotal']) {
+    const value = obj[key];
+    if (typeof value === 'number' && value > 0) return value;
+  }
+  return undefined;
 }
 
 function ConnectionDot({ isOnline }: { isOnline: boolean }) {
@@ -307,10 +319,26 @@ export default function SincronizacionScreen() {
 
   const handleClear = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await clearQueue();
+    const failed = items.filter((i) => i.status === 'failed');
+    const ids = failed.map((i) => i.id);
+
+    try {
+      await reportQueueClear(
+        failed.map((i) => ({
+          endpoint: i.endpoint,
+          method: i.method,
+          createdAt: i.createdAt,
+          monto: getItemMonto(i),
+        })),
+      );
+    } catch {
+      // Offline o error: la auditoría es best-effort y no bloquea la limpieza local
+    }
+
+    clearFailedItems(ids);
     await loadItems();
     setShowClearConfirm(false);
-  }, [loadItems]);
+  }, [items, loadItems]);
 
   const handleForceReload = useCallback(async () => {
     if (!network.isOnline) {
@@ -495,15 +523,15 @@ export default function SincronizacionScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setShowClearConfirm(true);
             }}
-            disabled={items.length === 0}
+            disabled={failedItems.length === 0}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Limpiar cola de operaciones"
-            accessibilityState={{ disabled: items.length === 0 }}
+            accessibilityLabel="Limpiar operaciones fallidas"
+            accessibilityState={{ disabled: failedItems.length === 0 }}
           >
             <Ionicons name="trash-outline" size={scale(18)} color={colors.error} />
             <Text style={[styles.actionButtonTextSecondary, { color: colors.error }]}>
-              Limpiar cola
+              Limpiar fallidos
             </Text>
           </TouchableOpacity>
         </View>
@@ -625,9 +653,9 @@ export default function SincronizacionScreen() {
 
       <ConfirmDialog
         visible={showClearConfirm}
-        title="Limpiar cola"
-        message="¿Estás seguro? Se eliminarán todas las operaciones pendientes. Estas operaciones NO se sincronizarán con el servidor."
-        confirmLabel="Limpiar"
+        title="Limpiar fallidos"
+        message={`Se eliminarán solo las ${failedItems.length} operaciones fallidas. Las operaciones pendientes no se pueden borrar. Esta acción no se puede deshacer.`}
+        confirmLabel="Limpiar fallidos"
         cancelLabel="Cancelar"
         destructive
         onConfirm={handleClear}

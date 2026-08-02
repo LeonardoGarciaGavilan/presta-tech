@@ -36,6 +36,7 @@ export async function registrarPago(dto: {
   metodo: string;
   referencia?: string;
   observacion?: string;
+  fecha?: string;
 }) {
   const response = await client.post(ENDPOINT, dto);
   return response.data;
@@ -58,7 +59,7 @@ export async function obtenerResumenPagos() {
 
 export async function saldarPrestamo(
   prestamoId: string,
-  dto: { metodo: string; referencia?: string; observacion?: string },
+  dto: { metodo: string; referencia?: string; observacion?: string; fecha?: string },
 ) {
   const response = await client.post(`${ENDPOINT}/saldar/${prestamoId}`, dto);
   return response.data;

@@ -67,12 +67,16 @@ export interface CreatePagoDto {
   metodo: MetodoPago;
   referencia?: string;
   observacion?: string;
+  /** Fecha (YYYY-MM-DD, zona RD) en que se realizó el pago, para la caja del día correcto en sync offline. */
+  fecha?: string;
 }
 
 export interface SaldarPrestamoDto {
   metodo: string;
   referencia?: string;
   observacion?: string;
+  /** Fecha (YYYY-MM-DD, zona RD) en que se saldó, para la caja del día correcto en sync offline. */
+  fecha?: string;
 }
 
 export interface PagosResumen {

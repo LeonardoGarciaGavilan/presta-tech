@@ -18,7 +18,7 @@ import {
   getQueueStats,
   addToQueue as addToQueueFn,
   recoverSyncingItems,
-  removeStaleItems,
+  markStaleAsFailed,
 } from '@/db/offline-queue-db';
 import { syncNow, retryFailed as retryFailedFn, onSyncProgress, onSyncComplete } from '@/services/sync-manager';
 import type { OfflineQueueItem, SyncProgress } from '@/types/offline.types';
@@ -140,7 +140,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       bootSyncDoneRef.current = true;
       (async () => {
         await recoverSyncingItems();
-        await removeStaleItems();
+        await markStaleAsFailed();
         const stats = await getQueueStats();
         setPendingCount(stats.pending);
         setFailedCount(stats.failed);

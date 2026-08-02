@@ -12,8 +12,9 @@ import type {
 } from '@/types/prestamo.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { insertPago } from '@/db/pagos-db';
-import { getCuotasByPrestamoId } from '@/db/prestamos-db';
+import { aplicarPagoLocal, getPrestamoById, saldarPrestamoLocal } from '@/db/prestamos-db';
 import { useAuthStore } from '@/store/auth.store';
+import { getFechaRD } from '@/utils/formatters';
 
 export function useRegistrarPago() {
   const queryClient = useQueryClient();
@@ -22,11 +23,18 @@ export function useRegistrarPago() {
     mutationFn: async (dto: CreatePagoDto) => {
       if (!network.isOnline) {
         const usuarioId = useAuthStore.getState().user?.id || '';
+        const prestamoLocal = getPrestamoById(dto.prestamoId);
+        if (prestamoLocal && dto.montoPagado > prestamoLocal.saldoPendiente + 0.001) {
+          throw new Error(
+            `El monto del pago ($${dto.montoPagado.toLocaleString()}) excede el saldo pendiente ($${prestamoLocal.saldoPendiente.toLocaleString()}).`,
+          );
+        }
+        const dtoConFecha = { ...dto, fecha: getFechaRD() };
         const tempId = `pago_temp_${Date.now()}`;
         const item = await addToOfflineQueue({
           endpoint: '/pagos',
           method: 'POST',
-          data: dto,
+          data: dtoConFecha,
           queryKeys: [
             ['pagos'],
             ['pagos', 'resumen'],
@@ -43,25 +51,13 @@ export function useRegistrarPago() {
           },
         });
         const now = new Date().toISOString();
-        const cuotas = getCuotasByPrestamoId(dto.prestamoId);
-        const cuotaTarget = dto.cuotaId
-          ? cuotas.find((c) => c.id === dto.cuotaId)
-          : cuotas.find((c) => !c.pagada);
-        let capital = dto.montoPagado;
-        let interes = 0;
-        let mora = 0;
-        if (cuotaTarget) {
-          mora = Math.min(dto.montoPagado, cuotaTarget.mora || 0);
-          const restante = dto.montoPagado - mora;
-          interes = Math.min(restante, cuotaTarget.interes || 0);
-          capital = restante - interes;
-        }
+        const distribucion = aplicarPagoLocal(dto.prestamoId, dto.cuotaId, dto.montoPagado);
         const syntheticPago: Pago = {
           id: tempId,
           montoTotal: dto.montoPagado,
-          capital: Math.max(0, capital),
-          interes: Math.max(0, interes),
-          mora: Math.max(0, mora),
+          capital: distribucion.capital,
+          interes: distribucion.interes,
+          mora: distribucion.mora,
           metodo: dto.metodo,
           referencia: dto.referencia || null,
           observacion: dto.observacion || null,
@@ -134,10 +130,11 @@ export function useSaldarPrestamo() {
       dto: SaldarPrestamoDto;
     }) => {
       if (!network.isOnline) {
+        const dtoConFecha = { ...dto, fecha: getFechaRD() };
         const item = await addToOfflineQueue({
           endpoint: `/pagos/saldar/${prestamoId}`,
           method: 'POST',
-          data: dto,
+          data: dtoConFecha,
           queryKeys: [
             ['prestamos', prestamoId],
             ['prestamos'],
@@ -152,6 +149,7 @@ export function useSaldarPrestamo() {
             metodo: dto.metodo,
           },
         });
+        saldarPrestamoLocal(prestamoId);
         return {
           cajaId: null,
           esperado: 0,

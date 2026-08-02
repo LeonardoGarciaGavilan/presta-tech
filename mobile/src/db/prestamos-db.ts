@@ -234,3 +234,163 @@ export function clearPrestamos(): void {
   db.delete(prestamos).run();
   db.delete(cuotas).run();
 }
+
+export interface DistribucionPagoLocal {
+  capital: number;
+  interes: number;
+  mora: number;
+  abonoCapital: number;
+  pagoCompleto: boolean;
+}
+
+// Aplica localmente (offline) un pago a las cuotas del préstamo replicando la
+// lógica del backend: mora → interés → capital, excedente a cuotas siguientes,
+// y recálculo de saldo / mora / estado. Devuelve la distribución calculada.
+export function aplicarPagoLocal(
+  prestamoId: string,
+  cuotaId: string | undefined,
+  montoPagadoRaw: number,
+  fecha = new Date().toISOString(),
+): DistribucionPagoLocal {
+  const resultadoVacio: DistribucionPagoLocal = {
+    capital: 0,
+    interes: 0,
+    mora: 0,
+    abonoCapital: 0,
+    pagoCompleto: false,
+  };
+
+  const cuotasPendientes = getCuotasByPrestamoId(prestamoId)
+    .filter((c) => !c.pagada)
+    .sort((a, b) => a.numero - b.numero);
+  if (cuotasPendientes.length === 0) return resultadoVacio;
+
+  let cuotaObjetivo = cuotasPendientes[0];
+  if (cuotaId) {
+    const especifica = cuotasPendientes.find((c) => c.id === cuotaId);
+    if (especifica) cuotaObjetivo = especifica;
+  }
+
+  const montoExacto = Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
+
+  let montoPagado = Math.round(montoPagadoRaw * 100) / 100;
+  let moraAplicada = 0;
+  let interesAplicado = 0;
+  let capitalAplicado = 0;
+
+  if (cuotaObjetivo.mora > 0) {
+    moraAplicada = Math.min(montoPagado, cuotaObjetivo.mora);
+    montoPagado = Math.round((montoPagado - moraAplicada) * 100) / 100;
+  }
+  if (montoPagado > 0) {
+    interesAplicado = Math.min(montoPagado, cuotaObjetivo.interes);
+    montoPagado = Math.round((montoPagado - interesAplicado) * 100) / 100;
+  }
+  if (montoPagado > 0) {
+    capitalAplicado = Math.min(montoPagado, cuotaObjetivo.capital);
+    montoPagado = Math.round((montoPagado - capitalAplicado) * 100) / 100;
+  }
+  const excedente = Math.round(montoPagado * 100) / 100;
+  const pagoCompleto = Math.round(montoPagadoRaw * 100) / 100 >= montoExacto;
+
+  const todas = getCuotasByPrestamoId(prestamoId);
+  const map = new Map(todas.map((c) => [c.id, { ...c }]));
+
+  const cuotaObj = map.get(cuotaObjetivo.id)!;
+  if (pagoCompleto) {
+    cuotaObj.pagada = true;
+    cuotaObj.fechaPago = fecha;
+  } else {
+    const nuevaMora = Math.max(0, Math.round((cuotaObj.mora - moraAplicada) * 100) / 100);
+    const nuevoInteres = Math.max(0, Math.round((cuotaObj.interes - interesAplicado) * 100) / 100);
+    const nuevoCapital = Math.max(0, Math.round((cuotaObj.capital - capitalAplicado) * 100) / 100);
+    cuotaObj.mora = nuevaMora;
+    cuotaObj.interes = nuevoInteres;
+    cuotaObj.capital = nuevoCapital;
+    cuotaObj.monto = Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+  }
+  map.set(cuotaObjetivo.id, cuotaObj);
+
+  if (excedente > 0) {
+    const cuotasRestantes = cuotasPendientes.filter((c) => c.id !== cuotaObjetivo.id);
+    let abonoRestante = excedente;
+    for (const cuota of cuotasRestantes) {
+      if (abonoRestante <= 0) break;
+      const c = map.get(cuota.id)!;
+      const reduccion = Math.min(abonoRestante, c.capital);
+      const nuevoCapital = Math.round((c.capital - reduccion) * 100) / 100;
+      if (nuevoCapital <= 0) {
+        c.capital = 0;
+        c.monto = c.interes;
+        c.pagada = true;
+        c.fechaPago = fecha;
+      } else {
+        c.capital = nuevoCapital;
+        c.monto = Math.round((nuevoCapital + c.interes) * 100) / 100;
+      }
+      map.set(cuota.id, c);
+      abonoRestante = Math.round((abonoRestante - reduccion) * 100) / 100;
+    }
+  }
+
+  const actualizadas = [...map.values()].filter((c) => !c.pagada);
+  const nuevoSaldo = Math.max(
+    0,
+    Math.round(actualizadas.reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100) / 100,
+  );
+  const nuevaMoraAcumulada = Math.max(
+    0,
+    Math.round(actualizadas.reduce((s, c) => s + (c.mora || 0), 0) * 100) / 100,
+  );
+
+  const prestamo = getPrestamoById(prestamoId);
+  if (!prestamo) return { ...resultadoVacio, pagoCompleto };
+
+  let nuevoEstado: Prestamo['estado'] = prestamo.estado;
+  if (actualizadas.length === 0 || nuevoSaldo <= 0) {
+    nuevoEstado = 'PAGADO';
+  } else {
+    const hoy = new Date();
+    const hayVencidas = actualizadas.some((c) => new Date(c.fechaVencimiento) < hoy);
+    nuevoEstado = hayVencidas ? 'ATRASADO' : 'ACTIVO';
+  }
+
+  upsertPrestamos([
+    {
+      ...prestamo,
+      saldoPendiente: nuevoSaldo,
+      moraAcumulada: nuevaMoraAcumulada,
+      estado: nuevoEstado,
+      cuotas: [...map.values()],
+    },
+  ]);
+
+  return {
+    capital: Math.max(0, capitalAplicado),
+    interes: Math.max(0, interesAplicado),
+    mora: Math.max(0, moraAplicada),
+    abonoCapital: Math.max(0, excedente),
+    pagoCompleto,
+  };
+}
+
+// Salda el préstamo completo localmente (offline): marca todas las cuotas
+// pendientes como pagadas y pone saldo 0 / estado PAGADO.
+export function saldarPrestamoLocal(prestamoId: string): void {
+  const prestamo = getPrestamoById(prestamoId);
+  if (!prestamo) return;
+  const cuotas = getCuotasByPrestamoId(prestamoId).map((c) => ({
+    ...c,
+    pagada: true,
+    fechaPago: new Date().toISOString(),
+  }));
+  upsertPrestamos([
+    {
+      ...prestamo,
+      saldoPendiente: 0,
+      moraAcumulada: 0,
+      estado: 'PAGADO',
+      cuotas,
+    },
+  ]);
+}

@@ -5,6 +5,9 @@ import React from 'react';
 const mockRegistrarPago = jest.fn();
 const mockInsertPago = jest.fn();
 const mockGetCuotasByPrestamoId = jest.fn();
+const mockAplicarPagoLocal = jest.fn();
+const mockGetPrestamoById = jest.fn();
+const mockSaldarPrestamoLocal = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
 
 jest.mock('@/api/pagos.api', () => ({
@@ -22,6 +25,9 @@ jest.mock('@/db/pagos-db', () => ({
 
 jest.mock('@/db/prestamos-db', () => ({
   getCuotasByPrestamoId: (...args: any[]) => mockGetCuotasByPrestamoId(...args),
+  aplicarPagoLocal: (...args: any[]) => mockAplicarPagoLocal(...args),
+  getPrestamoById: (...args: any[]) => mockGetPrestamoById(...args),
+  saldarPrestamoLocal: (...args: any[]) => mockSaldarPrestamoLocal(...args),
 }));
 
 jest.mock('@/components/providers/network-provider', () => ({
@@ -53,6 +59,14 @@ beforeEach(() => {
   });
   (useAuthStore.getState as jest.Mock).mockReturnValue({
     user: { id: 'user_1', empresaId: 'emp_1' },
+  });
+  mockGetPrestamoById.mockReturnValue(null);
+  mockAplicarPagoLocal.mockReturnValue({
+    capital: 0,
+    interes: 0,
+    mora: 0,
+    abonoCapital: 0,
+    pagoCompleto: false,
   });
 });
 
@@ -86,6 +100,13 @@ describe('useRegistrarPago', () => {
     mockGetCuotasByPrestamoId.mockReturnValue([
       { id: 'cuota_1', numero: 1, monto: 3000, capital: 2500, interes: 500, mora: 0, fechaVencimiento: '2025-01-08', pagada: false, prestamoId: 'prestamo_1', createdAt: '2025-01-01' },
     ]);
+    mockAplicarPagoLocal.mockReturnValue({
+      capital: 2500,
+      interes: 500,
+      mora: 0,
+      abonoCapital: 0,
+      pagoCompleto: true,
+    });
 
     const { result } = await renderHook(() => useRegistrarPago(), { wrapper: createWrapper() });
 
@@ -117,6 +138,13 @@ describe('useRegistrarPago', () => {
     mockGetCuotasByPrestamoId.mockReturnValue([
       { id: 'cuota_2', numero: 2, monto: 3000, capital: 2500, interes: 500, mora: 200, fechaVencimiento: '2025-01-08', pagada: false, prestamoId: 'prestamo_1', createdAt: '2025-01-01' },
     ]);
+    mockAplicarPagoLocal.mockReturnValue({
+      capital: 2500,
+      interes: 500,
+      mora: 200,
+      abonoCapital: 0,
+      pagoCompleto: true,
+    });
 
     const { result } = await renderHook(() => useRegistrarPago(), { wrapper: createWrapper() });
 

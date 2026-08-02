@@ -65,14 +65,21 @@ jest.mock('@/hooks/use-network-status', () => ({
 
 jest.mock('@/db/clientes-db', () => ({
   upsertClientes: jest.fn(),
+  deleteCliente: jest.fn(),
 }));
 
 jest.mock('@/db/prestamos-db', () => ({
   upsertPrestamos: jest.fn(),
+  deletePrestamo: jest.fn(),
 }));
 
 jest.mock('@/db/pagos-db', () => ({
   upsertPagos: jest.fn(),
+  deletePago: jest.fn(),
+}));
+
+jest.mock('@/store/auth.store', () => ({
+  useAuthStore: { getState: () => ({ user: { id: 'user_1' } }) },
 }));
 
 import client from '@/api/client';
@@ -80,9 +87,9 @@ import {
   getPendingItems, getFailedItems, updateQueueItem, removeFromQueue, findDuplicate,
 } from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
-import { upsertClientes } from '@/db/clientes-db';
-import { upsertPrestamos } from '@/db/prestamos-db';
-import { upsertPagos } from '@/db/pagos-db';
+import { upsertClientes, deleteCliente } from '@/db/clientes-db';
+import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
+import { upsertPagos, deletePago } from '@/db/pagos-db';
 import { syncNow, processItem, isSyncing } from '@/services/sync-manager';
 import type { OfflineQueueItem } from '@/types/offline.types';
 
@@ -95,6 +102,9 @@ const mockGetNetwork = getNetworkStatus as jest.Mock;
 const mockUpsertClientes = upsertClientes as jest.Mock;
 const mockUpsertPrestamos = upsertPrestamos as jest.Mock;
 const mockUpsertPagos = upsertPagos as jest.Mock;
+const mockDeleteCliente = deleteCliente as jest.Mock;
+const mockDeletePrestamo = deletePrestamo as jest.Mock;
+const mockDeletePago = deletePago as jest.Mock;
 
 function makeItem(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem {
   return {
@@ -158,18 +168,58 @@ describe('processItem', () => {
     mockClient.mockResolvedValue({ data: { id: 'server_1', nombre: 'Juan', empresaId: 'emp_1' } });
     await processItem(makeItem({ endpoint: '/clientes', method: 'POST' }));
     expect(mockUpsertClientes).toHaveBeenCalledWith([{ id: 'server_1', nombre: 'Juan', empresaId: 'emp_1' }]);
+    expect(mockDeleteCliente).toHaveBeenCalledWith('temp_123');
   });
 
   it('upserts response data for POST /prestamos on success', async () => {
     mockClient.mockResolvedValue({ data: { id: 'server_1', monto: 10000 } });
     await processItem(makeItem({ endpoint: '/prestamos', method: 'POST' }));
     expect(mockUpsertPrestamos).toHaveBeenCalledWith([{ id: 'server_1', monto: 10000 }]);
+    expect(mockDeletePrestamo).toHaveBeenCalledWith('temp_123');
   });
 
   it('upserts response data for POST /pagos on success', async () => {
-    mockClient.mockResolvedValue({ data: { id: 'server_1', montoTotal: 3000 } });
-    await processItem(makeItem({ endpoint: '/pagos', method: 'POST' }));
-    expect(mockUpsertPagos).toHaveBeenCalledWith([{ id: 'server_1', montoTotal: 3000 }]);
+    mockClient.mockResolvedValue({
+      data: {
+        pago: {
+          id: 'server_1',
+          montoTotal: 3000,
+          capital: 2700,
+          interes: 200,
+          mora: 100,
+          abonoCapital: 50,
+          metodo: 'EFECTIVO',
+          referencia: null,
+          observacion: null,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+        prestamo: { id: 'prestamo_1', saldoPendiente: 0 },
+        cliente: { nombre: 'Juan', apellido: '', cedula: '' },
+        cuota: null,
+        usuario: { nombre: 'Test' },
+      },
+      status: 201,
+    });
+    await processItem(makeItem({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: { prestamoId: 'prestamo_1', montoPagado: 3000, metodo: 'EFECTIVO' },
+    }));
+    expect(mockUpsertPagos).toHaveBeenCalledWith([{
+      id: 'server_1',
+      montoTotal: 3000,
+      capital: 2750,
+      interes: 200,
+      mora: 100,
+      metodo: 'EFECTIVO',
+      referencia: null,
+      observacion: null,
+      prestamoId: 'prestamo_1',
+      usuarioId: 'user_1',
+      cajaId: null,
+      createdAt: '2025-01-01T00:00:00.000Z',
+    }]);
+    expect(mockDeletePago).toHaveBeenCalledWith('temp_123');
   });
 
   it('retries on network error if retryCount < max', async () => {

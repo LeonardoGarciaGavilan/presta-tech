@@ -42,7 +42,7 @@ export default function CajaScreen() {
   const { mutateAsync: cerrarCajaFn, isPending: cerrando } = useCerrarCaja();
 
   const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
+  const isAdmin = user?.rol === 'ADMIN';
   const { data: cajasAbiertas } = useCajas(isAdmin ? 'ABIERTA' : undefined);
   const abiertasCount = cajasAbiertas?.length ?? 0;
 
