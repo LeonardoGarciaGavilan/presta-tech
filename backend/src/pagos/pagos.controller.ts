@@ -66,7 +66,7 @@ export class PagosController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   saldarPrestamo(
     @Param('id') id: string,
-    @Body() body: { metodo: string; referencia?: string; observacion?: string; idempotencyKey?: string },
+    @Body() body: { metodo: string; referencia?: string; observacion?: string; idempotencyKey?: string; fecha?: string },
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
   ) {
@@ -79,6 +79,7 @@ export class PagosController {
       body.referencia,
       body.observacion,
       body.idempotencyKey,
+      body.fecha,
     );
   }
 }

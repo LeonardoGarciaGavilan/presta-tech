@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
 } from 'class-validator';
 import { MetodoPago } from '@prisma/client';
 
@@ -36,6 +37,14 @@ export class CreatePagoDto {
   @IsOptional()
   @IsString()
   observacion?: string;
+
+  /**
+   * Fecha (YYYY-MM-DD) en que se realizó el pago, en zona de República Dominicana.
+   * El sync offline la envía para asociar el pago a la caja del día correcto.
+   */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  fecha?: string;
 
   /**
    * Clave de idempotencia (usada por el sync offline para evitar duplicados).

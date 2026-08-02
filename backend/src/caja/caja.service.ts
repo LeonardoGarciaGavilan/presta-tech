@@ -8,6 +8,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
+import { MovimientoFinancieroTipo } from '@prisma/client';
+
+// Tipos de movimiento que constituyen egresos de caja (salida de efectivo).
+// Fuente única de verdad para el cálculo de "esperado" en cierre y listado.
+const EGRESOS_CAJA: MovimientoFinancieroTipo[] = [
+  'DESEMBOLSO',
+  'GASTO',
+  'GASTO_CAPITAL',
+  'RETIRO_GANANCIAS',
+];
 
 @Injectable()
 export class CajaService {
@@ -84,13 +94,14 @@ export class CajaService {
   }
 
   // ─── Desembolsos del día ──────────────────────────────────────────────────
-  private async desembolsosDia(empresaId: string, fecha: string, cajaId?: string) {
+  private async desembolsosDia(empresaId: string, fecha: string, cajaId?: string, usuarioId?: string) {
     const { inicioDia, finDia } = this.rangoDia(fecha);
 
     const where = {
       empresaId,
       createdAt: { gte: inicioDia, lte: finDia },
       ...(cajaId && { cajaId }),
+      ...(usuarioId && { usuarioId }),
     };
 
     // OPTIMIZACIÓN: Usar aggregate para cálculos en DB
@@ -280,9 +291,10 @@ export class CajaService {
     usuarioId: string,
     montoCierre: number,
     observaciones?: string,
+    isAdmin = true,
   ) {
     // Delegar toda la lógica a cerrarCajaSimple (único método de cierre)
-    return this.cerrarCajaSimple(empresaId, usuarioId, montoCierre, observaciones, cajaId);
+    return this.cerrarCajaSimple(empresaId, usuarioId, montoCierre, observaciones, cajaId, isAdmin);
   }
 
   // ─── MI CAJA DEL DÍA ─────────────────────────────────────────────────────
@@ -318,15 +330,26 @@ export class CajaService {
 
   // ─── RESUMEN COMPLETO DEL DÍA (admin) ────────────────────────────────────
 
-  async getResumenDia(empresaId: string, fecha: string, cajaId?: string) {
+  async getResumenDia(
+    empresaId: string,
+    fecha: string,
+    cajaId?: string,
+    usuarioId?: string,
+    isAdmin = true,
+  ) {
     const cajas = await this.prisma.cajaSesion.findMany({
-      where:   { empresaId, fecha, ...(cajaId && { id: cajaId }) },
+      where:   {
+        empresaId,
+        fecha,
+        ...(cajaId && { id: cajaId }),
+        ...(!isAdmin && usuarioId && { usuarioId }),
+      },
       include: { usuario: { select: { id: true, nombre: true } } },
       orderBy: { createdAt: 'asc' },
     });
 
-    const resumenPagos    = await this.resumenPagosDia(empresaId, fecha, undefined, cajaId);
-    const resumenDesembol = await this.desembolsosDia(empresaId, fecha, cajaId);
+    const resumenPagos    = await this.resumenPagosDia(empresaId, fecha, !isAdmin ? usuarioId : undefined, cajaId);
+    const resumenDesembol = await this.desembolsosDia(empresaId, fecha, cajaId, !isAdmin ? usuarioId : undefined);
 
     const efectivoSistema = Math.round(
       (cajas.reduce((s, c) => s + c.montoInicial, 0) + resumenPagos.totalEfectivo - resumenDesembol.totalDesembolsado) * 100,
@@ -417,6 +440,7 @@ export class CajaService {
     montoCierre: number,
     observaciones?: string,
     cajaId?: string, // 👈 opcional: ID específico de caja
+    isAdmin = true,
   ) {
     // Validación fuerte del monto
     if (montoCierre === undefined || montoCierre === null || isNaN(montoCierre)) {
@@ -432,7 +456,12 @@ export class CajaService {
 
     if (cajaId) {
       caja = await this.prisma.cajaSesion.findFirst({
-        where: { id: cajaId, empresaId, estado: 'ABIERTA' },
+        where: {
+          id: cajaId,
+          empresaId,
+          estado: 'ABIERTA',
+          ...(!isAdmin && { usuarioId }),
+        },
       });
     } else {
       const fecha = new Date().toISOString().split('T')[0];
@@ -459,7 +488,7 @@ export class CajaService {
       this.prisma.movimientoFinanciero.aggregate({
         where: {
           cajaId: caja.id,
-          tipo: { in: ['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'] },
+          tipo: { in: EGRESOS_CAJA },
         },
         _sum: { monto: true },
       }),
@@ -583,10 +612,11 @@ export class CajaService {
   }
 
   // ─── LISTAR CAJAS (SIN filtro de fecha) ────────────────────────
-  async getCajas(empresaId: string, estado?: string) {
+  async getCajas(empresaId: string, estado?: string, usuarioId?: string, isAdmin = true) {
     const where: any = {
       ...(empresaId && { empresaId }),
       ...(estado && { estado: estado as any }),
+      ...(!isAdmin && usuarioId && { usuarioId }),
     };
 
     const cajas = await this.prisma.cajaSesion.findMany({
@@ -608,7 +638,7 @@ export class CajaService {
           this.prisma.movimientoFinanciero.aggregate({
             where: {
               cajaId: caja.id,
-              tipo: { in: ['DESEMBOLSO', 'GASTO', 'GASTO_CAPITAL', 'RETIRO_GANANCIAS'] },
+              tipo: { in: EGRESOS_CAJA },
             },
             _sum: { monto: true },
           }),
@@ -633,9 +663,13 @@ export class CajaService {
   }
 
   // ─── AUDITORÍA DE CAJA ─────────────────────────────────────────
-  async getAuditoria(cajaId: string, empresaId: string) {
+  async getAuditoria(cajaId: string, empresaId: string, usuarioId?: string, isAdmin = true) {
     const caja = await this.prisma.cajaSesion.findFirst({
-      where: { id: cajaId, empresaId },
+      where: {
+        id: cajaId,
+        empresaId,
+        ...(!isAdmin && usuarioId && { usuarioId }),
+      },
       include: { usuario: { select: { id: true, nombre: true } } },
     });
 
@@ -657,12 +691,8 @@ export class CajaService {
         ingresos += m.monto;
       }
 
-      if (['DESEMBOLSO', 'RETIRO_GANANCIAS'].includes(m.tipo)) {
+      if (EGRESOS_CAJA.includes(m.tipo)) {
         egresos += m.monto;
-      }
-
-      if (['AJUSTE_CAJA', 'CORRECCION'].includes(m.tipo)) {
-        ingresos += m.monto;
       }
     });
 

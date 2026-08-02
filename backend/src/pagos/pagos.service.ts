@@ -79,11 +79,11 @@ export class PagosService {
 
   // ─── Validar caja abierta ────────────────────────────────────────────────
 
-  private async assertCajaAbierta(empresaId: string, usuarioId: string) {
-    const fecha = getFechaRD();
+  private async assertCajaAbierta(empresaId: string, usuarioId: string, fecha?: string) {
+    const fechaCaja = fecha ?? getFechaRD();
 
     const caja = await this.prisma.cajaSesion.findFirst({
-      where: { empresaId, usuarioId, fecha, estado: 'ABIERTA' },
+      where: { empresaId, usuarioId, fecha: fechaCaja, estado: 'ABIERTA' },
     });
 
     if (!caja) {
@@ -185,7 +185,7 @@ export class PagosService {
       }
     }
 
-    const caja = await this.assertCajaAbierta(empresaId, usuarioId);
+    const caja = await this.assertCajaAbierta(empresaId, usuarioId, dto.fecha);
     const prestamo = await this.assertPrestamo(dto.prestamoId, empresaId);
     const cuotasPendientes = prestamo.cuotas;
 
@@ -513,6 +513,7 @@ export class PagosService {
     referencia?: string,
     observacion?: string,
     idempotencyKey?: string,
+    fecha?: string,
   ) {
     const metodoPago = metodo as MetodoPago;
 
@@ -527,7 +528,7 @@ export class PagosService {
       }
     }
 
-    const caja = await this.assertCajaAbierta(empresaId, usuarioId);
+    const caja = await this.assertCajaAbierta(empresaId, usuarioId, fecha);
 
     const prestamo = await this.prisma.prestamo.findFirst({
       where: { id: prestamoId, empresaId },
