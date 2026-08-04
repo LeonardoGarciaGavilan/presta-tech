@@ -5,6 +5,7 @@ import { upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
 import { upsertRutas, upsertRutaClientes, getRutas } from '@/db/rutas-db';
 import { setConfiguracion, getConfiguracion } from '@/db/config-db';
 import { setLastSyncAt } from '@/db/sync-meta-db';
+import { obtener as obtenerPrestamo } from '@/api/prestamos.api';
 import type { Cliente, PaginatedClientesResponse } from '@/types/cliente.types';
 import type { Prestamo, PaginatedPrestamosResponse } from '@/types/prestamo.types';
 import type { Ruta } from '@/types/rutas.types';
@@ -18,6 +19,20 @@ export function syncClientesToDb(clientes: Cliente[]): void {
 export function syncPrestamosToDb(prestamos: Prestamo[]): void {
   if (prestamos.length === 0) return;
   upsertPrestamos(prestamos);
+}
+
+// Reconciliación best-effort: tras sincronizar una operación que muta un
+// préstamo, trae el estado autoritativo del servidor y lo persiste en SQLite
+// (cuotas pagadas, saldo, mora, estado). Nunca lanza: si el GET falla o el
+// préstamo ya no existe, se ignora sin afectar el resultado del sync.
+export async function reconciliarPrestamoLocal(prestamoId: string): Promise<void> {
+  try {
+    if (!prestamoId || prestamoId.startsWith('prestamo_temp_')) return;
+    const prestamo = await obtenerPrestamo(prestamoId);
+    upsertPrestamos([prestamo]);
+  } catch {
+    // best-effort
+  }
 }
 
 export function syncRutasToDb(rutas: Ruta[]): void {

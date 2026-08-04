@@ -87,10 +87,11 @@ export function useRegistrarPago() {
       }
       return registrarPago(dto);
     },
-    onSuccess: () => {
+    onSuccess: (_data, dto) => {
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
       queryClient.invalidateQueries({ queryKey: ['caja'] });
+      queryClient.invalidateQueries({ queryKey: ['offline-queue', 'pagos', dto.prestamoId] });
     },
   });
 }
@@ -162,10 +163,11 @@ export function useSaldarPrestamo() {
       }
       return saldarPrestamo(prestamoId, dto);
     },
-    onSuccess: () => {
+    onSuccess: (_data, { prestamoId }) => {
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
       queryClient.invalidateQueries({ queryKey: ['pagos'] });
       queryClient.invalidateQueries({ queryKey: ['caja'] });
+      queryClient.invalidateQueries({ queryKey: ['offline-queue', 'pagos', prestamoId] });
     },
   });
 }

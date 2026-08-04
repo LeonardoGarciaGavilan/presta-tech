@@ -57,6 +57,7 @@ jest.mock('@/db/offline-queue-db', () => ({
   removeFromQueue: jest.fn(),
   findDuplicate: jest.fn(),
   getQueueStats: jest.fn(),
+  getQueue: jest.fn(() => []),
 }));
 
 jest.mock('@/hooks/use-network-status', () => ({
@@ -83,6 +84,7 @@ jest.mock('@/store/auth.store', () => ({
 }));
 
 import client from '@/api/client';
+import { QueryClient } from '@tanstack/react-query';
 import {
   getPendingItems, getFailedItems, updateQueueItem, removeFromQueue, findDuplicate,
 } from '@/db/offline-queue-db';
@@ -93,7 +95,7 @@ import { upsertPagos, deletePago } from '@/db/pagos-db';
 import { syncNow, processItem, isSyncing } from '@/services/sync-manager';
 import type { OfflineQueueItem } from '@/types/offline.types';
 
-const mockClient = client as jest.Mock;
+const mockClient = client as unknown as jest.Mock;
 const mockGetPending = getPendingItems as jest.Mock;
 const mockUpdateQueue = updateQueueItem as jest.Mock;
 const mockRemoveQueue = removeFromQueue as jest.Mock;
@@ -252,6 +254,109 @@ describe('processItem', () => {
     const result = await processItem(makeItem());
     expect(result).toBe(false);
     expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', expect.objectContaining({ status: 'failed' }));
+  });
+
+  describe('regresión: no re-sella queries cuyo data no cambió', () => {
+    function makePagoItem(): OfflineQueueItem {
+      return makeItem({
+        id: 'item_pago',
+        endpoint: '/pagos',
+        method: 'POST',
+        data: {
+          prestamoId: 'prestamo_1',
+          montoTotal: 1000,
+          capital: 900,
+          interes: 100,
+          metodo: 'EFECTIVO',
+          fecha: '2026-08-02',
+        },
+        queryKeys: [
+          ['pagos'],
+          ['pagos', 'resumen'],
+          ['pagos', 'todos'],
+          ['pagos', 'prestamo', 'prestamo_1'],
+          ['prestamos'],
+          ['prestamos', 'prestamo_1'],
+          ['caja', 'activa', '2026-08-02'],
+        ],
+        tempId: 'pago_temp_1',
+      });
+    }
+
+    beforeEach(() => {
+      mockClient.mockResolvedValue({
+        data: {
+          id: 'pago_server_1',
+          montoTotal: 1000,
+          capital: 900,
+          abonoCapital: 0,
+          interes: 100,
+          mora: 0,
+          metodo: 'EFECTIVO',
+          cajaId: 'caja_1',
+          createdAt: '2026-08-02T12:00:00.000Z',
+        },
+        status: 201,
+      });
+    });
+
+    it('no borra la invalidación ni estampa dataUpdatedAt en queries sin tempId', async () => {
+      const qc = new QueryClient({
+        defaultOptions: { queries: { staleTime: 5 * 60 * 1000 } },
+      });
+
+      qc.setQueryData(['prestamos', 'prestamo_1'], {
+        id: 'prestamo_1',
+        saldoPendiente: 5000,
+        cuotas: [{ id: 'cuota_1', pagada: false }],
+      });
+      qc.setQueryData(['caja', 'activa', '2026-08-02'], {
+        id: 'caja_1',
+        totalIngresos: 0,
+      });
+
+      const statePrestamo = qc.getQueryState(['prestamos', 'prestamo_1'])!;
+      const stateCaja = qc.getQueryState(['caja', 'activa', '2026-08-02'])!;
+      const prestamoUpdatedAt = statePrestamo.dataUpdatedAt;
+      const cajaUpdatedAt = stateCaja.dataUpdatedAt;
+
+      const result = await processItem(makePagoItem(), qc);
+      expect(result).toBe(true);
+
+      const afterPrestamo = qc.getQueryState(['prestamos', 'prestamo_1'])!;
+      const afterCaja = qc.getQueryState(['caja', 'activa', '2026-08-02'])!;
+
+      expect(afterPrestamo.isInvalidated).toBe(true);
+      expect(afterCaja.isInvalidated).toBe(true);
+      expect(afterPrestamo.dataUpdatedAt).toBe(prestamoUpdatedAt);
+      expect(afterCaja.dataUpdatedAt).toBe(cajaUpdatedAt);
+    });
+
+    it('sigue reemplazando el tempId en queries que sí lo contienen', async () => {
+      const qc = new QueryClient();
+
+      qc.setQueryData(['pagos', 'prestamo', 'prestamo_1'], [
+        { id: 'pago_temp_1', montoTotal: 1000, prestamoId: 'prestamo_1' },
+      ]);
+      qc.setQueryData(['pagos'], {
+        pages: [{ data: [{ id: 'pago_temp_1' }, { id: 'pago_x' }] }],
+      });
+      qc.setQueryData(['pagos', 'todos'], { data: [{ id: 'pago_temp_1' }] });
+
+      const result = await processItem(makePagoItem(), qc);
+      expect(result).toBe(true);
+
+      const pagosPrestamo = qc.getQueryData(['pagos', 'prestamo', 'prestamo_1']) as any[];
+      expect(pagosPrestamo).toHaveLength(1);
+      expect(pagosPrestamo[0].id).toBe('pago_server_1');
+
+      const pagosPaginados = qc.getQueryData(['pagos']) as any;
+      expect(pagosPaginados.pages[0].data[0].id).toBe('pago_server_1');
+      expect(pagosPaginados.pages[0].data[1].id).toBe('pago_x');
+
+      const pagosPlanos = qc.getQueryData(['pagos', 'todos']) as any;
+      expect(pagosPlanos.data[0].id).toBe('pago_server_1');
+    });
   });
 });
 

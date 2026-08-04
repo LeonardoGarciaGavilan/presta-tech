@@ -8,6 +8,7 @@ import { usePrestamo,
   useCancelarPrestamo,
   useDesembolsarPrestamo,
   useCambiarEstadoPrestamo } from '@/hooks/use-prestamos';
+import { usePagosPendientesPrestamo } from '@/hooks/use-offline-queue';
 import { AppButton } from '@/components/ui/app-button';
 import ActionConfirmModal from '@/components/ui/action-confirm-modal';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -21,6 +22,7 @@ import { ESTADO_CONFIG, ACCIONES_FLOW_CONFIG } from '@/constants/prestamos.const
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import type { ApiError } from '@/types/api.types';
 import type { EstadoPrestamo, Cuota, Pago, FrecuenciaPago } from '@/types/prestamo.types';
+import type { OfflineQueueItem } from '@/types/offline.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import DesembolsoModal from '@/components/prestamos/desembolso-modal';
 import RefinanciarModal from '@/components/prestamos/refinanciar-modal';
@@ -72,6 +74,63 @@ const badgeStyles = StyleSheet.create({
   },
 });
 
+const SyncPagoBanner = ({
+  pendientes,
+  fallidos,
+}: {
+  pendientes: OfflineQueueItem[];
+  fallidos: OfflineQueueItem[];
+}) => {
+  const { colors } = useTheme();
+  if (pendientes.length === 0 && fallidos.length === 0) return null;
+
+  if (fallidos.length > 0) {
+    const primerError = fallidos[0].lastError;
+    return (
+      <View
+        style={[bannerStyles.banner, { backgroundColor: colors.error, borderColor: colors.error }]}
+        accessibilityRole="alert"
+      >
+        <Ionicons name="cloud-offline-outline" size={scale(14)} color="#FFFFFF" />
+        <Text style={bannerStyles.text}>
+          Pago no sincronizado{fallidos.length > 1 ? ` (${fallidos.length})` : ''}
+          {primerError ? ` — ${primerError}` : ''}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={[bannerStyles.banner, { backgroundColor: colors.warning, borderColor: colors.warning }]}
+      accessibilityRole="alert"
+    >
+      <Ionicons name="cloud-upload-outline" size={scale(14)} color="#FFFFFF" />
+      <Text style={bannerStyles.text}>
+        Pago pendiente de sincronización{pendientes.length > 1 ? ` (${pendientes.length})` : ''}
+      </Text>
+    </View>
+  );
+};
+
+const bannerStyles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  text: {
+    color: '#FFFFFF',
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    flex: 1,
+  },
+});
+
 export default function PrestamoDetalleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme, colors } = useTheme();
@@ -81,6 +140,11 @@ export default function PrestamoDetalleScreen() {
   const { showToast } = useToast();
 
   const { data: prestamo, isLoading, error: queryError, refetch } = usePrestamo(id!);
+  const { data: pagosPendientes } = usePagosPendientesPrestamo(id);
+  const pagosPorSincronizar = (pagosPendientes ?? []).filter(
+    (i) => i.status === 'pending' || i.status === 'syncing',
+  );
+  const pagosFallidos = (pagosPendientes ?? []).filter((i) => i.status === 'failed');
   const { mutateAsync: cancelarMutation, isPending: isCancelando } = useCancelarPrestamo();
   const { mutateAsync: desembolsarMutation, isPending: isDesembolsando } = useDesembolsarPrestamo();
   const cambiarEstadoMutation = useCambiarEstadoPrestamo();
@@ -219,6 +283,7 @@ export default function PrestamoDetalleScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        <SyncPagoBanner pendientes={pagosPorSincronizar} fallidos={pagosFallidos} />
         {/* Action buttons */}
         <View style={styles.actionRow}>
           {/* Flow actions: Revisar / Aprobar / Rechazar */}

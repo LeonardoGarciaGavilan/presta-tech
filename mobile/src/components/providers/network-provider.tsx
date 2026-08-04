@@ -125,6 +125,11 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       setSyncProgress(null);
       setLastSyncAt(Date.now());
       refreshStats();
+      queryClient.invalidateQueries({ queryKey: ['offline-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['caja'] });
+      queryClient.invalidateQueries({ queryKey: ['prestamos'] });
+      queryClient.invalidateQueries({ queryKey: ['pagos'] });
+      queryClient.invalidateQueries({ queryKey: ['rutas'] });
     });
 
     refreshStats();
@@ -133,7 +138,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       unsubProgress();
       unsubComplete();
     };
-  }, [refreshStats]);
+  }, [refreshStats, queryClient]);
 
   useEffect(() => {
     if (!bootSyncDoneRef.current && network.isOnline) {

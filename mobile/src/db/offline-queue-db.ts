@@ -138,6 +138,20 @@ export function getFailedItems(): OfflineQueueItem[] {
     .map(rowToItem);
 }
 
+// Items de la cola relativos a pagos de un préstamo concreto (pago normal o
+// saldo total) en cualquier estado no-finalizado (pending/syncing/failed).
+// Se usa para informar al usuario en el detalle del préstamo.
+export function getPagosPendientesDePrestamo(prestamoId: string): OfflineQueueItem[] {
+  if (!prestamoId) return [];
+  return getQueue().filter((i) => {
+    if (i.endpoint === '/pagos' && i.method === 'POST') {
+      const data = i.data as Record<string, unknown> | null;
+      return data?.prestamoId === prestamoId;
+    }
+    return i.endpoint === `/pagos/saldar/${prestamoId}`;
+  });
+}
+
 export function getQueueStats(): {
   pending: number;
   failed: number;

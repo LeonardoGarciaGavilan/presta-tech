@@ -21,6 +21,7 @@ import { eq } from 'drizzle-orm';
 import { upsertClientes, deleteCliente } from '@/db/clientes-db';
 import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
 import { upsertPagos, deletePago } from '@/db/pagos-db';
+import { reconciliarPrestamoLocal } from '@/services/data-sync';
 import type { Pago } from '@/types/prestamo.types';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -85,6 +86,24 @@ function isRetryableError(error: any): boolean {
   return status === 408 || status === 429 || (status >= 500 && status < 600);
 }
 
+// `setQueryData` sin la opción `updatedAt` sella la query con
+// `dataUpdatedAt: Date.now()` y limpia `isInvalidated`, incluso si el updater
+// devuelve los mismos datos. Eso dejaba queries como el detalle del préstamo o
+// la caja (cuyos datos no contienen el `tempId`) marcadas como frescas y sin
+// refetch tras el sync. Este helper solo escribe cuando hay un cambio real.
+function setQueryDataIfChanged(
+  queryClient: QueryClient,
+  queryKey: readonly unknown[],
+  updater: (old: any) => any,
+): void {
+  const old = queryClient.getQueryData(queryKey);
+  if (old === undefined) return;
+  const next = updater(old);
+  if (next !== old) {
+    queryClient.setQueryData(queryKey, next);
+  }
+}
+
 function replaceTempIdInData(obj: any, oldId: string, newId: string): void {
   if (obj === null || obj === undefined) return;
   if (Array.isArray(obj)) {
@@ -111,6 +130,34 @@ function getErrorMessage(error: any): string {
   if (status === 401 || status === 403) return 'Sesión expirada';
   if (status && status >= 500) return 'Error temporal del servidor';
   return error?.message || 'Error desconocido';
+}
+
+// Deriva el préstamo afectado por un item de la cola para poder reconciliar su
+// estado local tras un sync exitoso. Soporta pagos, saldo total y todas las
+// mutaciones de préstamo (/prestamos/:id, /estado, /desembolsar, /cancelar,
+// /refinanciar). La creación (POST /prestamos) no aplica: no tiene id aún.
+function derivarPrestamoId(item: OfflineQueueItem): string | null {
+  const endpoint = item.endpoint;
+
+  const saldarMatch = endpoint.match(/^\/pagos\/saldar\/([^/]+)/);
+  if (saldarMatch) return saldarMatch[1];
+
+  if (endpoint === '/pagos' && item.method === 'POST') {
+    let data: any = item.data;
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        return null;
+      }
+    }
+    return data?.prestamoId ?? null;
+  }
+
+  const prestamoMatch = endpoint.match(/^\/prestamos\/([^/]+)/);
+  if (prestamoMatch) return prestamoMatch[1];
+
+  return null;
 }
 
 export async function processItem(
@@ -170,7 +217,7 @@ export async function processItem(
             exact: false,
           });
           for (const query of allMatching) {
-            queryClient.setQueryData(query.queryKey, (old: any) => {
+            setQueryDataIfChanged(queryClient, query.queryKey, (old: any) => {
               if (!old) return old;
               if (old.id === item.tempId) return { ...old, id: serverData.id };
               if (Array.isArray(old)) {
@@ -271,6 +318,11 @@ export async function processItem(
         } else if (endpoint === '/pagos' && item.method === 'POST') {
           deletePago(item.tempId);
         }
+      }
+
+      const prestamoId = derivarPrestamoId(item);
+      if (prestamoId) {
+        await reconciliarPrestamoLocal(prestamoId);
       }
     }
 
