@@ -12,14 +12,18 @@ jest.mock('@/db/index', () => {
   return {
     db: {
       select: () => ({
-        from: (table: any) => ({
-          where: () => ({
-            get: () => getStore(table)[0] ?? null,
+        from: (table: any) => {
+          const chain = {
+            where: () => ({
+              get: () => getStore(table)[0] ?? null,
+              all: () => getStore(table),
+              limit: (n: number) => ({ all: () => getStore(table).slice(0, n) }),
+            }),
+            innerJoin: () => chain,
             all: () => getStore(table),
-            limit: (n: number) => ({ all: () => getStore(table).slice(0, n) }),
-          }),
-          all: () => getStore(table),
-        }),
+          };
+          return chain;
+        },
       }),
       insert: (table: any) => ({
         values: (data: any) => ({
