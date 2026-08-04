@@ -8,6 +8,7 @@ import { RutasService } from './rutas.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('rutas')
 @UseGuards(JwtAuthGuard)
@@ -35,11 +36,13 @@ export class RutasController {
   }
 
   @Post('reset-visitados')
+  @Idempotent()
   resetVisitados(@Tenant() empresaId: string) {
     return this.rutasService.resetVisitados(empresaId);
   }
 
   @Patch('clientes/:rcId/visita')
+  @Idempotent()
   marcarVisitado(@Param('rcId') rcId: string, @Body() body: { visitado: boolean }, @Tenant() empresaId: string, @CurrentUser() user: any) {
     const { usuarioId } = this.ctx(user);
     return this.rutasService.marcarVisitado(rcId, empresaId, usuarioId, body.visitado);
@@ -94,6 +97,7 @@ export class RutasController {
   }
 
   @Post(':id/generar-dia')
+  @Idempotent()
   generarRutaDia(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { rutaClienteIds: string[]; fecha: string }) {
     const { usuarioId, isAdmin } = this.ctx(user);
     return this.rutasService.generarRutaDia(id, empresaId, usuarioId, isAdmin, body.rutaClienteIds, body.fecha);
