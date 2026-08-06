@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { DATABASE_NAME } from './index';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 async function onInit(database: SQLiteDatabase) {
   await database.execAsync(`PRAGMA journal_mode = WAL;`);
@@ -162,7 +162,8 @@ async function onInit(database: SQLiteDatabase) {
         temp_id TEXT,
         temp_display TEXT,
         last_error TEXT,
-        idempotency_key TEXT
+        idempotency_key TEXT,
+        retryable INTEGER DEFAULT 1
       );
     `);
 
@@ -172,6 +173,29 @@ async function onInit(database: SQLiteDatabase) {
         value TEXT NOT NULL
       );
     `);
+
+    // Migración v1 → v2: columna `retryable` en offline_queue. Para instalaciones
+    // existentes (v1) la tabla ya existe sin la columna. Se agrega con ALTER solo
+    // si no está, y el fallo es NO-fatal: el código tolera su ausencia
+    // (tratando el item como reintentable por defecto) para nunca romper el
+    // arranque de la app.
+    if (currentVersion < 2) {
+      try {
+        const columns = await txn.getAllAsync<{ name: string }>(
+          'PRAGMA table_info(offline_queue)',
+        );
+        if (!columns.some((c) => c.name === 'retryable')) {
+          await txn.execAsync(
+            'ALTER TABLE offline_queue ADD COLUMN retryable INTEGER DEFAULT 1;',
+          );
+        }
+      } catch (error) {
+        console.warn(
+          '[DB] No se pudo migrar la columna retryable; se asumirá reintentable por defecto.',
+          error,
+        );
+      }
+    }
 
     await txn.execAsync(`CREATE INDEX IF NOT EXISTS idx_prestamos_cliente_id ON prestamos(cliente_id);`);
     await txn.execAsync(`CREATE INDEX IF NOT EXISTS idx_prestamos_empresa_id ON prestamos(empresa_id);`);

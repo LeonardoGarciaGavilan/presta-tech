@@ -1,4 +1,4 @@
-import { and, eq, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, like, lte, ne, or, sql } from 'drizzle-orm';
 import { db } from './index';
 import { offlineQueue } from './schema';
 import type { OfflineQueueItem, OfflineMethod } from '@/types/offline.types';
@@ -21,10 +21,11 @@ function rowToItem(row: typeof offlineQueue.$inferSelect): OfflineQueueItem {
     tempDisplay: row.tempDisplay ? JSON.parse(row.tempDisplay) : undefined,
     lastError: row.lastError ?? undefined,
     idempotencyKey: row.idempotencyKey ?? undefined,
+    retryable: row.retryable ?? true,
   };
 }
 
-function itemToRow(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey'> & { id: string; createdAt: number; retryCount: number; status: string; idempotencyKey?: string }) {
+function itemToRow(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey' | 'retryable'> & { id: string; createdAt: number; retryCount: number; status: string; idempotencyKey?: string; retryable?: boolean }) {
   return {
     id: item.id,
     endpoint: item.endpoint,
@@ -38,6 +39,7 @@ function itemToRow(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount
     tempDisplay: item.tempDisplay ? JSON.stringify(item.tempDisplay) : null,
     lastError: item.lastError ?? null,
     idempotencyKey: item.idempotencyKey ?? null,
+    retryable: item.retryable ?? true,
   };
 }
 
@@ -105,6 +107,7 @@ export function updateQueueItem(id: string, updates: Partial<OfflineQueueItem>):
   if (updates.status !== undefined) setClause.status = updates.status;
   if (updates.retryCount !== undefined) setClause.retryCount = updates.retryCount;
   if (updates.lastError !== undefined) setClause.lastError = updates.lastError;
+  if (updates.retryable !== undefined) setClause.retryable = updates.retryable;
 
   if (Object.keys(setClause).length > 0) {
     db.update(offlineQueue)
@@ -193,6 +196,7 @@ export function markStaleAsFailed(): number {
     .set({
       status: 'failed',
       lastError: 'Expirado por antigüedad (más de 7 días sin sincronizar)',
+      retryable: false,
     })
     .where(
       and(
@@ -218,21 +222,54 @@ export function findDuplicate(
   method: string,
   data: unknown,
 ): OfflineQueueItem | null {
+  // Filtra por endpoint Y método en SQL para no barrer toda la cola por cada
+  // insert/consulta de duplicado.
   const items = db
     .select()
     .from(offlineQueue)
-    .where(eq(offlineQueue.endpoint, endpoint))
+    .where(
+      and(
+        eq(offlineQueue.endpoint, endpoint),
+        eq(offlineQueue.method, method),
+      ),
+    )
     .all();
 
   const serialized = stableStringify(data);
   const found = items.find(
     (item: typeof offlineQueue.$inferSelect) =>
-      item.method === method &&
       item.data === serialized &&
       item.status !== 'failed',
   );
 
   return found ? rowToItem(found) : null;
+}
+
+/**
+ * Devuelve los items (de cualquier estado) cuyo payload (`data`), endpoint o
+ * queryKeys hagan referencia a un `tempId`. Tras un sync exitoso se usan para
+ * reemplazar `tempId → id real` SOLO en los items afectados, evitando parsear
+ * toda la cola por cada item procesado (O(n²)).
+ *
+ * Nota: los tempId contienen `_`, que en SQL LIKE es comodín de 1 carácter.
+ * El sobre-match es inofensivo: el reemplazo real se hace por coincidencia
+ * exacta en JS y descarta los items sin cambios.
+ */
+export function getQueueItemsReferencingTempId(tempId: string): OfflineQueueItem[] {
+  if (!tempId) return [];
+  const pattern = `%${tempId}%`;
+  return db
+    .select()
+    .from(offlineQueue)
+    .where(
+      or(
+        like(offlineQueue.data, pattern),
+        like(offlineQueue.endpoint, pattern),
+        like(offlineQueue.queryKeys, pattern),
+      ),
+    )
+    .all()
+    .map(rowToItem);
 }
 
 /**

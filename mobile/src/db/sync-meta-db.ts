@@ -1,9 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { db } from './index';
 import { syncMeta } from './schema';
+import storage from '@/utils/storage';
 import type { User } from '@/types/auth.types';
 
-const USER_CACHE_KEY = 'current_user';
+// El usuario cacheado se guarda en SecureStore (no en SQLite en claro), igual
+// que los tokens de sesión. `utils/storage` usa expo-secure-store en nativo y
+// localStorage en web.
+const USER_CACHE_KEY = 'cached_user';
 
 export function getSyncMeta(key: string): string | null {
   const row = db
@@ -21,24 +25,30 @@ export function setSyncMeta(key: string, value: string): void {
     .run();
 }
 
-export function getCachedUser(): User | null {
-  const raw = getSyncMeta(USER_CACHE_KEY);
-  if (!raw) return null;
+export async function getCachedUser(): Promise<User | null> {
   try {
+    const raw = await storage.getItem(USER_CACHE_KEY);
+    if (!raw) return null;
     return JSON.parse(raw) as User;
   } catch {
     return null;
   }
 }
 
-export function setCachedUser(user: User): void {
-  setSyncMeta(USER_CACHE_KEY, JSON.stringify(user));
+export async function setCachedUser(user: User): Promise<void> {
+  try {
+    await storage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+  } catch {
+    // No bloqueamos el flujo de auth si SecureStore falla.
+  }
 }
 
-export function clearCachedUser(): void {
-  db.delete(syncMeta)
-    .where(eq(syncMeta.key, USER_CACHE_KEY))
-    .run();
+export async function clearCachedUser(): Promise<void> {
+  try {
+    await storage.removeItem(USER_CACHE_KEY);
+  } catch {
+    // Best-effort.
+  }
 }
 
 export function getLastSyncAt(): number | null {

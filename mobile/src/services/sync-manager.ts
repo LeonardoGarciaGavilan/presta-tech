@@ -3,16 +3,15 @@ import client from '@/api/client';
 import type { OfflineQueueItem, SyncProgress } from '@/types/offline.types';
 import {
   OFFLINE_MAX_RETRIES,
-  OFFLINE_BACKOFF_BASE_MS,
 } from '@/types/offline.types';
 import {
-  getQueue,
   getPendingItems,
   getFailedItems,
   updateQueueItem,
   removeFromQueue,
   findDuplicate,
   getQueueStats,
+  getQueueItemsReferencingTempId,
 } from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { db } from '@/db';
@@ -35,6 +34,18 @@ type CompletionListener = (result: {
 const progressListeners = new Set<ProgressListener>();
 const completionListeners = new Set<CompletionListener>();
 
+/**
+ * Evento por transición de estado de un item de la cola. Se usa para que la
+ * pantalla de sincronización refleje en vivo el avance uno-a-uno (pending →
+ * syncing → synced/failed), en lugar de esperar a que termine todo el sync.
+ */
+export interface SyncItemEvent {
+  id: string;
+  status: 'syncing' | 'synced' | 'failed';
+}
+
+const itemEventListeners = new Set<(event: SyncItemEvent) => void>();
+
 export function onSyncProgress(listener: ProgressListener): () => void {
   progressListeners.add(listener);
   return () => progressListeners.delete(listener);
@@ -45,6 +56,11 @@ export function onSyncComplete(listener: CompletionListener): () => void {
   return () => completionListeners.delete(listener);
 }
 
+export function onSyncItemEvent(listener: (event: SyncItemEvent) => void): () => void {
+  itemEventListeners.add(listener);
+  return () => itemEventListeners.delete(listener);
+}
+
 function emitProgress(progress: SyncProgress) {
   progressListeners.forEach((l) => l(progress));
 }
@@ -53,21 +69,14 @@ function emitCompletion(result: { synced: number; failed: number; errors: string
   completionListeners.forEach((l) => l(result));
 }
 
+function emitItemEvent(event: SyncItemEvent) {
+  itemEventListeners.forEach((l) => l(event));
+}
+
 let syncing = false;
 
 export function isSyncing(): boolean {
   return syncing;
-}
-
-function getBackoffMs(retryCount: number): number {
-  return Math.min(
-    OFFLINE_BACKOFF_BASE_MS * Math.pow(2, retryCount),
-    30000,
-  );
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isNetworkError(error: any): boolean {
@@ -175,6 +184,7 @@ export async function processItem(
     }
 
     await updateQueueItem(item.id, { status: 'syncing' });
+    emitItemEvent({ id: item.id, status: 'syncing' });
 
     let body = item.method !== 'DELETE' ? item.data : undefined;
     if (
@@ -252,8 +262,10 @@ export async function processItem(
           }
         }
 
-        const allPending = getQueue();
-        for (const pending of allPending) {
+        // Solo los items pendientes que referencian este tempId (payload,
+        // endpoint o queryKeys), no toda la cola.
+        const referencingItems = getQueueItemsReferencingTempId(item.tempId);
+        for (const pending of referencingItems) {
           const parsed = typeof pending.data === 'string' ? JSON.parse(pending.data) : JSON.parse(JSON.stringify(pending.data));
           replaceTempIdInData(parsed, item.tempId, serverData.id);
           const updatedStr = JSON.stringify(parsed);
@@ -327,16 +339,20 @@ export async function processItem(
     }
 
     await removeFromQueue(item.id);
+    emitItemEvent({ id: item.id, status: 'synced' });
     return true;
   } catch (error: any) {
     if (isRetryableError(error) && item.retryCount < OFFLINE_MAX_RETRIES) {
-      const backoffMs = getBackoffMs(item.retryCount);
+      // Error reintentable: lo dejamos pendiente para el siguiente ciclo de
+      // auto-sync (network-provider reintenta cada ~5s). No bloqueamos el resto
+      // de la cola con `delay`: un solo item fallando retrasaba todo el sync.
       await updateQueueItem(item.id, {
         status: 'pending',
         retryCount: item.retryCount + 1,
         lastError: getErrorMessage(error),
+        retryable: true,
       });
-      await delay(backoffMs);
+      emitItemEvent({ id: item.id, status: 'failed' });
       return false;
     }
 
@@ -344,7 +360,9 @@ export async function processItem(
       status: 'failed',
       retryCount: item.retryCount + 1,
       lastError: getErrorMessage(error),
+      retryable: isRetryableError(error),
     });
+    emitItemEvent({ id: item.id, status: 'failed' });
     return false;
   }
 }
@@ -390,6 +408,9 @@ export async function syncNow(queryClient?: QueryClient): Promise<{
         }
       }
 
+      // Progreso tras cada item para que la UI avance "X de Y" en vivo.
+      emitProgress({ processed: synced + failed, total, current: null });
+
       pending = (await getPendingItems()).filter((i) => !retryingIds.has(i.id));
     }
   } finally {
@@ -408,6 +429,10 @@ export async function retryFailed(queryClient?: QueryClient): Promise<{
 }> {
   const failed = await getFailedItems();
   for (const item of failed) {
+    // Solo reintentamos fallos transitorios (red/5xx/408/429). Los errores
+    // permanentes (validación/conflicto/expirados) no se resuelven reintentando;
+    // reintentarlos en bucle solo ensucia la cola.
+    if (item.retryable === false) continue;
     await updateQueueItem(item.id, { status: 'pending', retryCount: 0 });
   }
   return syncNow(queryClient);

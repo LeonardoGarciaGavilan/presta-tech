@@ -8,6 +8,6 @@ export async function clearSession(): Promise<void> {
   } catch {
     // SecureStore error — non-fatal, continue clearing state
   }
-  clearCachedUser();
+  await clearCachedUser();
   useAuthStore.getState().clearUser();
 }

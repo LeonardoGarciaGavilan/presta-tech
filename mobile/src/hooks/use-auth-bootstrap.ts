@@ -52,13 +52,13 @@ export function useAuthBootstrap(queryClient?: QueryClient) {
 
         if (user) {
           setUser(user);
-          setCachedUser(user);
+          await setCachedUser(user);
 
           if (queryClient) {
             await prefetchCritical(queryClient);
           }
         } else {
-          const cachedUser = getCachedUser();
+          const cachedUser = await getCachedUser();
           if (cachedUser) {
             setUser(cachedUser);
 

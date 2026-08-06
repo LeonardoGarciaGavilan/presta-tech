@@ -58,6 +58,7 @@ jest.mock('@/db/offline-queue-db', () => ({
   findDuplicate: jest.fn(),
   getQueueStats: jest.fn(),
   getQueue: jest.fn(() => []),
+  getQueueItemsReferencingTempId: jest.fn(() => []),
 }));
 
 jest.mock('@/hooks/use-network-status', () => ({
@@ -92,7 +93,7 @@ import { getNetworkStatus } from '@/hooks/use-network-status';
 import { upsertClientes, deleteCliente } from '@/db/clientes-db';
 import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
 import { upsertPagos, deletePago } from '@/db/pagos-db';
-import { syncNow, processItem, isSyncing } from '@/services/sync-manager';
+import { syncNow, processItem, isSyncing, onSyncItemEvent } from '@/services/sync-manager';
 import type { OfflineQueueItem } from '@/types/offline.types';
 
 const mockClient = client as unknown as jest.Mock;
@@ -139,6 +140,45 @@ beforeEach(() => {
 });
 
 describe('processItem', () => {
+  it('emite el evento por item: syncing y synced en éxito', async () => {
+    const events: { id: string; status: string }[] = [];
+    const unsub = onSyncItemEvent((e) => events.push(e));
+    try {
+      const result = await processItem(makeItem());
+      expect(result).toBe(true);
+    } finally {
+      unsub();
+    }
+    expect(events.map((e) => e.status)).toEqual(['syncing', 'synced']);
+    expect(events[0].id).toBe('item_1');
+  });
+
+  it('emite el evento failed cuando el item falla de forma permanente', async () => {
+    mockClient.mockRejectedValue({ statusCode: 400, message: 'Bad Request' });
+    const events: { id: string; status: string }[] = [];
+    const unsub = onSyncItemEvent((e) => events.push(e));
+    try {
+      const result = await processItem(makeItem());
+      expect(result).toBe(false);
+    } finally {
+      unsub();
+    }
+    expect(events.map((e) => e.status)).toEqual(['syncing', 'failed']);
+  });
+
+  it('emite el evento failed cuando un reintentable no agota los intentos', async () => {
+    mockClient.mockRejectedValue({ statusCode: 500, message: 'Server Error' });
+    const events: { id: string; status: string }[] = [];
+    const unsub = onSyncItemEvent((e) => events.push(e));
+    try {
+      const result = await processItem(makeItem({ retryCount: 0 }));
+      expect(result).toBe(false);
+    } finally {
+      unsub();
+    }
+    expect(events.map((e) => e.status)).toEqual(['syncing', 'failed']);
+  });
+
   it('removes duplicate items', async () => {
     mockFindDuplicate.mockResolvedValue({ id: 'existing_item', endpoint: '/clientes', method: 'POST' });
     const result = await processItem(makeItem());
@@ -235,7 +275,7 @@ describe('processItem', () => {
     const result = await promise;
     expect(result).toBe(false);
     expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', {
-      status: 'pending', retryCount: 1, lastError: 'Error temporal del servidor',
+      status: 'pending', retryCount: 1, lastError: 'Error temporal del servidor', retryable: true,
     });
   });
 
@@ -245,7 +285,7 @@ describe('processItem', () => {
     const result = await processItem(item);
     expect(result).toBe(false);
     expect(mockUpdateQueue).toHaveBeenCalledWith('item_1', {
-      status: 'failed', retryCount: 6, lastError: 'Error temporal del servidor',
+      status: 'failed', retryCount: 6, lastError: 'Error temporal del servidor', retryable: true,
     });
   });
 

@@ -139,6 +139,7 @@ export const offlineQueue = sqliteTable('offline_queue', {
   tempDisplay: text('temp_display'), // JSON string
   lastError: text('last_error'),
   idempotencyKey: text('idempotency_key'),
+  retryable: integer('retryable', { mode: 'boolean' }).default(true),
 });
 
 // ─── Sync Metadata ────────────────────────────────────────────

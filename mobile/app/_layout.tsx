@@ -1,11 +1,8 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Sentry from '@sentry/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { persistQueryClient } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -27,8 +24,6 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NetworkProvider } from '@/components/providers/network-provider';
 import { BackgroundPrefetch } from '@/components/providers/background-prefetch';
 import { DatabaseProvider } from '@/db/provider';
-import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
-import type { PersistedClient } from '@tanstack/react-query-persist-client';
 
 // Disable font scaling globally for consistent text sizing across devices
 (Text as any).defaultProps = { ...(Text as any).defaultProps, allowFontScaling: false };
@@ -69,35 +64,6 @@ function RootLayout() {
   const currentColors = Colors[colorScheme ?? 'light'];
 
   useAuthBootstrap(queryClient);
-
-  const asyncStoragePersister = useMemo(
-    () =>
-      createAsyncStoragePersister({
-        storage: AsyncStorage,
-        serialize: (client: PersistedClient) => {
-          const json = JSON.stringify(client);
-          return compressToUTF16(json);
-        },
-        deserialize: (cachedString: string) => {
-          const json = decompressFromUTF16(cachedString);
-          if (!json) throw new Error('Failed to decompress cache');
-          return JSON.parse(json);
-        },
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    const [unsubscribePersist] = persistQueryClient({
-      queryClient,
-      persister: asyncStoragePersister,
-      maxAge: 1000 * 60 * 60 * 24,
-    });
-
-    return () => {
-      unsubscribePersist();
-    };
-  }, [queryClient, asyncStoragePersister]);
 
   if (!isHydrated) {
     return <SplashScreen backgroundColor={currentColors.background} primaryColor={currentColors.primary} />;

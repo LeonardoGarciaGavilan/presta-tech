@@ -168,7 +168,13 @@ export async function prefetchAll(
 
   await prefetchDashboard(queryClient);
 
-  setLastSyncAt(Date.now());
+  // Solo registrar el momento del último sync si al menos una pieza de datos
+  // críticos se obtuvo. Si todo falló, NO se marca: así `shouldPrefetch()`
+  // seguirá intentando refrescar al reconectar en vez de quedar bloqueado 30 min
+  // con datos stale.
+  if (success > 0) {
+    setLastSyncAt(Date.now());
+  }
 
   return { success, failed };
 }

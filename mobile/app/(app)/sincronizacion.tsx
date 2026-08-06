@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,11 @@ import { useNetworkContext } from '@/components/providers/network-provider';
 import { getQueue, clearFailedItems } from '@/db/offline-queue-db';
 import type { OfflineQueueItem } from '@/types/offline.types';
 import { reportQueueClear } from '@/api/sync.api';
+import { onSyncItemEvent } from '@/services/sync-manager';
+import { getClienteById } from '@/db/clientes-db';
+import { getPrestamoById } from '@/db/prestamos-db';
+import { getRutas } from '@/db/rutas-db';
+import { formatCurrency } from '@/utils/formatters';
 import { useQueryClient } from '@tanstack/react-query';
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
@@ -43,18 +48,24 @@ function getModuleIcon(endpoint: string): keyof typeof Ionicons.glyphMap {
   return 'document-text-outline';
 }
 
-function getModuleLabel(endpoint: string): string {
+function getModuleLabel(item: Pick<OfflineQueueItem, 'endpoint' | 'method'>): string {
+  const { endpoint, method } = item;
   if (endpoint.includes('/pagos/saldar')) return 'Saldar préstamo';
-  if (endpoint.includes('/pagos')) return 'Pago';
+  if (endpoint.includes('/pagos')) return 'Pago recibido';
   if (endpoint.includes('/caja/abrir')) return 'Abrir caja';
-  if (endpoint.includes('/caja') && endpoint.includes('/cerrar')) return 'Cerrar caja';
-  if (endpoint.includes('/prestamos') && endpoint.includes('/refinanciar')) return 'Refinanciar';
+  if (endpoint.includes('/caja/cerrar')) return 'Cerrar caja';
+  if (endpoint.includes('/caja')) return 'Caja';
+  if (endpoint.includes('/prestamos') && endpoint.includes('/refinanciar')) return 'Refinanciar préstamo';
   if (endpoint.includes('/prestamos') && endpoint.includes('/cancelar')) return 'Cancelar préstamo';
   if (endpoint.includes('/prestamos') && endpoint.includes('/estado')) return 'Cambiar estado';
   if (endpoint.includes('/prestamos') && endpoint.includes('/desembolsar')) return 'Desembolso';
-  if (endpoint.includes('/prestamos')) return 'Préstamo';
+  if (endpoint.includes('/prestamos')) return method === 'POST' ? 'Nuevo préstamo' : 'Préstamo';
   if (endpoint.includes('/clientes') && endpoint.includes('/reactivar')) return 'Reactivar cliente';
-  if (endpoint.includes('/clientes')) return 'Cliente';
+  if (endpoint.includes('/clientes')) {
+    if (method === 'POST') return 'Nuevo cliente';
+    if (method === 'DELETE') return 'Eliminar cliente';
+    return 'Editar cliente';
+  }
   if (endpoint.includes('/rutas') && endpoint.includes('/visita')) return 'Marcar visita';
   if (endpoint.includes('/rutas') && endpoint.includes('/reset')) return 'Reset visitas';
   if (endpoint.includes('/rutas') && endpoint.includes('/generar')) return 'Generar día';
@@ -149,6 +160,106 @@ function getItemMonto(item: OfflineQueueItem): number | undefined {
   return undefined;
 }
 
+function clienteFullName(cliente: { nombre?: string; apellido?: string | null } | null | undefined): string | null {
+  if (!cliente) return null;
+  const name = [cliente.nombre, cliente.apellido].filter(Boolean).join(' ').trim();
+  return name || null;
+}
+
+function nombreClientePorId(clienteId: string): string | null {
+  if (!clienteId) return null;
+  return clienteFullName(getClienteById(clienteId));
+}
+
+function nombreClientePorPrestamoId(prestamoId: string): string | null {
+  if (!prestamoId) return null;
+  const prestamo = getPrestamoById(prestamoId);
+  if (!prestamo) return null;
+  return nombreClientePorId(prestamo.clienteId);
+}
+
+function nombreClientePorRutaClienteId(rcId: string): string | null {
+  if (!rcId) return null;
+  for (const ruta of getRutas()) {
+    const rc = ruta.clientes?.find((c) => c.id === rcId);
+    if (rc?.clienteId) {
+      const nombre = nombreClientePorId(rc.clienteId);
+      if (nombre) return nombre;
+    }
+  }
+  return null;
+}
+
+function buildItemDescription(item: OfflineQueueItem): string {
+  const data = (item.tempDisplay || item.data || {}) as Record<string, any>;
+  const { endpoint, method } = item;
+
+  if (endpoint === '/pagos' && method === 'POST') {
+    const nombre = nombreClientePorPrestamoId(data.prestamoId);
+    const monto = formatCurrency(data.montoPagado ?? data.montoTotal);
+    const base = `Pago ${monto}${nombre ? ` a ${nombre}` : ''}`;
+    return data.metodo ? `${base} · ${data.metodo}` : base;
+  }
+
+  const saldarMatch = endpoint.match(/^\/pagos\/saldar\/([^/]+)/);
+  if (saldarMatch) {
+    const nombre = nombreClientePorPrestamoId(saldarMatch[1]);
+    const monto = formatCurrency(data.montoPagado ?? data.monto);
+    return `Saldar préstamo de ${nombre ?? 'cliente'} · ${monto}`;
+  }
+
+  if (endpoint === '/caja/abrir') {
+    return `Abrir caja · ${formatCurrency(data.montoInicial)}`;
+  }
+  if (endpoint === '/caja/cerrar') {
+    return `Cerrar caja · ${formatCurrency(data.montoCierre ?? data.monto)}`;
+  }
+
+  if (endpoint === '/prestamos' && method === 'POST') {
+    const nombre = nombreClientePorId(data.clienteId);
+    return `Nuevo préstamo ${formatCurrency(data.monto)}${nombre ? ` · ${nombre}` : ''}`;
+  }
+
+  const prestamoMatch = endpoint.match(/^\/prestamos\/([^/]+)/);
+  if (prestamoMatch) {
+    const id = prestamoMatch[1];
+    const nombre = nombreClientePorPrestamoId(id);
+    const sufijo = nombre ? ` · ${nombre}` : '';
+    if (endpoint.endsWith('/cancelar')) return `Cancelar préstamo${sufijo}`;
+    if (endpoint.endsWith('/desembolsar')) {
+      const prestamo = getPrestamoById(id);
+      return `Desembolso ${formatCurrency(data.monto ?? prestamo?.monto)}${sufijo}`;
+    }
+    if (endpoint.endsWith('/estado')) return `Cambiar estado de préstamo${sufijo}`;
+    if (endpoint.endsWith('/refinanciar')) return `Refinanciar préstamo${sufijo}`;
+    return `Editar préstamo${sufijo}`;
+  }
+
+  if (endpoint === '/clientes' && method === 'POST') {
+    const nombre = clienteFullName(data);
+    const cedula = data.cedula ? ` · Cédula ${data.cedula}` : '';
+    return `Nuevo cliente: ${nombre ?? '—'}${cedula}`;
+  }
+
+  const clienteMatch = endpoint.match(/^\/clientes\/([^/]+)/);
+  if (clienteMatch) {
+    const nombre = nombreClientePorId(clienteMatch[1]) ?? '—';
+    if (endpoint.endsWith('/reactivar')) return `Reactivar cliente: ${nombre}`;
+    if (method === 'DELETE') return `Eliminar cliente: ${nombre}`;
+    return `Editar cliente: ${nombre}`;
+  }
+
+  if (endpoint.includes('/visita')) {
+    const nombre = nombreClientePorRutaClienteId(data.rcId);
+    const base = `Marcar visita${nombre ? `: ${nombre}` : ''}`;
+    return typeof data.visitado === 'boolean' ? `${base} · ${data.visitado ? 'Visitado' : 'Pendiente'}` : base;
+  }
+  if (endpoint.includes('/reset')) return 'Reset de visitas de la ruta';
+  if (endpoint.includes('/generar')) return 'Generar día de ruta';
+
+  return getDisplayText(item);
+}
+
 function ConnectionDot({ isOnline }: { isOnline: boolean }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -199,11 +310,13 @@ function ConnectionDot({ isOnline }: { isOnline: boolean }) {
 
 function AnimatedQueueItem({
   item,
+  description,
   colors,
   colorScheme,
   index,
 }: {
   item: OfflineQueueItem;
+  description: string;
   colors: ReturnType<typeof useTheme>['colors'];
   colorScheme: 'light' | 'dark';
   index: number;
@@ -224,7 +337,7 @@ function AnimatedQueueItem({
       ]}
       accessible
       accessibilityRole="summary"
-      accessibilityLabel={`${getModuleLabel(item.endpoint)} - ${statusConfig.label}`}
+      accessibilityLabel={`${getModuleLabel(item)} - ${statusConfig.label}`}
     >
       <View style={styles.itemHeader}>
         <View style={styles.itemModule}>
@@ -236,7 +349,7 @@ function AnimatedQueueItem({
             />
           </View>
           <Text style={[styles.moduleLabel, { color: colors.text }]}>
-            {getModuleLabel(item.endpoint)}
+            {getModuleLabel(item)}
           </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
@@ -247,9 +360,9 @@ function AnimatedQueueItem({
         </View>
       </View>
 
-      {getDisplayText(item) ? (
+      {description ? (
         <Text style={[styles.itemDescription, { color: colors.textSecondary }]}>
-          {getDisplayText(item)}
+          {description}
         </Text>
       ) : null}
 
@@ -278,7 +391,7 @@ export default function SincronizacionScreen() {
   const { colors, colorScheme } = useTheme();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { network, isSyncing, pendingCount, failedCount, lastSyncAt, triggerSync, retryFailed } = useNetworkContext();
+  const { network, isSyncing, pendingCount, failedCount, lastSyncAt, syncProgress, triggerSync, retryFailed } = useNetworkContext();
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -295,6 +408,36 @@ export default function SincronizacionScreen() {
   useEffect(() => {
     loadItems().finally(() => setLoading(false));
   }, [loadItems, pendingCount, failedCount, isSyncing]);
+
+  // Refresca la cola en vivo cuando cada item cambia de estado (syncing →
+  // synced/failed), con throttle para no re-renderizar en ráfaga. Así se ve el
+  // avance uno-a-uno en lugar de esperar a que termine todo el sync.
+  useEffect(() => {
+    let lastRun = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = onSyncItemEvent(() => {
+      const now = Date.now();
+      if (now - lastRun >= 150) {
+        lastRun = now;
+        loadItems();
+      } else if (!timer) {
+        timer = setTimeout(() => {
+          timer = null;
+          lastRun = Date.now();
+          loadItems();
+        }, 150 - (now - lastRun));
+      }
+    });
+    return () => {
+      unsub();
+      if (timer) clearTimeout(timer);
+    };
+  }, [loadItems]);
+
+  const descMap = useMemo(
+    () => new Map(items.map((i) => [i.id, buildItemDescription(i)])),
+    [items],
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -415,6 +558,45 @@ export default function SincronizacionScreen() {
             </View>
           )}
         </View>
+
+        {/* Progreso del sync en vivo */}
+        {isSyncing && syncProgress && syncProgress.total > 0 && (
+          <View
+            style={[
+              styles.progressCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+              Shadows.sm,
+            ]}
+            accessible
+            accessibilityLabel={`Sincronizando ${Math.min(syncProgress.processed + 1, syncProgress.total)} de ${syncProgress.total} operaciones`}
+          >
+            <View style={styles.progressHeader}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.progressTitle, { color: colors.text }]}>
+                Sincronizando{' '}
+                {Math.min(
+                  syncProgress.processed + (syncProgress.current ? 1 : 0),
+                  syncProgress.total,
+                )}{' '}
+                de {syncProgress.total}
+              </Text>
+            </View>
+            <View style={[styles.progressTrack, { backgroundColor: colors.surface }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(
+                      Math.round((syncProgress.processed / syncProgress.total) * 100),
+                      100,
+                    )}%`,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        )}
 
         {/* Resumen */}
         <View style={styles.summaryRow}>
@@ -611,6 +793,7 @@ export default function SincronizacionScreen() {
                     <AnimatedQueueItem
                       key={item.id}
                       item={item}
+                      description={descMap.get(item.id) ?? ''}
                       colors={colors}
                       colorScheme={colorScheme}
                       index={index}
@@ -639,6 +822,7 @@ export default function SincronizacionScreen() {
                     <AnimatedQueueItem
                       key={item.id}
                       item={item}
+                      description={descMap.get(item.id) ?? ''}
                       colors={colors}
                       colorScheme={colorScheme}
                       index={index}
@@ -736,6 +920,31 @@ const styles = StyleSheet.create({
   },
   lastSync: {
     fontSize: FontSize.xs,
+  },
+  progressCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  progressTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+  },
+  progressTrack: {
+    height: scale(8),
+    borderRadius: scale(4),
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: scale(4),
   },
   summaryRow: {
     flexDirection: 'row',

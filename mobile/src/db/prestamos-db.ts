@@ -3,8 +3,13 @@ import { db } from './index';
 import { prestamos, cuotas, clientes } from './schema';
 import type { Prestamo, Cuota } from '@/types/prestamo.types';
 
-function rowToPrestamo(row: typeof prestamos.$inferSelect): Prestamo {
-  const clienteRow = db
+function rowToPrestamo(
+  row: typeof prestamos.$inferSelect,
+  clienteRow?: typeof clientes.$inferSelect,
+): Prestamo {
+  // Si el llamador ya precargó el cliente (p. ej. un mapa en memoria), lo
+  // reutiliza para evitar la consulta N+1 por fila.
+  const cliente = clienteRow ?? db
     .select()
     .from(clientes)
     .where(eq(clientes.id, row.clienteId))
@@ -36,8 +41,8 @@ function rowToPrestamo(row: typeof prestamos.$inferSelect): Prestamo {
     empresaId: row.empresaId,
     createdAt: row.createdAt,
     historialRefinanciamiento: row.historialRefinanciamiento ? JSON.parse(row.historialRefinanciamiento) : null,
-    cliente: clienteRow
-      ? { id: clienteRow.id, nombre: clienteRow.nombre, apellido: clienteRow.apellido, cedula: clienteRow.cedula, telefono: clienteRow.telefono, celular: clienteRow.celular }
+    cliente: cliente
+      ? { id: cliente.id, nombre: cliente.nombre, apellido: cliente.apellido, cedula: cliente.cedula, telefono: cliente.telefono, celular: cliente.celular }
       : { id: row.clienteId, nombre: '', cedula: '', apellido: null, telefono: null, celular: null },
     cuotas: [],
     pagos: [],
@@ -171,6 +176,17 @@ export function searchPrestamos(term: string): Prestamo[] {
 
   if (matchingClienteIds.length === 0) return [];
 
+  // Precargamos los clientes coincidentes una sola vez (mapa en memoria) para
+  // evitar el N+1 en rowToPrestamo.
+  const clientesMap = new Map(
+    db
+      .select()
+      .from(clientes)
+      .where(inArray(clientes.id, matchingClienteIds))
+      .all()
+      .map((c) => [c.id, c]),
+  );
+
   const rows = db
     .select()
     .from(prestamos)
@@ -179,7 +195,7 @@ export function searchPrestamos(term: string): Prestamo[] {
     .all();
 
   return rows.map((row) => {
-    const p = rowToPrestamo(row);
+    const p = rowToPrestamo(row, clientesMap.get(row.clienteId));
     p.cuotas = getCuotasByPrestamoId(p.id);
     return p;
   });
@@ -191,7 +207,13 @@ export function getPrestamosByClienteId(clienteId: string): Prestamo[] {
     .from(prestamos)
     .where(eq(prestamos.clienteId, clienteId))
     .all();
-  return rows.map(rowToPrestamo);
+  // Todos los préstamos comparten el mismo cliente: una sola consulta.
+  const clienteRow = db
+    .select()
+    .from(clientes)
+    .where(eq(clientes.id, clienteId))
+    .get();
+  return rows.map((row) => rowToPrestamo(row, clienteRow ?? undefined));
 }
 
 export function upsertCuotas(list: Cuota[]): void {
@@ -218,8 +240,17 @@ export function getCuotasByPrestamoId(prestamoId: string): Cuota[] {
 
 export function getAllCachedPrestamos(): Prestamo[] {
   const rows = db.select().from(prestamos).all();
+  // Cargamos todos los clientes una sola vez y mapeamos por id: elimina el
+  // N+1 que disparaba `rowToPrestamo` (1 query de cliente por préstamo).
+  const clientesMap = new Map(
+    db
+      .select()
+      .from(clientes)
+      .all()
+      .map((c) => [c.id, c]),
+  );
   return rows.map((row) => {
-    const p = rowToPrestamo(row);
+    const p = rowToPrestamo(row, clientesMap.get(row.clienteId));
     p.cuotas = getCuotasByPrestamoId(p.id);
     return p;
   });
@@ -260,7 +291,11 @@ export function aplicarPagoLocal(
     pagoCompleto: false,
   };
 
-  const cuotasPendientes = getCuotasByPrestamoId(prestamoId)
+  // Lectura única de cuotas en memoria; se reutiliza en todo el cálculo para
+  // evitar re-consultas (antes se leían hasta 3 veces por pago).
+  const todas = getCuotasByPrestamoId(prestamoId);
+
+  const cuotasPendientes = todas
     .filter((c) => !c.pagada)
     .sort((a, b) => a.numero - b.numero);
   if (cuotasPendientes.length === 0) return resultadoVacio;
@@ -293,7 +328,6 @@ export function aplicarPagoLocal(
   const excedente = Math.round(montoPagado * 100) / 100;
   const pagoCompleto = Math.round(montoPagadoRaw * 100) / 100 >= montoExacto;
 
-  const todas = getCuotasByPrestamoId(prestamoId);
   const map = new Map(todas.map((c) => [c.id, { ...c }]));
 
   const cuotaObj = map.get(cuotaObjetivo.id)!;
@@ -343,8 +377,15 @@ export function aplicarPagoLocal(
     Math.round(actualizadas.reduce((s, c) => s + (c.mora || 0), 0) * 100) / 100,
   );
 
-  const prestamo = getPrestamoById(prestamoId);
-  if (!prestamo) return { ...resultadoVacio, pagoCompleto };
+  // Cargamos solo la fila del préstamo (y su cliente) sin las cuotas: evita la
+  // lectura extra de cuotas que hacía getPrestamoById (ya las tenemos en `todas`).
+  const prestamoRow = db
+    .select()
+    .from(prestamos)
+    .where(eq(prestamos.id, prestamoId))
+    .get();
+  if (!prestamoRow) return { ...resultadoVacio, pagoCompleto };
+  const prestamo = rowToPrestamo(prestamoRow);
 
   let nuevoEstado: Prestamo['estado'] = prestamo.estado;
   if (actualizadas.length === 0 || nuevoSaldo <= 0) {

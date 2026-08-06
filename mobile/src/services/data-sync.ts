@@ -4,7 +4,6 @@ import { upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
 import { upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
 import { upsertRutas, upsertRutaClientes, getRutas } from '@/db/rutas-db';
 import { setConfiguracion, getConfiguracion } from '@/db/config-db';
-import { setLastSyncAt } from '@/db/sync-meta-db';
 import { obtener as obtenerPrestamo } from '@/api/prestamos.api';
 import type { Cliente, PaginatedClientesResponse } from '@/types/cliente.types';
 import type { Prestamo, PaginatedPrestamosResponse } from '@/types/prestamo.types';
@@ -86,6 +85,4 @@ export function hydrateFromDb(queryClient: QueryClient): void {
       { data: cachedPrestamos, total: cachedPrestamos.length, pagina: 1, porPagina: 200, totalPaginas: 1 },
     );
   }
-
-  setLastSyncAt(Date.now());
 }

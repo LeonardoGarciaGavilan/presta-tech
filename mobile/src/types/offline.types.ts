@@ -15,6 +15,12 @@ export interface OfflineQueueItem {
   tempDisplay?: Record<string, unknown>;
   lastError?: string;
   idempotencyKey?: string;
+  /**
+   * true = el fallo fue transitorio (red/5xx/408/429) y vale la pena reintentar.
+   * false = error permanente (validación/conflicto) que no se resuelve solo.
+   * Se usa para que `retryFailed` no reintente errores permanentes en bucle.
+   */
+  retryable?: boolean;
 }
 
 export interface SyncState {
