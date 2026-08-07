@@ -2,12 +2,15 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
+  Query,
   Req,
   UseGuards,
   HttpCode,
   HttpStatus,
   HttpException,
+  ParseDatePipe,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
@@ -18,6 +21,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { ReportClearDto } from './dto/report-clear.dto';
+import { SyncService } from './sync.service';
 
 interface AuthUser {
   userId: string;
@@ -30,7 +34,38 @@ interface AuthUser {
 @Controller('sync')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SyncController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncService: SyncService,
+  ) {}
+
+  /**
+   * Descarga de datos para modo offline (incremental o completo).
+   *
+   * - `?desde=<ISO>`: solo registros con `updatedAt > desde` (deltas).
+   * - Sin `desde`: snapshot completo (botón "Forzar recarga").
+   *
+   * Responde `serverTime` para usarlo como nuevo cursor de sincronización.
+   */
+  @Get('cambios')
+  @Roles('SUPERADMIN', 'ADMIN', 'EMPLEADO')
+  async cambios(
+    @Tenant() empresaId: string | null,
+    @CurrentUser() user: AuthUser,
+    @Query('desde', new ParseDatePipe({ optional: true })) desde?: Date,
+  ) {
+    if (!empresaId) {
+      throw new HttpException(
+        'Empresa no identificada en el token',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const isAdmin = user.rol === 'SUPERADMIN' || user.rol === 'ADMIN';
+    const usuarioId = user.userId ?? user.sub ?? user.id;
+
+    return this.syncService.cambios(empresaId, { isAdmin, usuarioId }, desde);
+  }
 
   /**
    * Registra en auditoría la limpieza local de operaciones fallidas de la

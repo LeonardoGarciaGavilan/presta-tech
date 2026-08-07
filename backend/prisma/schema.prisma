@@ -107,6 +107,7 @@ model Cliente {
   @@index([cedula])
   @@index([telefono])
   @@index([provincia, municipio])
+  @@index([empresaId, updatedAt])
 }
 
 model Prestamo {
@@ -131,6 +132,7 @@ model Prestamo {
   fechaAprobacion           DateTime?
   fechaDesembolso           DateTime?
   createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @default(now()) @updatedAt
   empresaId                 String
   clienteId                 String
   garanteId                 String?
@@ -148,6 +150,7 @@ model Prestamo {
   @@index([clienteId])
   @@index([garanteId])
   @@index([empresaId, createdAt])
+  @@index([empresaId, updatedAt])
 }
 
 model Cuota {
@@ -314,6 +317,7 @@ model Ruta {
   clientes    RutaCliente[]
 
   @@index([empresaId, activa])
+  @@index([empresaId, updatedAt])
 }
 
 model RutaCliente {
@@ -323,6 +327,7 @@ model RutaCliente {
   visitadoHoy  Boolean   @default(false)
   ultimaVisita DateTime?
   createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
   rutaId       String
   clienteId    String
   fechaRuta    String?
@@ -331,6 +336,7 @@ model RutaCliente {
 
   @@unique([rutaId, clienteId])
   @@index([rutaId, fechaRuta])
+  @@index([updatedAt])
 }
 
 model Alerta {
