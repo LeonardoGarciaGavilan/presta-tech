@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma, Cliente, RutaCliente } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { calcularDesdeObjeto } from '../common/utils/prestamo.utils';
 
 const CLIENTE_RESUMEN_SELECT = {
   id: true,
@@ -90,7 +91,7 @@ export class SyncService {
       ...(updatedSince ?? {}),
     };
 
-    const [clientes, prestamos, rutas, rutaClientes] = await Promise.all([
+    const [clientes, prestamosRaw, rutas, rutaClientes] = await Promise.all([
       this.prisma.cliente.findMany({
         where: { empresaId, activo: true, ...(updatedSince ?? {}) },
         orderBy: { updatedAt: 'desc' },
@@ -132,6 +133,13 @@ export class SyncService {
     ]);
 
     const configuracion = await this.getConfiguracion(empresaId);
+
+    // Paridad con prestamos.listar/findOne: saldoPendiente y moraAcumulada se
+    // calculan desde las cuotas pendientes (la columna no es fuente de verdad).
+    const prestamos = prestamosRaw.map((p) => {
+      const { saldoPendiente, moraAcumulada } = calcularDesdeObjeto(p);
+      return { ...p, saldoPendiente, moraAcumulada };
+    });
 
     return {
       serverTime: new Date().toISOString(),
