@@ -20,9 +20,10 @@ import { getQueue, clearFailedItems } from '@/db/offline-queue-db';
 import type { OfflineQueueItem } from '@/types/offline.types';
 import { reportQueueClear } from '@/api/sync.api';
 import { onSyncItemEvent } from '@/services/sync-manager';
+import { prefetchVistaDiasRuta } from '@/services/prefetch-manager';
 import { getClienteById } from '@/db/clientes-db';
 import { getPrestamoById } from '@/db/prestamos-db';
-import { getRutas } from '@/db/rutas-db';
+import { getRutas, getRutaClienteById } from '@/db/rutas-db';
 import { formatCurrency } from '@/utils/formatters';
 import { useQueryClient } from '@tanstack/react-query';
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
@@ -190,74 +191,184 @@ function nombreClientePorRutaClienteId(rcId: string): string | null {
   return null;
 }
 
-function buildItemDescription(item: OfflineQueueItem): string {
+type ItemDetailRow = { label: string; value: string };
+
+interface ItemDetails {
+  summary: string;
+  rows: ItemDetailRow[];
+}
+
+interface ClienteInfo {
+  nombre: string | null;
+  cedula: string | null;
+}
+
+function pushClienteRows(rows: ItemDetailRow[], info: ClienteInfo): void {
+  if (info.nombre) rows.push({ label: 'Cliente', value: info.nombre });
+  if (info.cedula) rows.push({ label: 'Cédula', value: info.cedula });
+}
+
+function formatNumeroCuota(data: Record<string, any>): string | null {
+  if (!data.cuotaId || !data.prestamoId) return null;
+  const prestamo = getPrestamoById(data.prestamoId);
+  const cuotas = prestamo?.cuotas;
+  if (!Array.isArray(cuotas) || cuotas.length === 0) return null;
+  const index = cuotas.findIndex((c) => c.id === data.cuotaId);
+  if (index === -1) return null;
+  return `${index + 1} de ${cuotas.length}`;
+}
+
+function clienteInfo(item: OfflineQueueItem, data: Record<string, any>): ClienteInfo {
+  let clienteId: string | null = null;
+
+  if (data.clienteId) clienteId = data.clienteId;
+  else if (data.prestamoId) clienteId = getPrestamoById(data.prestamoId)?.clienteId ?? null;
+  else if (data.rcId) clienteId = getRutaClienteById(data.rcId)?.clienteId ?? null;
+
+  if (!clienteId && typeof item.endpoint === 'string') {
+    const saldarMatch = item.endpoint.match(/^\/pagos\/saldar\/([^/]+)/);
+    if (saldarMatch) clienteId = getPrestamoById(saldarMatch[1])?.clienteId ?? null;
+    const prestamoMatch = item.endpoint.match(/^\/prestamos\/([^/]+)/);
+    if (!clienteId && prestamoMatch && !saldarMatch) {
+      clienteId = getPrestamoById(prestamoMatch[1])?.clienteId ?? null;
+    }
+    const clienteMatch = item.endpoint.match(/^\/clientes\/([^/]+)/);
+    if (!clienteId && clienteMatch) clienteId = clienteMatch[1];
+  }
+
+  let nombre =
+    typeof data.clienteNombre === 'string' && data.clienteNombre ? data.clienteNombre : null;
+  if (!nombre && clienteId) nombre = nombreClientePorId(clienteId);
+  if (!nombre && data.rcId) nombre = nombreClientePorRutaClienteId(data.rcId);
+  if (!nombre && data.prestamoId) nombre = nombreClientePorPrestamoId(data.prestamoId);
+
+  let cedula =
+    typeof data.clienteCedula === 'string' && data.clienteCedula ? data.clienteCedula : null;
+  if (!cedula && clienteId) cedula = getClienteById(clienteId)?.cedula ?? null;
+
+  return { nombre, cedula };
+}
+
+function buildItemDetails(item: OfflineQueueItem): ItemDetails {
   const data = (item.tempDisplay || item.data || {}) as Record<string, any>;
   const { endpoint, method } = item;
+  const info = clienteInfo(item, data);
+  const rows: ItemDetailRow[] = [];
 
   if (endpoint === '/pagos' && method === 'POST') {
-    const nombre = nombreClientePorPrestamoId(data.prestamoId);
-    const monto = formatCurrency(data.montoPagado ?? data.montoTotal);
-    const base = `Pago ${monto}${nombre ? ` a ${nombre}` : ''}`;
-    return data.metodo ? `${base} · ${data.metodo}` : base;
+    pushClienteRows(rows, info);
+    const cuota = formatNumeroCuota(data);
+    if (cuota) rows.push({ label: 'Cuota', value: cuota });
+    const monto = data.montoPagado ?? data.montoTotal;
+    if (monto) rows.push({ label: 'Monto', value: formatCurrency(monto) });
+    if (data.metodo) rows.push({ label: 'Método', value: data.metodo });
+    const prestamo = data.prestamoId ? getPrestamoById(data.prestamoId) : null;
+    if (prestamo) rows.push({ label: 'Saldo', value: formatCurrency(prestamo.saldoPendiente) });
+    const base = `Pago ${formatCurrency(monto)}${info.nombre ? ` a ${info.nombre}` : ''}`;
+    return { summary: data.metodo ? `${base} · ${data.metodo}` : base, rows };
   }
 
   const saldarMatch = endpoint.match(/^\/pagos\/saldar\/([^/]+)/);
   if (saldarMatch) {
-    const nombre = nombreClientePorPrestamoId(saldarMatch[1]);
-    const monto = formatCurrency(data.montoPagado ?? data.monto);
-    return `Saldar préstamo de ${nombre ?? 'cliente'} · ${monto}`;
+    pushClienteRows(rows, info);
+    const monto = data.montoTotal ?? data.montoPagado ?? data.monto;
+    if (monto) rows.push({ label: 'Monto', value: formatCurrency(monto) });
+    if (data.metodo) rows.push({ label: 'Método', value: data.metodo });
+    return {
+      summary: `Saldar préstamo de ${info.nombre ?? 'cliente'}${monto ? ` · ${formatCurrency(monto)}` : ''}`,
+      rows,
+    };
   }
 
   if (endpoint === '/caja/abrir') {
-    return `Abrir caja · ${formatCurrency(data.montoInicial)}`;
+    rows.push({ label: 'Monto', value: formatCurrency(data.montoInicial) });
+    rows.push({ label: 'Estado', value: 'Abierta' });
+    return { summary: `Abrir caja · ${formatCurrency(data.montoInicial)}`, rows };
   }
   if (endpoint === '/caja/cerrar') {
-    return `Cerrar caja · ${formatCurrency(data.montoCierre ?? data.monto)}`;
+    const monto = data.montoCierre ?? data.monto;
+    rows.push({ label: 'Monto cierre', value: formatCurrency(monto) });
+    if (typeof data.diferencia === 'number') {
+      rows.push({ label: 'Diferencia', value: formatCurrency(data.diferencia) });
+    }
+    return { summary: `Cerrar caja · ${formatCurrency(monto)}`, rows };
   }
 
   if (endpoint === '/prestamos' && method === 'POST') {
-    const nombre = nombreClientePorId(data.clienteId);
-    return `Nuevo préstamo ${formatCurrency(data.monto)}${nombre ? ` · ${nombre}` : ''}`;
+    pushClienteRows(rows, info);
+    if (data.monto) rows.push({ label: 'Monto', value: formatCurrency(data.monto) });
+    if (data.tasaInteres) rows.push({ label: 'Tasa', value: `${data.tasaInteres}%` });
+    if (data.numeroCuotas) rows.push({ label: 'Cuotas', value: String(data.numeroCuotas) });
+    if (data.frecuenciaPago) rows.push({ label: 'Frecuencia', value: data.frecuenciaPago });
+    rows.push({ label: 'Estado', value: 'Solicitado' });
+    return {
+      summary: `Nuevo préstamo ${formatCurrency(data.monto)}${info.nombre ? ` · ${info.nombre}` : ''}`,
+      rows,
+    };
   }
 
   const prestamoMatch = endpoint.match(/^\/prestamos\/([^/]+)/);
   if (prestamoMatch) {
-    const id = prestamoMatch[1];
-    const nombre = nombreClientePorPrestamoId(id);
-    const sufijo = nombre ? ` · ${nombre}` : '';
-    if (endpoint.endsWith('/cancelar')) return `Cancelar préstamo${sufijo}`;
-    if (endpoint.endsWith('/desembolsar')) {
-      const prestamo = getPrestamoById(id);
-      return `Desembolso ${formatCurrency(data.monto ?? prestamo?.monto)}${sufijo}`;
+    pushClienteRows(rows, info);
+    if (Array.isArray(data.cambios) && data.cambios.length > 0) {
+      rows.push({ label: 'Cambios', value: data.cambios.join(', ') });
     }
-    if (endpoint.endsWith('/estado')) return `Cambiar estado de préstamo${sufijo}`;
-    if (endpoint.endsWith('/refinanciar')) return `Refinanciar préstamo${sufijo}`;
-    return `Editar préstamo${sufijo}`;
+    if (data.nuevoEstado) rows.push({ label: 'Nuevo estado', value: String(data.nuevoEstado) });
+    if (data.motivo) rows.push({ label: 'Motivo', value: String(data.motivo) });
+    if (data.nuevasCuotas) rows.push({ label: 'Nuevas cuotas', value: String(data.nuevasCuotas) });
+    if (data.nuevaTasa) rows.push({ label: 'Nueva tasa', value: `${data.nuevaTasa}%` });
+    const id = prestamoMatch[1];
+    const prestamo = getPrestamoById(id);
+    const monto = data.monto ?? prestamo?.monto;
+    const sufijo = info.nombre ? ` · ${info.nombre}` : '';
+    if (endpoint.endsWith('/cancelar')) return { summary: `Cancelar préstamo${sufijo}`, rows };
+    if (endpoint.endsWith('/desembolsar')) {
+      if (monto) rows.unshift({ label: 'Monto', value: formatCurrency(monto) });
+      return { summary: `Desembolso ${formatCurrency(monto)}${sufijo}`, rows };
+    }
+    if (endpoint.endsWith('/estado')) return { summary: `Cambiar estado de préstamo${sufijo}`, rows };
+    if (endpoint.endsWith('/refinanciar')) return { summary: `Refinanciar préstamo${sufijo}`, rows };
+    return { summary: `Editar préstamo${sufijo}`, rows };
   }
 
   if (endpoint === '/clientes' && method === 'POST') {
-    const nombre = clienteFullName(data);
-    const cedula = data.cedula ? ` · Cédula ${data.cedula}` : '';
-    return `Nuevo cliente: ${nombre ?? '—'}${cedula}`;
+    const nombre = clienteFullName(data) ?? info.nombre;
+    const cedula = data.cedula ?? info.cedula;
+    if (nombre) rows.push({ label: 'Cliente', value: nombre });
+    if (cedula) rows.push({ label: 'Cédula', value: cedula });
+    return { summary: `Nuevo cliente: ${nombre ?? '—'}${cedula ? ` · Cédula ${cedula}` : ''}`, rows };
   }
 
   const clienteMatch = endpoint.match(/^\/clientes\/([^/]+)/);
   if (clienteMatch) {
-    const nombre = nombreClientePorId(clienteMatch[1]) ?? '—';
-    if (endpoint.endsWith('/reactivar')) return `Reactivar cliente: ${nombre}`;
-    if (method === 'DELETE') return `Eliminar cliente: ${nombre}`;
-    return `Editar cliente: ${nombre}`;
+    const nombre = info.nombre ?? nombreClientePorId(clienteMatch[1]) ?? '—';
+    if (info.nombre) pushClienteRows(rows, info);
+    if (Array.isArray(data.cambios) && data.cambios.length > 0) {
+      rows.push({ label: 'Cambios', value: data.cambios.join(', ') });
+    }
+    if (endpoint.endsWith('/reactivar')) return { summary: `Reactivar cliente: ${nombre}`, rows };
+    if (method === 'DELETE') return { summary: `Eliminar cliente: ${nombre}`, rows };
+    return { summary: `Editar cliente: ${nombre}`, rows };
   }
 
   if (endpoint.includes('/visita')) {
-    const nombre = nombreClientePorRutaClienteId(data.rcId);
-    const base = `Marcar visita${nombre ? `: ${nombre}` : ''}`;
-    return typeof data.visitado === 'boolean' ? `${base} · ${data.visitado ? 'Visitado' : 'Pendiente'}` : base;
+    if (info.nombre) rows.push({ label: 'Cliente', value: info.nombre });
+    if (typeof data.visitado === 'boolean') {
+      rows.push({ label: 'Visita', value: data.visitado ? 'Visitado' : 'Pendiente' });
+    }
+    const base = `Marcar visita${info.nombre ? `: ${info.nombre}` : ''}`;
+    return {
+      summary: typeof data.visitado === 'boolean' ? `${base} · ${data.visitado ? 'Visitado' : 'Pendiente'}` : base,
+      rows,
+    };
   }
-  if (endpoint.includes('/reset')) return 'Reset de visitas de la ruta';
-  if (endpoint.includes('/generar')) return 'Generar día de ruta';
+  if (endpoint.includes('/reset')) return { summary: 'Reset de visitas de la ruta', rows };
+  if (endpoint.includes('/generar')) {
+    if (data.fecha) rows.push({ label: 'Fecha', value: String(data.fecha) });
+    return { summary: 'Generar día de ruta', rows };
+  }
 
-  return getDisplayText(item);
+  return { summary: getDisplayText(item), rows };
 }
 
 function ConnectionDot({ isOnline }: { isOnline: boolean }) {
@@ -310,13 +421,13 @@ function ConnectionDot({ isOnline }: { isOnline: boolean }) {
 
 function AnimatedQueueItem({
   item,
-  description,
+  details,
   colors,
   colorScheme,
   index,
 }: {
   item: OfflineQueueItem;
-  description: string;
+  details: ItemDetails;
   colors: ReturnType<typeof useTheme>['colors'];
   colorScheme: 'light' | 'dark';
   index: number;
@@ -360,11 +471,29 @@ function AnimatedQueueItem({
         </View>
       </View>
 
-      {description ? (
+      {details.summary ? (
         <Text style={[styles.itemDescription, { color: colors.textSecondary }]}>
-          {description}
+          {details.summary}
         </Text>
       ) : null}
+
+      {details.rows.length > 0 && (
+        <View style={[styles.detailRows, { backgroundColor: colors.background }]}>
+          {details.rows.map((row) => (
+            <View key={row.label} style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textTertiary }]}>
+                {row.label}
+              </Text>
+              <Text
+                style={[styles.detailValue, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {row.value}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {item.lastError ? (
         <View style={[styles.errorCard, { backgroundColor: colors.errorLight }]}>
@@ -434,8 +563,8 @@ export default function SincronizacionScreen() {
     };
   }, [loadItems]);
 
-  const descMap = useMemo(
-    () => new Map(items.map((i) => [i.id, buildItemDescription(i)])),
+  const detailsMap = useMemo(
+    () => new Map(items.map((i) => [i.id, buildItemDetails(i)])),
     [items],
   );
 
@@ -499,7 +628,14 @@ export default function SincronizacionScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             try {
               await queryClient.invalidateQueries();
-              Alert.alert('Listo', 'Datos recargados correctamente.');
+              const { success, failed } = await prefetchVistaDiasRuta(queryClient);
+              const message =
+                failed > 0
+                  ? `Datos recargados. ${success} ruta(s) listas para offline, ${failed} no pudieron descargarse.`
+                  : success > 0
+                    ? `Datos recargados. ${success} ruta(s) listas para usar sin conexión.`
+                    : 'Datos recargados correctamente.';
+              Alert.alert('Listo', message);
             } catch {
               Alert.alert('Error', 'No se pudieron recargar los datos.');
             }
@@ -793,7 +929,7 @@ export default function SincronizacionScreen() {
                     <AnimatedQueueItem
                       key={item.id}
                       item={item}
-                      description={descMap.get(item.id) ?? ''}
+                      details={detailsMap.get(item.id) ?? { summary: '', rows: [] }}
                       colors={colors}
                       colorScheme={colorScheme}
                       index={index}
@@ -822,7 +958,7 @@ export default function SincronizacionScreen() {
                     <AnimatedQueueItem
                       key={item.id}
                       item={item}
-                      description={descMap.get(item.id) ?? ''}
+                      details={detailsMap.get(item.id) ?? { summary: '', rows: [] }}
                       colors={colors}
                       colorScheme={colorScheme}
                       index={index}
@@ -1133,6 +1269,29 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     marginBottom: Spacing.xs,
     lineHeight: scale(18),
+  },
+  detailRows: {
+    borderRadius: BorderRadius.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: 2,
+  },
+  detailLabel: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.medium,
+  },
+  detailValue: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    flex: 1,
+    textAlign: 'right',
   },
   errorCard: {
     flexDirection: 'row',

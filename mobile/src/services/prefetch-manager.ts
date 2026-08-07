@@ -3,7 +3,7 @@ import { getNetworkStatus } from '@/hooks/use-network-status';
 import { listar as listarClientes } from '@/api/clientes.api';
 import { listar as listarPrestamos } from '@/api/prestamos.api';
 import { obtenerCajaActiva } from '@/api/caja.api';
-import { listarRutas, listarUsuarios } from '@/api/rutas.api';
+import { listarRutas, listarUsuarios, obtenerVistaDia } from '@/api/rutas.api';
 import { obtenerResumenPagos } from '@/api/pagos.api';
 import { getDashboardMobile } from '@/api/dashboard.api';
 import { obtenerConfiguracion } from '@/api/configuracion.api';
@@ -13,6 +13,8 @@ import {
   syncRutasToDb,
   syncConfigToDb,
 } from '@/services/data-sync';
+import { getRutas, upsertVistaDiaCache } from '@/db/rutas-db';
+import { dateToISO } from '@/utils/formatters';
 import { getLastSyncAt, setLastSyncAt } from '@/db/sync-meta-db';
 
 const PREFETCH_INTERVAL_MS = 30 * 60 * 1000;
@@ -147,6 +149,43 @@ export async function prefetchDashboard(
   return safeFetch(queryClient, ['dashboard', 'mobile'], () => getDashboardMobile(), {
     staleTime: 2 * 60 * 1000,
   });
+}
+
+// Cachea la "vista del día" (GET /rutas/:id/dia) de todas las rutas para la
+// fecha actual. Es lo que permite ver una ruta sin conexión aunque nunca se
+// haya abierto estando online: `useVistaDia` lee `getVistaDiaCache` cuando
+// está offline. Nunca lanza: cada ruta se cuenta como success/failed.
+export async function prefetchVistaDiasRuta(
+  queryClient: QueryClient,
+): Promise<{ success: number; failed: number }> {
+  const network = getNetworkStatus();
+  if (!network.isOnline) return { success: 0, failed: 0 };
+
+  const fecha = dateToISO(new Date());
+  const cached = queryClient.getQueryData(['rutas']);
+  const rutas = Array.isArray(cached)
+    ? (cached as { id: string }[])
+    : getRutas();
+
+  let success = 0;
+  let failed = 0;
+  for (const ruta of rutas) {
+    const ok = await safeFetch(
+      queryClient,
+      ['rutas', ruta.id, 'dia', fecha],
+      () => obtenerVistaDia(ruta.id, fecha),
+      {
+        staleTime: 5 * 60 * 1000,
+        persistFn: (data) => upsertVistaDiaCache(ruta.id, fecha, data),
+      },
+    );
+    if (ok) {
+      success++;
+    } else {
+      failed++;
+    }
+  }
+  return { success, failed };
 }
 
 export async function prefetchAll(

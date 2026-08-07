@@ -13,7 +13,7 @@ import type {
   ClientesFilters,
 } from '@/types/cliente.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
-import { getClienteById, upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
+import { getClienteById, getClienteNombre, upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -135,6 +135,7 @@ export function useActualizarCliente() {
           tempDisplay: {
             clienteId: id,
             cambios: Object.keys(data),
+            clienteNombre: getClienteNombre(id),
           },
         });
         queryClient.setQueryData(['clientes', id], (old: any) => ({
@@ -164,7 +165,7 @@ export function useEliminarCliente() {
           data: {},
           queryKeys: [['clientes']],
           tempId: `eliminar_cliente_temp_${Date.now()}`,
-          tempDisplay: { clienteId: id },
+          tempDisplay: { clienteId: id, clienteNombre: getClienteNombre(id) },
         });
         queryClient.setQueryData(['clientes', id], (old: any) => ({
           ...old,
@@ -192,7 +193,7 @@ export function useReactivarCliente() {
           data: {},
           queryKeys: [['clientes', id], ['clientes']],
           tempId: `reactivar_cliente_temp_${Date.now()}`,
-          tempDisplay: { clienteId: id },
+          tempDisplay: { clienteId: id, clienteNombre: getClienteNombre(id) },
         });
         queryClient.setQueryData(['clientes', id], (old: any) => ({
           ...old,

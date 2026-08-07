@@ -9,7 +9,8 @@ import type {
   GenerarDiaRequest,
 } from '@/types/rutas.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
-import { getRutas, getRutaById, upsertVistaDiaCache, getVistaDiaCache } from '@/db/rutas-db';
+import { getRutas, getRutaById, getRutaClienteById, upsertVistaDiaCache, getVistaDiaCache } from '@/db/rutas-db';
+import { getClienteNombre } from '@/db/clientes-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 
 export function useRutas() {
@@ -126,6 +127,9 @@ export function useMarcarVisitado() {
           tempDisplay: {
             rcId,
             visitado,
+            clienteNombre: getRutaClienteById(rcId)?.clienteId
+              ? getClienteNombre(getRutaClienteById(rcId)!.clienteId)
+              : undefined,
           },
         });
         if (rutaId && fecha) {

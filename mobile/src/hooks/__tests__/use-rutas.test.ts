@@ -7,6 +7,8 @@ const mockObtenerVistaDia = jest.fn();
 const mockMarcarVisitadoApi = jest.fn();
 const mockResetVisitadosApi = jest.fn();
 const mockGetRutas = jest.fn();
+const mockGetRutaClienteById = jest.fn();
+const mockGetClienteNombre = jest.fn();
 const mockGetVistaDiaCache = jest.fn();
 const mockUpsertVistaDiaCache = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
@@ -31,8 +33,13 @@ jest.mock('@/api/rutas.api', () => ({
 
 jest.mock('@/db/rutas-db', () => ({
   getRutas: (...args: any[]) => mockGetRutas(...args),
+  getRutaClienteById: (...args: any[]) => mockGetRutaClienteById(...args),
   getVistaDiaCache: (...args: any[]) => mockGetVistaDiaCache(...args),
   upsertVistaDiaCache: (...args: any[]) => mockUpsertVistaDiaCache(...args),
+}));
+
+jest.mock('@/db/clientes-db', () => ({
+  getClienteNombre: (...args: any[]) => mockGetClienteNombre(...args),
 }));
 
 jest.mock('@/components/providers/network-provider', () => ({
@@ -133,6 +140,8 @@ describe('useMarcarVisitado', () => {
       addToOfflineQueue: mockAddToOfflineQueue,
     });
     mockAddToOfflineQueue.mockResolvedValue({ tempId: 'visita_temp_123' });
+    mockGetRutaClienteById.mockReturnValue({ clienteId: 'cli_1' });
+    mockGetClienteNombre.mockReturnValue('Ana Pérez');
 
     const { result } = await renderHook(() => useMarcarVisitado(), { wrapper: createWrapper() });
 
@@ -141,7 +150,15 @@ describe('useMarcarVisitado', () => {
 
     expect(mockMarcarVisitadoApi).not.toHaveBeenCalled();
     expect(mockAddToOfflineQueue).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: '/rutas/clientes/rc_1/visita', method: 'PATCH' }),
+      expect.objectContaining({
+        endpoint: '/rutas/clientes/rc_1/visita',
+        method: 'PATCH',
+        tempDisplay: expect.objectContaining({
+          rcId: 'rc_1',
+          visitado: true,
+          clienteNombre: 'Ana Pérez',
+        }),
+      }),
     );
     expect(result.current.data?.esOffline).toBe(true);
   });

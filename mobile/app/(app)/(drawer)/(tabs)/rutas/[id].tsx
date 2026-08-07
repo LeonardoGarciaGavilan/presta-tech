@@ -12,6 +12,7 @@ import { useVistaDia,
 import { useRegistrarPago } from '@/hooks/use-pagos';
 import { useAuthStore } from '@/store/auth.store';
 import { useToast } from '@/components/ui/toast';
+import { useNetworkContext } from '@/components/providers/network-provider';
 import AppMapView from '@/components/clientes/map-view';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { ScreenContainer } from '@/components/ui/screen-container';
@@ -49,6 +50,7 @@ export default function VistaDiaScreen() {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
   const { showToast } = useToast();
+  const { network } = useNetworkContext();
 
   const today = dateToISO(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
@@ -246,9 +248,13 @@ export default function VistaDiaScreen() {
     return (
       <ScreenContainer>
         <EmptyState
-          icon="alert-circle-outline"
-          title="Error"
-          subtitle={error?.message || 'Error al cargar la ruta'}
+          icon={network.isOnline ? 'alert-circle-outline' : 'cloud-offline-outline'}
+          title={network.isOnline ? 'Error' : 'Sin datos guardados'}
+          subtitle={
+            network.isOnline
+              ? error?.message || 'Error al cargar la ruta'
+              : 'No hay datos guardados para esta ruta. Conéctate a internet y usa "Forzar recarga" para verla sin conexión.'
+          }
           actionLabel="Reintentar"
           onAction={() => refetch()}
         />
@@ -260,9 +266,13 @@ export default function VistaDiaScreen() {
     return (
       <ScreenContainer>
         <EmptyState
-          icon="alert-circle-outline"
+          icon={network.isOnline ? 'alert-circle-outline' : 'cloud-offline-outline'}
           title="Datos no disponibles"
-          subtitle="No se pudieron cargar los datos de la ruta. Verifica tu conexión."
+          subtitle={
+            network.isOnline
+              ? 'No se pudieron cargar los datos de la ruta.'
+              : 'No hay datos guardados para esta ruta. Conéctate a internet y usa "Forzar recarga" para verla sin conexión.'
+          }
           actionLabel="Reintentar"
           onAction={() => refetch()}
         />

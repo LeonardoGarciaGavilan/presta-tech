@@ -22,8 +22,14 @@ import type {
 } from '@/types/prestamo.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { getPrestamoById, upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
+import { getClienteNombre, getClienteById } from '@/db/clientes-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { useAuthStore } from '@/store/auth.store';
+
+function clienteNombreDePrestamo(prestamoId: string): string | null {
+  const prestamo = getPrestamoById(prestamoId);
+  return prestamo?.clienteId ? getClienteNombre(prestamo.clienteId) : null;
+}
 
 export function usePrestamos(filters?: PrestamosFilters) {
   return useQuery({
@@ -97,7 +103,8 @@ export function useCrearPrestamo() {
           queryKeys: [['prestamos'], ['clientes']],
           tempId,
           tempDisplay: {
-            clienteNombre: data.clienteId,
+            clienteNombre: getClienteNombre(data.clienteId),
+            clienteCedula: getClienteById(data.clienteId)?.cedula,
             monto: data.monto,
             estado: 'SOLICITADO',
           },
@@ -167,6 +174,7 @@ export function useActualizarPrestamo() {
           tempDisplay: {
             prestamoId: id,
             cambios: Object.keys(data),
+            clienteNombre: clienteNombreDePrestamo(id),
           },
         });
         queryClient.setQueryData(['prestamos', id], (old: any) => ({
@@ -198,6 +206,7 @@ export function useCancelarPrestamo() {
           tempId: `cancelar_prestamo_temp_${Date.now()}`,
           tempDisplay: {
             prestamoId: id,
+            clienteNombre: clienteNombreDePrestamo(id),
           },
         });
         queryClient.setQueryData(['prestamos', id], (old: any) => ({
@@ -237,6 +246,7 @@ export function useCambiarEstadoPrestamo() {
             prestamoId: id,
             nuevoEstado: data.estado,
             motivo: data.motivo,
+            clienteNombre: clienteNombreDePrestamo(id),
           },
         });
         return { id, estado: data.estado, esOffline: true };
@@ -280,6 +290,8 @@ export function useDesembolsarPrestamo() {
           tempId: `desembolso_temp_${Date.now()}`,
           tempDisplay: {
             prestamoId: id,
+            monto: getPrestamoById(id)?.monto,
+            clienteNombre: clienteNombreDePrestamo(id),
           },
         });
         queryClient.setQueryData(['prestamos', id], (old: any) => ({
@@ -319,6 +331,7 @@ export function useRefinanciarPrestamo() {
             prestamoId: id,
             nuevasCuotas: data.nuevasCuotas,
             nuevaTasa: data.nuevaTasa,
+            clienteNombre: clienteNombreDePrestamo(id),
           },
         });
         queryClient.setQueryData(['prestamos', id], (old: any) => ({

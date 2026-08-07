@@ -98,6 +98,13 @@ export function getClienteById(id: string): Cliente | null {
   return cliente;
 }
 
+export function getClienteNombre(id: string): string | null {
+  const cliente = getClienteById(id);
+  if (!cliente) return null;
+  const nombre = `${cliente.nombre} ${cliente.apellido ?? ''}`.trim();
+  return nombre || null;
+}
+
 export function searchClientes(term: string, excludeId?: string): Cliente[] {
   if (!term || term.length < 1) return [];
 

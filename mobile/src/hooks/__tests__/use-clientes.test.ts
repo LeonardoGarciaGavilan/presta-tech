@@ -8,6 +8,7 @@ const mockEliminar = jest.fn();
 const mockReactivar = jest.fn();
 const mockGetAllCachedClientes = jest.fn();
 const mockGetClienteById = jest.fn();
+const mockGetClienteNombre = jest.fn();
 const mockUpsertClientes = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
 const mockSetQueryData = jest.fn();
@@ -26,6 +27,7 @@ jest.mock('@/api/clientes.api', () => ({
 jest.mock('@/db/clientes-db', () => ({
   getAllCachedClientes: (...args: any[]) => mockGetAllCachedClientes(...args),
   getClienteById: (...args: any[]) => mockGetClienteById(...args),
+  getClienteNombre: (...args: any[]) => mockGetClienteNombre(...args),
   upsertClientes: (...args: any[]) => mockUpsertClientes(...args),
 }));
 

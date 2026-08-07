@@ -7,6 +7,7 @@ const mockInsertPago = jest.fn();
 const mockGetCuotasByPrestamoId = jest.fn();
 const mockAplicarPagoLocal = jest.fn();
 const mockGetPrestamoById = jest.fn();
+const mockGetClienteNombre = jest.fn();
 const mockSaldarPrestamoLocal = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
 
@@ -28,6 +29,10 @@ jest.mock('@/db/prestamos-db', () => ({
   aplicarPagoLocal: (...args: any[]) => mockAplicarPagoLocal(...args),
   getPrestamoById: (...args: any[]) => mockGetPrestamoById(...args),
   saldarPrestamoLocal: (...args: any[]) => mockSaldarPrestamoLocal(...args),
+}));
+
+jest.mock('@/db/clientes-db', () => ({
+  getClienteNombre: (...args: any[]) => mockGetClienteNombre(...args),
 }));
 
 jest.mock('@/components/providers/network-provider', () => ({
@@ -96,8 +101,15 @@ describe('useRegistrarPago', () => {
       network: { isOnline: false },
       addToOfflineQueue: mockAddToOfflineQueue,
     });
-    mockAddToOfflineQueue.mockResolvedValue({ tempId: 'pago_temp_123' });
-    mockGetCuotasByPrestamoId.mockReturnValue([
+  mockAddToOfflineQueue.mockResolvedValue({ tempId: 'pago_temp_123' });
+  mockGetPrestamoById.mockReturnValue({
+    id: 'prestamo_1',
+    clienteId: 'cliente_1',
+    saldoPendiente: 5000,
+    montoTotal: 10000,
+  });
+  mockGetClienteNombre.mockReturnValue('Juan Pérez');
+  mockGetCuotasByPrestamoId.mockReturnValue([
       { id: 'cuota_1', numero: 1, monto: 3000, capital: 2500, interes: 500, mora: 0, fechaVencimiento: '2025-01-08', pagada: false, prestamoId: 'prestamo_1', createdAt: '2025-01-01' },
     ]);
     mockAplicarPagoLocal.mockReturnValue({
@@ -116,7 +128,16 @@ describe('useRegistrarPago', () => {
     expect(mockRegistrarPago).not.toHaveBeenCalled();
     expect(mockAddToOfflineQueue).toHaveBeenCalledTimes(1);
     expect(mockAddToOfflineQueue).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: '/pagos', method: 'POST' }),
+      expect.objectContaining({
+        endpoint: '/pagos',
+        method: 'POST',
+        tempDisplay: expect.objectContaining({
+          prestamoId: 'prestamo_1',
+          montoPagado: 3000,
+          metodo: 'EFECTIVO',
+          clienteNombre: 'Juan Pérez',
+        }),
+      }),
     );
 
     expect(mockInsertPago).toHaveBeenCalledTimes(1);

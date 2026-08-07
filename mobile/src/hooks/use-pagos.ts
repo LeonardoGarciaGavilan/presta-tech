@@ -13,6 +13,7 @@ import type {
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { insertPago } from '@/db/pagos-db';
 import { aplicarPagoLocal, getPrestamoById, saldarPrestamoLocal } from '@/db/prestamos-db';
+import { getClienteNombre } from '@/db/clientes-db';
 import { useAuthStore } from '@/store/auth.store';
 import { getFechaRD } from '@/utils/formatters';
 
@@ -46,8 +47,12 @@ export function useRegistrarPago() {
           ],
           tempId,
           tempDisplay: {
+            prestamoId: dto.prestamoId,
             montoPagado: dto.montoPagado,
             metodo: dto.metodo,
+            clienteNombre: prestamoLocal?.clienteId
+              ? getClienteNombre(prestamoLocal.clienteId)
+              : undefined,
           },
         });
         const now = new Date().toISOString();
@@ -132,6 +137,7 @@ export function useSaldarPrestamo() {
     }) => {
       if (!network.isOnline) {
         const dtoConFecha = { ...dto, fecha: getFechaRD() };
+        const prestamoLocal = getPrestamoById(prestamoId);
         const item = await addToOfflineQueue({
           endpoint: `/pagos/saldar/${prestamoId}`,
           method: 'POST',
@@ -148,6 +154,10 @@ export function useSaldarPrestamo() {
           tempDisplay: {
             prestamoId,
             metodo: dto.metodo,
+            montoTotal: prestamoLocal?.montoTotal,
+            clienteNombre: prestamoLocal?.clienteId
+              ? getClienteNombre(prestamoLocal.clienteId)
+              : undefined,
           },
         });
         saldarPrestamoLocal(prestamoId);

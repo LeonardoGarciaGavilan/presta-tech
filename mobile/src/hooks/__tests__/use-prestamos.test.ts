@@ -7,6 +7,8 @@ const mockCrear = jest.fn();
 const mockCambiarEstado = jest.fn();
 const mockGetAllCachedPrestamos = jest.fn();
 const mockGetPrestamoById = jest.fn();
+const mockGetClienteNombre = jest.fn();
+const mockGetClienteById = jest.fn();
 const mockUpsertPrestamos = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
 
@@ -28,6 +30,11 @@ jest.mock('@/db/prestamos-db', () => ({
   getAllCachedPrestamos: (...args: any[]) => mockGetAllCachedPrestamos(...args),
   getPrestamoById: (...args: any[]) => mockGetPrestamoById(...args),
   upsertPrestamos: (...args: any[]) => mockUpsertPrestamos(...args),
+}));
+
+jest.mock('@/db/clientes-db', () => ({
+  getClienteNombre: (...args: any[]) => mockGetClienteNombre(...args),
+  getClienteById: (...args: any[]) => mockGetClienteById(...args),
 }));
 
 jest.mock('@/components/providers/network-provider', () => ({
@@ -122,6 +129,8 @@ describe('useCrearPrestamo', () => {
       addToOfflineQueue: mockAddToOfflineQueue,
     });
     mockAddToOfflineQueue.mockResolvedValue({ tempId: 'prestamo_temp_123' });
+    mockGetClienteNombre.mockReturnValue('María Gómez');
+    mockGetClienteById.mockReturnValue({ cedula: '001-0000000-1' });
 
     const { result } = await renderHook(() => useCrearPrestamo(), { wrapper: createWrapper() });
 
@@ -131,7 +140,15 @@ describe('useCrearPrestamo', () => {
     expect(mockCrear).not.toHaveBeenCalled();
     expect(mockAddToOfflineQueue).toHaveBeenCalledTimes(1);
     expect(mockAddToOfflineQueue).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: '/prestamos', method: 'POST' }),
+      expect.objectContaining({
+        endpoint: '/prestamos',
+        method: 'POST',
+        tempDisplay: expect.objectContaining({
+          clienteNombre: 'María Gómez',
+          clienteCedula: '001-0000000-1',
+          monto: 10000,
+        }),
+      }),
     );
     expect(mockUpsertPrestamos).toHaveBeenCalledTimes(1);
     const synPrestamo = mockUpsertPrestamos.mock.calls[0][0][0];

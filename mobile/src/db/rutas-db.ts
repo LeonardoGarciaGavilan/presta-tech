@@ -129,6 +129,15 @@ export function getRutaClienteByClienteId(clienteId: string): RutaCliente | null
   return row ? rowToRutaCliente(row) : null;
 }
 
+export function getRutaClienteById(rcId: string): RutaCliente | null {
+  const row = db
+    .select()
+    .from(rutaClientes)
+    .where(eq(rutaClientes.id, rcId))
+    .get();
+  return row ? rowToRutaCliente(row) : null;
+}
+
 export function clearRutas(): void {
   db.delete(rutas).run();
   db.delete(rutaClientes).run();
