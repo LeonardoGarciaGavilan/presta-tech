@@ -115,20 +115,35 @@ export class PrestamosService {
     if (typeof monto !== 'number' || !isFinite(monto) || monto <= 0) {
       throw new BadRequestException('Monto inválido para modo rápido.');
     }
-    if (typeof numeroCuotas !== 'number' || !isFinite(numeroCuotas) || numeroCuotas < 1 || !Number.isInteger(numeroCuotas)) {
-      throw new BadRequestException('Número de cuotas inválido para modo rápido.');
+    if (
+      typeof numeroCuotas !== 'number' ||
+      !isFinite(numeroCuotas) ||
+      numeroCuotas < 1 ||
+      !Number.isInteger(numeroCuotas)
+    ) {
+      throw new BadRequestException(
+        'Número de cuotas inválido para modo rápido.',
+      );
     }
-    if (typeof montoTotal !== 'number' || !isFinite(montoTotal) || montoTotal <= 0) {
+    if (
+      typeof montoTotal !== 'number' ||
+      !isFinite(montoTotal) ||
+      montoTotal <= 0
+    ) {
       throw new BadRequestException('Monto total inválido para modo rápido.');
     }
     if (montoTotal <= monto) {
-      throw new BadRequestException('El total a cobrar debe ser mayor al monto prestado.');
+      throw new BadRequestException(
+        'El total a cobrar debe ser mayor al monto prestado.',
+      );
     }
 
     const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
 
     if (gananciaTotal <= 0) {
-      throw new BadRequestException('La ganancia total debe ser mayor a cero en modo rápido.');
+      throw new BadRequestException(
+        'La ganancia total debe ser mayor a cero en modo rápido.',
+      );
     }
 
     const cuotaFija = Math.round(montoTotal / numeroCuotas);
@@ -140,12 +155,15 @@ export class PrestamosService {
     const ultimaCuota = Math.round(montoTotal - cuotaFija * (numeroCuotas - 1));
 
     if (ultimaCuota <= 0 || !isFinite(ultimaCuota)) {
-      throw new BadRequestException('La última cuota sería menor o igual a cero en modo rápido.');
+      throw new BadRequestException(
+        'La última cuota sería menor o igual a cero en modo rápido.',
+      );
     }
 
-    const gananciaPorCuota = numeroCuotas > 0
-      ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
-      : 0;
+    const gananciaPorCuota =
+      numeroCuotas > 0
+        ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
+        : 0;
 
     let saldo = monto;
     let totalIntereses = 0;
@@ -153,10 +171,14 @@ export class PrestamosService {
 
     for (let i = 1; i <= numeroCuotas; i++) {
       const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
-      const interes = i === numeroCuotas
-        ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
-        : gananciaPorCuota;
-      const capital = Math.max(0, Math.round((montoCuota - interes) * 100) / 100);
+      const interes =
+        i === numeroCuotas
+          ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+          : gananciaPorCuota;
+      const capital = Math.max(
+        0,
+        Math.round((montoCuota - interes) * 100) / 100,
+      );
 
       cuotas.push({
         numero: i,
@@ -182,7 +204,9 @@ export class PrestamosService {
 
     for (const c of cuotas) {
       if (!Number.isInteger(c.monto) || c.monto <= 0) {
-        throw new BadRequestException(`Cuota #${c.numero} inválida en modo rápido: ${c.monto}.`);
+        throw new BadRequestException(
+          `Cuota #${c.numero} inválida en modo rápido: ${c.monto}.`,
+        );
       }
     }
 
@@ -329,10 +353,7 @@ export class PrestamosService {
       select: { mora: true },
     });
 
-    const mora = cuotas.reduce(
-      (sum, c) => sum + (c.mora || 0),
-      0,
-    );
+    const mora = cuotas.reduce((sum, c) => sum + (c.mora || 0), 0);
 
     return Math.round(mora * 100) / 100;
   }
@@ -340,19 +361,23 @@ export class PrestamosService {
   // ─── FUNCIÓN HELPER PARA CALCULAR DESDE OBJETO ───────────────────────────────
   // Calcula saldo y mora desde el objeto prestamo (que ya tiene cuotas cargadas)
   // Útil para listados y respuestas API
-  private calcularDesdeObjeto(prestamo: any): { saldoPendiente: number; moraAcumulada: number } {
-    const cuotasPendientes = prestamo.cuotas?.filter((c: any) => !c.pagada) ?? [];
-    
+  private calcularDesdeObjeto(prestamo: any): {
+    saldoPendiente: number;
+    moraAcumulada: number;
+  } {
+    const cuotasPendientes =
+      prestamo.cuotas?.filter((c: any) => !c.pagada) ?? [];
+
     const saldo = cuotasPendientes.reduce(
       (sum: number, c: any) => sum + c.capital + c.interes + (c.mora || 0),
       0,
     );
-    
+
     const mora = cuotasPendientes.reduce(
       (sum: number, c: any) => sum + (c.mora || 0),
       0,
     );
-    
+
     return {
       saldoPendiente: Math.round(saldo * 100) / 100,
       moraAcumulada: Math.round(mora * 100) / 100,
@@ -475,19 +500,23 @@ export class PrestamosService {
     // ── Validación de garante ─────────────────────────────────────────────────
     if (dto.garanteId) {
       if (dto.garanteId === dto.clienteId) {
-        throw new BadRequestException('El cliente no puede ser su propio garante');
+        throw new BadRequestException(
+          'El cliente no puede ser su propio garante',
+        );
       }
 
       const garante = await this.prisma.cliente.findFirst({
         where: { id: dto.garanteId, empresaId, activo: true },
       });
       if (!garante) {
-        throw new BadRequestException('El garante no es válido o no pertenece a tu empresa');
+        throw new BadRequestException(
+          'El garante no es válido o no pertenece a tu empresa',
+        );
       }
     }
 
     // ── Validaciones financieras ───────────────────────────────────────────────
-    
+
     // 1. Obtener configuración de la empresa
     const config = await ConfiguracionUtils.getConfig(this.prisma, empresaId);
 
@@ -511,8 +540,15 @@ export class PrestamosService {
     const tasaMensual = dto.tasaInteres / 100;
     let amortizacion: ResumenAmortizacion;
     if (dto.modoRapido === true) {
-      if (dto.montoTotal == null || typeof dto.montoTotal !== 'number' || !isFinite(dto.montoTotal) || dto.montoTotal <= 0) {
-        throw new BadRequestException('montoTotal inválido o ausente para modo rápido.');
+      if (
+        dto.montoTotal == null ||
+        typeof dto.montoTotal !== 'number' ||
+        !isFinite(dto.montoTotal) ||
+        dto.montoTotal <= 0
+      ) {
+        throw new BadRequestException(
+          'montoTotal inválido o ausente para modo rápido.',
+        );
       }
       amortizacion = this.calcularAmortizacionRapida(
         dto.monto,
@@ -576,7 +612,12 @@ export class PrestamosService {
       monto: dto.monto,
       referenciaId: prestamo.id,
       referenciaTipo: 'Prestamo',
-      datosNuevos: { monto: dto.monto, numeroCuotas: dto.numeroCuotas, tasaInteres: dto.tasaInteres, frecuenciaPago: dto.frecuenciaPago },
+      datosNuevos: {
+        monto: dto.monto,
+        numeroCuotas: dto.numeroCuotas,
+        tasaInteres: dto.tasaInteres,
+        frecuenciaPago: dto.frecuenciaPago,
+      },
     });
 
     await this.crearAlerta({
@@ -634,7 +675,16 @@ export class PrestamosService {
       where: { id },
       data,
       include: {
-        cliente: { select: { id: true, nombre: true, apellido: true, cedula: true, telefono: true, celular: true } },
+        cliente: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            cedula: true,
+            telefono: true,
+            celular: true,
+          },
+        },
       },
     });
 
@@ -743,7 +793,9 @@ export class PrestamosService {
       });
 
       if (!cajaBloqueada || cajaBloqueada.estado !== 'ABIERTA') {
-        throw new BadRequestException('Tu caja ya no está disponible. Abre una caja nueva.');
+        throw new BadRequestException(
+          'Tu caja ya no está disponible. Abre una caja nueva.',
+        );
       }
 
       // ─── 2. Revalidar estado del préstamo dentro del transaction ───────
@@ -773,13 +825,13 @@ export class PrestamosService {
         }),
       ]);
 
-      const efectivoEnCaja = Math.round(
-        (
-          cajaBloqueada.montoInicial +
-          (pagosEfectivo._sum.montoTotal || 0) -
-          (desembolsosCaja._sum.monto || 0)
-        ) * 100
-      ) / 100;
+      const efectivoEnCaja =
+        Math.round(
+          (cajaBloqueada.montoInicial +
+            (pagosEfectivo._sum.montoTotal || 0) -
+            (desembolsosCaja._sum.monto || 0)) *
+            100,
+        ) / 100;
 
       // ─── 4. Validar que monto ≤ efectivo disponible ───────────────────
       if (prestamo.monto > efectivoEnCaja) {
@@ -964,7 +1016,7 @@ export class PrestamosService {
     ]);
 
     // Calcular saldo y mora desde cuotas para cada préstamo
-    const dataConCalculos = data.map(p => {
+    const dataConCalculos = data.map((p) => {
       const { saldoPendiente, moraAcumulada } = this.calcularDesdeObjeto(p);
       return { ...p, saldoPendiente, moraAcumulada };
     });
@@ -992,7 +1044,7 @@ export class PrestamosService {
     });
 
     // Calcular saldo y mora desde cuotas para cada préstamo
-    return prestamos.map(p => {
+    return prestamos.map((p) => {
       const { saldoPendiente, moraAcumulada } = this.calcularDesdeObjeto(p);
       return { ...p, saldoPendiente, moraAcumulada };
     });
@@ -1033,7 +1085,8 @@ export class PrestamosService {
     if (!prestamo) throw new NotFoundException(`Préstamo ${id} no encontrado`);
 
     // Calcular saldo y mora desde cuotas (fuente de verdad)
-    const { saldoPendiente, moraAcumulada } = this.calcularDesdeObjeto(prestamo);
+    const { saldoPendiente, moraAcumulada } =
+      this.calcularDesdeObjeto(prestamo);
 
     // Retornar con valores calculados desde cuotas, no desde campos almacenados
     return {
@@ -1068,7 +1121,16 @@ export class PrestamosService {
       where: { id },
       data: { estado: EstadoPrestamo.CANCELADO },
       include: {
-        cliente: { select: { id: true, nombre: true, apellido: true, cedula: true, telefono: true, celular: true } },
+        cliente: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            cedula: true,
+            telefono: true,
+            celular: true,
+          },
+        },
       },
     });
 
@@ -1131,7 +1193,7 @@ export class PrestamosService {
     } catch (e) {
       console.warn('Cache config error:', e?.message);
     }
-    
+
     if (!config) {
       config = await this.prisma.configuracion.findUnique({
         where: { empresaId },
@@ -1153,7 +1215,10 @@ export class PrestamosService {
         pagada: false,
         mora: 0,
         fechaVencimiento: { lt: hoy },
-        prestamo: { empresaId, estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] } },
+        prestamo: {
+          empresaId,
+          estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
+        },
       },
     });
 
@@ -1168,29 +1233,30 @@ export class PrestamosService {
     for (const batch of batches) {
       // Cada batch en su propia transacción
       await this.prisma.$transaction(async (tx) => {
-        const updates = batch.map((cuota) => {
-          // Validación defensiva: si ya tiene mora, no recalcular
-          if (cuota.mora > 0) return null;
-          
-          const diasAtraso = differenceInDays(
-            hoy,
-            startOfDay(new Date(cuota.fechaVencimiento)),
-          );
-          if (diasAtraso <= diasGracia) return null;
-          
-          // Usar configuración con valores por defecto
-          const moraPorcentaje = config?.moraPorcentajeMensual ?? 0;
-          const mora = Math.round(
-            cuota.monto * (moraPorcentaje / 100) * 100
-          ) / 100;
-          
-          if (mora <= 0) return null;
-          
-          return tx.cuota.update({
-            where: { id: cuota.id },
-            data: { mora },
-          });
-        }).filter(Boolean);
+        const updates = batch
+          .map((cuota) => {
+            // Validación defensiva: si ya tiene mora, no recalcular
+            if (cuota.mora > 0) return null;
+
+            const diasAtraso = differenceInDays(
+              hoy,
+              startOfDay(new Date(cuota.fechaVencimiento)),
+            );
+            if (diasAtraso <= diasGracia) return null;
+
+            // Usar configuración con valores por defecto
+            const moraPorcentaje = config?.moraPorcentajeMensual ?? 0;
+            const mora =
+              Math.round(cuota.monto * (moraPorcentaje / 100) * 100) / 100;
+
+            if (mora <= 0) return null;
+
+            return tx.cuota.update({
+              where: { id: cuota.id },
+              data: { mora },
+            });
+          })
+          .filter(Boolean);
 
         if (updates.length > 0) {
           await Promise.all(updates);
@@ -1219,16 +1285,17 @@ export class PrestamosService {
     for (const batch of prestamoBatches) {
       await this.prisma.$transaction(async (tx) => {
         const updates = batch.map((prestamo) => {
-          const moraRecalculada = Math.round(
-            prestamo.cuotas.reduce((sum, c) => sum + (c.mora || 0), 0) * 100
-          ) / 100;
-          
+          const moraRecalculada =
+            Math.round(
+              prestamo.cuotas.reduce((sum, c) => sum + (c.mora || 0), 0) * 100,
+            ) / 100;
+
           return tx.prestamo.update({
             where: { id: prestamo.id },
             data: { moraAcumulada: moraRecalculada },
           });
         });
-        
+
         await Promise.all(updates);
       });
     }
@@ -1263,16 +1330,11 @@ export class PrestamosService {
 
   // ─── CACHE: Invalidación centralizada ───────────────────────────────────────
   private async invalidarCache(empresaId: string) {
-    const keys = [
-      `resumen:${empresaId}`,
-      `dashboard:${empresaId}`,
-    ];
+    const keys = [`resumen:${empresaId}`, `dashboard:${empresaId}`];
 
     if (this.cacheManager) {
       await Promise.all(
-        keys.map(k => 
-          this.cacheManager!.del(k).catch(() => {})
-        )
+        keys.map((k) => this.cacheManager!.del(k).catch(() => {})),
       );
     }
   }
@@ -1622,14 +1684,19 @@ export class PrestamosService {
 
   // ─── ALERTAS ──────────────────────────────────────────────────────────────
 
-  async getAlertas(empresaId: string, desde?: string, hasta?: string, soloNoLeidas = false) {
+  async getAlertas(
+    empresaId: string,
+    desde?: string,
+    hasta?: string,
+    soloNoLeidas = false,
+  ) {
     const where: any = { empresaId, ...(soloNoLeidas && { leida: false }) };
     if (desde || hasta) {
       where.createdAt = {};
       if (desde) where.createdAt.gte = getInicioDiaRD(desde);
       if (hasta) where.createdAt.lte = getFinDiaRD(hasta);
 
-     // console.log('DEBUG ALERTAS RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
+      // console.log('DEBUG ALERTAS RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
     }
     return (this.prisma as any).alerta.findMany({
       where,

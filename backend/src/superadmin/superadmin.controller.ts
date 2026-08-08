@@ -1,6 +1,13 @@
 // src/superadmin/superadmin.controller.ts
 import {
-  Controller, Get, Post, Patch, Param, Body, Request, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { SuperAdminService } from './superadmin.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
@@ -39,29 +46,53 @@ export class SuperAdminController {
 
   // POST /superadmin/empresas
   @Post('empresas')
-  crearEmpresa(@Request() req, @Body() body: {
-    nombreEmpresa: string; nombreAdmin: string; emailAdmin: string;
-    passwordAdmin: string; tasaInteresBase?: number;
-    moraPorcentajeMensual?: number; diasGracia?: number;
-  }) {
+  crearEmpresa(
+    @Request() req,
+    @Body()
+    body: {
+      nombreEmpresa: string;
+      nombreAdmin: string;
+      emailAdmin: string;
+      passwordAdmin: string;
+      tasaInteresBase?: number;
+      moraPorcentajeMensual?: number;
+      diasGracia?: number;
+    },
+  ) {
     return this.superAdminService.crearEmpresa(req.user, body);
   }
 
   // PATCH /superadmin/empresas/:id
   @Patch('empresas/:id')
-  editarEmpresa(@Request() req, @Param('id') id: string, @Body() body: { nombre: string }) {
+  editarEmpresa(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { nombre: string },
+  ) {
     return this.superAdminService.editarEmpresa(req.user, id, body.nombre);
   }
 
   // PATCH /superadmin/empresas/:id/toggle
   @Patch('empresas/:id/toggle')
-  toggleEmpresa(@Request() req, @Param('id') id: string, @Body() body: { activa: boolean }) {
+  toggleEmpresa(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { activa: boolean },
+  ) {
     return this.superAdminService.toggleEmpresa(req.user, id, body.activa);
   }
 
   // PATCH /superadmin/usuarios/:id/reset-password
   @Patch('usuarios/:id/reset-password')
-  resetearPassword(@Request() req, @Param('id') id: string, @Body() body: { nuevaPassword: string }) {
-    return this.superAdminService.resetearPassword(req.user, id, body.nuevaPassword);
+  resetearPassword(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { nuevaPassword: string },
+  ) {
+    return this.superAdminService.resetearPassword(
+      req.user,
+      id,
+      body.nuevaPassword,
+    );
   }
 }

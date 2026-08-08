@@ -1,10 +1,15 @@
 import {
-  IsString, IsEmail, IsEnum, IsOptional,
-  IsBoolean, MinLength, IsNotEmpty,
+  IsString,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsBoolean,
+  MinLength,
+  IsNotEmpty,
 } from 'class-validator';
 
 export enum RolUsuario {
-  ADMIN    = 'ADMIN',
+  ADMIN = 'ADMIN',
   EMPLEADO = 'EMPLEADO',
 }
 

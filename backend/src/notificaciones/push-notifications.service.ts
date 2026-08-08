@@ -49,7 +49,8 @@ export class PushNotificationsService {
 
     if (receiptIds.length === 0) return;
 
-    const receipts = await this.expo.getPushNotificationReceiptsAsync(receiptIds);
+    const receipts =
+      await this.expo.getPushNotificationReceiptsAsync(receiptIds);
 
     for (const [id, receipt] of Object.entries(receipts)) {
       if (receipt.status !== 'error') continue;
@@ -58,7 +59,9 @@ export class PushNotificationsService {
 
       switch (errorCode) {
         case 'DeviceNotRegistered':
-          this.logger.warn(`Token stale detectado (DeviceNotRegistered): ${id}`);
+          this.logger.warn(
+            `Token stale detectado (DeviceNotRegistered): ${id}`,
+          );
           await this.limpiarTokenStale(id);
           break;
         case 'InvalidCredentials':
@@ -71,7 +74,9 @@ export class PushNotificationsService {
           this.logger.warn(`Límite de mensajes excedido: ${id}`);
           break;
         default:
-          this.logger.warn(`Error desconocido en push receipt [${id}]: ${errorCode}`);
+          this.logger.warn(
+            `Error desconocido en push receipt [${id}]: ${errorCode}`,
+          );
       }
     }
   }

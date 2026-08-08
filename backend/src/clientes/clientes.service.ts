@@ -57,12 +57,12 @@ export class ClientesService {
       const q = search.trim();
       const qSinGuiones = q.replace(/-/g, ''); // permite buscar "402-0001001-7" o "4020001001"
       where.OR = [
-        { nombre:   { contains: q,           mode: 'insensitive' } },
-        { apellido: { contains: q,           mode: 'insensitive' } },
-        { cedula:   { contains: qSinGuiones, mode: 'insensitive' } },
-        { telefono: { contains: q,           mode: 'insensitive' } },
-        { provincia:{ contains: q,           mode: 'insensitive' } },
-        { municipio:{ contains: q,           mode: 'insensitive' } },
+        { nombre: { contains: q, mode: 'insensitive' } },
+        { apellido: { contains: q, mode: 'insensitive' } },
+        { cedula: { contains: qSinGuiones, mode: 'insensitive' } },
+        { telefono: { contains: q, mode: 'insensitive' } },
+        { provincia: { contains: q, mode: 'insensitive' } },
+        { municipio: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -98,12 +98,12 @@ export class ClientesService {
       const q = search.trim();
       const qSinGuiones = q.replace(/-/g, ''); // permite buscar "402-0001001-7" o "4020001001"
       where.OR = [
-        { nombre:   { contains: q,           mode: 'insensitive' } },
-        { apellido: { contains: q,           mode: 'insensitive' } },
-        { cedula:   { contains: qSinGuiones, mode: 'insensitive' } },
-        { telefono: { contains: q,           mode: 'insensitive' } },
-        { provincia:{ contains: q,           mode: 'insensitive' } },
-        { municipio:{ contains: q,           mode: 'insensitive' } },
+        { nombre: { contains: q, mode: 'insensitive' } },
+        { apellido: { contains: q, mode: 'insensitive' } },
+        { cedula: { contains: qSinGuiones, mode: 'insensitive' } },
+        { telefono: { contains: q, mode: 'insensitive' } },
+        { provincia: { contains: q, mode: 'insensitive' } },
+        { municipio: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -157,7 +157,11 @@ export class ClientesService {
     return cliente;
   }
 
-  async update(id: string, updateClienteDto: UpdateClienteDto, empresaId: string) {
+  async update(
+    id: string,
+    updateClienteDto: UpdateClienteDto,
+    empresaId: string,
+  ) {
     await this.assertExists(id, empresaId);
     return this.prisma.cliente.update({
       where: { id },
@@ -193,11 +197,16 @@ export class ClientesService {
     await this.assertExists(clienteId, empresaId);
 
     const bucket = this.config.get<string>('supabase.bucket') ?? 'documentos';
-    const path = this.supabase.buildClienteDocumentPath(empresaId, clienteId, tipo);
+    const path = this.supabase.buildClienteDocumentPath(
+      empresaId,
+      clienteId,
+      tipo,
+    );
 
     await this.supabase.uploadFile(bucket, path, fileBuffer, contentType);
 
-    const fieldName = tipo === 'cedula-frontal' ? 'cedulaFrontalPath' : 'cedulaTraseraPath';
+    const fieldName =
+      tipo === 'cedula-frontal' ? 'cedulaFrontalPath' : 'cedulaTraseraPath';
     await this.prisma.cliente.update({
       where: { id: clienteId },
       data: { [fieldName]: path },
@@ -219,7 +228,10 @@ export class ClientesService {
   ) {
     const cliente = await this.assertExists(clienteId, empresaId);
 
-    const path = tipo === 'cedula-frontal' ? cliente.cedulaFrontalPath : cliente.cedulaTraseraPath;
+    const path =
+      tipo === 'cedula-frontal'
+        ? cliente.cedulaFrontalPath
+        : cliente.cedulaTraseraPath;
     if (!path) {
       throw new NotFoundException(`El cliente no tiene ${tipo} registrada`);
     }

@@ -1,7 +1,12 @@
 // src/prestamos/dto/refinanciar-prestamo.dto.ts
 import {
-  IsNumber, IsOptional, IsString, IsEnum, IsDateString,
-  Min, Max,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsDateString,
+  Min,
+  Max,
 } from 'class-validator';
 import { FrecuenciaPago } from '@prisma/client';
 

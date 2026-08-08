@@ -82,4 +82,16 @@ describe('SyncService', () => {
       };
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining(esperado));
   });
+
+  it('devuelve serverTime como cursor válido no anterior al cursor recibido', async () => {
+    const { service } = buildService();
+
+    const desde = new Date('2026-08-01T00:00:00.000Z');
+    const result = await service.cambios('emp1', { isAdmin: true }, desde);
+
+    expect(result.serverTime).toBeTruthy();
+    expect(new Date(result.serverTime).getTime()).toBeGreaterThanOrEqual(
+      desde.getTime(),
+    );
+  });
 });

@@ -6,10 +6,7 @@ import { AlertsModule } from '../alerts/alerts.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 
 @Module({
-  imports: [
-    AlertsModule,
-    NotificacionesModule,
-  ],
+  imports: [AlertsModule, NotificacionesModule],
   controllers: [PrestamosController],
   providers: [PrestamosService, MoraCronService],
   exports: [PrestamosService],

@@ -37,7 +37,9 @@ export class CapitalService {
 
   private assertAdmin(user: any) {
     if (user.rol !== 'ADMIN' && user.rol !== 'SUPERADMIN') {
-      throw new ForbiddenException('Solo el administrador puede realizar esta operación');
+      throw new ForbiddenException(
+        'Solo el administrador puede realizar esta operación',
+      );
     }
   }
 
@@ -58,7 +60,10 @@ export class CapitalService {
       });
     }
 
-    if (metricas.rentabilidad !== null && metricas.rentabilidad < UMBRAL_RENTABILIDAD) {
+    if (
+      metricas.rentabilidad !== null &&
+      metricas.rentabilidad < UMBRAL_RENTABILIDAD
+    ) {
       alertas.push({
         tipo: 'WARNING',
         mensaje: `La rentabilidad del negocio es baja (${metricas.rentabilidad}%). Considera aumentar el capital prestado.`,
@@ -68,9 +73,8 @@ export class CapitalService {
       });
     }
 
-    const ratioMora = resumen.totalCobrado > 0
-      ? resumen.totalMora / resumen.totalCobrado
-      : 0;
+    const ratioMora =
+      resumen.totalCobrado > 0 ? resumen.totalMora / resumen.totalCobrado : 0;
 
     if (ratioMora > UMBRAL_MORA) {
       alertas.push({
@@ -125,7 +129,8 @@ export class CapitalService {
 
     const capitalInicial = capital?.capitalInicial ?? 0;
     const totalInyecciones = inyecciones.reduce((sum, i) => sum + i.monto, 0);
-    const capitalTotal = capitalInicial + totalInyecciones - totalRetirosCapital;
+    const capitalTotal =
+      capitalInicial + totalInyecciones - totalRetirosCapital;
 
     return {
       capitalInicial,
@@ -162,7 +167,9 @@ export class CapitalService {
         data: {
           empresaId,
           capitalInicial: dto.capitalInicial,
-          observaciones: dto.observaciones ?? `Capital inicial registrado el ${new Date().toLocaleDateString('es-DO')}`,
+          observaciones:
+            dto.observaciones ??
+            `Capital inicial registrado el ${new Date().toLocaleDateString('es-DO')}`,
         },
       });
 
@@ -190,7 +197,9 @@ export class CapitalService {
     const { empresaId } = user;
 
     if (dto.monto <= 0) {
-      throw new BadRequestException('El monto de la inyección debe ser mayor a 0');
+      throw new BadRequestException(
+        'El monto de la inyección debe ser mayor a 0',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -234,7 +243,8 @@ export class CapitalService {
       }),
     ]);
 
-    const totalGanado = (totalIntereses._sum.interes ?? 0) + (totalIntereses._sum.mora ?? 0);
+    const totalGanado =
+      (totalIntereses._sum.interes ?? 0) + (totalIntereses._sum.mora ?? 0);
     const totalRetirado = totalRetiros._sum.monto ?? 0;
 
     return Math.round((totalGanado - totalRetirado) * 100) / 100;
@@ -248,7 +258,8 @@ export class CapitalService {
       throw new BadRequestException('El monto del retiro debe ser mayor a 0');
     }
 
-    const gananciasDisponibles = await this.calcularGananciasDisponibles(empresaId);
+    const gananciasDisponibles =
+      await this.calcularGananciasDisponibles(empresaId);
 
     if (dto.monto > gananciasDisponibles) {
       throw new BadRequestException(
@@ -325,18 +336,32 @@ export class CapitalService {
         _sum: { interes: true },
       }),
     ]);
-    const gananciasNetas = Math.max(0, Math.round(
-      ((ingresos._sum.interes ?? 0) + (ingresos._sum.mora ?? 0) - Math.abs(gastos._sum.interes ?? 0)) * 100
-    ) / 100);
+    const gananciasNetas = Math.max(
+      0,
+      Math.round(
+        ((ingresos._sum.interes ?? 0) +
+          (ingresos._sum.mora ?? 0) -
+          Math.abs(gastos._sum.interes ?? 0)) *
+          100,
+      ) / 100,
+    );
 
     // Calcular dinero en caja
     const cajas = await this.prisma.cajaSesion.findMany({
       where: { empresaId, estado: 'ABIERTA' },
       select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
     });
-    const dineroEnCaja = Math.round(
-      cajas.reduce((sum, c) => sum + (c.montoInicial ?? 0) + (c.totalIngresos ?? 0) - (c.totalEgresos ?? 0), 0) * 100
-    ) / 100;
+    const dineroEnCaja =
+      Math.round(
+        cajas.reduce(
+          (sum, c) =>
+            sum +
+            (c.montoInicial ?? 0) +
+            (c.totalIngresos ?? 0) -
+            (c.totalEgresos ?? 0),
+          0,
+        ) * 100,
+      ) / 100;
 
     // Calcular dinero en calle
     const [prestamos, cobros] = await Promise.all([
@@ -349,9 +374,12 @@ export class CapitalService {
         _sum: { capital: true },
       }),
     ]);
-    const dineroEnCalle = Math.max(0, Math.round(
-      ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
-    ) / 100);
+    const dineroEnCalle = Math.max(
+      0,
+      Math.round(
+        ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100,
+      ) / 100,
+    );
 
     // Calcular patrimonio total
     const retiros = await this.prisma.retiroGanancias.aggregate({
@@ -359,12 +387,21 @@ export class CapitalService {
       _sum: { monto: true },
     });
     const totalRetiros = retiros._sum.monto ?? 0;
-    const patrimonioTotal = Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
+    const patrimonioTotal =
+      Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
 
     // Capital retirable = Patrimonio - Ganancias - Caja - Calle
-    const capitalRetirable = Math.max(0, Math.round(
-      (patrimonioTotal - gananciasNetas - dineroEnCaja - dineroEnCalle - MINIMO_OPERATIVO) * 100
-    ) / 100);
+    const capitalRetirable = Math.max(
+      0,
+      Math.round(
+        (patrimonioTotal -
+          gananciasNetas -
+          dineroEnCaja -
+          dineroEnCalle -
+          MINIMO_OPERATIVO) *
+          100,
+      ) / 100,
+    );
 
     return Math.max(0, capitalRetirable);
   }
@@ -385,7 +422,7 @@ export class CapitalService {
     });
     if (cajaAbierta) {
       throw new BadRequestException(
-        'No puedes retirar capital mientras existan cajas operativas abiertas. Cierra todas las cajas primero.'
+        'No puedes retirar capital mientras existan cajas operativas abiertas. Cierra todas las cajas primero.',
       );
     }
 
@@ -393,7 +430,7 @@ export class CapitalService {
     const capitalRetirable = await this.calcularCapitalRetirable(empresaId);
     if (dto.monto > capitalRetirable) {
       throw new BadRequestException(
-        `No hay suficiente capital disponible para retirar. Disponible: RD$${capitalRetirable.toLocaleString()}`
+        `No hay suficiente capital disponible para retirar. Disponible: RD$${capitalRetirable.toLocaleString()}`,
       );
     }
 
@@ -401,7 +438,7 @@ export class CapitalService {
     const MINIMO_OPERATIVO = 5000;
     if (dto.monto > capitalRetirable - MINIMO_OPERATIVO) {
       throw new BadRequestException(
-        `No puedes retirar este monto porque compromete la liquidez operativa mínima de RD$${MINIMO_OPERATIVO.toLocaleString()}`
+        `No puedes retirar este monto porque compromete la liquidez operativa mínima de RD$${MINIMO_OPERATIVO.toLocaleString()}`,
       );
     }
 
@@ -433,7 +470,11 @@ export class CapitalService {
   async getDashboard(empresaId: string) {
     const ahora = new Date();
     const inicioMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-    const inicioMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+    const inicioMesAnterior = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth() - 1,
+      1,
+    );
 
     const inicioDia = new Date();
     inicioDia.setHours(0, 0, 0, 0);
@@ -535,15 +576,23 @@ export class CapitalService {
       }),
     ]);
 
-    const gananciasBrutas = Math.round(
-      ((totalesPagos._sum.interes ?? 0) + (totalesPagos._sum.mora ?? 0)) * 100
-    ) / 100;
+    const gananciasBrutas =
+      Math.round(
+        ((totalesPagos._sum.interes ?? 0) + (totalesPagos._sum.mora ?? 0)) *
+          100,
+      ) / 100;
 
-    const gastosTotales = Math.round((totalesGastos._sum.monto ?? 0) * 100) / 100;
-    const totalCapitalRecuperado = Math.round((totalesPagos._sum.capital ?? 0) * 100) / 100;
-    const totalDesembolsado = Math.round((totalesDesembolsos._sum.monto ?? 0) * 100) / 100;
-    const totalRetiradoGanancias = Math.round((totalRetirosGananciasData._sum.monto ?? 0) * 100) / 100;
-    const totalRetirosCapital = Math.abs(totalRetirosCapitalData._sum.capital ?? 0);
+    const gastosTotales =
+      Math.round((totalesGastos._sum.monto ?? 0) * 100) / 100;
+    const totalCapitalRecuperado =
+      Math.round((totalesPagos._sum.capital ?? 0) * 100) / 100;
+    const totalDesembolsado =
+      Math.round((totalesDesembolsos._sum.monto ?? 0) * 100) / 100;
+    const totalRetiradoGanancias =
+      Math.round((totalRetirosGananciasData._sum.monto ?? 0) * 100) / 100;
+    const totalRetirosCapital = Math.abs(
+      totalRetirosCapitalData._sum.capital ?? 0,
+    );
     const totalRetirosCompleto = totalRetiradoGanancias + totalRetirosCapital;
 
     // Resultado operativo real
@@ -551,15 +600,10 @@ export class CapitalService {
 
     // Si queda negativo, consume capital
     const excedenteQueConsumeCapital =
-      resultadoOperativo < 0
-        ? Math.abs(resultadoOperativo)
-        : 0;
+      resultadoOperativo < 0 ? Math.abs(resultadoOperativo) : 0;
 
     // Nunca mostrar ganancias negativas
-    const gananciasNetas =
-      resultadoOperativo > 0
-        ? resultadoOperativo
-        : 0;
+    const gananciasNetas = resultadoOperativo > 0 ? resultadoOperativo : 0;
 
     // Capital ajustado
     const capitalAjustado =
@@ -569,8 +613,12 @@ export class CapitalService {
     const patrimonioTotal =
       capitalAjustado + gananciasNetas - totalRetirosCompleto;
 
-    const dineroEnCalle = Math.max(0, Math.round((totalDesembolsado - totalCapitalRecuperado) * 100) / 100);
-    const montoInicialCajas = Math.round((cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
+    const dineroEnCalle = Math.max(
+      0,
+      Math.round((totalDesembolsado - totalCapitalRecuperado) * 100) / 100,
+    );
+    const montoInicialCajas =
+      Math.round((cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
 
     // ⚠️ IMPORTANTE:
     // dineroEnCaja es MÉTRICA DEL DÍA (operativa)
@@ -579,9 +627,12 @@ export class CapitalService {
     const totalPagosHoy = pagosDelDia._sum?.montoTotal ?? 0;
     const totalDesembolsosHoy = desembolsosDelDia._sum?.monto ?? 0;
 
-    const dineroEnCaja = Math.max(0, Math.round(
-      (montoInicialCajas + totalPagosHoy - totalDesembolsosHoy) * 100
-    ) / 100);
+    const dineroEnCaja = Math.max(
+      0,
+      Math.round(
+        (montoInicialCajas + totalPagosHoy - totalDesembolsosHoy) * 100,
+      ) / 100,
+    );
 
     const metricas = this.calcularMetricas(
       capitalAjustado,
@@ -599,7 +650,8 @@ export class CapitalService {
       totalMora: Math.round((totalesPagos._sum.mora ?? 0) * 100) / 100,
       totalGastos: gastosTotales,
       totalDesembolsos: totalDesembolsado,
-      balanceNeto: Math.round((gananciasNetas - totalRetirosCompleto) * 100) / 100,
+      balanceNeto:
+        Math.round((gananciasNetas - totalRetirosCompleto) * 100) / 100,
     };
 
     const dinero = {
@@ -683,13 +735,15 @@ export class CapitalService {
     movimientosMensuales: { fecha: Date; interes: number; mora: number }[],
     inicioMesActual: Date,
   ): Metricas {
-    const rentabilidad = capitalAjustado > 0
-      ? Math.round((gananciasNetas / capitalAjustado) * 10000) / 100
-      : null;
+    const rentabilidad =
+      capitalAjustado > 0
+        ? Math.round((gananciasNetas / capitalAjustado) * 10000) / 100
+        : null;
 
-    const eficienciaCobranza = interesEsperado > 0
-      ? Math.round((gananciasBrutas / interesEsperado) * 10000) / 100
-      : null;
+    const eficienciaCobranza =
+      interesEsperado > 0
+        ? Math.round((gananciasBrutas / interesEsperado) * 10000) / 100
+        : null;
 
     const dineroOcioso = Math.max(0, dineroEnCaja - MINIMO_OPERATIVO);
 
@@ -700,7 +754,8 @@ export class CapitalService {
     const gananciasMesActual = movimientosPorMes[mesActualKey] ?? 0;
     const gananciasMesAnterior = movimientosPorMes[mesAnteriorKey] ?? 0;
 
-    const crecimientoMensual = Math.round((gananciasMesActual - gananciasMesAnterior) * 100) / 100;
+    const crecimientoMensual =
+      Math.round((gananciasMesActual - gananciasMesAnterior) * 100) / 100;
 
     return {
       rentabilidad,
@@ -822,22 +877,29 @@ export class CapitalService {
     });
 
     const resumenRutas = rutas.map((ruta) => {
-      const clientesIds = new Set(
-        ruta.clientes.map((rc) => rc.clienteId)
-      );
+      const clientesIds = new Set(ruta.clientes.map((rc) => rc.clienteId));
 
       const prestamosActivos = prestamosPorRuta.filter((p) =>
-        p.cliente.rutaClientes.some((rc) => rc.rutaId === ruta.id)
+        p.cliente.rutaClientes.some((rc) => rc.rutaId === ruta.id),
       );
 
       const pagosRuta = pagosPorRuta.filter((p) =>
-        p.prestamo.cliente.rutaClientes.some((rc) => rc.rutaId === ruta.id)
+        p.prestamo.cliente.rutaClientes.some((rc) => rc.rutaId === ruta.id),
       );
 
       const totalCobrado = pagosRuta.reduce((sum, p) => sum + p.montoTotal, 0);
-      const totalInteres = pagosRuta.reduce((sum, p) => sum + p.interes + p.mora, 0);
-      const capitalRecuperado = pagosRuta.reduce((sum, p) => sum + p.capital, 0);
-      const dineroEnCalleRuta = prestamosActivos.reduce((sum, p) => sum + calcularSaldoDesdeCuotas(p.cuotas), 0);
+      const totalInteres = pagosRuta.reduce(
+        (sum, p) => sum + p.interes + p.mora,
+        0,
+      );
+      const capitalRecuperado = pagosRuta.reduce(
+        (sum, p) => sum + p.capital,
+        0,
+      );
+      const dineroEnCalleRuta = prestamosActivos.reduce(
+        (sum, p) => sum + calcularSaldoDesdeCuotas(p.cuotas),
+        0,
+      );
 
       return {
         rutaId: ruta.id,
@@ -861,7 +923,14 @@ export class CapitalService {
         clientesActivos: acc.clientesActivos + r.clientesActivos,
         prestamosActivos: acc.prestamosActivos + r.prestamosActivos,
       }),
-      { totalCobrado: 0, totalInteres: 0, capitalRecuperado: 0, dineroEnCalle: 0, clientesActivos: 0, prestamosActivos: 0 }
+      {
+        totalCobrado: 0,
+        totalInteres: 0,
+        capitalRecuperado: 0,
+        dineroEnCalle: 0,
+        clientesActivos: 0,
+        prestamosActivos: 0,
+      },
     );
 
     return {
@@ -869,7 +938,8 @@ export class CapitalService {
       totales: {
         totalCobrado: Math.round(totalGeneral.totalCobrado * 100) / 100,
         totalInteres: Math.round(totalGeneral.totalInteres * 100) / 100,
-        capitalRecuperado: Math.round(totalGeneral.capitalRecuperado * 100) / 100,
+        capitalRecuperado:
+          Math.round(totalGeneral.capitalRecuperado * 100) / 100,
         dineroEnCalle: Math.round(totalGeneral.dineroEnCalle * 100) / 100,
         clientesActivos: totalGeneral.clientesActivos,
         prestamosActivos: totalGeneral.prestamosActivos,
@@ -911,16 +981,21 @@ export class CapitalService {
         _sum: { interes: true },
       }),
     ]);
-    const gananciasNetas = Math.round(
-      ((ingresos._sum.interes ?? 0) + (ingresos._sum.mora ?? 0) - Math.abs(gastosOperativos._sum.interes ?? 0)) * 100
-    ) / 100;
+    const gananciasNetas =
+      Math.round(
+        ((ingresos._sum.interes ?? 0) +
+          (ingresos._sum.mora ?? 0) -
+          Math.abs(gastosOperativos._sum.interes ?? 0)) *
+          100,
+      ) / 100;
 
     // 3. Calcular retiros de ganancias
     const retirosGanancias = await this.prisma.retiroGanancias.aggregate({
       where: { empresaId },
       _sum: { monto: true },
     });
-    const totalRetirosGanancias = Math.round((retirosGanancias._sum.monto ?? 0) * 100) / 100;
+    const totalRetirosGanancias =
+      Math.round((retirosGanancias._sum.monto ?? 0) * 100) / 100;
 
     const retirosCapital = await this.prisma.movimientoFinanciero.aggregate({
       where: { empresaId, tipo: 'RETIRO_CAPITAL' },
@@ -931,7 +1006,8 @@ export class CapitalService {
     const totalRetiros = totalRetirosGanancias + totalRetirosCapital;
 
     // 4. PATRIMONIO = CapitalTotal + GananciasNetas - Retiros
-    const patrimonio = Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
+    const patrimonio =
+      Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
 
     // 5. Calcular ACTIVOS: Caja Operativa + Fondo General + En Calle
     // Caja Operativa = suma de cajas abiertas (montoInicial + ingresos - egresos)
@@ -939,9 +1015,17 @@ export class CapitalService {
       where: { empresaId, estado: 'ABIERTA' },
       select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
     });
-    const dineroEnCaja = Math.round(
-      cajasAbiertas.reduce((sum, c) => sum + (c.montoInicial ?? 0) + (c.totalIngresos ?? 0) - (c.totalEgresos ?? 0), 0) * 100
-    ) / 100;
+    const dineroEnCaja =
+      Math.round(
+        cajasAbiertas.reduce(
+          (sum, c) =>
+            sum +
+            (c.montoInicial ?? 0) +
+            (c.totalIngresos ?? 0) -
+            (c.totalEgresos ?? 0),
+          0,
+        ) * 100,
+      ) / 100;
 
     // En Calle
     const prestamos = await this.prisma.prestamo.aggregate({
@@ -952,15 +1036,22 @@ export class CapitalService {
       where: { prestamo: { empresaId } },
       _sum: { capital: true },
     });
-    const dineroEnCalle = Math.max(0, Math.round(
-      ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
-    ) / 100);
+    const dineroEnCalle = Math.max(
+      0,
+      Math.round(
+        ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100,
+      ) / 100,
+    );
 
     // Fondo General = Patrimonio - Caja Operativa - En Calle
-    const fondoGeneral = Math.max(0, Math.round((patrimonio - dineroEnCaja - dineroEnCalle) * 100) / 100);
+    const fondoGeneral = Math.max(
+      0,
+      Math.round((patrimonio - dineroEnCaja - dineroEnCalle) * 100) / 100,
+    );
 
     // 6. Validar: Activos (Caja + Fondo + Calle) == Patrimonio
-    const activos = Math.round((dineroEnCaja + fondoGeneral + dineroEnCalle) * 100) / 100;
+    const activos =
+      Math.round((dineroEnCaja + fondoGeneral + dineroEnCalle) * 100) / 100;
     const diferencia = Math.round((activos - patrimonio) * 100) / 100;
     const cuadra = Math.abs(diferencia) < 1;
 
@@ -1001,9 +1092,12 @@ export class CapitalService {
       },
       _sum: { capital: true },
     });
-    const dineroEnCalle = Math.max(0, Math.round(
-      ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100
-    ) / 100);
+    const dineroEnCalle = Math.max(
+      0,
+      Math.round(
+        ((prestamos._sum.monto ?? 0) - (cobros._sum.capital ?? 0)) * 100,
+      ) / 100,
+    );
 
     return Math.max(0, Math.round((capitalTotal - dineroEnCalle) * 100) / 100);
   }
@@ -1015,7 +1109,8 @@ export class CapitalService {
       where: { empresaId, estado: 'ABIERTA' },
       _sum: { montoInicial: true },
     });
-    const dineroEnCaja = Math.round((cajas[0]?._sum?.montoInicial ?? 0) * 100) / 100;
+    const dineroEnCaja =
+      Math.round((cajas[0]?._sum?.montoInicial ?? 0) * 100) / 100;
     return dineroEnCaja;
   }
 }

@@ -58,7 +58,6 @@ export class AuthService {
   // COOKIES
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setRefreshTokenCookie(res: Response, token: string): void {
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -75,7 +74,6 @@ export class AuthService {
     res.header('Access-Control-Expose-Headers', 'Set-Cookie');
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clearRefreshTokenCookie(res: Response): void {
     const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
@@ -185,7 +183,6 @@ export class AuthService {
   // LOGIN
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async login(
     email: string,
     password: string,
@@ -329,7 +326,6 @@ export class AuthService {
   // REFRESH CON ROTACIÓN OBLIGATORIA
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async refresh(refreshToken: string | undefined, res: Response) {
     if (!refreshToken) {
       throw new UnauthorizedException('Token de refresh no proporcionado');
@@ -424,7 +420,6 @@ export class AuthService {
   // LOGOUT
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async logout(
     refreshToken: string | undefined,
     res?: any,

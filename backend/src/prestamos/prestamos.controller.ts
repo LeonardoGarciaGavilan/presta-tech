@@ -37,7 +37,11 @@ export class PrestamosController {
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  create(@Body() dto: CreatePrestamoDto, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  create(
+    @Body() dto: CreatePrestamoDto,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const usuarioId = user.sub ?? user.userId ?? user.id;
     return this.prestamosService.create(dto, empresaId, usuarioId);
   }
@@ -61,7 +65,9 @@ export class PrestamosController {
         'Los parámetros monto, tasaInteres, numeroCuotas y frecuenciaPago son requeridos',
       );
     }
-    if (!Object.values(FrecuenciaPago).includes(frecuenciaPago as FrecuenciaPago)) {
+    if (
+      !Object.values(FrecuenciaPago).includes(frecuenciaPago as FrecuenciaPago)
+    ) {
       throw new BadRequestException(
         `frecuenciaPago debe ser: ${Object.values(FrecuenciaPago).join(', ')}`,
       );
@@ -112,16 +118,19 @@ export class PrestamosController {
 
   @Patch('alertas/:alertaId/leer')
   @Roles('ADMIN', 'EMPLEADO')
-  marcarLeida(@Param('alertaId') alertaId: string, @Tenant() empresaId: string) {
-    return this.prestamosService.marcarAlertaLeida(
-      alertaId,
-      empresaId,
-    );
+  marcarLeida(
+    @Param('alertaId') alertaId: string,
+    @Tenant() empresaId: string,
+  ) {
+    return this.prestamosService.marcarAlertaLeida(alertaId, empresaId);
   }
 
   @Get('cliente/:clienteId')
   @Roles('ADMIN', 'EMPLEADO')
-  findByCliente(@Param('clienteId') clienteId: string, @Tenant() empresaId: string) {
+  findByCliente(
+    @Param('clienteId') clienteId: string,
+    @Tenant() empresaId: string,
+  ) {
     return this.prestamosService.findByCliente(clienteId, empresaId);
   }
 
@@ -168,7 +177,11 @@ export class PrestamosController {
   @Patch(':id/cancelar')
   @Roles('ADMIN')
   @Idempotent()
-  cancelar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  cancelar(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const usuarioId = user.sub ?? user.userId ?? user.id;
     return this.prestamosService.cancelar(id, empresaId, usuarioId);
   }
@@ -196,7 +209,11 @@ export class PrestamosController {
   @Roles('ADMIN', 'EMPLEADO')
   @Idempotent()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  desembolsar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  desembolsar(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const adminId = user.sub ?? user.userId ?? user.id;
     return this.prestamosService.desembolsar(id, empresaId, adminId);
   }

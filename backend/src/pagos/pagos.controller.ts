@@ -28,12 +28,12 @@ export class PagosController {
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
   @Throttle({ default: { limit: 20, ttl: 60000 } })
-  registrar(@Body() dto: CreatePagoDto, @Tenant() empresaId: string, @CurrentUser() user: any) {
-    return this.pagosService.registrarPago(
-      dto,
-      empresaId,
-      user.userId,
-    );
+  registrar(
+    @Body() dto: CreatePagoDto,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.pagosService.registrarPago(dto, empresaId, user.userId);
   }
 
   @Get('resumen')
@@ -44,7 +44,10 @@ export class PagosController {
 
   @Get('prestamo/:prestamoId')
   @Roles('ADMIN', 'EMPLEADO')
-  findByPrestamo(@Param('prestamoId') prestamoId: string, @Tenant() empresaId: string) {
+  findByPrestamo(
+    @Param('prestamoId') prestamoId: string,
+    @Tenant() empresaId: string,
+  ) {
     return this.pagosService.findByPrestamo(prestamoId, empresaId);
   }
 
@@ -66,7 +69,14 @@ export class PagosController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   saldarPrestamo(
     @Param('id') id: string,
-    @Body() body: { metodo: string; referencia?: string; observacion?: string; idempotencyKey?: string; fecha?: string },
+    @Body()
+    body: {
+      metodo: string;
+      referencia?: string;
+      observacion?: string;
+      idempotencyKey?: string;
+      fecha?: string;
+    },
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
   ) {

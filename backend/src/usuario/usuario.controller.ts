@@ -1,6 +1,13 @@
 import {
-  Controller, Post, Put, Patch, Delete,
-  Body, Param, UseGuards, Get,
+  Controller,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Get,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { UsuarioService } from './usuario.service';
@@ -17,7 +24,10 @@ export class UsuarioController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Post()
-  crearEmpleado(@CurrentUser() user: any, @Body() body: { nombre: string; email: string; rol?: string }) {
+  crearEmpleado(
+    @CurrentUser() user: any,
+    @Body() body: { nombre: string; email: string; rol?: string },
+  ) {
     return this.usuarioService.crearEmpleado(user, body);
   }
 
@@ -54,14 +64,20 @@ export class UsuarioController {
   @UseGuards(JwtAuthGuard)
   @Throttle({ password: { limit: 3, ttl: 300_000 } })
   @Post('cambiar-password')
-  cambiarPassword(@CurrentUser() user: any, @Body() body: { nuevaPassword: string }) {
+  cambiarPassword(
+    @CurrentUser() user: any,
+    @Body() body: { nuevaPassword: string },
+  ) {
     return this.usuarioService.cambiarPassword(user, body.nuevaPassword);
   }
 
   // PATCH /usuarios/push-token — registrar token de push notification
   @UseGuards(JwtAuthGuard)
   @Patch('push-token')
-  registrarPushToken(@CurrentUser() user: any, @Body() body: { pushToken: string }) {
+  registrarPushToken(
+    @CurrentUser() user: any,
+    @Body() body: { pushToken: string },
+  ) {
     return this.usuarioService.registrarPushToken(user.userId, body.pushToken);
   }
 

@@ -1,6 +1,9 @@
 // src/superadmin/superadmin.service.ts
 import {
-  Injectable, ForbiddenException, NotFoundException, BadRequestException,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -10,7 +13,8 @@ export class SuperAdminService {
   constructor(private readonly prisma: PrismaService) {}
 
   private assertSuperAdmin(user: any) {
-    if (user.rol !== 'SUPERADMIN') throw new ForbiddenException('Acceso denegado');
+    if (user.rol !== 'SUPERADMIN')
+      throw new ForbiddenException('Acceso denegado');
   }
 
   // ─── LISTAR TODAS LAS EMPRESAS (SOLO METADATA) ────────────────────────────
@@ -79,40 +83,59 @@ export class SuperAdminService {
 
   // ─── CREAR EMPRESA ────────────────────────────────────────────────────────
 
-  async crearEmpresa(user: any, datos: {
-    nombreEmpresa: string; nombreAdmin: string; emailAdmin: string;
-    passwordAdmin: string; tasaInteresBase?: number;
-    moraPorcentajeMensual?: number; diasGracia?: number;
-  }) {
+  async crearEmpresa(
+    user: any,
+    datos: {
+      nombreEmpresa: string;
+      nombreAdmin: string;
+      emailAdmin: string;
+      passwordAdmin: string;
+      tasaInteresBase?: number;
+      moraPorcentajeMensual?: number;
+      diasGracia?: number;
+    },
+  ) {
     this.assertSuperAdmin(user);
 
-    const emailExiste = await this.prisma.usuario.findUnique({ where: { email: datos.emailAdmin } });
-    if (emailExiste) throw new BadRequestException('Ya existe un usuario con ese email');
+    const emailExiste = await this.prisma.usuario.findUnique({
+      where: { email: datos.emailAdmin },
+    });
+    if (emailExiste)
+      throw new BadRequestException('Ya existe un usuario con ese email');
 
     const hashedPassword = await bcrypt.hash(datos.passwordAdmin, 10);
 
     const resultado = await this.prisma.$transaction(async (tx) => {
-      const empresa = await tx.empresa.create({ data: { nombre: datos.nombreEmpresa, activa: true } });
+      const empresa = await tx.empresa.create({
+        data: { nombre: datos.nombreEmpresa, activa: true },
+      });
       await tx.configuracion.create({
         data: {
           empresaId: empresa.id,
-          tasaInteresBase:       datos.tasaInteresBase       ?? 10,
+          tasaInteresBase: datos.tasaInteresBase ?? 10,
           moraPorcentajeMensual: datos.moraPorcentajeMensual ?? 5,
-          diasGracia:            datos.diasGracia            ?? 5,
-          permitirAbonoCapital:  true,
+          diasGracia: datos.diasGracia ?? 5,
+          permitirAbonoCapital: true,
         },
       });
       const admin = await tx.usuario.create({
         data: {
-          nombre: datos.nombreAdmin, email: datos.emailAdmin,
-          password: hashedPassword, rol: 'ADMIN',
-          empresaId: empresa.id, debeCambiarPassword: false,
+          nombre: datos.nombreAdmin,
+          email: datos.emailAdmin,
+          password: hashedPassword,
+          rol: 'ADMIN',
+          empresaId: empresa.id,
+          debeCambiarPassword: false,
         },
       });
       return { empresa, admin };
     });
 
-    return { mensaje: 'Empresa creada correctamente', empresa: resultado.empresa, adminEmail: resultado.admin.email };
+    return {
+      mensaje: 'Empresa creada correctamente',
+      empresa: resultado.empresa,
+      adminEmail: resultado.admin.email,
+    };
   }
 
   // ─── EDITAR NOMBRE DE EMPRESA ─────────────────────────────────────────────
@@ -120,13 +143,16 @@ export class SuperAdminService {
   async editarEmpresa(user: any, empresaId: string, nombre: string) {
     this.assertSuperAdmin(user);
 
-    const empresa = await this.prisma.empresa.findUnique({ where: { id: empresaId } });
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+    });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
-    if (!nombre?.trim()) throw new BadRequestException('El nombre no puede estar vacío');
+    if (!nombre?.trim())
+      throw new BadRequestException('El nombre no puede estar vacío');
 
     return this.prisma.empresa.update({
       where: { id: empresaId },
-      data:  { nombre: nombre.trim() },
+      data: { nombre: nombre.trim() },
     });
   }
 
@@ -135,11 +161,19 @@ export class SuperAdminService {
   async toggleEmpresa(user: any, empresaId: string, activa: boolean) {
     this.assertSuperAdmin(user);
 
-    const empresa = await this.prisma.empresa.findUnique({ where: { id: empresaId } });
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+    });
     if (!empresa) throw new NotFoundException('Empresa no encontrada');
 
-    await this.prisma.empresa.update({ where: { id: empresaId }, data: { activa } });
-    await this.prisma.usuario.updateMany({ where: { empresaId }, data: { activo: activa } });
+    await this.prisma.empresa.update({
+      where: { id: empresaId },
+      data: { activa },
+    });
+    await this.prisma.usuario.updateMany({
+      where: { empresaId },
+      data: { activo: activa },
+    });
 
     return { mensaje: activa ? 'Empresa activada' : 'Empresa desactivada' };
   }
@@ -149,19 +183,25 @@ export class SuperAdminService {
   async resetearPassword(user: any, usuarioId: string, nuevaPassword: string) {
     this.assertSuperAdmin(user);
 
-    const usuario = await this.prisma.usuario.findUnique({ where: { id: usuarioId } });
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+    });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
     if (!nuevaPassword || nuevaPassword.length < 8) {
-      throw new BadRequestException('La contraseña debe tener mínimo 8 caracteres');
+      throw new BadRequestException(
+        'La contraseña debe tener mínimo 8 caracteres',
+      );
     }
 
     const hashed = await bcrypt.hash(nuevaPassword, 10);
     await this.prisma.usuario.update({
       where: { id: usuarioId },
-      data:  { password: hashed, debeCambiarPassword: true },
+      data: { password: hashed, debeCambiarPassword: true },
     });
 
-    return { mensaje: `Contraseña de ${usuario.nombre} reseteada. Deberá cambiarla al iniciar sesión.` };
+    return {
+      mensaje: `Contraseña de ${usuario.nombre} reseteada. Deberá cambiarla al iniciar sesión.`,
+    };
   }
 
   // ─── ESTADÍSTICAS GLOBALES DEL SISTEMA (SOLO METADATA) ────────────────────

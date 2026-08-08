@@ -1,8 +1,15 @@
 import {
-  Injectable, NotFoundException, BadRequestException, UnauthorizedException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdatePerfilDto, CambiarPasswordDto, UpdateEmpresaDto } from './dto/perfil.dto';
+import {
+  UpdatePerfilDto,
+  CambiarPasswordDto,
+  UpdateEmpresaDto,
+} from './dto/perfil.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -16,8 +23,12 @@ export class PerfilService {
       this.prisma.usuario.findUnique({
         where: { id: usuarioId },
         select: {
-          id: true, nombre: true, email: true,
-          rol: true, activo: true, createdAt: true,
+          id: true,
+          nombre: true,
+          email: true,
+          rol: true,
+          activo: true,
+          createdAt: true,
           debeCambiarPassword: true,
         },
       }),
@@ -40,7 +51,10 @@ export class PerfilService {
       where: { id: usuarioId },
       data: { nombre: dto.nombre },
       select: {
-        id: true, nombre: true, email: true, rol: true,
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
       },
     });
   }
@@ -56,10 +70,13 @@ export class PerfilService {
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
 
     const valida = await bcrypt.compare(dto.passwordActual, usuario.password);
-    if (!valida) throw new UnauthorizedException('La contraseña actual es incorrecta');
+    if (!valida)
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
 
     if (dto.passwordActual === dto.passwordNuevo) {
-      throw new BadRequestException('La nueva contraseña debe ser diferente a la actual');
+      throw new BadRequestException(
+        'La nueva contraseña debe ser diferente a la actual',
+      );
     }
 
     const hash = await bcrypt.hash(dto.passwordNuevo, 10);

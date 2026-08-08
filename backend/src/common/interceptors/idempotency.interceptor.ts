@@ -41,7 +41,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
 
-    const idempotencyKey = request.headers[IDEMPOTENCY_HEADER.toLowerCase()] as string | undefined;
+    const idempotencyKey = request.headers[IDEMPOTENCY_HEADER.toLowerCase()] as
+      | string
+      | undefined;
     if (!idempotencyKey) {
       return next.handle();
     }
@@ -49,7 +51,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const cacheKey = `idempotency:${request.method}:${request.path}:${idempotencyKey}`;
 
     try {
-      const cached = await this.cacheManager.get<{ statusCode: number; body: unknown }>(cacheKey);
+      const cached = await this.cacheManager.get<{
+        statusCode: number;
+        body: unknown;
+      }>(cacheKey);
       if (cached) {
         response.status(cached.statusCode);
         return of(cached.body);

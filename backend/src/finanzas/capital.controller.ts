@@ -29,10 +29,7 @@ export class CapitalController {
   }
 
   @Get('movimientos')
-  async getMovimientos(
-    @Request() req: any,
-    @Query('limite') limite?: string,
-  ) {
+  async getMovimientos(@Request() req: any, @Query('limite') limite?: string) {
     return this.capitalService.getMovimientos(
       req.user,
       limite ? parseInt(limite, 10) : 50,
@@ -53,10 +50,7 @@ export class CapitalController {
   }
 
   @Post('inyeccion')
-  async inyectarCapital(
-    @Body() dto: CreateInyeccionDto,
-    @Request() req: any,
-  ) {
+  async inyectarCapital(@Body() dto: CreateInyeccionDto, @Request() req: any) {
     return this.capitalService.inyectarCapital(dto, req.user);
   }
 
@@ -66,18 +60,12 @@ export class CapitalController {
   }
 
   @Post('retiro')
-  async retirarGanancias(
-    @Body() dto: CreateRetiroDto,
-    @Request() req: any,
-  ) {
+  async retirarGanancias(@Body() dto: CreateRetiroDto, @Request() req: any) {
     return this.capitalService.retirarGanancias(dto, req.user);
   }
 
   @Post('retiro-capital')
-  async retirarCapital(
-    @Body() dto: CreateRetiroDto,
-    @Request() req: any,
-  ) {
+  async retirarCapital(@Body() dto: CreateRetiroDto, @Request() req: any) {
     return this.capitalService.retirarCapital(dto, req.user);
   }
 

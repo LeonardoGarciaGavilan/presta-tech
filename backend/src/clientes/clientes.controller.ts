@@ -1,7 +1,18 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Delete,
-  UseGuards, Query, ParseIntPipe, DefaultValuePipe,
-  UseInterceptors, UploadedFile, BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientesService } from './clientes.service';
@@ -38,7 +49,13 @@ export class ClientesController {
   ) {
     const porPagina = Math.min(limit, 1000);
     const parsedIds = ids ? ids.split(',').filter(Boolean) : undefined;
-    return this.clientesService.findAll(empresaId, page, porPagina, search, parsedIds);
+    return this.clientesService.findAll(
+      empresaId,
+      page,
+      porPagina,
+      search,
+      parsedIds,
+    );
   }
 
   @Get('inactivos')
@@ -50,7 +67,12 @@ export class ClientesController {
     @Query('search') search: string,
   ) {
     const porPagina = Math.min(limit, 100);
-    return this.clientesService.findInactivos(empresaId, page, porPagina, search);
+    return this.clientesService.findInactivos(
+      empresaId,
+      page,
+      porPagina,
+      search,
+    );
   }
 
   @Get(':id')
@@ -61,7 +83,11 @@ export class ClientesController {
 
   @Patch(':id')
   @Roles('ADMIN', 'EMPLEADO')
-  update(@Param('id') id: string, @Body() dto: UpdateClienteDto, @Tenant() empresaId: string) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateClienteDto,
+    @Tenant() empresaId: string,
+  ) {
     return this.clientesService.update(id, dto, empresaId);
   }
 
@@ -85,7 +111,12 @@ export class ClientesController {
       fileFilter: (_req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
         if (!allowed.includes(file.mimetype)) {
-          return cb(new BadRequestException('Formato no permitido. Use JPG, PNG o WebP'), false);
+          return cb(
+            new BadRequestException(
+              'Formato no permitido. Use JPG, PNG o WebP',
+            ),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -101,7 +132,9 @@ export class ClientesController {
       throw new BadRequestException('Archivo no proporcionado');
     }
     if (!tipo || !['cedula-frontal', 'cedula-trasera'].includes(tipo)) {
-      throw new BadRequestException('tipo debe ser cedula-frontal o cedula-trasera');
+      throw new BadRequestException(
+        'tipo debe ser cedula-frontal o cedula-trasera',
+      );
     }
     return this.clientesService.uploadCedula(
       id,
@@ -112,12 +145,12 @@ export class ClientesController {
     );
   }
 
-@Post('test-upload')
-@UseInterceptors(FileInterceptor('file'))
-test(@UploadedFile() file: any) {
-  console.log(file);
-  return file;
-}
+  @Post('test-upload')
+  @UseInterceptors(FileInterceptor('file'))
+  test(@UploadedFile() file: any) {
+    console.log(file);
+    return file;
+  }
 
   @Get(':id/cedula/signed-url')
   @Roles('ADMIN', 'EMPLEADO')
@@ -127,7 +160,9 @@ test(@UploadedFile() file: any) {
     @Query('tipo') tipo: string,
   ) {
     if (!tipo || !['cedula-frontal', 'cedula-trasera'].includes(tipo)) {
-      throw new BadRequestException('tipo debe ser cedula-frontal o cedula-trasera');
+      throw new BadRequestException(
+        'tipo debe ser cedula-frontal o cedula-trasera',
+      );
     }
     return this.clientesService.getCedulaSignedUrl(
       id,

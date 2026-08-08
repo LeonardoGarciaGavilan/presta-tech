@@ -1,6 +1,11 @@
 import {
-  IsString, IsNumber, IsNotEmpty, IsOptional,
-  IsDateString, Min, IsIn,
+  IsString,
+  IsNumber,
+  IsNotEmpty,
+  IsOptional,
+  IsDateString,
+  Min,
+  IsIn,
 } from 'class-validator';
 
 export class CreateGastoDto {

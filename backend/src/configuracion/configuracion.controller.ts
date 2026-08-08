@@ -1,6 +1,4 @@
-import {
-  Controller, Get, Put, Body, UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { ConfiguracionService } from './configuracion.service';
 import { UpsertConfiguracionDto } from './dto/upsert-configuracion.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
@@ -22,7 +20,11 @@ export class ConfiguracionController {
 
   @Put()
   @Roles('ADMIN')
-  upsert(@Body() dto: UpsertConfiguracionDto, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  upsert(
+    @Body() dto: UpsertConfiguracionDto,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     return this.configuracionService.upsert(dto, empresaId, user.userId);
   }
 }

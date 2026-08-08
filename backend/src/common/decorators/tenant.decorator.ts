@@ -7,12 +7,12 @@ import {
 
 /**
  * Decorador @Tenant() - Extrae el empresaId desde req.user.empresaId
- * 
+ *
  * Uso en controllers:
  *   create(@Body() dto, @Tenant() empresaId: string) {
  *     return this.service.create(dto, empresaId);
  *   }
- * 
+ *
  * Comportamiento:
  * - Extrae empresaId desde req.user.empresaId
  * - Si NO es SUPERADMIN y empresaId es null, lanza UnauthorizedException

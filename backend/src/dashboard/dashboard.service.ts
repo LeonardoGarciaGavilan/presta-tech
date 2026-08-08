@@ -2,11 +2,31 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoPrestamo } from '@prisma/client';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
-import { format, subMonths, startOfMonth, addDays, startOfDay, subDays } from 'date-fns';
+import {
+  format,
+  subMonths,
+  startOfMonth,
+  addDays,
+  startOfDay,
+  subDays,
+} from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
 const TIMEZONE_RD = 'America/Santo_Domingo';
-const NOMBRES_MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const NOMBRES_MESES = [
+  'Ene',
+  'Feb',
+  'Mar',
+  'Abr',
+  'May',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dic',
+];
 
 @Injectable()
 export class DashboardService {
@@ -130,7 +150,13 @@ export class DashboardService {
     // =====================
     // BLOQUE 4: Listas + Resumen (5 queries)
     // =====================
-    const [clientesRecientes, prestamosAtrasados, proximasCuotas, cobroEsperado, moraCritica] = await Promise.all([
+    const [
+      clientesRecientes,
+      prestamosAtrasados,
+      proximasCuotas,
+      cobroEsperado,
+      moraCritica,
+    ] = await Promise.all([
       this.obtenerClientesRecientes(empresaId),
       this.obtenerPrestamosAtrasados(empresaId),
       this.obtenerProximasCuotas(empresaId),
@@ -162,7 +188,9 @@ export class DashboardService {
     ]);
 
     // Procesar mora crítica - clientes únicos
-    const moraCriticaClientes = new Set(moraCritica.map(c => c.prestamo.clienteId));
+    const moraCriticaClientes = new Set(
+      moraCritica.map((c) => c.prestamo.clienteId),
+    );
     const resumen = {
       cobroEsperadoHoy: {
         monto: Math.round((cobroEsperado._sum.monto ?? 0) * 100) / 100,
@@ -199,11 +227,13 @@ export class DashboardService {
       if (key) cantidades[key] = item._count.id;
     }
 
-    const saldoPendienteTotal = Math.round(
-      ((saldoCuotas._sum.capital ?? 0) +
-        (saldoCuotas._sum.interes ?? 0) +
-        (saldoCuotas._sum.mora ?? 0)) * 100
-    ) / 100;
+    const saldoPendienteTotal =
+      Math.round(
+        ((saldoCuotas._sum.capital ?? 0) +
+          (saldoCuotas._sum.interes ?? 0) +
+          (saldoCuotas._sum.mora ?? 0)) *
+          100,
+      ) / 100;
 
     const cobrosPorMes = this.procesarGraficoMensual(cobrosGrafico);
     const desembolsosPorMes = this.procesarGraficoMensual(desembolsosGrafico);
@@ -238,8 +268,10 @@ export class DashboardService {
     };
   }
 
-  private procesarGraficoMensual(datosRaw: unknown): { mes: string; monto: number }[] {
-    const datos = datosRaw as { mes_key: string; monto: number }[] || [];
+  private procesarGraficoMensual(
+    datosRaw: unknown,
+  ): { mes: string; monto: number }[] {
+    const datos = (datosRaw as { mes_key: string; monto: number }[]) || [];
     const ahora = new Date();
     const resultado: { mes: string; monto: number }[] = [];
 
@@ -285,7 +317,9 @@ export class DashboardService {
       },
       select: { clienteId: true },
     });
-    const clientesConPrestamo = new Set(prestamosActivos.map((p) => p.clienteId));
+    const clientesConPrestamo = new Set(
+      prestamosActivos.map((p) => p.clienteId),
+    );
 
     return clientes.map((c) => ({
       id: c.id,
@@ -344,7 +378,7 @@ export class DashboardService {
       const cuotaVencida = p.cuotas[0];
       const saldoCalculado = p.cuotas.reduce(
         (sum, c) => sum + c.capital + c.interes + (c.mora ?? 0),
-        0
+        0,
       );
 
       return {
@@ -423,7 +457,8 @@ export class DashboardService {
       mora: c.mora,
       fechaVencimiento: c.fechaVencimiento,
       diasRestantes: Math.ceil(
-        (new Date(c.fechaVencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)
+        (new Date(c.fechaVencimiento).getTime() - hoy.getTime()) /
+          (1000 * 60 * 60 * 24),
       ),
       prestamo: {
         id: c.prestamo.id,

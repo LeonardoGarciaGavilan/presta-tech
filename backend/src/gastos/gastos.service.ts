@@ -1,5 +1,8 @@
 import {
-  Injectable, ForbiddenException, NotFoundException, BadRequestException,
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateGastoDto, UpdateGastoDto } from './dto/gastos.dto';
@@ -10,7 +13,9 @@ export class GastosService {
 
   private assertAdmin(user: any) {
     if (user.rol !== 'ADMIN') {
-      throw new ForbiddenException('Solo el administrador puede gestionar gastos');
+      throw new ForbiddenException(
+        'Solo el administrador puede gestionar gastos',
+      );
     }
   }
 
@@ -66,7 +71,9 @@ export class GastosService {
     const ahora = new Date();
     // ✅ Usar UTC explícito para que los límites de mes/año sean correctos
     // independientemente de la zona horaria del servidor
-    const inicioMes = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), 1));
+    const inicioMes = new Date(
+      Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), 1),
+    );
     const inicioAno = new Date(Date.UTC(ahora.getUTCFullYear(), 0, 1));
 
     const [totalMes, totalAno, todos] = await Promise.all([
@@ -90,8 +97,8 @@ export class GastosService {
     });
 
     return {
-      totalMes:  totalMes._sum.monto  || 0,
-      totalAno:  totalAno._sum.monto  || 0,
+      totalMes: totalMes._sum.monto || 0,
+      totalAno: totalAno._sum.monto || 0,
       totalGral: todos.reduce((s, g) => s + g.monto, 0),
       porCategoria,
     };
@@ -110,15 +117,15 @@ export class GastosService {
     return this.prisma.$transaction(async (tx) => {
       const gasto = await tx.gasto.create({
         data: {
-          categoria:     dto.categoria,
-          descripcion:   dto.descripcion,
-          monto:         dto.monto,
-          fecha:         new Date(dto.fecha),
-          proveedor:     dto.proveedor     || null,
-          referencia:    dto.referencia    || null,
+          categoria: dto.categoria,
+          descripcion: dto.descripcion,
+          monto: dto.monto,
+          fecha: new Date(dto.fecha),
+          proveedor: dto.proveedor || null,
+          referencia: dto.referencia || null,
           observaciones: dto.observaciones || null,
-          empresaId:     user.empresaId,
-          usuarioId:     user.userId,
+          empresaId: user.empresaId,
+          usuarioId: user.userId,
         },
       });
 
@@ -137,17 +144,27 @@ export class GastosService {
         }),
       ]);
 
-      const gananciasNetas = Math.round(
-        ((totalIntereses._sum.interes ?? 0) + (totalIntereses._sum.mora ?? 0) - (totalGastosPrevios._sum.interes ?? 0)) * 100
-      ) / 100;
+      const gananciasNetas =
+        Math.round(
+          ((totalIntereses._sum.interes ?? 0) +
+            (totalIntereses._sum.mora ?? 0) -
+            (totalGastosPrevios._sum.interes ?? 0)) *
+            100,
+        ) / 100;
 
-      const excedeGanancias = tipo === 'OPERATIVO' && dto.monto > gananciasNetas;
+      const excedeGanancias =
+        tipo === 'OPERATIVO' && dto.monto > gananciasNetas;
 
       await tx.movimientoFinanciero.create({
         data: {
           tipo: tipoMovimiento,
           monto: dto.monto,
-          capital: tipo === 'CAPITAL' ? dto.monto : (excedeGanancias ? Math.max(0, dto.monto - gananciasNetas) : 0),
+          capital:
+            tipo === 'CAPITAL'
+              ? dto.monto
+              : excedeGanancias
+                ? Math.max(0, dto.monto - gananciasNetas)
+                : 0,
           interes: tipo === 'OPERATIVO' ? -dto.monto : 0,
           mora: 0,
           referenciaTipo: 'GASTO',
@@ -163,7 +180,8 @@ export class GastosService {
       if (excedeGanancias) {
         const excedente = Math.round((dto.monto - gananciasNetas) * 100) / 100;
         // Guardar la alerta en un campo temporal no persistido (se maneja en el return)
-        (gasto as any).alerta = `Este gasto excedió las ganancias disponibles. RD$${excedente.toLocaleString()} fueron descontados del capital.`;
+        (gasto as any).alerta =
+          `Este gasto excedió las ganancias disponibles. RD$${excedente.toLocaleString()} fueron descontados del capital.`;
       }
 
       return gasto;
@@ -183,13 +201,19 @@ export class GastosService {
     return this.prisma.gasto.update({
       where: { id },
       data: {
-        ...(dto.categoria     && { categoria:    dto.categoria }),
-        ...(dto.descripcion   && { descripcion:  dto.descripcion }),
-        ...(dto.monto         && { monto:        dto.monto }),
-        ...(dto.fecha         && { fecha:        new Date(dto.fecha) }),
-        ...(dto.proveedor     !== undefined && { proveedor:     dto.proveedor     || null }),
-        ...(dto.referencia    !== undefined && { referencia:    dto.referencia    || null }),
-        ...(dto.observaciones !== undefined && { observaciones: dto.observaciones || null }),
+        ...(dto.categoria && { categoria: dto.categoria }),
+        ...(dto.descripcion && { descripcion: dto.descripcion }),
+        ...(dto.monto && { monto: dto.monto }),
+        ...(dto.fecha && { fecha: new Date(dto.fecha) }),
+        ...(dto.proveedor !== undefined && {
+          proveedor: dto.proveedor || null,
+        }),
+        ...(dto.referencia !== undefined && {
+          referencia: dto.referencia || null,
+        }),
+        ...(dto.observaciones !== undefined && {
+          observaciones: dto.observaciones || null,
+        }),
       },
       include: { usuario: { select: { nombre: true } } },
     });

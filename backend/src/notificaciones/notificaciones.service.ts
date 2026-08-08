@@ -9,7 +9,7 @@ export class NotificacionesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAlertas(user: any) {
-    const hoy    = new Date();
+    const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     const en2Dias = new Date(hoy);
@@ -27,14 +27,19 @@ export class NotificacionesService {
           gte: hoy,
           lte: new Date(new Date(hoy).setHours(23, 59, 59, 999)),
         },
-        prestamo: { empresaId: user.empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+        prestamo: {
+          empresaId: user.empresaId,
+          estado: { in: ['ACTIVO', 'ATRASADO'] },
+        },
       },
       include: {
         prestamo: {
           select: {
             id: true,
             monto: true,
-            cliente: { select: { nombre: true, apellido: true, telefono: true } },
+            cliente: {
+              select: { nombre: true, apellido: true, telefono: true },
+            },
           },
         },
       },
@@ -49,14 +54,19 @@ export class NotificacionesService {
           gt: new Date(new Date(hoy).setHours(23, 59, 59, 999)),
           lte: en2Dias,
         },
-        prestamo: { empresaId: user.empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+        prestamo: {
+          empresaId: user.empresaId,
+          estado: { in: ['ACTIVO', 'ATRASADO'] },
+        },
       },
       include: {
         prestamo: {
           select: {
             id: true,
             monto: true,
-            cliente: { select: { nombre: true, apellido: true, telefono: true } },
+            cliente: {
+              select: { nombre: true, apellido: true, telefono: true },
+            },
           },
         },
       },
@@ -68,14 +78,19 @@ export class NotificacionesService {
       where: {
         pagada: false,
         fechaVencimiento: { lt: hoy },
-        prestamo: { empresaId: user.empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+        prestamo: {
+          empresaId: user.empresaId,
+          estado: { in: ['ACTIVO', 'ATRASADO'] },
+        },
       },
       include: {
         prestamo: {
           select: {
             id: true,
             monto: true,
-            cliente: { select: { nombre: true, apellido: true, telefono: true } },
+            cliente: {
+              select: { nombre: true, apellido: true, telefono: true },
+            },
           },
         },
       },
@@ -96,71 +111,72 @@ export class NotificacionesService {
     // ── Mapear a formato uniforme ─────────────────────────────────────────
     const alertas = [
       ...vencenHoy.map((c) => ({
-        tipo:       'HOY',
-        prioridad:  1,
+        tipo: 'HOY',
+        prioridad: 1,
         prestamoId: c.prestamo.id,
-        cliente:    `${c.prestamo.cliente.nombre} ${c.prestamo.cliente.apellido}`,
-        telefono:   c.prestamo.cliente.telefono ?? '—',
-        monto:      c.monto,
-        fecha:      c.fechaVencimiento,
-        mensaje:    'Cuota vence hoy',
+        cliente: `${c.prestamo.cliente.nombre} ${c.prestamo.cliente.apellido}`,
+        telefono: c.prestamo.cliente.telefono ?? '—',
+        monto: c.monto,
+        fecha: c.fechaVencimiento,
+        mensaje: 'Cuota vence hoy',
       })),
       ...proximasAVencer.map((c) => {
         const diasRestantes = Math.ceil(
-          (new Date(c.fechaVencimiento).getTime() - hoy.getTime()) / 86400000
+          (new Date(c.fechaVencimiento).getTime() - hoy.getTime()) / 86400000,
         );
         return {
-          tipo:       'PROXIMO',
-          prioridad:  2,
+          tipo: 'PROXIMO',
+          prioridad: 2,
           prestamoId: c.prestamo.id,
-          cliente:    `${c.prestamo.cliente.nombre} ${c.prestamo.cliente.apellido}`,
-          telefono:   c.prestamo.cliente.telefono ?? '—',
-          monto:      c.monto,
-          fecha:      c.fechaVencimiento,
-          mensaje:    `Cuota vence en ${diasRestantes} día${diasRestantes > 1 ? 's' : ''}`,
+          cliente: `${c.prestamo.cliente.nombre} ${c.prestamo.cliente.apellido}`,
+          telefono: c.prestamo.cliente.telefono ?? '—',
+          monto: c.monto,
+          fecha: c.fechaVencimiento,
+          mensaje: `Cuota vence en ${diasRestantes} día${diasRestantes > 1 ? 's' : ''}`,
         };
       }),
       ...vencidas.map((c) => {
         const diasAtraso = Math.floor(
-          (hoy.getTime() - new Date(c.fechaVencimiento).getTime()) / 86400000
+          (hoy.getTime() - new Date(c.fechaVencimiento).getTime()) / 86400000,
         );
         return {
-          tipo:       'VENCIDA',
-          prioridad:  3,
+          tipo: 'VENCIDA',
+          prioridad: 3,
           prestamoId: c.prestamo.id,
-          cliente:    `${c.prestamo.cliente.nombre} ${c.prestamo.cliente.apellido}`,
-          telefono:   c.prestamo.cliente.telefono ?? '—',
-          monto:      c.monto,
-          fecha:      c.fechaVencimiento,
-          mensaje:    `Vencida hace ${diasAtraso} día${diasAtraso > 1 ? 's' : ''}`,
+          cliente: `${c.prestamo.cliente.nombre} ${c.prestamo.cliente.apellido}`,
+          telefono: c.prestamo.cliente.telefono ?? '—',
+          monto: c.monto,
+          fecha: c.fechaVencimiento,
+          mensaje: `Vencida hace ${diasAtraso} día${diasAtraso > 1 ? 's' : ''}`,
           diasAtraso,
         };
       }),
       ...atrasados.map((p) => {
         const { saldoPendiente, moraAcumulada } = calcularDesdeObjeto(p);
         return {
-          tipo:       'ATRASADO',
-          prioridad:  4,
+          tipo: 'ATRASADO',
+          prioridad: 4,
           prestamoId: p.id,
-          cliente:    `${p.cliente.nombre} ${p.cliente.apellido}`,
-          telefono:   p.cliente.telefono ?? '—',
-          monto:      moraAcumulada,
-          saldo:      saldoPendiente,
-          fecha:      null,
-          mensaje:    'Préstamo en estado atrasado',
+          cliente: `${p.cliente.nombre} ${p.cliente.apellido}`,
+          telefono: p.cliente.telefono ?? '—',
+          monto: moraAcumulada,
+          saldo: saldoPendiente,
+          fecha: null,
+          mensaje: 'Préstamo en estado atrasado',
         };
       }),
     ];
 
     return {
-      total:    alertas.length,
-      urgentes: alertas.filter((a) => ['HOY', 'VENCIDA'].includes(a.tipo)).length,
+      total: alertas.length,
+      urgentes: alertas.filter((a) => ['HOY', 'VENCIDA'].includes(a.tipo))
+        .length,
       alertas,
       resumen: {
-        vencenHoy:       vencenHoy.length,
+        vencenHoy: vencenHoy.length,
         proximasAVencer: proximasAVencer.length,
-        vencidas:        vencidas.length,
-        atrasados:       atrasados.length,
+        vencidas: vencidas.length,
+        atrasados: atrasados.length,
       },
     };
   }

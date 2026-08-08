@@ -129,15 +129,30 @@ export class DashboardMobileService {
       FROM portfolio, saldo_real, pagos_del_dia, pagos_del_mes, cuotas_hoy, mora_critica
     `;
 
-    const rows: unknown[] = await this.prisma.$queryRawUnsafe(sql, empresaId, hoy, finHoy, inicioMes, hace30Dias, usuarioId, fechaRD);
+    const rows: unknown[] = await this.prisma.$queryRawUnsafe(
+      sql,
+      empresaId,
+      hoy,
+      finHoy,
+      inicioMes,
+      hace30Dias,
+      usuarioId,
+      fechaRD,
+    );
 
     const raw = rows[0] as Record<string, unknown>;
 
     const portfolio = raw.portfolio as PortfolioDto;
     const saldoReal = raw.saldo_real as { saldo_pendiente_total: number };
-    const pagosDia = raw.pagos_del_dia as { cobrado_hoy: number; pagos_hoy: number };
+    const pagosDia = raw.pagos_del_dia as {
+      cobrado_hoy: number;
+      pagos_hoy: number;
+    };
     const pagosMes = raw.pagos_del_mes as { cobrado_mes: number };
-    const cuotasHoyRaw = raw.cuotas_hoy as { cuotas_pendientes_hoy: number; monto_esperado_hoy: number };
+    const cuotasHoyRaw = raw.cuotas_hoy as {
+      cuotas_pendientes_hoy: number;
+      monto_esperado_hoy: number;
+    };
     const moraCritica = raw.mora_critica as { prestamos_mora_critica: number };
     const proximosCobrosRaw = raw.proximos_cobros as ProximoCobroDto[] | null;
     const cajaRaw = raw.caja_activa as CajaActivaDto | null;
@@ -146,15 +161,18 @@ export class DashboardMobileService {
       portfolio: {
         activos: portfolio.activos,
         atrasados: portfolio.atrasados,
-        montoTotalPrestado: Math.round(portfolio.montoTotalPrestado * 100) / 100,
-        saldoPendienteTotal: Math.round(saldoReal.saldo_pendiente_total * 100) / 100,
+        montoTotalPrestado:
+          Math.round(portfolio.montoTotalPrestado * 100) / 100,
+        saldoPendienteTotal:
+          Math.round(saldoReal.saldo_pendiente_total * 100) / 100,
       },
       today: {
         cobradoHoy: Math.round(pagosDia.cobrado_hoy * 100) / 100,
         pagosHoy: pagosDia.pagos_hoy,
         cobradoMes: Math.round(pagosMes.cobrado_mes * 100) / 100,
         cuotasPendientesHoy: cuotasHoyRaw.cuotas_pendientes_hoy,
-        montoEsperadoHoy: Math.round(cuotasHoyRaw.monto_esperado_hoy * 100) / 100,
+        montoEsperadoHoy:
+          Math.round(cuotasHoyRaw.monto_esperado_hoy * 100) / 100,
         prestamosMoraCritica: moraCritica.prestamos_mora_critica,
       },
       caja: cajaRaw

@@ -16,26 +16,35 @@ interface AuditoriaData {
   nivel?: 'INFO' | 'WARN' | 'ERROR' | null;
 }
 
-export async function registrarAuditoria(prisma: any, data: AuditoriaData): Promise<any | null> {
+export async function registrarAuditoria(
+  prisma: any,
+  data: AuditoriaData,
+): Promise<any | null> {
   try {
     if (!data.usuarioId) {
-      console.warn('⚠️ Auditoría sin usuarioId:', data.accion, data.descripcion);
+      console.warn(
+        '⚠️ Auditoría sin usuarioId:',
+        data.accion,
+        data.descripcion,
+      );
     }
 
     // Validar que empresaId sea válido si se proporciona
     let empresaIdValida: string | null = null;
-    
+
     if (data.empresaId) {
       // Verificar que la empresa existe en la base de datos
       const empresaExiste = await prisma.empresa.findUnique({
         where: { id: data.empresaId },
         select: { id: true },
       });
-      
+
       if (empresaExiste) {
         empresaIdValida = data.empresaId;
       } else {
-        console.warn(`⚠️ Auditoría: empresaId "${data.empresaId}" no existe, se guardará como null`);
+        console.warn(
+          `⚠️ Auditoría: empresaId "${data.empresaId}" no existe, se guardará como null`,
+        );
       }
     }
 
@@ -64,7 +73,10 @@ export async function registrarAuditoria(prisma: any, data: AuditoriaData): Prom
   }
 }
 
-export function generarDescripcionCambios(antes: Record<string, any> | null, despues: Record<string, any>): string {
+export function generarDescripcionCambios(
+  antes: Record<string, any> | null,
+  despues: Record<string, any>,
+): string {
   const cambios: string[] = [];
   const camposRelevantes = [
     'tasaInteresBase',
@@ -73,7 +85,7 @@ export function generarDescripcionCambios(antes: Record<string, any> | null, des
     'permitirAbonoCapital',
     'montoMinimoPrestamo',
     'montoMaximoPrestamo',
-    'montoMaximoPago'
+    'montoMaximoPago',
   ];
 
   for (const campo of camposRelevantes) {
@@ -83,7 +95,7 @@ export function generarDescripcionCambios(antes: Record<string, any> | null, des
     if (valorAntes !== valorDespues) {
       const label = campo
         .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, str => str.toUpperCase());
+        .replace(/^./, (str) => str.toUpperCase());
 
       cambios.push(`${label}: ${valorAntes ?? '—'} → ${valorDespues ?? '—'}`);
     }

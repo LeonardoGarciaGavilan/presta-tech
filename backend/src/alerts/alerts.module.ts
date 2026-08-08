@@ -4,7 +4,7 @@ import { AuthModule } from '../auth/auth.module'; // 👈 importa AuthModule
 import { AlertsGateway } from './alerts.gateway';
 
 @Module({
-  imports: [AuthModule],   // 👈 ya trae JwtModule configurado con el secret correcto
+  imports: [AuthModule], // 👈 ya trae JwtModule configurado con el secret correcto
   providers: [AlertsGateway],
   exports: [AlertsGateway],
 })

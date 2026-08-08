@@ -1,7 +1,13 @@
 // src/caja/caja.controller.ts
 import {
-  Controller, Get, Post, Patch,
-  Body, Param, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CajaService } from './caja.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
@@ -28,19 +34,25 @@ export class CajaController {
   ) {
     const fechaConsulta = fecha ?? getFechaRD();
     const isAdmin = user.rol === 'ADMIN';
-    return this.cajaService.getResumenDia(empresaId, fechaConsulta, cajaId, user.userId, isAdmin);
+    return this.cajaService.getResumenDia(
+      empresaId,
+      fechaConsulta,
+      cajaId,
+      user.userId,
+      isAdmin,
+    );
   }
 
   // GET /caja/activa?fecha=2026-02-26
   @Get('activa')
   @Roles('ADMIN', 'EMPLEADO')
-  miCajaActiva(@Tenant() empresaId: string, @CurrentUser() user: any, @Query('fecha') fecha: string) {
+  miCajaActiva(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Query('fecha') fecha: string,
+  ) {
     const fechaConsulta = fecha ?? getFechaRD();
-    return this.cajaService.miCajaActiva(
-      empresaId,
-      user.userId,
-      fechaConsulta,
-    );
+    return this.cajaService.miCajaActiva(empresaId, user.userId, fechaConsulta);
   }
 
   // GET /caja/historial
@@ -48,11 +60,7 @@ export class CajaController {
   @Roles('ADMIN', 'EMPLEADO')
   historial(@Tenant() empresaId: string, @CurrentUser() user: any) {
     const isAdmin = user.rol === 'ADMIN';
-    return this.cajaService.historialCajas(
-      empresaId,
-      user.userId,
-      isAdmin,
-    );
+    return this.cajaService.historialCajas(empresaId, user.userId, isAdmin);
   }
 
   // POST /caja/abrir
@@ -94,47 +102,47 @@ export class CajaController {
     );
   }
 
-   // POST /caja/cerrar (simplificado - cierra la caja abierta actual)
-   @Post('cerrar')
-   @Roles('ADMIN', 'EMPLEADO')
-   @Idempotent()
-   cerrarCajaSimple(
-     @Tenant() empresaId: string,
-     @CurrentUser() user: any,
-     @Body() body: { montoCierre: number; observaciones?: string },
-   ) {
-     const isAdmin = user.rol === 'ADMIN';
-     return this.cajaService.cerrarCajaSimple(
-       empresaId,
-       user.userId,
-       body.montoCierre,
-       body.observaciones,
-       undefined,
-       isAdmin,
-     );
-   }
+  // POST /caja/cerrar (simplificado - cierra la caja abierta actual)
+  @Post('cerrar')
+  @Roles('ADMIN', 'EMPLEADO')
+  @Idempotent()
+  cerrarCajaSimple(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { montoCierre: number; observaciones?: string },
+  ) {
+    const isAdmin = user.rol === 'ADMIN';
+    return this.cajaService.cerrarCajaSimple(
+      empresaId,
+      user.userId,
+      body.montoCierre,
+      body.observaciones,
+      undefined,
+      isAdmin,
+    );
+  }
 
-   // GET /caja?estado=ABIERTA
-   @Get()
-   @Roles('ADMIN', 'EMPLEADO')
-   getCajas(
-     @Tenant() empresaId: string,
-     @CurrentUser() user: any,
-     @Query('estado') estado?: string,
-   ) {
-     const isAdmin = user.rol === 'ADMIN';
-     return this.cajaService.getCajas(empresaId, estado, user.userId, isAdmin);
-   }
+  // GET /caja?estado=ABIERTA
+  @Get()
+  @Roles('ADMIN', 'EMPLEADO')
+  getCajas(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Query('estado') estado?: string,
+  ) {
+    const isAdmin = user.rol === 'ADMIN';
+    return this.cajaService.getCajas(empresaId, estado, user.userId, isAdmin);
+  }
 
-   // GET /caja/:id/auditoria
-   @Get(':id/auditoria')
-   @Roles('ADMIN', 'EMPLEADO')
-   getAuditoria(
-     @Param('id') id: string,
-     @Tenant() empresaId: string,
-     @CurrentUser() user: any,
-   ) {
-     const isAdmin = user.rol === 'ADMIN';
-     return this.cajaService.getAuditoria(id, empresaId, user.userId, isAdmin);
-   }
- }
+  // GET /caja/:id/auditoria
+  @Get(':id/auditoria')
+  @Roles('ADMIN', 'EMPLEADO')
+  getAuditoria(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
+    const isAdmin = user.rol === 'ADMIN';
+    return this.cajaService.getAuditoria(id, empresaId, user.userId, isAdmin);
+  }
+}

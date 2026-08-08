@@ -48,9 +48,13 @@ export class MoraCronService {
 
     for (const empresa of empresas) {
       try {
-        this.logger.log(`Procesando empresa: ${empresa.nombre} (${empresa.id})`);
+        this.logger.log(
+          `Procesando empresa: ${empresa.nombre} (${empresa.id})`,
+        );
 
-        const resultado = await this.prestamosService.actualizarMoras(empresa.id);
+        const resultado = await this.prestamosService.actualizarMoras(
+          empresa.id,
+        );
 
         this.logger.log(
           `Empresa ${empresa.nombre} completada: ${resultado.cuotasActualizadas ?? 0} cuotas con mora aplicada`,

@@ -8,20 +8,26 @@ import cookieParser from 'cookie-parser';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
-const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule);
 
-const expressApp = app.getHttpAdapter().getInstance();
-expressApp.set('trust proxy', 1);
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
 
   // 🔒 VALIDAR JWT_SECRET EN STARTUP — si no existe, fallar inmediatamente
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
-    console.error('🔒 ERROR CRÍTICO: JWT_SECRET no está configurado en variables de entorno');
-    console.error('🔒 La aplicación no puede iniciar sin JWT_SECRET configurado');
+    console.error(
+      '🔒 ERROR CRÍTICO: JWT_SECRET no está configurado en variables de entorno',
+    );
+    console.error(
+      '🔒 La aplicación no puede iniciar sin JWT_SECRET configurado',
+    );
     process.exit(1);
   }
   if (jwtSecret === 'super_secret_key' || jwtSecret.length < 32) {
-    console.error('🔒 ERROR CRÍTICO: JWT_SECRET demasiado débil. Debe tener al menos 32 caracteres');
+    console.error(
+      '🔒 ERROR CRÍTICO: JWT_SECRET demasiado débil. Debe tener al menos 32 caracteres',
+    );
     process.exit(1);
   }
   console.log('🔒 JWT_SECRET validado correctamente en startup');
@@ -30,8 +36,12 @@ expressApp.set('trust proxy', 1);
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseKey) {
-    console.error('🔒 ERROR CRÍTICO: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY deben estar configurados');
-    console.error('🔒 La aplicación no puede iniciar sin conexión a Supabase Storage');
+    console.error(
+      '🔒 ERROR CRÍTICO: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY deben estar configurados',
+    );
+    console.error(
+      '🔒 La aplicación no puede iniciar sin conexión a Supabase Storage',
+    );
     process.exit(1);
   }
   console.log('🔒 Supabase Storage configurado correctamente en startup');
@@ -52,11 +62,13 @@ expressApp.set('trust proxy', 1);
   app.useGlobalFilters(new PrismaExceptionFilter());
 
   // 🔒 Validación global de DTOs — rechaza campos no declarados
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,              // elimina campos no declarados en el DTO
-    forbidNonWhitelisted: true,   // lanza error si llegan campos extra
-    transform: true,              // convierte tipos automáticamente (string → number, etc.)
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // elimina campos no declarados en el DTO
+      forbidNonWhitelisted: true, // lanza error si llegan campos extra
+      transform: true, // convierte tipos automáticamente (string → number, etc.)
+    }),
+  );
 
   const allowedOrigins = [
     process.env.FRONTEND_URL,

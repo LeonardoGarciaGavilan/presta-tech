@@ -1,4 +1,11 @@
-import { IsNumber, IsBoolean, IsInt, Min, Max, IsOptional } from 'class-validator';
+import {
+  IsNumber,
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
+  IsOptional,
+} from 'class-validator';
 
 export class UpsertConfiguracionDto {
   @IsNumber({ maxDecimalPlaces: 4 })

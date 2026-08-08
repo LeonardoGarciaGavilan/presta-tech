@@ -71,6 +71,13 @@ export class SyncService {
   ): Promise<CambiosResult> {
     const { isAdmin, usuarioId } = options;
 
+    // El cursor se captura ANTES de ejecutar las queries. Si se capturara
+    // después, un registro actualizado entre la lectura y la captura tendría
+    // updatedAt < serverTime y se perdería para siempre en el siguiente delta.
+    // Con la captura previa, cualquier cambio posterior tiene updatedAt >
+    // serverTime y entra en el siguiente delta (at-least-once).
+    const serverTime = new Date().toISOString();
+
     const updatedSince = desde ? { updatedAt: { gt: desde } } : undefined;
 
     // Paridad con rutas.findAll: solo rutas activas y, para no-admins, solo las del usuario.
@@ -142,7 +149,7 @@ export class SyncService {
     });
 
     return {
-      serverTime: new Date().toISOString(),
+      serverTime,
       clientes,
       prestamos,
       rutas,

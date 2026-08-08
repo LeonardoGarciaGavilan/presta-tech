@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
 import { ReportesService } from './reportes.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
@@ -24,23 +18,24 @@ export class ReportesController {
     @Query('hasta') hasta: string,
     @Query('provincia') provincia: string,
   ) {
-    return this.reportesService.cobrosPorPeriodo(
-      user,
-      desde,
-      hasta,
-      provincia,
-    );
+    return this.reportesService.cobrosPorPeriodo(user, desde, hasta, provincia);
   }
 
   @Get('cartera-vencida')
   @Roles('ADMIN')
-  carteraVencida(@CurrentUser() user: any, @Query('provincia') provincia: string) {
+  carteraVencida(
+    @CurrentUser() user: any,
+    @Query('provincia') provincia: string,
+  ) {
     return this.reportesService.carteraVencida(user, provincia);
   }
 
   @Get('estado-general')
   @Roles('ADMIN')
-  estadoGeneral(@CurrentUser() user: any, @Query('provincia') provincia: string) {
+  estadoGeneral(
+    @CurrentUser() user: any,
+    @Query('provincia') provincia: string,
+  ) {
     return this.reportesService.estadoGeneral(user, provincia);
   }
 

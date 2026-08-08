@@ -1,8 +1,10 @@
-import {
-  Controller, Get, Put, Patch, Body, UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Put, Patch, Body, UseGuards } from '@nestjs/common';
 import { PerfilService } from './perfil.service';
-import { UpdatePerfilDto, CambiarPasswordDto, UpdateEmpresaDto } from './dto/perfil.dto';
+import {
+  UpdatePerfilDto,
+  CambiarPasswordDto,
+  UpdateEmpresaDto,
+} from './dto/perfil.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';

@@ -1,6 +1,13 @@
 import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { GastosService } from './gastos.service';
 import { CreateGastoDto, UpdateGastoDto } from './dto/gastos.dto';
@@ -16,8 +23,8 @@ export class GastosController {
   @Get()
   findAll(
     @CurrentUser() user: any,
-    @Query('desde')     desde:     string,
-    @Query('hasta')     hasta:     string,
+    @Query('desde') desde: string,
+    @Query('hasta') hasta: string,
     @Query('categoria') categoria: string,
   ) {
     return this.gastosService.findAll(user, desde, hasta, categoria);
@@ -37,7 +44,11 @@ export class GastosController {
 
   // PUT /gastos/:id
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateGastoDto, @CurrentUser() user: any) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateGastoDto,
+    @CurrentUser() user: any,
+  ) {
     return this.gastosService.update(id, dto, user);
   }
 

@@ -1,8 +1,17 @@
 // src/empleados/empleados.controller.ts
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards,
-  HttpCode, HttpStatus, ForbiddenException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { EmpleadosService } from './empleados.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
@@ -11,7 +20,9 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 const soloAdmin = (user: any) => {
   if (user?.rol !== 'ADMIN') {
-    throw new ForbiddenException('Solo el administrador puede gestionar empleados');
+    throw new ForbiddenException(
+      'Solo el administrador puede gestionar empleados',
+    );
   }
 };
 
@@ -29,32 +40,53 @@ export class EmpleadosController {
 
   // ─── CRUD Empleados ───────────────────────────────────────────────────────
   @Get()
-  findAll(@Tenant() empresaId: string, @CurrentUser() user: any, @Query('inactivos') inactivos?: string) {
+  findAll(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Query('inactivos') inactivos?: string,
+  ) {
     soloAdmin(user);
     return this.empleadosService.findAll(empresaId, inactivos !== 'true');
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: any, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  create(
+    @Body() dto: any,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.create(dto, empresaId);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: any, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: any,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.update(id, dto, empresaId);
   }
 
   @Delete(':id')
-  desactivar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  desactivar(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.desactivar(id, empresaId);
   }
 
   @Patch(':id/reactivar')
-  reactivar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  reactivar(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.reactivar(id, empresaId);
   }
@@ -63,7 +95,11 @@ export class EmpleadosController {
 
   // GET /empleados/asistencia?fecha=2026-03-13
   @Get('asistencia')
-  getAsistencia(@Tenant() empresaId: string, @CurrentUser() user: any, @Query('fecha') fecha: string) {
+  getAsistencia(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Query('fecha') fecha: string,
+  ) {
     soloAdmin(user);
     const dia = fecha ?? new Date().toISOString().slice(0, 10);
     return this.empleadosService.getAsistencia(empresaId, dia);
@@ -84,7 +120,11 @@ export class EmpleadosController {
 
   // POST /empleados/asistencia
   @Post('asistencia')
-  registrarAsistencia(@Body() dto: any, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  registrarAsistencia(
+    @Body() dto: any,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.registrarAsistencia(empresaId, dto);
   }
@@ -93,21 +133,33 @@ export class EmpleadosController {
 
   // GET /empleados/:id/descuentos
   @Get(':id/descuentos')
-  getDescuentos(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  getDescuentos(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.getDescuentosPendientes(id, empresaId);
   }
 
   // POST /empleados/descuentos
   @Post('descuentos')
-  crearDescuento(@Body() dto: any, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  crearDescuento(
+    @Body() dto: any,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.crearDescuento(empresaId, dto);
   }
 
   // DELETE /empleados/descuentos/:id
   @Delete('descuentos/:id')
-  eliminarDescuento(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  eliminarDescuento(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.eliminarDescuento(id, empresaId);
   }
@@ -116,14 +168,22 @@ export class EmpleadosController {
 
   // GET /empleados/pagos?empleadoId=xxx
   @Get('pagos')
-  getPagos(@Tenant() empresaId: string, @CurrentUser() user: any, @Query('empleadoId') empleadoId?: string) {
+  getPagos(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Query('empleadoId') empleadoId?: string,
+  ) {
     soloAdmin(user);
     return this.empleadosService.getPagos(empresaId, empleadoId);
   }
 
   // POST /empleados/pagos
   @Post('pagos')
-  registrarPago(@Body() dto: any, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  registrarPago(
+    @Body() dto: any,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     soloAdmin(user);
     return this.empleadosService.registrarPago(empresaId, dto);
   }

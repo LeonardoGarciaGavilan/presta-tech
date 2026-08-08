@@ -49,7 +49,4 @@ main()
     await prisma.$disconnect();
   });
 
-
-
-
-  // ejecutar npx ts-node scripts/create-admin.ts
+// ejecutar npx ts-node scripts/create-admin.ts

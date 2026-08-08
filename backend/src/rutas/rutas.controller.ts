@@ -1,7 +1,14 @@
 // src/rutas/rutas.controller.ts
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
 import { RutasService } from './rutas.service';
@@ -19,7 +26,7 @@ export class RutasController {
     return {
       empresaId: user.empresaId,
       usuarioId: user.sub ?? user.userId ?? user.id,
-      isAdmin:   user.rol === 'ADMIN',
+      isAdmin: user.rol === 'ADMIN',
     };
   }
 
@@ -30,9 +37,18 @@ export class RutasController {
   }
 
   @Post()
-  create(@Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { nombre: string; descripcion?: string }) {
+  create(
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { nombre: string; descripcion?: string },
+  ) {
     const { usuarioId } = this.ctx(user);
-    return this.rutasService.create(empresaId, usuarioId, body.nombre, body.descripcion);
+    return this.rutasService.create(
+      empresaId,
+      usuarioId,
+      body.nombre,
+      body.descripcion,
+    );
   }
 
   @Post('reset-visitados')
@@ -43,9 +59,19 @@ export class RutasController {
 
   @Patch('clientes/:rcId/visita')
   @Idempotent()
-  marcarVisitado(@Param('rcId') rcId: string, @Body() body: { visitado: boolean }, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  marcarVisitado(
+    @Param('rcId') rcId: string,
+    @Body() body: { visitado: boolean },
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const { usuarioId } = this.ctx(user);
-    return this.rutasService.marcarVisitado(rcId, empresaId, usuarioId, body.visitado);
+    return this.rutasService.marcarVisitado(
+      rcId,
+      empresaId,
+      usuarioId,
+      body.visitado,
+    );
   }
 
   @Get('usuarios')
@@ -56,74 +82,163 @@ export class RutasController {
   }
 
   @Get('cliente/:clienteId')
-  getRutaDeCliente(@Param('clienteId') clienteId: string, @Tenant() empresaId: string) {
+  getRutaDeCliente(
+    @Param('clienteId') clienteId: string,
+    @Tenant() empresaId: string,
+  ) {
     return this.rutasService.getRutaDeCliente(clienteId, empresaId);
   }
 
   @Patch('cliente/:clienteId/asignar')
-  asignarRuta(@Param('clienteId') clienteId: string, @Tenant() empresaId: string, @Body() body: { rutaId: string | null }) {
+  asignarRuta(
+    @Param('clienteId') clienteId: string,
+    @Tenant() empresaId: string,
+    @Body() body: { rutaId: string | null },
+  ) {
     return this.rutasService.asignarRuta(clienteId, empresaId, body.rutaId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  findOne(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
     return this.rutasService.findOne(id, empresaId, usuarioId, isAdmin);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { nombre?: string; descripcion?: string; activa?: boolean }) {
+  update(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { nombre?: string; descripcion?: string; activa?: boolean },
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
     return this.rutasService.update(id, empresaId, usuarioId, isAdmin, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  remove(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
     return this.rutasService.remove(id, empresaId, usuarioId, isAdmin);
   }
 
   @Patch(':id/asignar-usuario')
-  asignarUsuario(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { usuarioId: string }) {
+  asignarUsuario(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { usuarioId: string },
+  ) {
     const { isAdmin } = this.ctx(user);
     if (!isAdmin) throw new ForbiddenException('Solo administradores');
     return this.rutasService.asignarUsuario(id, empresaId, body.usuarioId);
   }
 
   @Get(':id/dia')
-  vistaDia(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Query('fecha') fecha: string) {
+  vistaDia(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Query('fecha') fecha: string,
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
     return this.rutasService.vistaDia(id, empresaId, usuarioId, isAdmin, fecha);
   }
 
   @Post(':id/generar-dia')
   @Idempotent()
-  generarRutaDia(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { rutaClienteIds: string[]; fecha: string }) {
+  generarRutaDia(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { rutaClienteIds: string[]; fecha: string },
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
-    return this.rutasService.generarRutaDia(id, empresaId, usuarioId, isAdmin, body.rutaClienteIds, body.fecha);
+    return this.rutasService.generarRutaDia(
+      id,
+      empresaId,
+      usuarioId,
+      isAdmin,
+      body.rutaClienteIds,
+      body.fecha,
+    );
   }
 
   @Post(':id/clientes')
-  agregarCliente(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { clienteId: string; observacion?: string }) {
+  agregarCliente(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { clienteId: string; observacion?: string },
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
-    return this.rutasService.agregarCliente(id, empresaId, usuarioId, isAdmin, body.clienteId, body.observacion);
+    return this.rutasService.agregarCliente(
+      id,
+      empresaId,
+      usuarioId,
+      isAdmin,
+      body.clienteId,
+      body.observacion,
+    );
   }
 
   @Patch(':id/clientes/:rcId')
-  actualizarCliente(@Param('id') id: string, @Param('rcId') rcId: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { observacion?: string; orden?: number }) {
+  actualizarCliente(
+    @Param('id') id: string,
+    @Param('rcId') rcId: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { observacion?: string; orden?: number },
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
-    return this.rutasService.actualizarCliente(id, rcId, empresaId, usuarioId, isAdmin, body);
+    return this.rutasService.actualizarCliente(
+      id,
+      rcId,
+      empresaId,
+      usuarioId,
+      isAdmin,
+      body,
+    );
   }
 
   @Delete(':id/clientes/:rcId')
-  quitarCliente(@Param('id') id: string, @Param('rcId') rcId: string, @Tenant() empresaId: string, @CurrentUser() user: any) {
+  quitarCliente(
+    @Param('id') id: string,
+    @Param('rcId') rcId: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
-    return this.rutasService.quitarCliente(id, rcId, empresaId, usuarioId, isAdmin);
+    return this.rutasService.quitarCliente(
+      id,
+      rcId,
+      empresaId,
+      usuarioId,
+      isAdmin,
+    );
   }
 
   @Patch(':id/reordenar')
-  reordenar(@Param('id') id: string, @Tenant() empresaId: string, @CurrentUser() user: any, @Body() body: { orden: { id: string; orden: number }[] }) {
+  reordenar(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+    @Body() body: { orden: { id: string; orden: number }[] },
+  ) {
     const { usuarioId, isAdmin } = this.ctx(user);
-    return this.rutasService.reordenar(id, empresaId, usuarioId, isAdmin, body.orden);
+    return this.rutasService.reordenar(
+      id,
+      empresaId,
+      usuarioId,
+      isAdmin,
+      body.orden,
+    );
   }
 }

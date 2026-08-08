@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';  // 👈 agregar
+import { ConfigModule } from '@nestjs/config'; // 👈 agregar
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
@@ -36,7 +36,7 @@ import { SupabaseModule } from './supabase/supabase.module';
   imports: [
     // ─── Configuración global ─────────────────────────────────────────────
     ConfigModule.forRoot({
-      isGlobal: true,          // disponible en toda la app sin importarlo
+      isGlobal: true, // disponible en toda la app sin importarlo
       load: [jwtConfig, supabaseConfig],
     }),
 
@@ -57,7 +57,9 @@ import { SupabaseModule } from './supabase/supabase.module';
         return {
           stores: [
             new Keyv({
-              store: new KeyvRedis(redisUrl || `redis://${redisHost}:${redisPort}`),
+              store: new KeyvRedis(
+                redisUrl || `redis://${redisHost}:${redisPort}`,
+              ),
               namespace: 'sas',
             }),
           ],

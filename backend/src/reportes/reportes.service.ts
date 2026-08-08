@@ -1,7 +1,10 @@
 //reporte.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { calcularDesdeObjeto, calcularSaldoDesdeCuotas } from '../common/utils/prestamo.utils';
+import {
+  calcularDesdeObjeto,
+  calcularSaldoDesdeCuotas,
+} from '../common/utils/prestamo.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
@@ -11,7 +14,7 @@ export class ReportesService {
   private assertAdmin(user: any) {
     if (user.rol !== 'ADMIN') {
       throw new ForbiddenException(
-        'Solo el administrador puede generar reportes', 
+        'Solo el administrador puede generar reportes',
       );
     }
   }
@@ -31,7 +34,10 @@ export class ReportesService {
     const desdeDate = getInicioDiaRD(desde);
     const hastaDate = getFinDiaRD(hasta);
 
-    console.log('DEBUG REPORTES RANGO:', { desde: desdeDate.toISOString(), hasta: hastaDate.toISOString() });
+    console.log('DEBUG REPORTES RANGO:', {
+      desde: desdeDate.toISOString(),
+      hasta: hastaDate.toISOString(),
+    });
 
     const skip = (pagina - 1) * porPagina;
 
@@ -133,7 +139,12 @@ export class ReportesService {
 
   // ─── 2. CARTERA VENCIDA ───────────────────────────────────────────────────
 
-  async carteraVencida(user: any, provincia?: string, pagina = 1, porPagina = 100) {
+  async carteraVencida(
+    user: any,
+    provincia?: string,
+    pagina = 1,
+    porPagina = 100,
+  ) {
     this.assertAdmin(user);
     const skip = (pagina - 1) * porPagina;
 
@@ -224,9 +235,10 @@ export class ReportesService {
       select: { moraAcumulada: true },
     });
 
-    const totalMora = Math.round(
-      prestamosConMora.reduce((s, p) => s + (p.moraAcumulada || 0), 0) * 100,
-    ) / 100;
+    const totalMora =
+      Math.round(
+        prestamosConMora.reduce((s, p) => s + (p.moraAcumulada || 0), 0) * 100,
+      ) / 100;
 
     return {
       pagina,
@@ -241,7 +253,12 @@ export class ReportesService {
 
   // ─── 3. ESTADO GENERAL DE PRÉSTAMOS ──────────────────────────────────────
 
-  async estadoGeneral(user: any, provincia?: string, pagina = 1, porPagina = 100) {
+  async estadoGeneral(
+    user: any,
+    provincia?: string,
+    pagina = 1,
+    porPagina = 100,
+  ) {
     this.assertAdmin(user);
     const skip = (pagina - 1) * porPagina;
 
@@ -294,19 +311,25 @@ export class ReportesService {
       }),
     ]);
 
-    const estadoCounts = conteoEstados.reduce((acc, e) => {
-      acc[e.estado] = e._count;
-      return acc;
-    }, {} as Record<string, number>);
+    const estadoCounts = conteoEstados.reduce(
+      (acc, e) => {
+        acc[e.estado] = e._count;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Calcular totalCartera desde préstamos activos/atrasados
-    const prestamosActivos = prestamos.filter((p) => ['ACTIVO', 'ATRASADO'].includes(p.estado));
-    const totalCartera = Math.round(
-      prestamosActivos.reduce((s, p) => {
-        const { saldoPendiente } = calcularDesdeObjeto(p);
-        return s + saldoPendiente;
-      }, 0) * 100,
-    ) / 100;
+    const prestamosActivos = prestamos.filter((p) =>
+      ['ACTIVO', 'ATRASADO'].includes(p.estado),
+    );
+    const totalCartera =
+      Math.round(
+        prestamosActivos.reduce((s, p) => {
+          const { saldoPendiente } = calcularDesdeObjeto(p);
+          return s + saldoPendiente;
+        }, 0) * 100,
+      ) / 100;
 
     const resumen = {
       activos: estadoCounts['ACTIVO'] ?? 0,
@@ -369,22 +392,24 @@ export class ReportesService {
     const totalPagado = prestamos
       .flatMap((p) => p.pagos)
       .reduce((s, pg) => s + pg.montoTotal, 0);
-    
-    const prestamosActivosFilter = prestamos.filter((p) => 
-      ['ACTIVO', 'ATRASADO'].includes(p.estado)
+
+    const prestamosActivosFilter = prestamos.filter((p) =>
+      ['ACTIVO', 'ATRASADO'].includes(p.estado),
     );
-    const totalSaldo = Math.round(
-      prestamosActivosFilter.reduce((s, p) => {
-        const { saldoPendiente } = calcularDesdeObjeto(p);
-        return s + saldoPendiente;
-      }, 0) * 100,
-    ) / 100;
-    const totalMora = Math.round(
-      prestamosActivosFilter.reduce((s, p) => {
-        const { moraAcumulada } = calcularDesdeObjeto(p);
-        return s + moraAcumulada;
-      }, 0) * 100,
-    ) / 100;
+    const totalSaldo =
+      Math.round(
+        prestamosActivosFilter.reduce((s, p) => {
+          const { saldoPendiente } = calcularDesdeObjeto(p);
+          return s + saldoPendiente;
+        }, 0) * 100,
+      ) / 100;
+    const totalMora =
+      Math.round(
+        prestamosActivosFilter.reduce((s, p) => {
+          const { moraAcumulada } = calcularDesdeObjeto(p);
+          return s + moraAcumulada;
+        }, 0) * 100,
+      ) / 100;
     const prestamosActivos = prestamosActivosFilter.length;
 
     return {
@@ -460,7 +485,10 @@ export class ReportesService {
     const desdeDate = getInicioDiaRD(desde);
     const hastaDate = getFinDiaRD(hasta);
 
-    console.log('DEBUG REPORTE CAJAS RANGO:', { desde: desdeDate.toISOString(), hasta: hastaDate.toISOString() });
+    console.log('DEBUG REPORTE CAJAS RANGO:', {
+      desde: desdeDate.toISOString(),
+      hasta: hastaDate.toISOString(),
+    });
 
     const cajas = await this.prisma.cajaSesion.findMany({
       where: {
@@ -632,10 +660,13 @@ export class ReportesService {
 
     const cajasCerradas = cajas.filter((c) => c.estado === 'CERRADA').length;
     const cajasAbiertas = cajas.filter((c) => c.estado === 'ABIERTA').length;
-    const efectivoSistema = Math.round(
-      (cajas.reduce((s, c) => s + c.montoInicial, 0) + totalEfectivo - 
-       cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0)) * 100,
-    ) / 100;
+    const efectivoSistema =
+      Math.round(
+        (cajas.reduce((s, c) => s + c.montoInicial, 0) +
+          totalEfectivo -
+          cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0)) *
+          100,
+      ) / 100;
 
     return {
       desde,

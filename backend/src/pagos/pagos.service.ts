@@ -14,7 +14,11 @@ import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { startOfDay, differenceInDays } from 'date-fns';
-import { getFechaRD, getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
+import {
+  getFechaRD,
+  getInicioDiaRD,
+  getFinDiaRD,
+} from '../common/utils/fecha.utils';
 
 @Injectable()
 export class PagosService {
@@ -25,16 +29,11 @@ export class PagosService {
 
   // ─── CACHE: Invalidación centralizada ───────────────────────────────────────
   private async invalidarCache(empresaId: string) {
-    const keys = [
-      `resumen:${empresaId}`,
-      `dashboard:${empresaId}`,
-    ];
+    const keys = [`resumen:${empresaId}`, `dashboard:${empresaId}`];
 
     if (this.cacheManager) {
       await Promise.all(
-        keys.map(k =>
-          this.cacheManager!.del(k).catch(() => {})
-        )
+        keys.map((k) => this.cacheManager!.del(k).catch(() => {})),
       );
     }
   }
@@ -54,7 +53,9 @@ export class PagosService {
 
     if (!prestamo) throw new NotFoundException('Préstamo no encontrado');
     if (prestamo.estado === EstadoPrestamo.PAGADO)
-      throw new BadRequestException('Este préstamo ya está completamente pagado');
+      throw new BadRequestException(
+        'Este préstamo ya está completamente pagado',
+      );
     if (prestamo.estado === EstadoPrestamo.CANCELADO)
       throw new BadRequestException('No se puede pagar un préstamo cancelado');
 
@@ -63,7 +64,10 @@ export class PagosService {
 
   // ─── FUNCIÓN ÚNICA PARA CALCULAR SALDO PENDIENTE ───────────────────────────
   // El saldo real se calcula DESDE las cuotas, no desde el campo almacenado
-  private async calcularSaldoDesdeCuotas(tx: any, prestamoId: string): Promise<number> {
+  private async calcularSaldoDesdeCuotas(
+    tx: any,
+    prestamoId: string,
+  ): Promise<number> {
     const cuotas = await tx.cuota.findMany({
       where: { prestamoId, pagada: false },
       select: { capital: true, interes: true, mora: true },
@@ -79,7 +83,11 @@ export class PagosService {
 
   // ─── Validar caja abierta ────────────────────────────────────────────────
 
-  private async assertCajaAbierta(empresaId: string, usuarioId: string, fecha?: string) {
+  private async assertCajaAbierta(
+    empresaId: string,
+    usuarioId: string,
+    fecha?: string,
+  ) {
     const fechaCaja = fecha ?? getFechaRD();
 
     const caja = await this.prisma.cajaSesion.findFirst({
@@ -115,69 +123,87 @@ export class PagosService {
 
     if (!full) throw new NotFoundException('Pago no encontrado');
 
-    const saldoPendiente = Math.max(0, Math.round(
-      full.prestamo.cuotas
-        .filter((c) => !c.pagada)
-        .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100,
-    ) / 100);
+    const saldoPendiente = Math.max(
+      0,
+      Math.round(
+        full.prestamo.cuotas
+          .filter((c) => !c.pagada)
+          .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100,
+      ) / 100,
+    );
 
-    const cuotaDelPago = full.prestamo.cuotas.find((c) => {
-      if (!c.fechaPago) return false;
-      const diffMs = Math.abs(
-        new Date(c.fechaPago).getTime() - new Date(full.createdAt).getTime(),
-      );
-      return diffMs < 60_000;
-    }) ?? null;
+    const cuotaDelPago =
+      full.prestamo.cuotas.find((c) => {
+        if (!c.fechaPago) return false;
+        const diffMs = Math.abs(
+          new Date(c.fechaPago).getTime() - new Date(full.createdAt).getTime(),
+        );
+        return diffMs < 60_000;
+      }) ?? null;
 
     const pagoCompleto = !!(cuotaDelPago?.pagada && cuotaDelPago?.fechaPago);
 
     return {
       pago: {
-        id:            full.id,
-        createdAt:     full.createdAt,
-        montoTotal:    full.montoTotal,
-        capital:       full.capital,
-        interes:       full.interes,
-        mora:          full.mora,
-        abonoCapital:  Math.max(0, Math.round((full.montoTotal - full.capital - full.interes - full.mora) * 100) / 100),
+        id: full.id,
+        createdAt: full.createdAt,
+        montoTotal: full.montoTotal,
+        capital: full.capital,
+        interes: full.interes,
+        mora: full.mora,
+        abonoCapital: Math.max(
+          0,
+          Math.round(
+            (full.montoTotal - full.capital - full.interes - full.mora) * 100,
+          ) / 100,
+        ),
         pagoCompleto,
-        metodo:        full.metodo,
-        referencia:    full.referencia,
-        observacion:   full.observacion,
+        metodo: full.metodo,
+        referencia: full.referencia,
+        observacion: full.observacion,
       },
       prestamo: {
-        id:             full.prestamo.id,
-        monto:          full.prestamo.monto,
-        numeroCuotas:   full.prestamo.numeroCuotas,
+        id: full.prestamo.id,
+        monto: full.prestamo.monto,
+        numeroCuotas: full.prestamo.numeroCuotas,
         frecuenciaPago: full.prestamo.frecuenciaPago,
-        tasaInteres:    full.prestamo.tasaInteres,
+        tasaInteres: full.prestamo.tasaInteres,
         saldoPendiente,
       },
       cliente: {
-        nombre:   full.prestamo.cliente.nombre,
+        nombre: full.prestamo.cliente.nombre,
         apellido: full.prestamo.cliente.apellido,
-        cedula:   full.prestamo.cliente.cedula,
+        cedula: full.prestamo.cliente.cedula,
       },
-      cuota: cuotaDelPago ? {
-        id:               cuotaDelPago.id,
-        numero:           cuotaDelPago.numero,
-        monto:            cuotaDelPago.monto,
-        capital:          cuotaDelPago.capital,
-        interes:          cuotaDelPago.interes,
-        mora:             cuotaDelPago.mora,
-        fechaVencimiento: cuotaDelPago.fechaVencimiento,
-        pagoCompleto,
-      } : null,
+      cuota: cuotaDelPago
+        ? {
+            id: cuotaDelPago.id,
+            numero: cuotaDelPago.numero,
+            monto: cuotaDelPago.monto,
+            capital: cuotaDelPago.capital,
+            interes: cuotaDelPago.interes,
+            mora: cuotaDelPago.mora,
+            fechaVencimiento: cuotaDelPago.fechaVencimiento,
+            pagoCompleto,
+          }
+        : null,
       usuario: { nombre: full.usuario?.nombre ?? 'Sistema' },
     };
   }
 
-  async registrarPago(dto: CreatePagoDto, empresaId: string, usuarioId: string) {
+  async registrarPago(
+    dto: CreatePagoDto,
+    empresaId: string,
+    usuarioId: string,
+  ) {
     // ── Replay idempotente: si este intento ya se registró, devolver el pago
     // existente en lugar de crear un duplicado (protección del sync offline).
     if (dto.idempotencyKey) {
       const existente = await this.prisma.pago.findFirst({
-        where: { prestamoId: dto.prestamoId, idempotencyKey: dto.idempotencyKey },
+        where: {
+          prestamoId: dto.prestamoId,
+          idempotencyKey: dto.idempotencyKey,
+        },
         select: { id: true },
       });
       if (existente) {
@@ -190,11 +216,16 @@ export class PagosService {
     const cuotasPendientes = prestamo.cuotas;
 
     if (cuotasPendientes.length === 0) {
-      throw new BadRequestException('No hay cuotas pendientes en este préstamo');
+      throw new BadRequestException(
+        'No hay cuotas pendientes en este préstamo',
+      );
     }
 
     // ── Validaciones de estado ─────────────────────────────────────────────
-    if (prestamo.estado !== EstadoPrestamo.ACTIVO && prestamo.estado !== EstadoPrestamo.ATRASADO) {
+    if (
+      prestamo.estado !== EstadoPrestamo.ACTIVO &&
+      prestamo.estado !== EstadoPrestamo.ATRASADO
+    ) {
       throw new BadRequestException(
         `No se puede pagar un préstamo en estado: ${prestamo.estado}. Solo se permiten préstamos ACTIVOS o ATRASADOS.`,
       );
@@ -207,34 +238,39 @@ export class PagosService {
     let cuotaObjetivo = cuotasPendientes[0];
 
     if (dto.cuotaId) {
-      const cuotaEspecifica = cuotasPendientes.find((c) => c.id === dto.cuotaId);
+      const cuotaEspecifica = cuotasPendientes.find(
+        (c) => c.id === dto.cuotaId,
+      );
       if (!cuotaEspecifica) {
-        throw new BadRequestException('La cuota especificada no existe o ya fue pagada');
+        throw new BadRequestException(
+          'La cuota especificada no existe o ya fue pagada',
+        );
       }
       cuotaObjetivo = cuotaEspecifica;
     }
 
-    const montoExacto = Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
+    const montoExacto =
+      Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
 
     // ── Calcular distribución del pago ─────────────────────────────────────
     // Orden de aplicación: mora → interés → capital
-    let montoPagado     = Math.round(dto.montoPagado * 100) / 100;
-    let moraAplicada    = 0;
+    let montoPagado = Math.round(dto.montoPagado * 100) / 100;
+    let moraAplicada = 0;
     let interesAplicado = 0;
     let capitalAplicado = 0;
-    let excedente       = 0;
+    let excedente = 0;
 
     if (cuotaObjetivo.mora > 0) {
       moraAplicada = Math.min(montoPagado, cuotaObjetivo.mora);
-      montoPagado  = Math.round((montoPagado - moraAplicada) * 100) / 100;
+      montoPagado = Math.round((montoPagado - moraAplicada) * 100) / 100;
     }
     if (montoPagado > 0) {
       interesAplicado = Math.min(montoPagado, cuotaObjetivo.interes);
-      montoPagado     = Math.round((montoPagado - interesAplicado) * 100) / 100;
+      montoPagado = Math.round((montoPagado - interesAplicado) * 100) / 100;
     }
     if (montoPagado > 0) {
       capitalAplicado = Math.min(montoPagado, cuotaObjetivo.capital);
-      montoPagado     = Math.round((montoPagado - capitalAplicado) * 100) / 100;
+      montoPagado = Math.round((montoPagado - capitalAplicado) * 100) / 100;
     }
 
     // Lo que sobra tras cubrir la cuota objetivo es excedente para cuotas siguientes
@@ -245,7 +281,6 @@ export class PagosService {
 
     // ── Transacción ────────────────────────────────────────────────────────
     const resultadoTx = await this.prisma.$transaction(async (tx) => {
-
       // 1. Calcular saldo REAL desde cuotas (no usar saldoPendiente almacenado)
       const saldoReal = await this.calcularSaldoDesdeCuotas(tx, dto.prestamoId);
 
@@ -266,16 +301,16 @@ export class PagosService {
       // 4. Crear el pago
       const pago = await tx.pago.create({
         data: {
-          prestamoId:  dto.prestamoId,
+          prestamoId: dto.prestamoId,
           usuarioId,
-          montoTotal:  dto.montoPagado,
-          capital:     Math.round((capitalAplicado + excedente) * 100) / 100,
-          interes:     interesAplicado,
-          mora:        moraAplicada,
-          metodo:      dto.metodo,
-          referencia:  dto.referencia,
+          montoTotal: dto.montoPagado,
+          capital: Math.round((capitalAplicado + excedente) * 100) / 100,
+          interes: interesAplicado,
+          mora: moraAplicada,
+          metodo: dto.metodo,
+          referencia: dto.referencia,
           observacion: dto.observacion,
-          cajaId:      caja.id,
+          cajaId: caja.id,
           idempotencyKey: dto.idempotencyKey ?? null,
         },
       });
@@ -286,46 +321,65 @@ export class PagosService {
         await tx.cuota.update({
           where: { id: cuotaObjetivo.id },
           data: {
-            pagada:    true,
+            pagada: true,
             fechaPago: new Date(),
-            mora:      cuotaObjetivo.mora, // preservar mora registrada
+            mora: cuotaObjetivo.mora, // preservar mora registrada
           },
         });
       } else {
         // ── PAGO PARCIAL: reducir los saldos de la cuota ───────────────────
         // BUG FIX: antes esta rama no existía — el pago se registraba
         // pero la cuota no se actualizaba, perdiendo el abono.
-        const nuevaMora     = Math.max(0, Math.round((cuotaObjetivo.mora    - moraAplicada)    * 100) / 100);
-        const nuevoInteres  = Math.max(0, Math.round((cuotaObjetivo.interes - interesAplicado) * 100) / 100);
-        const nuevoCapital  = Math.max(0, Math.round((cuotaObjetivo.capital - capitalAplicado) * 100) / 100);
-        const nuevoMonto    = Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+        const nuevaMora = Math.max(
+          0,
+          Math.round((cuotaObjetivo.mora - moraAplicada) * 100) / 100,
+        );
+        const nuevoInteres = Math.max(
+          0,
+          Math.round((cuotaObjetivo.interes - interesAplicado) * 100) / 100,
+        );
+        const nuevoCapital = Math.max(
+          0,
+          Math.round((cuotaObjetivo.capital - capitalAplicado) * 100) / 100,
+        );
+        const nuevoMonto =
+          Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
 
         await tx.cuota.update({
           where: { id: cuotaObjetivo.id },
           data: {
-            mora:    nuevaMora,
+            mora: nuevaMora,
             interes: nuevoInteres,
             capital: nuevoCapital,
-            monto:   nuevoMonto,
+            monto: nuevoMonto,
           },
         });
       }
 
       // 6. Aplicar excedente a cuotas siguientes (solo si el pago fue completo)
       if (excedente > 0) {
-        const cuotasRestantes = cuotasPendientes.filter((c) => c.id !== cuotaObjetivo.id);
+        const cuotasRestantes = cuotasPendientes.filter(
+          (c) => c.id !== cuotaObjetivo.id,
+        );
         let abonoRestante = excedente;
 
         for (const cuota of cuotasRestantes) {
           if (abonoRestante <= 0) break;
-          const reduccion    = Math.min(abonoRestante, cuota.capital);
-          const nuevoCapital = Math.round((cuota.capital - reduccion) * 100) / 100;
-          const nuevoMonto   = Math.round((nuevoCapital + cuota.interes) * 100) / 100;
+          const reduccion = Math.min(abonoRestante, cuota.capital);
+          const nuevoCapital =
+            Math.round((cuota.capital - reduccion) * 100) / 100;
+          const nuevoMonto =
+            Math.round((nuevoCapital + cuota.interes) * 100) / 100;
 
           if (nuevoCapital <= 0) {
             await tx.cuota.update({
               where: { id: cuota.id },
-              data: { capital: 0, monto: cuota.interes, pagada: true, fechaPago: new Date() },
+              data: {
+                capital: 0,
+                monto: cuota.interes,
+                pagada: true,
+                fechaPago: new Date(),
+              },
             });
           } else {
             await tx.cuota.update({
@@ -347,15 +401,17 @@ export class PagosService {
         0,
         Math.round(
           cuotasRestantesActualizadas.reduce(
-            (s, c) => s + c.capital + c.interes + (c.mora || 0), 0
-          ) * 100
+            (s, c) => s + c.capital + c.interes + (c.mora || 0),
+            0,
+          ) * 100,
         ) / 100,
       );
 
       const nuevaMoraAcumulada = Math.max(
         0,
         Math.round(
-          cuotasRestantesActualizadas.reduce((s, c) => s + (c.mora || 0), 0) * 100
+          cuotasRestantesActualizadas.reduce((s, c) => s + (c.mora || 0), 0) *
+            100,
         ) / 100,
       );
 
@@ -368,9 +424,14 @@ export class PagosService {
       } else {
         const hoy = new Date();
         const cuotasVencidas = await tx.cuota.count({
-          where: { prestamoId: dto.prestamoId, pagada: false, fechaVencimiento: { lt: hoy } },
+          where: {
+            prestamoId: dto.prestamoId,
+            pagada: false,
+            fechaVencimiento: { lt: hoy },
+          },
         });
-        nuevoEstado = cuotasVencidas > 0 ? EstadoPrestamo.ATRASADO : EstadoPrestamo.ACTIVO;
+        nuevoEstado =
+          cuotasVencidas > 0 ? EstadoPrestamo.ATRASADO : EstadoPrestamo.ACTIVO;
       }
 
       // 9. Actualizar préstamo
@@ -387,23 +448,25 @@ export class PagosService {
         },
       });
 
-      if (!prestamoActualizado) throw new NotFoundException('Préstamo no encontrado');
+      if (!prestamoActualizado)
+        throw new NotFoundException('Préstamo no encontrado');
 
       // 11. Crear MovimientoFinanciero
-      const clienteNombreTx = `${prestamoActualizado.cliente.nombre} ${prestamoActualizado.cliente.apellido}`.trim();
+      const clienteNombreTx =
+        `${prestamoActualizado.cliente.nombre} ${prestamoActualizado.cliente.apellido}`.trim();
       await tx.movimientoFinanciero.create({
         data: {
-          tipo:           'PAGO_RECIBIDO',
-          monto:          dto.montoPagado,
-          capital:        Math.round((capitalAplicado + excedente) * 100) / 100,
-          interes:        interesAplicado,
-          mora:           moraAplicada,
+          tipo: 'PAGO_RECIBIDO',
+          monto: dto.montoPagado,
+          capital: Math.round((capitalAplicado + excedente) * 100) / 100,
+          interes: interesAplicado,
+          mora: moraAplicada,
           referenciaTipo: 'PAGO',
-          referenciaId:   pago.id,
-          cajaId:         caja.id,
+          referenciaId: pago.id,
+          cajaId: caja.id,
           empresaId,
           usuarioId,
-          descripcion:    `Pago${pagoCompleto ? '' : ' parcial'} de ${clienteNombreTx} — Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}`,
+          descripcion: `Pago${pagoCompleto ? '' : ' parcial'} de ${clienteNombreTx} — Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}`,
         },
       });
 
@@ -416,31 +479,32 @@ export class PagosService {
       }
 
       return {
-        pagoId:          pago.id,
-        pagoCreatedAt:   pago.createdAt,
-        pagoMetodo:      pago.metodo,
-        pagoReferencia:  pago.referencia,
+        pagoId: pago.id,
+        pagoCreatedAt: pago.createdAt,
+        pagoMetodo: pago.metodo,
+        pagoReferencia: pago.referencia,
         pagoObservacion: pago.observacion,
         saldoReal,
-        saldoPendiente:  nuevoSaldo,
+        saldoPendiente: nuevoSaldo,
         pagoCompleto,
         cliente: {
-          nombre:   prestamoActualizado.cliente.nombre,
+          nombre: prestamoActualizado.cliente.nombre,
           apellido: prestamoActualizado.cliente.apellido,
-          cedula:   prestamoActualizado.cliente.cedula,
+          cedula: prestamoActualizado.cliente.cedula,
         },
         prestamo: {
-          id:             prestamoActualizado.id,
-          monto:          prestamoActualizado.monto,
-          numeroCuotas:   prestamoActualizado.numeroCuotas,
+          id: prestamoActualizado.id,
+          monto: prestamoActualizado.monto,
+          numeroCuotas: prestamoActualizado.numeroCuotas,
           frecuenciaPago: prestamoActualizado.frecuenciaPago,
-          tasaInteres:    prestamoActualizado.tasaInteres,
+          tasaInteres: prestamoActualizado.tasaInteres,
         },
       };
     }); // ── FIN $transaction ──────────────────────────────────────────────
 
     // ✅ FUERA de la transacción
-    const clienteNombre = `${resultadoTx.cliente.nombre} ${resultadoTx.cliente.apellido}`.trim();
+    const clienteNombre =
+      `${resultadoTx.cliente.nombre} ${resultadoTx.cliente.apellido}`.trim();
 
     const [usuario] = await Promise.all([
       this.prisma.usuario.findUnique({
@@ -450,19 +514,19 @@ export class PagosService {
       registrarAuditoria(this.prisma, {
         empresaId,
         usuarioId,
-        tipo:        'PAGO',
-        accion:      resultadoTx.pagoCompleto ? 'PAGO' : 'PAGO_PARCIAL',
+        tipo: 'PAGO',
+        accion: resultadoTx.pagoCompleto ? 'PAGO' : 'PAGO_PARCIAL',
         descripcion: `Pago${resultadoTx.pagoCompleto ? '' : ' parcial'} RD$${dto.montoPagado.toLocaleString()} (Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}) — Cliente: ${clienteNombre}`,
-        monto:        dto.montoPagado,
+        monto: dto.montoPagado,
         referenciaId: dto.prestamoId,
         datosAnteriores: { saldoAntes: resultadoTx.saldoReal },
         datosNuevos: {
-          capital:      capitalAplicado,
-          interes:      interesAplicado,
-          mora:         moraAplicada,
+          capital: capitalAplicado,
+          interes: interesAplicado,
+          mora: moraAplicada,
           saldoDespues: resultadoTx.saldoPendiente,
-          cuotaPagada:  resultadoTx.pagoCompleto,
-          cuotaId:      cuotaObjetivo.id,
+          cuotaPagada: resultadoTx.pagoCompleto,
+          cuotaId: cuotaObjetivo.id,
           pagoCompleto: resultadoTx.pagoCompleto,
         },
       }).catch(() => {}),
@@ -472,32 +536,32 @@ export class PagosService {
 
     return {
       pago: {
-        id:           resultadoTx.pagoId,
-        createdAt:    resultadoTx.pagoCreatedAt,
-        montoTotal:   dto.montoPagado,
-        capital:      capitalAplicado,
-        interes:      interesAplicado,
-        mora:         moraAplicada,
+        id: resultadoTx.pagoId,
+        createdAt: resultadoTx.pagoCreatedAt,
+        montoTotal: dto.montoPagado,
+        capital: capitalAplicado,
+        interes: interesAplicado,
+        mora: moraAplicada,
         abonoCapital: excedente,
         pagoCompleto: resultadoTx.pagoCompleto,
-        metodo:       resultadoTx.pagoMetodo,
-        referencia:   resultadoTx.pagoReferencia,
-        observacion:  resultadoTx.pagoObservacion,
+        metodo: resultadoTx.pagoMetodo,
+        referencia: resultadoTx.pagoReferencia,
+        observacion: resultadoTx.pagoObservacion,
       },
       prestamo: {
         ...resultadoTx.prestamo,
         saldoPendiente: resultadoTx.saldoPendiente,
       },
-      cliente:  resultadoTx.cliente,
+      cliente: resultadoTx.cliente,
       cuota: {
-        id:               cuotaObjetivo.id,
-        numero:           cuotaObjetivo.numero,
-        monto:            cuotaObjetivo.monto,
-        capital:          cuotaObjetivo.capital,
-        interes:          cuotaObjetivo.interes,
-        mora:             cuotaObjetivo.mora,
+        id: cuotaObjetivo.id,
+        numero: cuotaObjetivo.numero,
+        monto: cuotaObjetivo.monto,
+        capital: cuotaObjetivo.capital,
+        interes: cuotaObjetivo.interes,
+        mora: cuotaObjetivo.mora,
         fechaVencimiento: cuotaObjetivo.fechaVencimiento,
-        pagoCompleto:     resultadoTx.pagoCompleto,
+        pagoCompleto: resultadoTx.pagoCompleto,
       },
       usuario: { nombre: usuario?.nombre ?? 'Sistema' },
     };
@@ -540,19 +604,31 @@ export class PagosService {
 
     if (!prestamo) throw new NotFoundException('Préstamo no encontrado');
     if (prestamo.estado === EstadoPrestamo.PAGADO)
-      throw new BadRequestException('Este préstamo ya está completamente pagado');
+      throw new BadRequestException(
+        'Este préstamo ya está completamente pagado',
+      );
     if (prestamo.estado === EstadoPrestamo.CANCELADO)
       throw new BadRequestException('No se puede saldar un préstamo cancelado');
 
     const cuotasPendientes = prestamo.cuotas;
     if (cuotasPendientes.length === 0)
-      throw new BadRequestException('No hay cuotas pendientes en este préstamo');
+      throw new BadRequestException(
+        'No hay cuotas pendientes en este préstamo',
+      );
 
     // Calcular totales exactos desde las cuotas (respeta pagos parciales previos)
-    const totalCapital = Math.round(cuotasPendientes.reduce((s, c) => s + c.capital, 0) * 100) / 100;
-    const totalInteres = Math.round(cuotasPendientes.reduce((s, c) => s + c.interes, 0) * 100) / 100;
-    const totalMora    = Math.round(cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0) * 100) / 100;
-    const montoTotal   = Math.round((totalCapital + totalInteres + totalMora) * 100) / 100;
+    const totalCapital =
+      Math.round(cuotasPendientes.reduce((s, c) => s + c.capital, 0) * 100) /
+      100;
+    const totalInteres =
+      Math.round(cuotasPendientes.reduce((s, c) => s + c.interes, 0) * 100) /
+      100;
+    const totalMora =
+      Math.round(
+        cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0) * 100,
+      ) / 100;
+    const montoTotal =
+      Math.round((totalCapital + totalInteres + totalMora) * 100) / 100;
 
     const pagoCreado = await this.prisma.$transaction(async (tx) => {
       const pago = await tx.pago.create({
@@ -560,20 +636,20 @@ export class PagosService {
           prestamoId,
           usuarioId,
           montoTotal,
-          capital:     totalCapital,
-          interes:     totalInteres,
-          mora:        totalMora,
-          metodo:      metodoPago,
-          referencia:  referencia ?? null,
+          capital: totalCapital,
+          interes: totalInteres,
+          mora: totalMora,
+          metodo: metodoPago,
+          referencia: referencia ?? null,
           observacion: observacion ?? 'Saldo total del préstamo',
-          cajaId:      caja.id,
+          cajaId: caja.id,
           idempotencyKey: idempotencyKey ?? null,
         },
       });
 
       await tx.cuota.updateMany({
         where: { prestamoId, pagada: false },
-        data:  { pagada: true, fechaPago: new Date() },
+        data: { pagada: true, fechaPago: new Date() },
       });
 
       await tx.prestamo.update({
@@ -582,20 +658,21 @@ export class PagosService {
       });
 
       // Movimiento financiero
-      const clienteNombreTx = `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}`.trim();
+      const clienteNombreTx =
+        `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}`.trim();
       await tx.movimientoFinanciero.create({
         data: {
-          tipo:           'PAGO_RECIBIDO',
-          monto:          montoTotal,
-          capital:        totalCapital,
-          interes:        totalInteres,
-          mora:           totalMora,
+          tipo: 'PAGO_RECIBIDO',
+          monto: montoTotal,
+          capital: totalCapital,
+          interes: totalInteres,
+          mora: totalMora,
           referenciaTipo: 'PAGO',
-          referenciaId:   pago.id,
-          cajaId:         caja.id,
+          referenciaId: pago.id,
+          cajaId: caja.id,
           empresaId,
           usuarioId,
-          descripcion:    `Saldo total de ${clienteNombreTx} — Capital: RD$${totalCapital.toLocaleString()}, Interés: RD$${totalInteres.toLocaleString()}, Mora: RD$${totalMora.toLocaleString()}`,
+          descripcion: `Saldo total de ${clienteNombreTx} — Capital: RD$${totalCapital.toLocaleString()}, Interés: RD$${totalInteres.toLocaleString()}, Mora: RD$${totalMora.toLocaleString()}`,
         },
       });
 
@@ -609,7 +686,8 @@ export class PagosService {
       return pago;
     });
 
-    const clienteNombre = `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}`.trim();
+    const clienteNombre =
+      `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}`.trim();
 
     const [usuario] = await Promise.all([
       this.prisma.usuario.findUnique({
@@ -619,13 +697,16 @@ export class PagosService {
       registrarAuditoria(this.prisma, {
         empresaId,
         usuarioId,
-        tipo:        'PAGO',
-        accion:      'SALDADO',
+        tipo: 'PAGO',
+        accion: 'SALDADO',
         descripcion: `Préstamo saldado RD$${montoTotal.toLocaleString()} (Capital: RD$${totalCapital.toLocaleString()}, Interés: RD$${totalInteres.toLocaleString()}, Mora: RD$${totalMora.toLocaleString()}) — Cliente: ${clienteNombre}`,
-        monto:        montoTotal,
+        monto: montoTotal,
         referenciaId: prestamoId,
         datosAnteriores: { cuotasPendientes: cuotasPendientes.length },
-        datosNuevos:     { estado: 'PAGADO', cuotasPagadas: cuotasPendientes.length },
+        datosNuevos: {
+          estado: 'PAGADO',
+          cuotasPagadas: cuotasPendientes.length,
+        },
       }).catch(() => {}),
     ]);
 
@@ -633,30 +714,30 @@ export class PagosService {
 
     return {
       pago: {
-        id:          pagoCreado.id,
-        createdAt:   pagoCreado.createdAt,
-        montoTotal:  pagoCreado.montoTotal,
-        capital:     pagoCreado.capital,
-        interes:     pagoCreado.interes,
-        mora:        pagoCreado.mora,
-        metodo:      pagoCreado.metodo,
-        referencia:  pagoCreado.referencia,
+        id: pagoCreado.id,
+        createdAt: pagoCreado.createdAt,
+        montoTotal: pagoCreado.montoTotal,
+        capital: pagoCreado.capital,
+        interes: pagoCreado.interes,
+        mora: pagoCreado.mora,
+        metodo: pagoCreado.metodo,
+        referencia: pagoCreado.referencia,
         observacion: pagoCreado.observacion,
       },
       prestamo: {
-        id:             prestamo.id,
-        monto:          prestamo.monto,
-        numeroCuotas:   prestamo.numeroCuotas,
+        id: prestamo.id,
+        monto: prestamo.monto,
+        numeroCuotas: prestamo.numeroCuotas,
         frecuenciaPago: prestamo.frecuenciaPago,
-        tasaInteres:    prestamo.tasaInteres,
+        tasaInteres: prestamo.tasaInteres,
         saldoPendiente: 0,
       },
       cliente: {
-        nombre:   prestamo.cliente.nombre,
+        nombre: prestamo.cliente.nombre,
         apellido: prestamo.cliente.apellido,
-        cedula:   prestamo.cliente.cedula,
+        cedula: prestamo.cliente.cedula,
       },
-      cuota:   null,
+      cuota: null,
       usuario: { nombre: usuario?.nombre ?? 'Sistema' },
     };
   }
@@ -685,8 +766,12 @@ export class PagosService {
         usuario: { select: { id: true, nombre: true } },
         prestamo: {
           select: {
-            id: true, monto: true, saldoPendiente: true,
-            cliente: { select: { id: true, nombre: true, apellido: true, cedula: true } },
+            id: true,
+            monto: true,
+            saldoPendiente: true,
+            cliente: {
+              select: { id: true, nombre: true, apellido: true, cedula: true },
+            },
           },
         },
       },
@@ -712,72 +797,94 @@ export class PagosService {
 
     if (!pago) throw new NotFoundException('Pago no encontrado');
 
-    const saldoPendiente = Math.max(0, Math.round(
-      pago.prestamo.cuotas
-        .filter(c => !c.pagada)
-        .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100
-    ) / 100);
+    const saldoPendiente = Math.max(
+      0,
+      Math.round(
+        pago.prestamo.cuotas
+          .filter((c) => !c.pagada)
+          .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100,
+      ) / 100,
+    );
 
-    const cuotaDelPago = pago.prestamo?.cuotas?.find((c) => {
-      if (!c.fechaPago) return false;
-      const diffMs = Math.abs(
-        new Date(c.fechaPago).getTime() - new Date(pago.createdAt).getTime(),
-      );
-      return diffMs < 60_000;
-    }) ?? null;
+    const cuotaDelPago =
+      pago.prestamo?.cuotas?.find((c) => {
+        if (!c.fechaPago) return false;
+        const diffMs = Math.abs(
+          new Date(c.fechaPago).getTime() - new Date(pago.createdAt).getTime(),
+        );
+        return diffMs < 60_000;
+      }) ?? null;
 
     let moraCalculada = cuotaDelPago?.mora ?? pago.mora;
-    if (cuotaDelPago && cuotaDelPago.mora === 0 && new Date(cuotaDelPago.fechaVencimiento) < new Date(pago.createdAt)) {
+    if (
+      cuotaDelPago &&
+      cuotaDelPago.mora === 0 &&
+      new Date(cuotaDelPago.fechaVencimiento) < new Date(pago.createdAt)
+    ) {
       try {
-        const config = await this.prisma.configuracion.findUnique({ where: { empresaId } });
+        const config = await this.prisma.configuracion.findUnique({
+          where: { empresaId },
+        });
         if (config?.moraPorcentajeMensual) {
           const diasAtraso = differenceInDays(
             startOfDay(new Date(pago.createdAt)),
             startOfDay(new Date(cuotaDelPago.fechaVencimiento)),
           );
           if (diasAtraso > (config.diasGracia ?? 0)) {
-            moraCalculada = Math.round(cuotaDelPago.monto * (config.moraPorcentajeMensual / 100) * 100) / 100;
+            moraCalculada =
+              Math.round(
+                cuotaDelPago.monto * (config.moraPorcentajeMensual / 100) * 100,
+              ) / 100;
           }
         }
-      } catch { /* usar valor almacenado */ }
+      } catch {
+        /* usar valor almacenado */
+      }
     }
 
     return {
       pago: {
-        id:            pago.id,
-        createdAt:     pago.createdAt,
-        montoTotal:    pago.montoTotal,
-        capital:       pago.capital,
-        interes:       pago.interes,
-        mora:          moraCalculada,
-        abonoCapital:  Math.max(0, Math.round((pago.montoTotal - pago.capital - pago.interes - pago.mora) * 100) / 100),
-        pagoCompleto:  !!(cuotaDelPago?.pagada && cuotaDelPago?.fechaPago),
-        metodo:        pago.metodo,
-        referencia:    pago.referencia,
-        observacion:   pago.observacion,
+        id: pago.id,
+        createdAt: pago.createdAt,
+        montoTotal: pago.montoTotal,
+        capital: pago.capital,
+        interes: pago.interes,
+        mora: moraCalculada,
+        abonoCapital: Math.max(
+          0,
+          Math.round(
+            (pago.montoTotal - pago.capital - pago.interes - pago.mora) * 100,
+          ) / 100,
+        ),
+        pagoCompleto: !!(cuotaDelPago?.pagada && cuotaDelPago?.fechaPago),
+        metodo: pago.metodo,
+        referencia: pago.referencia,
+        observacion: pago.observacion,
       },
       prestamo: {
-        id:             pago.prestamo.id,
-        monto:          pago.prestamo.monto,
-        numeroCuotas:   pago.prestamo.numeroCuotas,
+        id: pago.prestamo.id,
+        monto: pago.prestamo.monto,
+        numeroCuotas: pago.prestamo.numeroCuotas,
         frecuenciaPago: pago.prestamo.frecuenciaPago,
-        tasaInteres:    pago.prestamo.tasaInteres,
+        tasaInteres: pago.prestamo.tasaInteres,
         saldoPendiente,
       },
       cliente: {
-        nombre:   pago.prestamo.cliente.nombre,
+        nombre: pago.prestamo.cliente.nombre,
         apellido: pago.prestamo.cliente.apellido,
-        cedula:   pago.prestamo.cliente.cedula,
+        cedula: pago.prestamo.cliente.cedula,
       },
-      cuota: cuotaDelPago ? {
-        id:               cuotaDelPago.id,
-        numero:           cuotaDelPago.numero,
-        monto:            cuotaDelPago.monto,
-        capital:          cuotaDelPago.capital,
-        interes:          cuotaDelPago.interes,
-        mora:             moraCalculada,
-        fechaVencimiento: cuotaDelPago.fechaVencimiento,
-      } : null,
+      cuota: cuotaDelPago
+        ? {
+            id: cuotaDelPago.id,
+            numero: cuotaDelPago.numero,
+            monto: cuotaDelPago.monto,
+            capital: cuotaDelPago.capital,
+            interes: cuotaDelPago.interes,
+            mora: moraCalculada,
+            fechaVencimiento: cuotaDelPago.fechaVencimiento,
+          }
+        : null,
       usuario: { nombre: pago.usuario?.nombre ?? 'Sistema' },
     };
   }
@@ -786,27 +893,41 @@ export class PagosService {
 
   async getResumen(empresaId: string) {
     const inicioHoy = getInicioDiaRD();
-    const finHoy    = getFinDiaRD();
-    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const finHoy = getFinDiaRD();
+    const inicioMes = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    );
 
     const [totalHoy, totalMes, conteoHoy, conteoMes] = await Promise.all([
       this.prisma.pago.aggregate({
-        where: { prestamo: { empresaId }, createdAt: { gte: inicioHoy, lte: finHoy } },
+        where: {
+          prestamo: { empresaId },
+          createdAt: { gte: inicioHoy, lte: finHoy },
+        },
         _sum: { montoTotal: true },
       }),
       this.prisma.pago.aggregate({
         where: { prestamo: { empresaId }, createdAt: { gte: inicioMes } },
         _sum: { montoTotal: true },
       }),
-      this.prisma.pago.count({ where: { prestamo: { empresaId }, createdAt: { gte: inicioHoy, lte: finHoy } } }),
-      this.prisma.pago.count({ where: { prestamo: { empresaId }, createdAt: { gte: inicioMes } } }),
+      this.prisma.pago.count({
+        where: {
+          prestamo: { empresaId },
+          createdAt: { gte: inicioHoy, lte: finHoy },
+        },
+      }),
+      this.prisma.pago.count({
+        where: { prestamo: { empresaId }, createdAt: { gte: inicioMes } },
+      }),
     ]);
 
     return {
       cobradoHoy: totalHoy._sum.montoTotal ?? 0,
       cobradoMes: totalMes._sum.montoTotal ?? 0,
-      pagosHoy:   conteoHoy,
-      pagosMes:   conteoMes,
+      pagosHoy: conteoHoy,
+      pagosMes: conteoMes,
     };
   }
 }

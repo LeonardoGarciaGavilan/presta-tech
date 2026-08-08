@@ -1,5 +1,9 @@
 // src/empleados/empleados.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -117,7 +121,9 @@ export class EmpleadosService {
     }
 
     return (this.prisma as any).asistenciaEmpleado.upsert({
-      where: { empleadoId_fecha: { empleadoId: dto.empleadoId, fecha: dto.fecha } },
+      where: {
+        empleadoId_fecha: { empleadoId: dto.empleadoId, fecha: dto.fecha },
+      },
       update: {
         entrada: dto.entrada ?? null,
         salida: dto.salida ?? null,
@@ -160,7 +166,10 @@ export class EmpleadosService {
       where: { id, empresaId },
     });
     if (!desc) throw new NotFoundException('Descuento no encontrado');
-    if (desc.aplicado) throw new BadRequestException('No se puede eliminar un descuento ya aplicado');
+    if (desc.aplicado)
+      throw new BadRequestException(
+        'No se puede eliminar un descuento ya aplicado',
+      );
     return (this.prisma as any).descuentoEmpleado.delete({ where: { id } });
   }
 
@@ -185,9 +194,16 @@ export class EmpleadosService {
     let totalDescuentos = 0;
     if (dto.descuentoIds?.length) {
       const descuentos = await (this.prisma as any).descuentoEmpleado.findMany({
-        where: { id: { in: dto.descuentoIds }, empleadoId: dto.empleadoId, aplicado: false },
+        where: {
+          id: { in: dto.descuentoIds },
+          empleadoId: dto.empleadoId,
+          aplicado: false,
+        },
       });
-      totalDescuentos = descuentos.reduce((s: number, d: any) => s + d.monto, 0);
+      totalDescuentos = descuentos.reduce(
+        (s: number, d: any) => s + d.monto,
+        0,
+      );
     }
 
     const salarioBruto = empleado.salario;
@@ -252,13 +268,21 @@ export class EmpleadosService {
       ]);
 
     const nominalMensual = empleados.reduce((s: number, e: any) => {
-      const factor = e.frecuenciaPago === 'SEMANAL' ? 4
-        : e.frecuenciaPago === 'QUINCENAL' ? 2 : 1;
+      const factor =
+        e.frecuenciaPago === 'SEMANAL'
+          ? 4
+          : e.frecuenciaPago === 'QUINCENAL'
+            ? 2
+            : 1;
       return s + e.salario * factor;
     }, 0);
 
-    const presentesHoy = asistenciaHoy.filter((a: any) => a.estado === 'PRESENTE' || a.estado === 'TARDANZA').length;
-    const ausentesHoy = asistenciaHoy.filter((a: any) => a.estado === 'AUSENTE').length;
+    const presentesHoy = asistenciaHoy.filter(
+      (a: any) => a.estado === 'PRESENTE' || a.estado === 'TARDANZA',
+    ).length;
+    const ausentesHoy = asistenciaHoy.filter(
+      (a: any) => a.estado === 'AUSENTE',
+    ).length;
 
     return {
       totalEmpleados: empleados.length,

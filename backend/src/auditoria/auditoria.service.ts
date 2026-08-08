@@ -18,9 +18,9 @@ export class AuditoriaService {
 
   async findAll(options: FindAllOptions) {
     const { user, empresaId, empresaFiltro, tipo, desde, hasta } = options;
-    
+
     const isSuperAdmin = user.rol === 'SUPERADMIN';
-    
+
     // Construir filtro de empresa
     let empresaFilter: string | undefined;
     if (isSuperAdmin) {
@@ -49,7 +49,10 @@ export class AuditoriaService {
       if (desde) where.createdAt.gte = getInicioDiaRD(desde);
       if (hasta) where.createdAt.lte = getFinDiaRD(hasta);
 
-      console.log('DEBUG AUDITORIA RANGO:', { desde: getInicioDiaRD(desde).toISOString(), hasta: getFinDiaRD(hasta).toISOString() });
+      console.log('DEBUG AUDITORIA RANGO:', {
+        desde: getInicioDiaRD(desde).toISOString(),
+        hasta: getFinDiaRD(hasta).toISOString(),
+      });
     }
 
     return this.prisma.auditoria.findMany({

@@ -39,6 +39,4 @@ main()
     await prisma.$disconnect();
   });
 
-
-
-  // ejecutar npx ts-node scripts/create-employee.ts
+// ejecutar npx ts-node scripts/create-employee.ts

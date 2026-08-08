@@ -40,7 +40,9 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     const empresaId = client.data.user?.empresaId;
-    console.log(`Cliente desconectado: ${client.id} | empresa: ${empresaId ?? 'desconocida'}`);
+    console.log(
+      `Cliente desconectado: ${client.id} | empresa: ${empresaId ?? 'desconocida'}`,
+    );
   }
 
   @SubscribeMessage('join')
@@ -72,7 +74,7 @@ export class AlertsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const cookieHeader = client.handshake.headers?.cookie;
     if (cookieHeader) {
       const cookies = Object.fromEntries(
-        cookieHeader.split('; ').map(c => c.split('='))
+        cookieHeader.split('; ').map((c) => c.split('=')),
       );
       if (cookies['token']) {
         return cookies['token'];

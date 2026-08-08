@@ -29,12 +29,17 @@ export class CajaService {
   }
 
   // ─── Resumen de pagos del día ─────────────────────────────────────────────
-  private async resumenPagosDia(empresaId: string, fecha: string, usuarioId?: string, cajaId?: string) {
+  private async resumenPagosDia(
+    empresaId: string,
+    fecha: string,
+    usuarioId?: string,
+    cajaId?: string,
+  ) {
     const { inicioDia, finDia } = this.rangoDia(fecha);
 
     const where: any = {
       createdAt: { gte: inicioDia, lte: finDia },
-      prestamo:  { empresaId },
+      prestamo: { empresaId },
     };
     if (usuarioId) where.usuarioId = usuarioId;
     if (cajaId) where.cajaId = cajaId;
@@ -53,11 +58,13 @@ export class CajaService {
       this.prisma.pago.findMany({
         where,
         include: {
-          usuario:  { select: { id: true, nombre: true } },
+          usuario: { select: { id: true, nombre: true } },
           prestamo: {
             select: {
               id: true,
-              cliente: { select: { nombre: true, apellido: true, cedula: true } },
+              cliente: {
+                select: { nombre: true, apellido: true, cedula: true },
+              },
             },
           },
         },
@@ -73,7 +80,8 @@ export class CajaService {
       _sum: { montoTotal: true },
     });
 
-    const pagosPorMetodo: Record<string, { cantidad: number; monto: number }> = {};
+    const pagosPorMetodo: Record<string, { cantidad: number; monto: number }> =
+      {};
     porMetodo.forEach((m) => {
       pagosPorMetodo[m.metodo] = {
         cantidad: m._count,
@@ -83,18 +91,24 @@ export class CajaService {
 
     return {
       pagos,
-      totalCobrado:  Math.round((totales._sum.montoTotal ?? 0)  * 100) / 100,
-      totalEfectivo: Math.round((pagosPorMetodo['EFECTIVO']?.monto ?? 0) * 100) / 100,
-      totalCapital:  Math.round((totales._sum.capital ?? 0)  * 100) / 100,
-      totalInteres:  Math.round((totales._sum.interes ?? 0)  * 100) / 100,
-      totalMora:     Math.round((totales._sum.mora ?? 0)     * 100) / 100,
+      totalCobrado: Math.round((totales._sum.montoTotal ?? 0) * 100) / 100,
+      totalEfectivo:
+        Math.round((pagosPorMetodo['EFECTIVO']?.monto ?? 0) * 100) / 100,
+      totalCapital: Math.round((totales._sum.capital ?? 0) * 100) / 100,
+      totalInteres: Math.round((totales._sum.interes ?? 0) * 100) / 100,
+      totalMora: Math.round((totales._sum.mora ?? 0) * 100) / 100,
       cantidadPagos: pagos.length,
       pagosPorMetodo,
     };
   }
 
   // ─── Desembolsos del día ──────────────────────────────────────────────────
-  private async desembolsosDia(empresaId: string, fecha: string, cajaId?: string, usuarioId?: string) {
+  private async desembolsosDia(
+    empresaId: string,
+    fecha: string,
+    cajaId?: string,
+    usuarioId?: string,
+  ) {
     const { inicioDia, finDia } = this.rangoDia(fecha);
 
     const where = {
@@ -113,12 +127,14 @@ export class CajaService {
       (this.prisma as any).desembolsoCaja.findMany({
         where,
         include: {
-          usuario:  { select: { id: true, nombre: true } },
+          usuario: { select: { id: true, nombre: true } },
           prestamo: {
             select: {
               id: true,
               monto: true,
-              cliente: { select: { nombre: true, apellido: true, cedula: true } },
+              cliente: {
+                select: { nombre: true, apellido: true, cedula: true },
+              },
             },
           },
         },
@@ -133,7 +149,7 @@ export class CajaService {
     };
   }
 
-// ─── ABRIR CAJA ───────────────────────────────────────────────────────────
+  // ─── ABRIR CAJA ───────────────────────────────────────────────────────────
 
   // ─── Helper: Calcular capital total de la empresa ────────────────────────
   private async calcularCapitalTotal(empresaId: string): Promise<number> {
@@ -153,7 +169,9 @@ export class CajaService {
     const totalInyectado = inyecciones._sum.monto ?? 0;
     const totalRetirado = retiros._sum.monto ?? 0;
 
-    return Math.round((capitalBase + totalInyectado - totalRetirado) * 100) / 100;
+    return (
+      Math.round((capitalBase + totalInyectado - totalRetirado) * 100) / 100
+    );
   }
 
   // ─── Helper: Calcular dinero total en cajas abiertas ─────────────────────
@@ -216,14 +234,14 @@ export class CajaService {
       const capitalTotal = await this.calcularCapitalTotal(empresaId);
       const dineroEnCalleVal = await this.calcularDineroEnCalle(empresaId);
       const capitalDisponible = Math.max(0, capitalTotal - dineroEnCalleVal);
-      
+
       // Dinero ya en cajas abiertas
       const dineroEnCajasVal = await this.calcularDineroEnCajas(empresaId);
       const disponible = capitalDisponible - dineroEnCajasVal;
 
       if (montoInicial > disponible) {
         throw new BadRequestException(
-          `No hay capital disponible suficiente para abrir esta caja. Disponible: RD$${(disponible ?? 0).toLocaleString()}, Solicitado: RD$${(montoInicial ?? 0).toLocaleString()}`
+          `No hay capital disponible suficiente para abrir esta caja. Disponible: RD$${(disponible ?? 0).toLocaleString()}, Solicitado: RD$${(montoInicial ?? 0).toLocaleString()}`,
         );
       }
     }
@@ -294,33 +312,52 @@ export class CajaService {
     isAdmin = true,
   ) {
     // Delegar toda la lógica a cerrarCajaSimple (único método de cierre)
-    return this.cerrarCajaSimple(empresaId, usuarioId, montoCierre, observaciones, cajaId, isAdmin);
+    return this.cerrarCajaSimple(
+      empresaId,
+      usuarioId,
+      montoCierre,
+      observaciones,
+      cajaId,
+      isAdmin,
+    );
   }
 
   // ─── MI CAJA DEL DÍA ─────────────────────────────────────────────────────
 
   async miCajaActiva(empresaId: string, usuarioId: string, fecha: string) {
     const caja = await this.prisma.cajaSesion.findFirst({
-      where:   { empresaId, usuarioId, fecha },
+      where: { empresaId, usuarioId, fecha },
       include: { usuario: { select: { id: true, nombre: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
     if (!caja) return null;
 
-    const resumenPagos    = await this.resumenPagosDia(empresaId, fecha, usuarioId);
-    const resumenDesembol = await this.desembolsosDia(empresaId, fecha, caja.id);
+    const resumenPagos = await this.resumenPagosDia(
+      empresaId,
+      fecha,
+      usuarioId,
+    );
+    const resumenDesembol = await this.desembolsosDia(
+      empresaId,
+      fecha,
+      caja.id,
+    );
 
-    const efectivoSistema = Math.round(
-      (caja.montoInicial + resumenPagos.totalEfectivo - resumenDesembol.totalDesembolsado) * 100,
-    ) / 100;
+    const efectivoSistema =
+      Math.round(
+        (caja.montoInicial +
+          resumenPagos.totalEfectivo -
+          resumenDesembol.totalDesembolsado) *
+          100,
+      ) / 100;
 
     return {
       ...caja,
       resumen: {
         ...resumenPagos,
-        desembolsos:         resumenDesembol.desembolsos,
-        totalDesembolsado:   resumenDesembol.totalDesembolsado,
+        desembolsos: resumenDesembol.desembolsos,
+        totalDesembolsado: resumenDesembol.totalDesembolsado,
         cantidadDesembolsos: resumenDesembol.cantidadDesembolsos,
         efectivoSistema,
         efectivoEnCaja: efectivoSistema,
@@ -338,7 +375,7 @@ export class CajaService {
     isAdmin = true,
   ) {
     const cajas = await this.prisma.cajaSesion.findMany({
-      where:   {
+      where: {
         empresaId,
         fecha,
         ...(cajaId && { id: cajaId }),
@@ -348,32 +385,46 @@ export class CajaService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const resumenPagos    = await this.resumenPagosDia(empresaId, fecha, !isAdmin ? usuarioId : undefined, cajaId);
-    const resumenDesembol = await this.desembolsosDia(empresaId, fecha, cajaId, !isAdmin ? usuarioId : undefined);
+    const resumenPagos = await this.resumenPagosDia(
+      empresaId,
+      fecha,
+      !isAdmin ? usuarioId : undefined,
+      cajaId,
+    );
+    const resumenDesembol = await this.desembolsosDia(
+      empresaId,
+      fecha,
+      cajaId,
+      !isAdmin ? usuarioId : undefined,
+    );
 
-    const efectivoSistema = Math.round(
-      (cajas.reduce((s, c) => s + c.montoInicial, 0) + resumenPagos.totalEfectivo - resumenDesembol.totalDesembolsado) * 100,
-    ) / 100;
+    const efectivoSistema =
+      Math.round(
+        (cajas.reduce((s, c) => s + c.montoInicial, 0) +
+          resumenPagos.totalEfectivo -
+          resumenDesembol.totalDesembolsado) *
+          100,
+      ) / 100;
 
     return {
       fecha,
       cajas,
       resumen: {
-        totalCobrado:        resumenPagos.totalCobrado,
-        totalEfectivo:       resumenPagos.totalEfectivo,
-        totalCapital:        resumenPagos.totalCapital,
-        totalInteres:        resumenPagos.totalInteres,
-        totalMora:           resumenPagos.totalMora,
-        totalDesembolsado:   resumenDesembol.totalDesembolsado,
+        totalCobrado: resumenPagos.totalCobrado,
+        totalEfectivo: resumenPagos.totalEfectivo,
+        totalCapital: resumenPagos.totalCapital,
+        totalInteres: resumenPagos.totalInteres,
+        totalMora: resumenPagos.totalMora,
+        totalDesembolsado: resumenDesembol.totalDesembolsado,
         cantidadDesembolsos: resumenDesembol.cantidadDesembolsos,
         efectivoSistema,
-        cantidadPagos:  resumenPagos.cantidadPagos,
-        cantidadCajas:  cajas.length,
-        cajasAbiertas:  cajas.filter((c) => c.estado === 'ABIERTA').length,
+        cantidadPagos: resumenPagos.cantidadPagos,
+        cantidadCajas: cajas.length,
+        cajasAbiertas: cajas.filter((c) => c.estado === 'ABIERTA').length,
       },
-      pagosPorMetodo:    resumenPagos.pagosPorMetodo,
-      pagos:             resumenPagos.pagos,
-      desembolsos:       resumenDesembol.desembolsos,
+      pagosPorMetodo: resumenPagos.pagosPorMetodo,
+      pagos: resumenPagos.pagos,
+      desembolsos: resumenDesembol.desembolsos,
     };
   }
 
@@ -409,7 +460,8 @@ export class CajaService {
     let salidas = 0;
 
     for (const m of movimientos) {
-      if (m.tipo === 'PAGO_RECIBIDO' || m.tipo === 'INYECCION_CAPITAL') entradas += m.monto;
+      if (m.tipo === 'PAGO_RECIBIDO' || m.tipo === 'INYECCION_CAPITAL')
+        entradas += m.monto;
       else if (m.tipo === 'DESEMBOLSO') salidas += m.monto;
       // GASTOS, RETIROS, etc. NO afectan caja operativa (son globales)
     }
@@ -426,10 +478,19 @@ export class CajaService {
 
   // ─── CALCULAR DINERO ESPERADO EN CAJA ─────────────────────────────────────
   // esperado = montoInicial + totalIngresos - totalEgresos
-  calcularEsperadoCaja(caja: { montoInicial?: number; totalIngresos?: number; totalEgresos?: number }) {
-    return Math.round(
-      ((caja.montoInicial ?? 0) + (caja.totalIngresos ?? 0) - (caja.totalEgresos ?? 0)) * 100
-    ) / 100;
+  calcularEsperadoCaja(caja: {
+    montoInicial?: number;
+    totalIngresos?: number;
+    totalEgresos?: number;
+  }) {
+    return (
+      Math.round(
+        ((caja.montoInicial ?? 0) +
+          (caja.totalIngresos ?? 0) -
+          (caja.totalEgresos ?? 0)) *
+          100,
+      ) / 100
+    );
   }
 
   // ─── CERRAR CAJA SIMPLIFICADO ─────────────────────────────
@@ -443,11 +504,15 @@ export class CajaService {
     isAdmin = true,
   ) {
     // Validación fuerte del monto
-    if (montoCierre === undefined || montoCierre === null || isNaN(montoCierre)) {
+    if (
+      montoCierre === undefined ||
+      montoCierre === null ||
+      isNaN(montoCierre)
+    ) {
       throw new BadRequestException('Monto de cierre inválido');
     }
 
-   // console.log('[DEBUG cierreCaja] montoCierre:', montoCierre);
+    // console.log('[DEBUG cierreCaja] montoCierre:', montoCierre);
 
     // Buscar caja ABIERTA:
     // 1. Si se proporciona cajaId, buscar por ID (para PATCH /caja/:id/cerrar)
@@ -496,9 +561,8 @@ export class CajaService {
 
     const ingresosCalc = ingresos._sum.montoTotal ?? 0;
     const egresosCalc = egresos._sum.monto ?? 0;
-    const esperado = Math.round(
-      (caja.montoInicial + ingresosCalc - egresosCalc) * 100
-    ) / 100;
+    const esperado =
+      Math.round((caja.montoInicial + ingresosCalc - egresosCalc) * 100) / 100;
 
     const diferencia = Math.round(((montoCierre ?? 0) - esperado) * 100) / 100;
 
@@ -546,7 +610,8 @@ export class CajaService {
 
       // 3. Si hay diferencia, registrar ajuste
       if (diferencia !== 0) {
-        const tipoAjuste = diferencia > 0 ? 'Sobrante de caja' : 'Faltante de caja';
+        const tipoAjuste =
+          diferencia > 0 ? 'Sobrante de caja' : 'Faltante de caja';
         await tx.movimientoFinanciero.create({
           data: {
             tipo: 'AJUSTE_CAJA',
@@ -576,7 +641,11 @@ export class CajaService {
       monto: montoCierre,
       referenciaId: caja.id,
       referenciaTipo: 'CajaSesion',
-      datosAnteriores: { montoInicial: caja.montoInicial, ingresosCalc, egresosCalc },
+      datosAnteriores: {
+        montoInicial: caja.montoInicial,
+        ingresosCalc,
+        egresosCalc,
+      },
       datosNuevos: { montoCierre, diferencia, estado: 'CERRADA' },
     });
 
@@ -601,9 +670,10 @@ export class CajaService {
     tipo: 'INGRESO' | 'EGRESO',
     monto: number,
   ) {
-    const data = tipo === 'INGRESO'
-      ? { totalIngresos: { increment: monto } }
-      : { totalEgresos: { increment: monto } };
+    const data =
+      tipo === 'INGRESO'
+        ? { totalIngresos: { increment: monto } }
+        : { totalEgresos: { increment: monto } };
 
     await tx.cajaSesion.update({
       where: { id: cajaId },
@@ -612,7 +682,12 @@ export class CajaService {
   }
 
   // ─── LISTAR CAJAS (SIN filtro de fecha) ────────────────────────
-  async getCajas(empresaId: string, estado?: string, usuarioId?: string, isAdmin = true) {
+  async getCajas(
+    empresaId: string,
+    estado?: string,
+    usuarioId?: string,
+    isAdmin = true,
+  ) {
     const where: any = {
       ...(empresaId && { empresaId }),
       ...(estado && { estado: estado as any }),
@@ -646,9 +721,9 @@ export class CajaService {
 
         const ingresosCalc = ingresosAgg._sum.montoTotal ?? 0;
         const egresosCalc = egresosAgg._sum.monto ?? 0;
-        const esperadoCalc = Math.round(
-          (caja.montoInicial + ingresosCalc - egresosCalc) * 100
-        ) / 100;
+        const esperadoCalc =
+          Math.round((caja.montoInicial + ingresosCalc - egresosCalc) * 100) /
+          100;
 
         return {
           ...caja,
@@ -656,14 +731,19 @@ export class CajaService {
           egresosCalc,
           esperadoCalc,
         };
-      })
+      }),
     );
 
     return cajasConCalculos;
   }
 
   // ─── AUDITORÍA DE CAJA ─────────────────────────────────────────
-  async getAuditoria(cajaId: string, empresaId: string, usuarioId?: string, isAdmin = true) {
+  async getAuditoria(
+    cajaId: string,
+    empresaId: string,
+    usuarioId?: string,
+    isAdmin = true,
+  ) {
     const caja = await this.prisma.cajaSesion.findFirst({
       where: {
         id: cajaId,
@@ -698,9 +778,10 @@ export class CajaService {
 
     const esperado = Math.round((inicial + ingresos - egresos) * 100) / 100;
     const real = caja.montoCierre;
-    const diferencia = real !== null && real !== undefined
-      ? Math.round((real - esperado) * 100) / 100
-      : 0;
+    const diferencia =
+      real !== null && real !== undefined
+        ? Math.round((real - esperado) * 100) / 100
+        : 0;
 
     const aperturaExiste = movimientos.some((m) => m.tipo === 'APERTURA_CAJA');
     const cierreExiste = movimientos.some((m) => m.tipo === 'CIERRE_CAJA');

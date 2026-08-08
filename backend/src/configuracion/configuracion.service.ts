@@ -1,10 +1,12 @@
-
 import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpsertConfiguracionDto } from './dto/upsert-configuracion.dto';
-import { registrarAuditoria, generarDescripcionCambios } from '../common/utils/auditoria.utils';
+import {
+  registrarAuditoria,
+  generarDescripcionCambios,
+} from '../common/utils/auditoria.utils';
 
 @Injectable()
 export class ConfiguracionService {
@@ -34,8 +36,8 @@ export class ConfiguracionService {
     });
 
     const result = config
-      ? { 
-          ...config, 
+      ? {
+          ...config,
           existe: true,
           montoMinimoPrestamo: config.montoMinimoPrestamo ?? 500,
           montoMaximoPrestamo: config.montoMaximoPrestamo ?? null,
@@ -63,19 +65,27 @@ export class ConfiguracionService {
     return result;
   }
 
-  async upsert(dto: UpsertConfiguracionDto, empresaId: string, usuarioId?: string) {
-    const configAnterior = await this.prisma.configuracion.findUnique({ where: { empresaId } });
+  async upsert(
+    dto: UpsertConfiguracionDto,
+    empresaId: string,
+    usuarioId?: string,
+  ) {
+    const configAnterior = await this.prisma.configuracion.findUnique({
+      where: { empresaId },
+    });
     const esCreacion = !configAnterior;
 
-    const datosAnteriores = configAnterior ? {
-      tasaInteresBase: configAnterior.tasaInteresBase,
-      moraPorcentajeMensual: configAnterior.moraPorcentajeMensual,
-      diasGracia: configAnterior.diasGracia,
-      permitirAbonoCapital: configAnterior.permitirAbonoCapital,
-      montoMinimoPrestamo: configAnterior.montoMinimoPrestamo,
-      montoMaximoPrestamo: configAnterior.montoMaximoPrestamo,
-      montoMaximoPago: configAnterior.montoMaximoPago,
-    } : null;
+    const datosAnteriores = configAnterior
+      ? {
+          tasaInteresBase: configAnterior.tasaInteresBase,
+          moraPorcentajeMensual: configAnterior.moraPorcentajeMensual,
+          diasGracia: configAnterior.diasGracia,
+          permitirAbonoCapital: configAnterior.permitirAbonoCapital,
+          montoMinimoPrestamo: configAnterior.montoMinimoPrestamo,
+          montoMaximoPrestamo: configAnterior.montoMaximoPrestamo,
+          montoMaximoPago: configAnterior.montoMaximoPago,
+        }
+      : null;
 
     const datosNuevos = {
       tasaInteresBase: dto.tasaInteresBase,
@@ -87,7 +97,7 @@ export class ConfiguracionService {
       montoMaximoPago: dto.montoMaximoPago,
     };
 
-    const descripcion = esCreacion 
+    const descripcion = esCreacion
       ? `Configuración creada: Tasa ${dto.tasaInteresBase}%, Mora ${dto.moraPorcentajeMensual}%`
       : generarDescripcionCambios(datosAnteriores, datosNuevos);
 

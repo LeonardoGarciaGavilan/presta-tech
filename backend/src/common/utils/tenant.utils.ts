@@ -4,7 +4,9 @@ export class TenantUtils {
   private static getPrismaModel(tx: any, modelName: string): any {
     const model = tx[modelName];
     if (!model) {
-      throw new BadRequestException(`Modelo '${modelName}' no encontrado en Prisma`);
+      throw new BadRequestException(
+        `Modelo '${modelName}' no encontrado en Prisma`,
+      );
     }
     return model;
   }
@@ -17,7 +19,7 @@ export class TenantUtils {
     resourceName = 'Recurso',
   ) {
     const model = this.getPrismaModel(tx, modelName);
-    
+
     const result = await model.findFirst({
       where: { id, empresaId },
     });
