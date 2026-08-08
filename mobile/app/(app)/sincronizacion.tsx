@@ -20,7 +20,7 @@ import { getQueue, clearFailedItems } from '@/db/offline-queue-db';
 import type { OfflineQueueItem } from '@/types/offline.types';
 import { reportQueueClear } from '@/api/sync.api';
 import { onSyncItemEvent } from '@/services/sync-manager';
-import { prefetchVistaDiasRuta } from '@/services/prefetch-manager';
+import { prefetchVistaDiasRuta, forceReloadAll } from '@/services/prefetch-manager';
 import { getClienteById } from '@/db/clientes-db';
 import { getPrestamoById } from '@/db/prestamos-db';
 import { getRutas, getRutaClienteById } from '@/db/rutas-db';
@@ -619,7 +619,7 @@ export default function SincronizacionScreen() {
     }
     Alert.alert(
       'Forzar recarga',
-      'Esto descargará todos los datos del servidor. ¿Continuar?',
+      'Esto descargará todos los datos del servidor para usarlos sin conexión. ¿Continuar?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -627,14 +627,16 @@ export default function SincronizacionScreen() {
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             try {
-              await queryClient.invalidateQueries();
+              const reload = await forceReloadAll();
               const { success, failed } = await prefetchVistaDiasRuta(queryClient);
+              if (reload.failed > 0) {
+                Alert.alert('Error', 'No se pudieron recargar los datos.');
+                return;
+              }
               const message =
                 failed > 0
-                  ? `Datos recargados. ${success} ruta(s) listas para offline, ${failed} no pudieron descargarse.`
-                  : success > 0
-                    ? `Datos recargados. ${success} ruta(s) listas para usar sin conexión.`
-                    : 'Datos recargados correctamente.';
+                  ? `Datos recargados (${reload.entities} registros). ${success} ruta(s) listas para offline, ${failed} no pudieron descargarse.`
+                  : `Datos recargados correctamente (${reload.entities} registros). ${success} ruta(s) listas para usar sin conexión.`;
               Alert.alert('Listo', message);
             } catch {
               Alert.alert('Error', 'No se pudieron recargar los datos.');

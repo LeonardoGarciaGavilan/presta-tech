@@ -51,6 +51,15 @@ function generateIdempotencyKey(): string {
   return `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+// Los pagos NO se deduplican por payload: dos cobros legítimos idénticos
+// (mismo préstamo, monto, método y día) se colapsarían en un solo item y se
+// perdería dinero. La protección contra envíos duplicados de un mismo pago la
+// da la idempotencia del servidor (idempotencyKey + X-Idempotency-Key).
+export function isPaymentEndpoint(endpoint: string, method: string): boolean {
+  if (method !== 'POST') return false;
+  return endpoint === '/pagos' || /^\/pagos\/saldar\/.+/.test(endpoint);
+}
+
 function stableStringify(obj: unknown): string {
   return JSON.stringify(obj, (_key, value) => {
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
@@ -222,6 +231,9 @@ export function findDuplicate(
   method: string,
   data: unknown,
 ): OfflineQueueItem | null {
+  // Los pagos nunca se consideran duplicados (ver isPaymentEndpoint).
+  if (isPaymentEndpoint(endpoint, method)) return null;
+
   // Filtra por endpoint Y método en SQL para no barrer toda la cola por cada
   // insert/consulta de duplicado.
   const items = db

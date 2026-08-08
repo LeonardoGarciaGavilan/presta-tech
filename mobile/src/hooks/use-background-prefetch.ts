@@ -10,6 +10,28 @@ export function useBackgroundPrefetch() {
   const { network } = useNetworkContext();
   const appState = useRef(AppState.currentState);
 
+  // Al montar (arranque de app o login): llena la base offline si no se ha
+  // hecho recientemente. No bloquea la UI: corre en background tras el render.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      if (!network.isOnline) return;
+      const shouldRun = await shouldPrefetch();
+      if (!shouldRun || cancelled) return;
+      try {
+        await prefetchAll(queryClient);
+      } catch {
+        // Non-critical, ignore
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient, network.isOnline]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener(
       'change',

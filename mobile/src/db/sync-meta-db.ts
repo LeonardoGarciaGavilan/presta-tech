@@ -59,3 +59,15 @@ export function getLastSyncAt(): number | null {
 export function setLastSyncAt(ts: number): void {
   setSyncMeta('lastSyncAt', ts.toString());
 }
+
+// Cursor de la descarga incremental: es el `serverTime` devuelto por el servidor
+// en el último `GET /sync/cambios`. Se mantiene separado de `lastSyncAt` (gate de
+// frecuencia) para no depender del reloj del dispositivo y no perder cambios.
+export function getSyncCursor(): number | null {
+  const val = getSyncMeta('syncCursor');
+  return val ? parseInt(val, 10) : null;
+}
+
+export function setSyncCursor(ts: number): void {
+  setSyncMeta('syncCursor', ts.toString());
+}

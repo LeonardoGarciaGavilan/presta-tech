@@ -1,21 +1,25 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { getNetworkStatus } from '@/hooks/use-network-status';
-import { listar as listarClientes } from '@/api/clientes.api';
-import { listar as listarPrestamos } from '@/api/prestamos.api';
 import { obtenerCajaActiva } from '@/api/caja.api';
 import { listarRutas, listarUsuarios, obtenerVistaDia } from '@/api/rutas.api';
 import { obtenerResumenPagos } from '@/api/pagos.api';
 import { getDashboardMobile } from '@/api/dashboard.api';
 import { obtenerConfiguracion } from '@/api/configuracion.api';
+import { getCambios, type CambiosSyncResponse } from '@/api/sync.api';
 import {
   syncClientesToDb,
   syncPrestamosToDb,
   syncRutasToDb,
   syncConfigToDb,
 } from '@/services/data-sync';
-import { getRutas, upsertVistaDiaCache } from '@/db/rutas-db';
+import { getRutas, upsertVistaDiaCache, upsertRutaClientes } from '@/db/rutas-db';
+import {
+  getLastSyncAt,
+  setLastSyncAt,
+  getSyncCursor,
+  setSyncCursor,
+} from '@/db/sync-meta-db';
 import { dateToISO } from '@/utils/formatters';
-import { getLastSyncAt, setLastSyncAt } from '@/db/sync-meta-db';
 
 const PREFETCH_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -85,60 +89,71 @@ export async function prefetchCritical(
   return { success, failed };
 }
 
-export async function prefetchSecondary(
-  queryClient: QueryClient,
-): Promise<{ success: number; failed: number }> {
+// Persiste en SQLite lo que devuelve GET /sync/cambios. Se ejecuta ANTES de
+// avanzar el cursor: si algo falla a media escritura, el cursor no avanza y la
+// siguiente pasada reintenta el mismo delta (upserts idempotentes).
+async function persistCambios(data: CambiosSyncResponse): Promise<void> {
+  if (data.clientes?.length) syncClientesToDb(data.clientes);
+  if (data.prestamos?.length) syncPrestamosToDb(data.prestamos);
+  if (data.rutas?.length) syncRutasToDb(data.rutas);
+  if (data.rutaClientes?.length) upsertRutaClientes(data.rutaClientes);
+  if (data.configuracion) syncConfigToDb(data.configuracion);
+}
+
+async function fetchCambios(desde?: number): Promise<{
+  success: number;
+  failed: number;
+  entities: number;
+}> {
   const network = getNetworkStatus();
-  if (!network.isOnline) return { success: 0, failed: 0 };
-
-  let success = 0;
-  let failed = 0;
-
-  const PAGE_SIZE = 200;
-  let allClientes: any[] = [];
-  let page = 1;
-  let totalPaginas = 1;
+  if (!network.isOnline) return { success: 0, failed: 0, entities: 0 };
 
   try {
-    do {
-      const res: any = await listarClientes({ page, limit: PAGE_SIZE });
-      if (res?.data) {
-        allClientes = allClientes.concat(res.data);
-        syncClientesToDb(res.data);
-      }
-      totalPaginas = res?.totalPaginas ?? 1;
-      page++;
-    } while (page <= totalPaginas);
+    const desdeIso = desde ? new Date(desde).toISOString() : undefined;
+    const data = await getCambios(desdeIso);
+    await persistCambios(data);
 
-    if (allClientes.length > 0) {
-      queryClient.setQueryData(
-        ['clientes', { page: 1, limit: allClientes.length }],
-        { data: allClientes, total: allClientes.length, pagina: 1, porPagina: allClientes.length, totalPaginas: 1 },
-      );
-      success++;
+    // serverTime es la fuente de verdad del cursor: evita que el reloj del
+    // dispositivo cause re-descargas o pierda cambios.
+    const serverTime = data.serverTime ? Date.parse(data.serverTime) : Date.now();
+    setSyncCursor(serverTime);
+    setLastSyncAt(Date.now());
+
+    const entities =
+      (data.clientes?.length ?? 0) +
+      (data.prestamos?.length ?? 0) +
+      (data.rutas?.length ?? 0) +
+      (data.rutaClientes?.length ?? 0) +
+      (data.configuracion ? 1 : 0);
+
+    return { success: 1, failed: 0, entities };
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[Sync] Error en getCambios:', error);
     }
-  } catch {
-    failed++;
+    return { success: 0, failed: 1, entities: 0 };
   }
-
-  const prestamoResults = await Promise.allSettled([
-    safeFetch(
-      queryClient,
-      ['prestamos', { page: 1, limit: 200 }],
-      () => listarPrestamos({ page: 1, limit: 200 }),
-      {
-        staleTime: 10 * 60 * 1000,
-        persistFn: (data) => {
-          const res = data as any;
-          if (res?.data) syncPrestamosToDb(res.data);
-        },
-      },
-    ),
-  ]);
-  prestamoResults.forEach((r) => (r.status === 'fulfilled' && r.value ? success++ : failed++));
-
-  return { success, failed };
 }
+
+// Descarga incremental: solo lo que cambió desde el último cursor.
+export async function prefetchIncremental(): Promise<{
+  success: number;
+  failed: number;
+  entities: number;
+}> {
+  return fetchCambios(getSyncCursor() ?? undefined);
+}
+
+// Descarga completa real (botón "Forzar recarga"): snapshot de todo el tenant.
+export async function forceReloadAll(): Promise<{
+  success: number;
+  failed: number;
+  entities: number;
+}> {
+  return fetchCambios();
+}
+
+let prefetchInFlight = false;
 
 export async function prefetchDashboard(
   queryClient: QueryClient,
@@ -193,29 +208,27 @@ export async function prefetchAll(
 ): Promise<{ success: number; failed: number }> {
   const network = getNetworkStatus();
   if (!network.isOnline) return { success: 0, failed: 0 };
+  if (prefetchInFlight) return { success: 0, failed: 0 };
 
-  let success = 0;
-  let failed = 0;
+  prefetchInFlight = true;
+  try {
+    let success = 0;
+    let failed = 0;
 
-  const critical = await prefetchCritical(queryClient);
-  success += critical.success;
-  failed += critical.failed;
+    const critical = await prefetchCritical(queryClient);
+    success += critical.success;
+    failed += critical.failed;
 
-  const secondary = await prefetchSecondary(queryClient);
-  success += secondary.success;
-  failed += secondary.failed;
+    const incremental = await prefetchIncremental();
+    success += incremental.success;
+    failed += incremental.failed;
 
-  await prefetchDashboard(queryClient);
+    await prefetchDashboard(queryClient);
 
-  // Solo registrar el momento del último sync si al menos una pieza de datos
-  // críticos se obtuvo. Si todo falló, NO se marca: así `shouldPrefetch()`
-  // seguirá intentando refrescar al reconectar en vez de quedar bloqueado 30 min
-  // con datos stale.
-  if (success > 0) {
-    setLastSyncAt(Date.now());
+    return { success, failed };
+  } finally {
+    prefetchInFlight = false;
   }
-
-  return { success, failed };
 }
 
 export async function shouldPrefetch(): Promise<boolean> {

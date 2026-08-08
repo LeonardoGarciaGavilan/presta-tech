@@ -21,6 +21,7 @@ import {
   markStaleAsFailed,
 } from '@/db/offline-queue-db';
 import { syncNow, retryFailed as retryFailedFn, onSyncProgress, onSyncComplete } from '@/services/sync-manager';
+import { prefetchOnReconnect } from '@/services/prefetch-manager';
 import type { OfflineQueueItem, SyncProgress } from '@/types/offline.types';
 
 interface NetworkContextValue {
@@ -171,9 +172,13 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onOnline(() => {
       refreshStats();
+      // Al reconectar: descarga incremental de datos (gate de 30 min en
+      // `shouldPrefetch`). El push de la cola offline se dispara aparte con
+      // `triggerSync` cuando hay items pendientes.
+      prefetchOnReconnect(queryClient);
     });
     return unsubscribe;
-  }, [refreshStats]);
+  }, [refreshStats, queryClient]);
 
   useEffect(() => {
     return () => {

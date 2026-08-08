@@ -45,7 +45,7 @@ jest.mock('@/db/index', () => {
   };
 });
 
-import { addToQueue, getPagosPendientesDePrestamo, updateQueueItem } from '@/db/offline-queue-db';
+import { addToQueue, findDuplicate, getQueue, getPagosPendientesDePrestamo, isPaymentEndpoint, updateQueueItem } from '@/db/offline-queue-db';
 
 beforeEach(() => {
   const s = (global as any).__mockDbStores;
@@ -109,5 +109,68 @@ describe('getPagosPendientesDePrestamo', () => {
     expect(result).toHaveLength(1);
     expect(result[0].status).toBe('failed');
     expect(result[0].lastError).toBe('Debes abrir tu caja antes de registrar pagos');
+  });
+});
+
+describe('isPaymentEndpoint', () => {
+  it('reconoce POST /pagos y /pagos/saldar/:id como endpoints de pago', () => {
+    expect(isPaymentEndpoint('/pagos', 'POST')).toBe(true);
+    expect(isPaymentEndpoint('/pagos/saldar/prestamo_1', 'POST')).toBe(true);
+  });
+
+  it('no reconoce como pago otros métodos o endpoints', () => {
+    expect(isPaymentEndpoint('/pagos', 'GET')).toBe(false);
+    expect(isPaymentEndpoint('/clientes', 'POST')).toBe(false);
+    expect(isPaymentEndpoint('/prestamos', 'POST')).toBe(false);
+  });
+});
+
+describe('dedupe: los pagos nunca se colapsan', () => {
+  const pagoData = { prestamoId: 'prestamo_1', montoPagado: 3000, metodo: 'EFECTIVO' };
+
+  it('findDuplicate devuelve null para endpoints de pago', () => {
+    expect(findDuplicate('/pagos', 'POST', pagoData)).toBeNull();
+    expect(findDuplicate('/pagos/saldar/prestamo_1', 'POST', pagoData)).toBeNull();
+  });
+
+  it('addToQueue encola dos pagos idénticos sin colapsarlos', () => {
+    const first = addToQueue({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: pagoData,
+      queryKeys: [['prestamos']],
+      tempId: 'pago_temp_1',
+    });
+    const second = addToQueue({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: pagoData,
+      queryKeys: [['prestamos']],
+      tempId: 'pago_temp_2',
+    });
+
+    expect(second.id).not.toBe(first.id);
+    expect(getQueue()).toHaveLength(2);
+  });
+
+  it('sigue deduplicando creaciones de cliente con payload idéntico', () => {
+    const data = { nombre: 'Juan', cedula: '001-0000001-1' };
+    const first = addToQueue({
+      endpoint: '/clientes',
+      method: 'POST',
+      data,
+      queryKeys: [['clientes']],
+      tempId: 'temp_1',
+    });
+    const second = addToQueue({
+      endpoint: '/clientes',
+      method: 'POST',
+      data,
+      queryKeys: [['clientes']],
+      tempId: 'temp_2',
+    });
+
+    expect(second.id).toBe(first.id);
+    expect(getQueue()).toHaveLength(1);
   });
 });
