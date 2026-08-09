@@ -165,6 +165,9 @@ async function getValidToken() {
 
 api.interceptors.request.use(
  async (config) => {
+   // Identifica la app (web) — el backend rechaza SUPERADMIN desde móvil.
+   config.headers['X-App'] = 'web';
+
    const isAuthRoute = AUTH_PUBLIC_ROUTES.some(route =>
      config.url?.includes(route)
    );

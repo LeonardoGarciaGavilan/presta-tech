@@ -47,6 +47,29 @@ const Spinner = () => (
   </div>
 );
 
+// ─── Barra de uso en vivo (90% ámbar, 100% rojo) ────────────────────────────
+const BarraUso = ({ label, uso, max }) => {
+  const tieneMax = max !== null && max !== undefined && max !== "";
+  const pct = tieneMax && max > 0 ? Math.min(100, Math.round((uso / max) * 100)) : 0;
+  const estado = !tieneMax ? "ok" : pct >= 100 ? "bloqueado" : pct >= 90 ? "aviso" : "ok";
+  const bar = estado === "bloqueado" ? "bg-red-500" : estado === "aviso" ? "bg-amber-400" : "bg-emerald-400";
+  const txt = estado === "bloqueado" ? "text-red-400" : estado === "aviso" ? "text-amber-400" : "text-emerald-400";
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs gap-2">
+        <span className="text-slate-300 font-medium">{label}</span>
+        <span className={`${txt} font-bold whitespace-nowrap`}>
+          {uso.toLocaleString()} / {tieneMax ? max.toLocaleString() : "∞"}
+          {estado === "aviso" ? " · 90%" : estado === "bloqueado" ? " · 100%" : ""}
+        </span>
+      </div>
+      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div className={`h-full ${bar} transition-all duration-300`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+};
+
 // ─── Modal base — bottom-sheet en móvil, centrado en desktop ─────────────────
 const Modal = ({ children, onClose }) => (
   <div
@@ -230,7 +253,7 @@ const ModalToggle = ({ empresa, onConfirm, onClose, loading }) => (
 );
 
 // ─── Tarjeta empresa ──────────────────────────────────────────────────────────
-const TarjetaEmpresa = ({ empresa, onEditar, onToggle, onVerUsuarios }) => {
+const TarjetaEmpresa = ({ empresa, onEditar, onToggle, onVerUsuarios, onVerLimites }) => {
   return (
     <div className={`bg-white/5 rounded-2xl border shadow-sm overflow-hidden ${empresa.activa ? "border-white/10" : "border-red-500/20 opacity-80"}`}>
       <div className={`px-4 sm:px-5 py-4 flex items-start justify-between gap-2 ${!empresa.activa ? "bg-red-500/5" : ""}`}>
@@ -248,7 +271,11 @@ const TarjetaEmpresa = ({ empresa, onEditar, onToggle, onVerUsuarios }) => {
           {empresa.activa ? "Activa" : "Inactiva"}
         </span>
       </div>
-      <div className="px-4 sm:px-5 py-3 border-t border-white/10 grid grid-cols-3 gap-2">
+      <div className="px-4 sm:px-5 py-3 border-t border-white/10 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <button onClick={() => onVerLimites(empresa)}
+          className="py-2 rounded-xl text-xs font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/15 transition-colors active:scale-95">
+          Límites
+        </button>
         <button onClick={() => onVerUsuarios(empresa)}
           className="py-2 rounded-xl text-xs font-bold border border-blue-500/30 text-blue-400 hover:bg-blue-500/15 transition-colors active:scale-95">
           Usuarios
@@ -266,25 +293,101 @@ const TarjetaEmpresa = ({ empresa, onEditar, onToggle, onVerUsuarios }) => {
   );
 };
 
-// ─── Vista Detalle Empresa ────────────────────────────────────────────────────
+// ─── Vista Detalle Empresa (Límites y Módulos) ────────────────────────────────
+const LIMITES_CAMPOS = [
+  { key: "maxUsuarios",         label: "Usuarios",                  usoKey: "usuarios" },
+  { key: "maxClientes",         label: "Clientes",                  usoKey: "clientes" },
+  { key: "maxPrestamos",        label: "Préstamos totales",         usoKey: "prestamos" },
+  { key: "maxPrestamosActivos", label: "Préstamos activos",         usoKey: "prestamosActivos" },
+  { key: "maxRutas",            label: "Rutas",                     usoKey: "rutas" },
+  { key: "maxEmpleados",        label: "Empleados",                 usoKey: "empleados" },
+  { key: "maxMontoPorPrestamo", label: "Monto máx. préstamo (RD$)", usoKey: null },
+];
+
 const DetalleEmpresa = ({ empresaId, onVolver }) => {
   const [data, setData] = useState(null);
+  const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    api.get(`/superadmin/empresas/${empresaId}`)
-      .then(r => setData(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get(`/superadmin/empresas/${empresaId}/limites`);
+      setData(r.data);
+      const l = r.data.limite ?? {};
+      setForm({
+        plan: l.plan ?? "",
+        maxUsuarios: l.maxUsuarios ?? "",
+        maxClientes: l.maxClientes ?? "",
+        maxPrestamos: l.maxPrestamos ?? "",
+        maxPrestamosActivos: l.maxPrestamosActivos ?? "",
+        maxRutas: l.maxRutas ?? "",
+        maxEmpleados: l.maxEmpleados ?? "",
+        maxMontoPorPrestamo: l.maxMontoPorPrestamo ?? "",
+        venceEn: l.venceEn ? String(l.venceEn).slice(0, 10) : "",
+        modulosDeshabilitados: [...(l.modulosDeshabilitados ?? [])],
+      });
+    } catch {
+      setToast({ type: "error", message: "Error al cargar los límites" });
+    } finally {
+      setLoading(false);
+    }
   }, [empresaId]);
 
-  if (loading) return <Spinner />;
-  if (!data?.empresa) return null;
+  useEffect(() => { cargar(); }, [cargar]);
 
-  const { empresa } = data;
+  const toggleModulo = (m) => {
+    setForm((f) => ({
+      ...f,
+      modulosDeshabilitados: f.modulosDeshabilitados.includes(m)
+        ? f.modulosDeshabilitados.filter((x) => x !== m)
+        : [...f.modulosDeshabilitados, m],
+    }));
+  };
+
+  const toNum = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  };
+
+  const guardar = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/superadmin/empresas/${empresaId}/limites`, {
+        plan: form.plan?.trim() || null,
+        maxUsuarios: toNum(form.maxUsuarios),
+        maxClientes: toNum(form.maxClientes),
+        maxPrestamos: toNum(form.maxPrestamos),
+        maxPrestamosActivos: toNum(form.maxPrestamosActivos),
+        maxRutas: toNum(form.maxRutas),
+        maxEmpleados: toNum(form.maxEmpleados),
+        maxMontoPorPrestamo: toNum(form.maxMontoPorPrestamo),
+        venceEn: form.venceEn || null,
+        modulosDeshabilitados: form.modulosDeshabilitados,
+      });
+      setToast({ type: "success", message: "Límites actualizados correctamente" });
+      cargar();
+    } catch (err) {
+      setToast({ type: "error", message: err.response?.data?.message ?? "Error al guardar" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const iCls = "w-full border border-white/10 rounded-xl px-3 py-2.5 text-sm bg-white/5 text-white focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500";
+
+  if (loading || !form) return <Spinner />;
+
+  const { empresa, uso, modulos } = data;
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
       <div className="flex items-center gap-3">
         <button onClick={onVolver}
           className="p-2 rounded-xl border border-white/10 hover:bg-white/10 text-slate-400 transition-colors shrink-0">
@@ -294,16 +397,80 @@ const DetalleEmpresa = ({ empresaId, onVolver }) => {
         </button>
         <div className="flex-1 min-w-0">
           <h2 className="text-base sm:text-lg font-bold text-white truncate">{empresa.nombre}</h2>
-          <p className="text-xs text-slate-400">Detalle · Desde {fmtFecha(empresa.createdAt)}</p>
+          <p className="text-xs text-slate-400">Límites y módulos · Desde {fmtFecha(empresa.createdAt)}</p>
         </div>
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border shrink-0 ${empresa.activa ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : "bg-red-500/20 text-red-300 border-red-500/30"}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${empresa.activa ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`}/>
           {empresa.activa ? "Activa" : "Inactiva"}
         </span>
       </div>
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
-        <p className="text-sm text-slate-400">Esta empresa está registrada en el sistema.</p>
-        <p className="text-xs text-slate-500 mt-2">Para gestionar usuarios y configuraciones, contacte al administrador de la empresa.</p>
+
+      {/* ── Plan y vencimiento ── */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Plan y vencimiento</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Plan</label>
+            <input value={form.plan} onChange={(e) => set("plan", e.target.value)}
+              placeholder="Ej: Básico, Premium…" className={iCls} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">Vence</label>
+            <input type="date" value={form.venceEn} onChange={(e) => set("venceEn", e.target.value)} className={iCls} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Límites y uso en vivo ── */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Límites (cuotas)</p>
+        <p className="text-xs text-slate-500 mb-3">Vacío = sin límite. Uso en vivo: 90% aviso, 100% bloqueo.</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {LIMITES_CAMPOS.map(({ key, label }) => (
+            <div key={key}>
+              <label className="block text-xs font-semibold text-slate-300 mb-1 truncate" title={label}>{label}</label>
+              <input type="number" min="0" value={form[key]} onChange={(e) => set(key, e.target.value)}
+                placeholder="∞" className={`${iCls} text-xs sm:text-sm`} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
+          {LIMITES_CAMPOS.filter((c) => c.usoKey).map(({ key, label, usoKey }) => (
+            <BarraUso key={key} label={label} uso={uso[usoKey] ?? 0} max={form[key] === "" ? null : toNum(form[key])} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Módulos ── */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Módulos activos</p>
+        <p className="text-xs text-slate-500 mb-3">Desactiva un módulo entero para esta empresa.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {(modulos ?? []).map((m) => {
+            const deshabilitado = form.modulosDeshabilitados.includes(m);
+            return (
+              <button key={m} onClick={() => toggleModulo(m)}
+                className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+                  deshabilitado
+                    ? "border-red-500/30 bg-red-500/10 text-red-400"
+                    : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                }`}>
+                <span className="truncate">{m}</span>
+                <span className={`relative w-7 h-4 rounded-full transition-colors ${deshabilitado ? "bg-red-500/50" : "bg-emerald-500/50"}`}>
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${deshabilitado ? "left-0.5" : "left-3.5"}`} />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-col-reverse xs:flex-row gap-2 sticky bottom-0">
+        <button onClick={onVolver} className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-sm font-bold transition-colors">Cancelar</button>
+        <button onClick={guardar} disabled={saving}
+          className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2 transition-colors active:scale-95">
+          {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : "Guardar límites"}
+        </button>
       </div>
     </div>
   );
@@ -634,6 +801,7 @@ export default function SuperAdmin() {
                           onEditar={e => setModalEditar(e)}
                           onToggle={e => setModalToggle(e)}
                           onVerUsuarios={e => { setEmpresaUsuarios(e.id); setVista("usuarios"); }}
+                          onVerLimites={e => { setEmpresaDetalle(e.id); setVista("detalle"); }}
                         />
                       ))}
                     </div>

@@ -14,6 +14,7 @@ import Pagos from "./pages/Pagos";
 import Configuracion from "./pages/Configuracion";
 import Perfil from "./pages/Perfil";
 import Usuarios from "./pages/Usuario";
+import Permisos from "./pages/Permisos";
 import Reportes from "./pages/Reportes";
 import Gastos from "./pages/Gastos";
 import Amortizacion from "./pages/Amortizacion";
@@ -28,7 +29,7 @@ import Empleados from "./pages/Empleados";
 import Auditoria from "./pages/Auditoria";
 import ControlCajas from "./pages/ControlCajas";
 import OfflineBanner from "./components/OfflineBanner";
-import useSWUpdate from './hooks/useSWUpdate';
+import useSWUpdate from "./hooks/useSWUpdate";
 
 // ─── Guard exclusivo para SUPERADMIN ─────────────────────────────────────────
 function SuperAdminRoute({ children }) {
@@ -52,79 +53,248 @@ function App() {
         <Route path="/cambiar-password" element={<CambiarPassword />} />
 
         {/* ── Panel SuperAdmin — sin DashboardLayout ── */}
-        <Route path="/superadmin" element={
-          <SuperAdminRoute><SuperAdmin /></SuperAdminRoute>
-        } />
+        <Route
+          path="/superadmin"
+          element={
+            <SuperAdminRoute>
+              <SuperAdmin />
+            </SuperAdminRoute>
+          }
+        />
 
         {/* ── App normal ── */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute><DashboardLayout><Dashboard /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/clientes" element={
-          <ProtectedRoute><DashboardLayout><Clientes /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/clientes/:id" element={
-          <ProtectedRoute><DashboardLayout><ClienteDetalle /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/prestamos" element={
-          <ProtectedRoute><DashboardLayout><Prestamos /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/prestamos/nuevo" element={
-          <ProtectedRoute><DashboardLayout><NuevoPrestamo /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/prestamos/:id" element={
-          <ProtectedRoute><DashboardLayout><DetallePrestamo /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/pagos" element={
-          <ProtectedRoute><DashboardLayout><Pagos /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/configuracion" element={
-          <ProtectedRoute><DashboardLayout><Configuracion /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/perfil" element={
-          <ProtectedRoute><DashboardLayout><Perfil /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/usuarios" element={
-          <ProtectedRoute><DashboardLayout><Usuarios /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/reportes" element={
-          <ProtectedRoute><DashboardLayout><Reportes /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/gastos" element={
-          <ProtectedRoute><DashboardLayout><Gastos /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/amortizacion" element={
-          <ProtectedRoute><DashboardLayout><Amortizacion /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/caja" element={
-          <ProtectedRoute><DashboardLayout><CierreCaja /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/rutas" element={
-          <ProtectedRoute><DashboardLayout><Rutas /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/alertas" element={
-          <ProtectedRoute><DashboardLayout><Alertas /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/finanzas" element={
-          <ProtectedRoute><DashboardLayout><Finanzas /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/analisis-rutas" element={
-          <ProtectedRoute><DashboardLayout><AnalisisRutas /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/empleados" element={
-          <ProtectedRoute><DashboardLayout><Empleados /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/auditoria" element={
-          <ProtectedRoute><DashboardLayout><Auditoria /></DashboardLayout></ProtectedRoute>
-        } />
-        <Route path="/control-cajas" element={
-          <ProtectedRoute><DashboardLayout><ControlCajas /></DashboardLayout></ProtectedRoute>
-        } />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Dashboard />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clientes"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Clientes />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/clientes/:id"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ClienteDetalle />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/prestamos"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Prestamos />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/prestamos/nuevo"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <NuevoPrestamo />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/prestamos/:id"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <DetallePrestamo />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pagos"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Pagos />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/configuracion"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Configuracion />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/perfil"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Perfil />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/usuarios"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Usuarios />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/usuarios/:id/permisos"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Permisos />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reportes"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Reportes />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/gastos"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Gastos />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/amortizacion"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Amortizacion />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/caja"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <CierreCaja />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rutas"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Rutas />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/alertas"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Alertas />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/finanzas"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Finanzas />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analisis-rutas"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <AnalisisRutas />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/empleados"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Empleados />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/auditoria"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Auditoria />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/control-cajas"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ControlCajas />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
 
         {/* ── Auditoría Global para SUPERADMIN ── */}
-        <Route path="/superadmin/auditoria" element={
-          <SuperAdminRoute><DashboardLayout><Auditoria /></DashboardLayout></SuperAdminRoute>
-        } />
+        <Route
+          path="/superadmin/auditoria"
+          element={
+            <SuperAdminRoute>
+              <DashboardLayout>
+                <Auditoria />
+              </DashboardLayout>
+            </SuperAdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
