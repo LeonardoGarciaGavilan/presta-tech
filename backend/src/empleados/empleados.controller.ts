@@ -15,6 +15,10 @@ import {
 } from '@nestjs/common';
 import { EmpleadosService } from './empleados.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
+import { Modulo } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -27,7 +31,8 @@ const soloAdmin = (user: any) => {
 };
 
 @Controller('empleados')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@Modulo('EMPLEADOS')
 export class EmpleadosController {
   constructor(private readonly empleadosService: EmpleadosService) {}
 

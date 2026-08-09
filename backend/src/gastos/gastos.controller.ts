@@ -12,10 +12,15 @@ import {
 import { GastosService } from './gastos.service';
 import { CreateGastoDto, UpdateGastoDto } from './dto/gastos.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
+import { Modulo } from '../common/permisos/permisos.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('gastos')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@Modulo('GASTOS')
 export class GastosController {
   constructor(private readonly gastosService: GastosService) {}
 

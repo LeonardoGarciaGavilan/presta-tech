@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { QuotaService } from '../common/quota/quota.service';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 
@@ -19,6 +20,7 @@ export class ClientesService {
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
     private readonly config: ConfigService,
+    private readonly quotaService: QuotaService,
   ) {}
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -34,9 +36,14 @@ export class ClientesService {
   // ─── CRUD ───────────────────────────────────────────────────────────────────
 
   async create(createClienteDto: CreateClienteDto, empresaId: string) {
-    return this.prisma.cliente.create({
+    const cuota = await this.quotaService.verificar(empresaId, 'clientes');
+    const cliente = await this.prisma.cliente.create({
       data: { ...createClienteDto, empresaId },
     });
+    if (cuota.advertencia) {
+      return { ...cliente, advertenciaCuota: cuota };
+    }
+    return cliente;
   }
 
   async findAll(

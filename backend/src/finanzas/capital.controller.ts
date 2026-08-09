@@ -12,9 +12,14 @@ import { CreateInyeccionDto } from './dto/create-inyeccion.dto';
 import { CreateRetiroDto } from './dto/create-retiro.dto';
 import { CreateCapitalInicialDto } from './dto/create-capital.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
+import { Modulo } from '../common/permisos/permisos.decorator';
 
 @Controller('finanzas')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@Modulo('FINANZAS')
 export class CapitalController {
   constructor(private readonly capitalService: CapitalService) {}
 

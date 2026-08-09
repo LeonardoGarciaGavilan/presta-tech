@@ -42,6 +42,6 @@ export class UpdateUsuarioDto {
 
 export class ResetPasswordDto {
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   nuevaPassword: string;
 }

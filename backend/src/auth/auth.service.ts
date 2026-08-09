@@ -11,30 +11,46 @@ import { createHash } from 'crypto';
 import { randomBytes } from 'crypto';
 import { Response } from 'express';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { PermisosService } from '../common/permisos/permisos.service';
+import { PERMISO_TODOS } from '../common/permisos/permisos.constants';
+import { LoginLockoutService } from '../common/lockout/login-lockout.service';
 
 const ACCESS_TOKEN_EXPIRY = '1h';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 const REFRESH_TOKEN_COOKIE_NAME = 'refresh_token';
 const TOKEN_REUSE_GRACE_MS = 10_000;
 
-const MAX_INTENTOS_FALLIDOS = 5;
-const BLOQUEO_MINUTOS = 10;
-const VENTANA_HORAS = 1;
-
-interface IntentoLogin {
-  intentos: number;
-  bloqueadoHasta: Date | null;
-  primerIntento: Date;
-}
-
 @Injectable()
 export class AuthService {
-  private intentosLogin = new Map<string, IntentoLogin>();
-
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private permisosService: PermisosService,
+    private loginLockoutService: LoginLockoutService,
   ) {}
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PERMISOS Y MÓDULOS PARA EL CLIENTE (web/móvil)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // El backend es la única verdad: aquí se calculan los permisos EFECTIVOS
+  // (base por rol + otorgados − negados − módulos deshabilitados) y los módulos
+  // deshabilitados de la empresa, para que la UI solo los consuma.
+  private async adjuntarAccesos(usuario: {
+    id: string;
+    rol: string;
+    empresaId: string | null;
+  }) {
+    if (usuario.rol === 'SUPERADMIN') {
+      return { permisos: [PERMISO_TODOS], modulosDeshabilitados: [] };
+    }
+    const [permisos, modulosDeshabilitados] = await Promise.all([
+      this.permisosService.permisosEfectivos(usuario.id),
+      usuario.empresaId
+        ? this.permisosService.modulosDeshabilitados(usuario.empresaId)
+        : Promise.resolve([]),
+    ]);
+    return { permisos, modulosDeshabilitados };
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // UTILIDADES DE TOKEN
@@ -85,76 +101,6 @@ export class AuthService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // BLOQUEO DE IP POR INTENTOS FALLIDOS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  private obtenerIntento(ip: string): IntentoLogin | undefined {
-    const intento = this.intentosLogin.get(ip);
-
-    if (!intento) return undefined;
-
-    const ahora = new Date();
-    const horasDesdePrimerIntento =
-      (ahora.getTime() - intento.primerIntento.getTime()) / (1000 * 60 * 60);
-
-    if (horasDesdePrimerIntento >= VENTANA_HORAS) {
-      this.intentosLogin.delete(ip);
-      return undefined;
-    }
-
-    if (intento.bloqueadoHasta && ahora >= intento.bloqueadoHasta) {
-      this.intentosLogin.delete(ip);
-      return undefined;
-    }
-
-    return intento;
-  }
-
-  private estaBloqueada(ip: string): boolean {
-    const intento = this.obtenerIntento(ip);
-    if (!intento) return false;
-
-    if (intento.bloqueadoHasta) {
-      return new Date() < intento.bloqueadoHasta;
-    }
-
-    return false;
-  }
-
-  private getMinutosRestantes(ip: string): number | null {
-    const intento = this.obtenerIntento(ip);
-    if (!intento || !intento.bloqueadoHasta) return null;
-
-    const minutosRestantes = Math.ceil(
-      (intento.bloqueadoHasta.getTime() - Date.now()) / 60000,
-    );
-
-    return minutosRestantes > 0 ? minutosRestantes : null;
-  }
-
-  private registrarIntentoFallido(ip: string): void {
-    const intento = this.obtenerIntento(ip) || {
-      intentos: 0,
-      bloqueadoHasta: null,
-      primerIntento: new Date(),
-    };
-
-    intento.intentos += 1;
-
-    if (intento.intentos >= MAX_INTENTOS_FALLIDOS) {
-      intento.bloqueadoHasta = new Date(
-        Date.now() + BLOQUEO_MINUTOS * 60 * 1000,
-      );
-    }
-
-    this.intentosLogin.set(ip, intento);
-  }
-
-  private resetearIntentos(ip: string): void {
-    this.intentosLogin.delete(ip);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
   // VALIDACIÓN DE USUARIO
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -189,17 +135,19 @@ export class AuthService {
     ip: string,
     userAgent?: string,
     res?: any,
+    app?: string,
   ) {
-    // ─── VERIFICAR SI IP ESTÁ BLOQUEADA ───
-    if (this.estaBloqueada(ip)) {
-      const minutosRestantes = this.getMinutosRestantes(ip);
+    // ─── VERIFICAR SI EMAIL+IP ESTÁ BLOQUEADA ───
+    const { bloqueado, minutosRestantes } =
+      await this.loginLockoutService.estaBloqueado(email, ip);
 
+    if (bloqueado) {
       // Registrar intento bloqueado
       await registrarAuditoria(this.prisma, {
         empresaId: 'sistema',
         tipo: 'AUTH',
         accion: 'LOGIN_BLOCKED',
-        descripcion: `IP ${ip} bloqueada tras múltiples intentos fallidos. Minutos restantes: ${minutosRestantes}`,
+        descripcion: `Login bloqueado para ${email} desde IP ${ip} tras múltiples intentos fallidos. Minutos restantes: ${minutosRestantes}`,
         ip,
         userAgent,
         nivel: 'WARN',
@@ -216,9 +164,9 @@ export class AuthService {
     try {
       user = await this.validateUser(email, password);
     } catch (error) {
-      // Login fallido → registrar intento
+      // Login fallido → registrar intento (email+IP)
       if (error instanceof UnauthorizedException) {
-        this.registrarIntentoFallido(ip);
+        await this.loginLockoutService.registrarIntentoFallido(email, ip);
 
         // Auditoría de login fallido
         await registrarAuditoria(this.prisma, {
@@ -236,7 +184,26 @@ export class AuthService {
     }
 
     // Login exitoso → resetear contador de intentos
-    this.resetearIntentos(ip);
+    await this.loginLockoutService.resetear(email, ip);
+
+    // ─── SUPERADMIN SOLO DESDE WEB ───
+    // El panel Super Admin es exclusivamente web. Si la app móvil intenta
+    // iniciar sesión como SUPERADMIN, se rechaza antes de emitir tokens.
+    if (user.rol === 'SUPERADMIN' && app === 'mobile') {
+      await registrarAuditoria(this.prisma, {
+        empresaId: 'sistema',
+        usuarioId: user.id,
+        tipo: 'AUTH',
+        accion: 'LOGIN_MOBILE_SUPERADMIN_DENIED',
+        descripcion: `Intento de login del Super Admin desde la app móvil (${user.email})`,
+        ip,
+        userAgent,
+        nivel: 'WARN',
+      });
+      throw new ForbiddenException(
+        'El Super Admin solo inicia sesión desde la web',
+      );
+    }
 
     // Auditoría de login exitoso
     await registrarAuditoria(this.prisma, {
@@ -260,6 +227,7 @@ export class AuthService {
       nombre: user.nombre,
       rol: user.rol,
       empresaId: user.empresaId ?? null,
+      authVersion: user.authVersion,
     };
 
     const accessToken = this.jwtService.sign(payload, {
@@ -276,6 +244,8 @@ export class AuthService {
       },
     });
 
+    const { permisos, modulosDeshabilitados } = await this.adjuntarAccesos(user);
+
     const usuarioResponse = {
       id: user.id,
       email: user.email,
@@ -283,6 +253,9 @@ export class AuthService {
       rol: user.rol,
       empresa: user.empresa?.nombre || null,
       empresaId: user.empresaId,
+      authVersion: user.authVersion,
+      permisos,
+      modulosDeshabilitados,
     };
 
     if (res) {
@@ -326,7 +299,7 @@ export class AuthService {
   // REFRESH CON ROTACIÓN OBLIGATORIA
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async refresh(refreshToken: string | undefined, res: Response) {
+  async refresh(refreshToken: string | undefined, res: Response, app?: string) {
     if (!refreshToken) {
       throw new UnauthorizedException('Token de refresh no proporcionado');
     }
@@ -382,6 +355,14 @@ export class AuthService {
       );
     }
 
+    // SUPERADMIN solo renueva desde la web (móvil lo pierde al llegar aquí)
+    if (storedToken.usuario.rol === 'SUPERADMIN' && app === 'mobile') {
+      await this.handleTokenReuse(storedToken.usuarioId);
+      throw new ForbiddenException(
+        'El Super Admin solo inicia sesión desde la web',
+      );
+    }
+
     // 🚨 ROTACIÓN OBLIGATORIA: Revocar el token usado
     await this.revokeToken(storedToken.id, 'ROTATION');
 
@@ -405,6 +386,7 @@ export class AuthService {
       nombre: storedToken.usuario.nombre,
       rol: storedToken.usuario.rol,
       empresaId: storedToken.usuario.empresaId ?? null,
+      authVersion: storedToken.usuario.authVersion,
     };
 
     const newAccessToken = this.jwtService.sign(payload, {
@@ -558,6 +540,8 @@ export class AuthService {
       throw new UnauthorizedException('Cuenta desactivada');
     }
 
+    const { permisos, modulosDeshabilitados } = await this.adjuntarAccesos(user);
+
     return {
       id: user.id,
       email: user.email,
@@ -565,6 +549,9 @@ export class AuthService {
       rol: user.rol,
       empresa: user.empresa?.nombre || null,
       empresaId: user.empresaId,
+      authVersion: user.authVersion,
+      permisos,
+      modulosDeshabilitados,
     };
   }
 }

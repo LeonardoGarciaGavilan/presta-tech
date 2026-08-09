@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { RolesGuard } from './roles/roles.guard';
 import { TokenCleanupService } from './token-cleanup.service';
+import { LoginLockoutService } from '../common/lockout/login-lockout.service';
 import { StringValue } from 'ms';
 
 @Module({
@@ -21,7 +22,13 @@ import { StringValue } from 'ms';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, RolesGuard, TokenCleanupService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    RolesGuard,
+    TokenCleanupService,
+    LoginLockoutService,
+  ],
   controllers: [AuthController],
   exports: [JwtModule],
 })

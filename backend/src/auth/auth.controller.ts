@@ -42,6 +42,7 @@ export class AuthController {
       ip,
       userAgent,
       res,
+      req.headers['x-app'],
     );
   }
 
@@ -50,7 +51,7 @@ export class AuthController {
   @Post('refresh')
   refresh(@Req() req: any, @Res({ passthrough: true }) res: any) {
     const refreshToken = req.cookies?.refresh_token ?? req.body?.refresh_token;
-    return this.authService.refresh(refreshToken, res);
+    return this.authService.refresh(refreshToken, res, req.headers['x-app']);
   }
 
   // Rate limiting: 100 requests por minuto

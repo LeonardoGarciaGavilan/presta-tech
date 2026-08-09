@@ -2,10 +2,15 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { FinanzasService } from './finanzas.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
+import { Modulo } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 
 @Controller('finanzas')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@Modulo('FINANZAS')
 export class FinanzasController {
   constructor(private readonly finanzasService: FinanzasService) {}
 

@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config'; // 👈 agregar
 import { CacheModule } from '@nestjs/cache-manager';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { TenantModule } from './common/tenant/tenant.module';
+import { TenantInterceptor } from './common/tenant/tenant.interceptor';
 import { Keyv } from 'keyv';
 import KeyvRedis from '@keyv/redis';
 import { AppController } from './app.controller';
@@ -31,6 +33,8 @@ import { SyncModule } from './sync/sync.module';
 import jwtConfig from './config/jwt.config';
 import supabaseConfig from './config/supabase.config';
 import { SupabaseModule } from './supabase/supabase.module';
+import { PermisosModule } from './common/permisos/permisos.module';
+import { QuotaModule } from './common/quota/quota.module';
 
 @Module({
   imports: [
@@ -71,6 +75,9 @@ import { SupabaseModule } from './supabase/supabase.module';
 
     PrismaModule,
     SupabaseModule,
+    PermisosModule,
+    QuotaModule,
+    TenantModule,
     AuthModule,
     UsuarioModule,
     ClientesModule,
@@ -101,6 +108,10 @@ import { SupabaseModule } from './supabase/supabase.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: IdempotencyInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TenantInterceptor,
     },
   ],
 })

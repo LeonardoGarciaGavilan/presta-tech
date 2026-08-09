@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { QuotaService } from '../common/quota/quota.service';
 import { calcularDesdeObjeto } from '../common/utils/prestamo.utils';
 
 const CLIENTE_SELECT = {
@@ -27,7 +28,10 @@ const CLIENTE_SELECT = {
 
 @Injectable()
 export class RutasService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly quotaService: QuotaService,
+  ) {}
 
   // ─── Helper ───────────────────────────────────────────────────────────────
   private async assertRuta(
@@ -76,10 +80,15 @@ export class RutasService {
     nombre: string,
     descripcion?: string,
   ) {
-    return this.prisma.ruta.create({
+    const cuota = await this.quotaService.verificar(empresaId, 'rutas');
+    const ruta = await this.prisma.ruta.create({
       data: { nombre, descripcion, empresaId, usuarioId },
       include: { usuario: { select: { id: true, nombre: true } } },
     });
+    if (cuota.advertencia) {
+      return { ...ruta, advertenciaCuota: cuota };
+    }
+    return ruta;
   }
 
   // ─── 3. ACTUALIZAR RUTA ───────────────────────────────────────────────────

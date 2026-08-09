@@ -4,11 +4,16 @@ import { UpsertConfiguracionDto } from './dto/upsert-configuracion.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
+import { Modulo } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('configuracion')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@Modulo('CONFIGURACION')
 export class ConfiguracionController {
   constructor(private readonly configuracionService: ConfiguracionService) {}
 

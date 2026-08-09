@@ -26,6 +26,7 @@ import { format, toZonedTime } from 'date-fns-tz';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { QuotaService } from '../common/quota/quota.service';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 export interface CuotaCalculada {
@@ -76,6 +77,7 @@ export class PrestamosService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly quotaService: QuotaService,
     @Optional() private readonly alertsGateway?: AlertsGateway,
     @Inject(CACHE_MANAGER) @Optional() private cacheManager?: Cache,
     @Optional() private readonly pushService?: PushNotificationsService,
@@ -534,6 +536,17 @@ export class PrestamosService {
       'préstamo',
     );
 
+    // ── Cuotas del plan (QuotaService): total de préstamos + monto por préstamo ──
+    const [cuotaPrestamos, cuotaMonto] = await Promise.all([
+      this.quotaService.verificar(empresaId, 'prestamos'),
+      this.quotaService.verificar(empresaId, 'montoPrestamo', {
+        monto: dto.monto,
+      }),
+    ]);
+    const advertencias = [cuotaPrestamos, cuotaMonto].filter(
+      (c) => c.advertencia,
+    );
+
     const fechaInicio = dto.fechaInicio
       ? new Date(dto.fechaInicio)
       : new Date();
@@ -638,7 +651,11 @@ export class PrestamosService {
     // Invalidar cache después de crear préstamo
     await this.invalidarCache(empresaId);
 
-    return this.findOne(prestamo.id, empresaId);
+    const resultado = await this.findOne(prestamo.id, empresaId);
+    if (advertencias.length > 0) {
+      return { ...resultado, advertenciaCuota: advertencias };
+    }
+    return resultado;
   }
 
   async cambiarEstado(
@@ -730,6 +747,12 @@ export class PrestamosService {
     if (prestamo.cuotas.length > 0) {
       throw new BadRequestException('Este préstamo ya tiene cuotas generadas');
     }
+
+    // ── Cuota del plan: préstamos activos (ACTIVO/ATRASADO) ──
+    const cuotaActivos = await this.quotaService.verificar(
+      empresaId,
+      'prestamosActivos',
+    );
 
     const hoyStr = this.getFechaRD();
 
@@ -936,6 +959,9 @@ export class PrestamosService {
     // Invalidar cache después de desembolsar
     await this.invalidarCache(empresaId);
 
+    if (cuotaActivos.advertencia) {
+      return { ...result, advertenciaCuota: cuotaActivos };
+    }
     return result;
   }
 

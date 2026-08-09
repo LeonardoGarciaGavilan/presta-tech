@@ -6,11 +6,18 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { MODULOS } from '../common/permisos/permisos.constants';
+import { QuotaService } from '../common/quota/quota.service';
+import { validarPasswordOPopThrow } from '../common/passwords/password-policy';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class SuperAdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly quotaService: QuotaService,
+  ) {}
 
   private assertSuperAdmin(user: any) {
     if (user.rol !== 'SUPERADMIN')
@@ -103,6 +110,8 @@ export class SuperAdminService {
     if (emailExiste)
       throw new BadRequestException('Ya existe un usuario con ese email');
 
+    validarPasswordOPopThrow(datos.passwordAdmin);
+
     const hashedPassword = await bcrypt.hash(datos.passwordAdmin, 10);
 
     const resultado = await this.prisma.$transaction(async (tx) => {
@@ -116,6 +125,14 @@ export class SuperAdminService {
           moraPorcentajeMensual: datos.moraPorcentajeMensual ?? 5,
           diasGracia: datos.diasGracia ?? 5,
           permitirAbonoCapital: true,
+        },
+      });
+      await tx.limiteEmpresa.create({
+        data: {
+          empresaId: empresa.id,
+          plan: null,
+          activo: true,
+          modulosDeshabilitados: [],
         },
       });
       const admin = await tx.usuario.create({
@@ -187,11 +204,8 @@ export class SuperAdminService {
       where: { id: usuarioId },
     });
     if (!usuario) throw new NotFoundException('Usuario no encontrado');
-    if (!nuevaPassword || nuevaPassword.length < 8) {
-      throw new BadRequestException(
-        'La contraseña debe tener mínimo 8 caracteres',
-      );
-    }
+
+    validarPasswordOPopThrow(nuevaPassword);
 
     const hashed = await bcrypt.hash(nuevaPassword, 10);
     await this.prisma.usuario.update({
@@ -221,5 +235,136 @@ export class SuperAdminService {
       empresasInactivas: totalEmpresas - empresasActivas,
       totalUsuarios,
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LÍMITES Y PLAN POR EMPRESA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  private async contarUso(empresaId: string) {
+    return this.quotaService.contarUso(empresaId);
+  }
+
+  private static DEFAULT_LIMITE = {
+    plan: null,
+    maxUsuarios: null,
+    maxClientes: null,
+    maxPrestamos: null,
+    maxPrestamosActivos: null,
+    maxRutas: null,
+    maxEmpleados: null,
+    maxMontoPorPrestamo: null,
+    modulosDeshabilitados: [],
+    venceEn: null,
+    activo: true,
+  };
+
+  // GET /superadmin/empresas/:id/limites — límite (o defaults) + uso en vivo + catálogo
+  async obtenerLimites(user: any, empresaId: string) {
+    this.assertSuperAdmin(user);
+
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: { id: true, nombre: true, activa: true, createdAt: true },
+    });
+    if (!empresa) throw new NotFoundException('Empresa no encontrada');
+
+    const limite = await this.prisma.limiteEmpresa.findUnique({
+      where: { empresaId },
+    });
+
+    return {
+      empresa,
+      limite: limite
+        ? {
+            plan: limite.plan,
+            maxUsuarios: limite.maxUsuarios,
+            maxClientes: limite.maxClientes,
+            maxPrestamos: limite.maxPrestamos,
+            maxPrestamosActivos: limite.maxPrestamosActivos,
+            maxRutas: limite.maxRutas,
+            maxEmpleados: limite.maxEmpleados,
+            maxMontoPorPrestamo: limite.maxMontoPorPrestamo,
+            modulosDeshabilitados: limite.modulosDeshabilitados,
+            venceEn: limite.venceEn,
+            activo: limite.activo,
+          }
+        : SuperAdminService.DEFAULT_LIMITE,
+      uso: await this.contarUso(empresaId),
+      modulos: MODULOS,
+    };
+  }
+
+  // PUT /superadmin/empresas/:id/limites — actualizar plan, cuotas y módulos
+  async actualizarLimites(
+    user: any,
+    empresaId: string,
+    datos: {
+      plan?: string | null;
+      maxUsuarios?: number | null;
+      maxClientes?: number | null;
+      maxPrestamos?: number | null;
+      maxPrestamosActivos?: number | null;
+      maxRutas?: number | null;
+      maxEmpleados?: number | null;
+      maxMontoPorPrestamo?: number | null;
+      modulosDeshabilitados?: string[];
+      venceEn?: string | null;
+      activo?: boolean;
+    },
+  ) {
+    this.assertSuperAdmin(user);
+
+    const empresa = await this.prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: { id: true, nombre: true },
+    });
+    if (!empresa) throw new NotFoundException('Empresa no encontrada');
+
+    const deshabilitados = (datos.modulosDeshabilitados ?? []).filter((m) =>
+      MODULOS.includes(m as (typeof MODULOS)[number]),
+    );
+    const invalidos = (datos.modulosDeshabilitados ?? []).filter(
+      (m) => !MODULOS.includes(m as (typeof MODULOS)[number]),
+    );
+    if (invalidos.length > 0) {
+      throw new BadRequestException(
+        `Módulos inválidos: ${invalidos.join(', ')}`,
+      );
+    }
+
+    const data = {
+      plan: datos.plan ?? null,
+      maxUsuarios: datos.maxUsuarios ?? null,
+      maxClientes: datos.maxClientes ?? null,
+      maxPrestamos: datos.maxPrestamos ?? null,
+      maxPrestamosActivos: datos.maxPrestamosActivos ?? null,
+      maxRutas: datos.maxRutas ?? null,
+      maxEmpleados: datos.maxEmpleados ?? null,
+      maxMontoPorPrestamo: datos.maxMontoPorPrestamo ?? null,
+      modulosDeshabilitados: deshabilitados,
+      venceEn: datos.venceEn ? new Date(datos.venceEn) : null,
+      activo: datos.activo ?? true,
+    };
+
+    const limite = await this.prisma.limiteEmpresa.upsert({
+      where: { empresaId },
+      create: { empresaId, ...data },
+      update: data,
+    });
+
+    await registrarAuditoria(this.prisma, {
+      empresaId: 'sistema',
+      usuarioId: user.id,
+      tipo: 'PLAN',
+      accion: 'LIMITES_ACTUALIZADOS',
+      descripcion: `Límites y módulos actualizados para ${empresa.nombre}`,
+      referenciaId: empresaId,
+      referenciaTipo: 'EMPRESA',
+      datosNuevos: data,
+      nivel: 'INFO',
+    });
+
+    return { limite };
   }
 }

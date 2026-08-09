@@ -22,6 +22,7 @@ model Empresa {
   desembolsos   DesembolsoCaja[]
   gastos        Gasto[]
   inyecciones   InyeccionCapital[]
+  limites       LimiteEmpresa?
   movimientos   MovimientoFinanciero[]
   prestamos     Prestamo[]
   retiros       RetiroGanancias[]
@@ -38,6 +39,11 @@ model Usuario {
   activo              Boolean                @default(true)
   debeCambiarPassword Boolean                @default(true)
   pushToken           String?
+  permisos            String[]               @default([])
+  permisosNegados     String[]               @default([])
+  authVersion         Int                    @default(0)
+  mfaSecret           String?
+  mfaHabilitado       Boolean                @default(false)
   createdAt           DateTime               @default(now())
   empresaId           String?
   auditorias          Auditoria[]
@@ -51,6 +57,27 @@ model Usuario {
   retiros             RetiroGanancias[]
   rutas               Ruta[]
   empresa             Empresa?               @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId])
+}
+
+model LimiteEmpresa {
+  id                    String    @id @default(uuid())
+  empresaId             String    @unique
+  plan                  String?
+  maxUsuarios           Int?
+  maxClientes           Int?
+  maxPrestamos          Int?
+  maxPrestamosActivos   Int?
+  maxRutas              Int?
+  maxEmpleados          Int?
+  maxMontoPorPrestamo   Float?
+  modulosDeshabilitados String[]  @default([])
+  venceEn               DateTime?
+  activo                Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  empresa               Empresa   @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
 }

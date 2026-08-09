@@ -5,10 +5,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { QuotaService } from '../common/quota/quota.service';
 
 @Injectable()
 export class EmpleadosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly quotaService: QuotaService,
+  ) {}
 
   // ─── Helper ───────────────────────────────────────────────────────────────
 
@@ -34,7 +38,8 @@ export class EmpleadosService {
   }
 
   async create(dto: any, empresaId: string) {
-    return (this.prisma as any).empleado.create({
+    const cuota = await this.quotaService.verificar(empresaId, 'empleados');
+    const empleado = await (this.prisma as any).empleado.create({
       data: {
         ...dto,
         empresaId,
@@ -44,6 +49,10 @@ export class EmpleadosService {
           : new Date(),
       },
     });
+    if (cuota.advertencia) {
+      return { ...empleado, advertenciaCuota: cuota };
+    }
+    return empleado;
   }
 
   async update(id: string, dto: any, empresaId: string) {
@@ -227,7 +236,7 @@ export class EmpleadosService {
     // Marcar descuentos como aplicados
     if (dto.descuentoIds?.length) {
       await (this.prisma as any).descuentoEmpleado.updateMany({
-        where: { id: { in: dto.descuentoIds } },
+        where: { id: { in: dto.descuentoIds }, empresaId },
         data: { aplicado: true },
       });
     }

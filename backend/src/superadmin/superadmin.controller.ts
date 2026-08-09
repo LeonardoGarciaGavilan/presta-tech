@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Param,
   Body,
   Request,
@@ -94,5 +95,21 @@ export class SuperAdminController {
       id,
       body.nuevaPassword,
     );
+  }
+
+  // GET /superadmin/empresas/:id/limites — límites + uso en vivo + módulos
+  @Get('empresas/:id/limites')
+  obtenerLimites(@Request() req, @Param('id') id: string) {
+    return this.superAdminService.obtenerLimites(req.user, id);
+  }
+
+  // PUT /superadmin/empresas/:id/limites — actualizar plan, cuotas y módulos
+  @Put('empresas/:id/limites')
+  actualizarLimites(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    return this.superAdminService.actualizarLimites(req.user, id, body);
   }
 }

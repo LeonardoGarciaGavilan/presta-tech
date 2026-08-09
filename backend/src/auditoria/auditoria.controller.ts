@@ -1,12 +1,16 @@
 // src/auditoria/auditoria.controller.ts
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { Modulo } from '../common/permisos/permisos.decorator';
 import { AuditoriaService } from './auditoria.service';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('auditoria')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard)
+@Modulo('AUDITORIA')
 export class AuditoriaController {
   constructor(private readonly auditoriaService: AuditoriaService) {}
 

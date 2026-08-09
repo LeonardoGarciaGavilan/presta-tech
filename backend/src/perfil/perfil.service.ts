@@ -11,6 +11,7 @@ import {
   UpdateEmpresaDto,
 } from './dto/perfil.dto';
 import * as bcrypt from 'bcrypt';
+import { validarPasswordOPopThrow } from '../common/passwords/password-policy';
 
 @Injectable()
 export class PerfilService {
@@ -78,6 +79,8 @@ export class PerfilService {
         'La nueva contraseña debe ser diferente a la actual',
       );
     }
+
+    validarPasswordOPopThrow(dto.passwordNuevo);
 
     const hash = await bcrypt.hash(dto.passwordNuevo, 10);
 
