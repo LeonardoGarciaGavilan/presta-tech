@@ -39,7 +39,11 @@ export class ModulosGuard implements CanActivate {
       modulo,
     );
     if (!habilitado) {
-      throw new ForbiddenException('Módulo no disponible para tu empresa');
+      throw new ForbiddenException({
+        message:
+          'Módulo deshabilitado. Este módulo está disponible para tu empresa, pero actualmente se encuentra deshabilitado. Contacta al administrador de tu empresa.',
+        code: 'MODULO_DESACTIVADO',
+      });
     }
     return true;
   }

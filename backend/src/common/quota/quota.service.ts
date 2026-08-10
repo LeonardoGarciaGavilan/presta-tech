@@ -151,9 +151,10 @@ export class QuotaService {
         };
       }
       if (uso > max) {
-        throw new ForbiddenException(
-          `El monto supera el límite por préstamo del plan (RD$${max.toLocaleString()}).`,
-        );
+        throw new ForbiddenException({
+          message: `El monto supera el límite por préstamo del plan (RD$${max.toLocaleString()}).`,
+          code: 'LIMITE_MONTO_PLAN',
+        });
       }
       return {
         tipo,
@@ -171,9 +172,10 @@ export class QuotaService {
 
     const uso = await this.usoDe(empresaId, tipo);
     if (uso >= max) {
-      throw new ForbiddenException(
-        `Límite del plan alcanzado: ${tipo} (${uso}/${max}). Contacta al Super Admin para aumentarlo.`,
-      );
+      throw new ForbiddenException({
+        message: `Límite del plan alcanzado: ${tipo} (${uso}/${max}). Contacta al soporte de la plataforma.`,
+        code: 'LIMITE_PLAN_ALCANZADO',
+      });
     }
 
     const porcentaje = Math.round((uso / max) * 100);

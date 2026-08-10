@@ -41,9 +41,11 @@ export class PermisosGuard implements CanActivate {
     const cumple = requeridos.every((p) => efectivos.includes(p));
 
     if (!tieneTodo && !cumple) {
-      throw new ForbiddenException(
-        'No tienes permisos para realizar esta acción',
-      );
+      throw new ForbiddenException({
+        message:
+          'Acceso restringido. No tienes permisos para realizar esta acción. Contacta al administrador de tu empresa.',
+        code: 'PERMISO_DENEGADO',
+      });
     }
     return true;
   }
