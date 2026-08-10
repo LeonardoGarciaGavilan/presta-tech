@@ -7,11 +7,13 @@ import { CompanyHeader } from '@/components/ui/company-header';
 import { useTheme } from '@/components/ui/theme-provider';
 import { scale } from '@/constants/theme';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { usePermisos } from '@/permisos/use-permisos';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { colorScheme, colors } = useTheme();
   const { pendingCount } = useNetworkContext();
+  const { moduloHabilitado } = usePermisos();
 
   return (
     <Tabs
@@ -48,61 +50,69 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="caja"
-        listeners={({ navigation }) => ({
-          blur: () => {
-            const state = navigation.getState();
-            const cajaRoute = state.routes.find((r: any) => r.name === 'caja');
-            if (cajaRoute?.state?.key) {
-              navigation.dispatch({
-                ...CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'index' }],
-                }),
-                target: cajaRoute.state.key,
-              });
-            }
-          },
-        })}
-        options={{
-          title: 'Caja',
-          tabBarLabel: 'Caja',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="prestamos"
-        options={{
-          title: 'Préstamos',
-          tabBarLabel: 'Préstamos',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cash-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="rutas"
-        options={{
-          title: 'Rutas',
-          tabBarLabel: 'Rutas',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="clientes"
-        options={{
-          title: 'Clientes',
-          tabBarLabel: 'Clientes',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      />
+      {moduloHabilitado('CAJA') && (
+        <Tabs.Screen
+          name="caja"
+          listeners={({ navigation }) => ({
+            blur: () => {
+              const state = navigation.getState();
+              const cajaRoute = state.routes.find((r: any) => r.name === 'caja');
+              if (cajaRoute?.state?.key) {
+                navigation.dispatch({
+                  ...CommonActions.reset({
+                    index: 0,
+                    routes: [{ name: 'index' }],
+                  }),
+                  target: cajaRoute.state.key,
+                });
+              }
+            },
+          })}
+          options={{
+            title: 'Caja',
+            tabBarLabel: 'Caja',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="wallet-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+      {moduloHabilitado('PRESTAMOS') && (
+        <Tabs.Screen
+          name="prestamos"
+          options={{
+            title: 'Préstamos',
+            tabBarLabel: 'Préstamos',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="cash-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+      {moduloHabilitado('RUTAS') && (
+        <Tabs.Screen
+          name="rutas"
+          options={{
+            title: 'Rutas',
+            tabBarLabel: 'Rutas',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="map-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
+      {moduloHabilitado('CLIENTES') && (
+        <Tabs.Screen
+          name="clientes"
+          options={{
+            title: 'Clientes',
+            tabBarLabel: 'Clientes',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
       <Tabs.Screen
         name="perfil"
         options={{

@@ -4,13 +4,36 @@ import { listarUsuarios,
   crearUsuario,
   actualizarUsuario,
   resetPassword,
+  obtenerPermisos,
+  actualizarPermisos,
   type CreateUsuarioRequest,
-  type UpdateUsuarioRequest } from '@/api/usuarios.api';
+  type UpdateUsuarioRequest,
+  type ActualizarPermisosRequest } from '@/api/usuarios.api';
 
 export function useUsuarios() {
   return useQuery({
     queryKey: ['usuarios'],
     queryFn: listarUsuarios,
+  });
+}
+
+export function usePermisos(id: string) {
+  return useQuery({
+    queryKey: ['usuarios', id, 'permisos'],
+    queryFn: () => obtenerPermisos(id),
+    enabled: !!id,
+  });
+}
+
+export function useActualizarPermisos(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ActualizarPermisosRequest) => actualizarPermisos(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      queryClient.invalidateQueries({ queryKey: ['usuarios', id, 'permisos'] });
+    },
   });
 }
 

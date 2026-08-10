@@ -7,6 +7,8 @@ export interface User {
   rol: Rol;
   empresa: string | null;
   empresaId: string | null;
+  permisos?: string[];
+  modulosDeshabilitados?: string[];
 }
 
 export interface LoginRequest {

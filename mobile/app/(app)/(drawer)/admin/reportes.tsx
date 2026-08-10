@@ -11,6 +11,8 @@ import { AppInput } from '@/components/ui/app-input';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, getTodayISO, getMonthStart } from '@/utils/formatters';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -89,6 +91,7 @@ function Badge({ label, color }: { label: string; color: string }) {
 export default function ReportesScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { moduloHabilitado } = usePermisos();
 
   // Tab state
   const [tab, setTab] = useState<TabId>('cobros');
@@ -574,6 +577,10 @@ export default function ReportesScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('REPORTES')) {
+    return <SinAcceso />;
   }
 
   return (

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
@@ -18,6 +19,8 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 
 const ROL_OPTIONS = ['ADMIN', 'EMPLEADO'];
 const ESTADO_OPTIONS = ['Todos', 'Activos', 'Inactivos'];
@@ -107,6 +110,7 @@ export default function UsuariosScreen() {
   const { colorScheme, colors } = useTheme();
   const currentUser = useAuthStore((s) => s.user);
   const { showToast } = useToast();
+  const { moduloHabilitado } = usePermisos();
 
   const { data: usuarios, isLoading } = useUsuarios();
   const crearMutation = useCrearUsuario();
@@ -265,10 +269,24 @@ export default function UsuariosScreen() {
         </View>
 
         <View style={styles.userCardBottom}>
-          <Text style={[styles.userDate, { color: colors.textTertiary }]}>
-            Creado: {formatDate(item.createdAt)}
-          </Text>
+          <View style={styles.userDateWrap}>
+            <Text style={[styles.userDate, { color: colors.textTertiary }]}>
+              Creado: {formatDate(item.createdAt)}
+            </Text>
+            {(item.permisos?.length ?? 0) > 0 || (item.permisosNegados?.length ?? 0) > 0 ? (
+              <Text style={[styles.customBadge, { color: colors.primary }]}>
+                Permisos custom
+              </Text>
+            ) : null}
+          </View>
           <View style={styles.userActions}>
+            <Pressable
+              onPress={() => router.push(`/admin/permisos/${item.id}`)}
+              hitSlop={8}
+              style={[styles.actionBtn, { backgroundColor: colors.infoLight }]}
+            >
+              <Ionicons name="shield-checkmark-outline" size={scale(18)} color={colors.info} />
+            </Pressable>
             <Pressable
               onPress={() => openEditar(item)}
               hitSlop={8}
@@ -322,6 +340,10 @@ export default function UsuariosScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('USUARIOS')) {
+    return <SinAcceso />;
   }
 
   return (
@@ -707,6 +729,14 @@ const styles = StyleSheet.create({
   },
   userDate: {
     fontSize: FontSize.xs,
+  },
+  userDateWrap: {
+    flex: 1,
+    gap: scale(2),
+  },
+  customBadge: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   userActions: {
     flexDirection: 'row',

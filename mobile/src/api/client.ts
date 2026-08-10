@@ -15,6 +15,9 @@ client.interceptors.request.use(
       console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`);
     }
 
+    // Identifica la app (mobile) — el backend rechaza SUPERADMIN desde aquí.
+    config.headers['X-App'] = 'mobile';
+
     const urlPath = config.url ?? '';
     const isPublic = AUTH_PUBLIC_ROUTES.some((route) => urlPath.endsWith(route));
 

@@ -19,6 +19,8 @@ import DatePickerField from '@/components/ui/date-picker-field';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/ui/empty-state';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 
 // ──────────────────────────────────────────
 // Color palette
@@ -82,6 +84,7 @@ export default function AuditoriaScreen() {
   const { colorScheme, colors } = useTheme();
   const user = useAuthStore((s) => s.user);
   const isSuperAdmin = user?.rol === 'SUPERADMIN';
+  const { moduloHabilitado } = usePermisos();
 
   // ---- server-side filters ----
   const [filters, setFilters] = useState<AuditoriaFilters>({});
@@ -278,6 +281,10 @@ export default function AuditoriaScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('AUDITORIA')) {
+    return <SinAcceso />;
   }
 
   return (

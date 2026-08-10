@@ -33,6 +33,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, getTodayISO } from '@/utils/formatters';
 
 type Tab = 'empleados' | 'asistencia' | 'pagos' | 'descuentos';
@@ -102,6 +104,7 @@ const EMPTY_EMP_FORM: EmpleadoForm = {
 export default function EmpleadosScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { moduloHabilitado } = usePermisos();
 
   // ─── Tab state ──────────────────────────────────────────────
   const [tab, setTab] = useState<Tab>('empleados');
@@ -675,6 +678,10 @@ export default function EmpleadosScreen() {
         }
       />
     );
+  }
+
+  if (!moduloHabilitado('EMPLEADOS')) {
+    return <SinAcceso />;
   }
 
   // ─── Main render ────────────────────────────────────────────

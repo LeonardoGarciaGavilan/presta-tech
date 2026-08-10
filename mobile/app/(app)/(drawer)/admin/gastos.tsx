@@ -16,6 +16,8 @@ import ConfirmDialog from '@/components/ui/confirm-dialog';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, getTodayISO, getMonthStart } from '@/utils/formatters';
 
 const CATEGORY_PALETTE = [
@@ -96,6 +98,7 @@ const EMPTY_FORM: GastoForm = {
 export default function GastosScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { moduloHabilitado } = usePermisos();
 
   const [desde, setDesde] = useState(getMonthStart());
   const [hasta, setHasta] = useState(getTodayISO());
@@ -278,6 +281,10 @@ export default function GastosScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('GASTOS')) {
+    return <SinAcceso />;
   }
 
   return (

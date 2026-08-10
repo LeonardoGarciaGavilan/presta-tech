@@ -12,6 +12,8 @@ import SearchBar from '@/components/ui/search-bar';
 import EmptyState from '@/components/ui/empty-state';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 
 import { AlertaCard, AlertaDateGroup, AlertaDetailModal } from '@/components/alertas';
 
@@ -112,6 +114,7 @@ export default function AlertasScreen() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
+  const { moduloHabilitado } = usePermisos();
 
   const [fechaMode, setFechaMode] = useState<'7d' | 'today'>('7d');
   const [offset, setOffset] = useState(0);
@@ -225,6 +228,10 @@ export default function AlertasScreen() {
         />
       </View>
     );
+  }
+
+  if (!moduloHabilitado('ALERTAS')) {
+    return <SinAcceso />;
   }
 
   return (

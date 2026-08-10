@@ -7,11 +7,23 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NetworkBanner } from '@/components/ui/network-banner';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useAuthStore } from '@/store/auth.store';
+import SinAcceso from '@/components/permisos/sin-acceso';
 
 export default function AppLayout() {
   usePushNotifications();
   const { colors } = useTheme();
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+
+  if (user?.rol === 'SUPERADMIN') {
+    return (
+      <SinAcceso
+        title="Acceso solo web"
+        subtitle="La app móvil es solo para administradores y empleados. Inicia sesión en la web para gestionar como superadmin."
+      />
+    );
+  }
 
   return (
     <AuthGuard>

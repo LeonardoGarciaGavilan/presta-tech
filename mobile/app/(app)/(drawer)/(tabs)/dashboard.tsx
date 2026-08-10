@@ -10,12 +10,19 @@ import { QuickActions } from '@/components/dashboard/quick-actions';
 import { useDashboardMobile } from '@/hooks/use-dashboard';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { scale } from '@/constants/theme';
 
 export default function DashboardScreen() {
   const { colorScheme, colors } = useTheme();
   const user = useAuthStore((s) => s.user);
+  const { moduloHabilitado } = usePermisos();
   const { data, isLoading, isError, refetch, isRefetching } = useDashboardMobile();
+
+  if (!moduloHabilitado('DASHBOARD')) {
+    return <SinAcceso />;
+  }
 
   if (isLoading && !data) {
     return (

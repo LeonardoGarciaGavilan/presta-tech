@@ -19,6 +19,8 @@ import { AppButton } from '@/components/ui/app-button';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { SectionCard } from '@/components/ui/section-card';
 
 function ToggleSwitch({
@@ -70,6 +72,7 @@ export default function ConfiguracionScreen() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
   const { showToast } = useToast();
+  const { moduloHabilitado } = usePermisos();
 
   const { data: config, isLoading, isError } = useConfiguracion();
   const guardarMutation = useGuardarConfiguracion();
@@ -138,6 +141,10 @@ export default function ConfiguracionScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('CONFIGURACION')) {
+    return <SinAcceso />;
   }
 
   return (

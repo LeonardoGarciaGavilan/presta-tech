@@ -7,6 +7,8 @@ import { useResumenRutas } from '@/hooks/use-rutas';
 import type { ResumenRuta } from '@/types/rutas.types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatTimeAgo } from '@/utils/formatters';
 
 const DISTRIBUTION_COLORS = [
@@ -57,6 +59,7 @@ function initialAvatar(name: string): string {
 
 export default function AnalisisRutasScreen() {
   const { colorScheme, colors } = useTheme();
+  const { moduloHabilitado } = usePermisos();
 
   const { data, isLoading, refetch, isRefetching } = useResumenRutas();
 
@@ -207,6 +210,10 @@ export default function AnalisisRutasScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('RUTAS')) {
+    return <SinAcceso />;
   }
 
   return (

@@ -13,6 +13,8 @@ import { clearSession } from '@/utils/session';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useTheme } from '@/components/ui/theme-provider';
 import { useContarAlertas } from '@/hooks/use-alertas';
+import { usePermisos } from '@/permisos/use-permisos';
+import { MODULO_POR_PANTALLA } from '@/permisos/permisos';
 
 function DrawerItem({
   label,
@@ -79,6 +81,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { data: noLeidas } = useContarAlertas();
+  const { moduloHabilitado } = usePermisos();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -106,7 +109,9 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     { name: 'admin/usuarios', label: 'Usuarios', icon: 'people-outline' as const },
     { name: 'admin/reportes', label: 'Reportes', icon: 'bar-chart-outline' as const },
     { name: 'admin/configuracion', label: 'Configuración', icon: 'settings-outline' as const },
-  ];
+  ].filter(
+    (item) => moduloHabilitado(MODULO_POR_PANTALLA[item.name] ?? item.name),
+  );
 
   return (
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: colors.background }}>
@@ -338,6 +343,17 @@ export default function DrawerLayout() {
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
+        }}
+      />
+      <Drawer.Screen
+        name="admin/permisos/[id]"
+        options={{
+          title: 'Permisos',
+          headerShown: true,
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen

@@ -7,6 +7,8 @@ export interface Usuario {
   rol: 'ADMIN' | 'EMPLEADO';
   activo: boolean;
   debeCambiarPassword: boolean;
+  permisos?: string[];
+  permisosNegados?: string[];
   createdAt: string;
 }
 
@@ -49,5 +51,38 @@ export async function actualizarUsuario(id: string, data: UpdateUsuarioRequest):
 
 export async function resetPassword(id: string): Promise<ResetPasswordResponse> {
   const response = await client.patch<ResetPasswordResponse>(`/usuarios/${id}/reset-password`);
+  return response.data;
+}
+
+export interface PermisosResponse {
+  usuario: {
+    id: string;
+    nombre: string;
+    email: string;
+    rol: 'ADMIN' | 'EMPLEADO';
+    activo: boolean;
+  };
+  base: string[];
+  permisos: string[];
+  permisosNegados: string[];
+  modulos: string[];
+  catalogo: string[];
+}
+
+export interface ActualizarPermisosRequest {
+  permisos: string[];
+  permisosNegados: string[];
+}
+
+export async function obtenerPermisos(id: string): Promise<PermisosResponse> {
+  const response = await client.get<PermisosResponse>(`/usuarios/${id}/permisos`);
+  return response.data;
+}
+
+export async function actualizarPermisos(
+  id: string,
+  data: ActualizarPermisosRequest,
+): Promise<{ mensaje: string }> {
+  const response = await client.put<{ mensaje: string }>(`/usuarios/${id}/permisos`, data);
   return response.data;
 }

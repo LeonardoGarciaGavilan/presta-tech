@@ -13,6 +13,8 @@ import { AppButton } from '@/components/ui/app-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, formatTimeAgo } from '@/utils/formatters';
 
 const MOVEMENT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -60,6 +62,7 @@ const PATRIMONIO_COLORS = ['#2563EB', '#059669', '#D97706', '#7C3AED'];
 export default function EstadoFinancieroScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { moduloHabilitado } = usePermisos();
 
   const { data: dash, isLoading: dashLoading, refetch, isRefetching } = useDashboard();
   const { data: movimientos } = useMovimientos(15);
@@ -162,6 +165,10 @@ export default function EstadoFinancieroScreen() {
         </View>
       </View>
     );
+  }
+
+  if (!moduloHabilitado('FINANZAS')) {
+    return <SinAcceso />;
   }
 
   return (
