@@ -183,7 +183,9 @@ export default function Permisos() {
           .map((mod) => ({
             mod,
             label: MODULO_LABELS[mod] ?? mod,
-            permisos: catalogo.filter((p) => moduloDePermiso(p) === mod),
+            permisos: catalogo.filter(
+              (p) => moduloDePermiso(p).toUpperCase() === mod,
+            ),
           }))
           .filter((g) => g.permisos.length > 0);
 
