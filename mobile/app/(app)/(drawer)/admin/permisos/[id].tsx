@@ -187,7 +187,9 @@ export default function PermisosScreen() {
       .map((mod) => ({
         mod,
         label: MODULO_LABELS[mod] ?? mod,
-        permisos: data.catalogo.filter((p) => moduloDePermiso(p) === mod),
+        permisos: data.catalogo.filter(
+          (p) => moduloDePermiso(p).toUpperCase() === mod,
+        ),
       }))
       .filter((g) => g.permisos.length > 0);
   }, [data]);
