@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 
 @Controller('finanzas')
@@ -16,6 +16,7 @@ export class FinanzasController {
 
   // GET /finanzas/resumen?desde=2026-01-01&hasta=2026-03-31&meses=6
   @Get('resumen')
+  @RequierePermiso('finanzas:ver')
   resumen(
     @Tenant() empresaId: string,
     @Query('desde') desde: string,

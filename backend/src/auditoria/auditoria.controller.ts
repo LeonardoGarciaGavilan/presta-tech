@@ -3,7 +3,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { AuditoriaService } from './auditoria.service';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -15,6 +15,7 @@ export class AuditoriaController {
   constructor(private readonly auditoriaService: AuditoriaService) {}
 
   @Get()
+  @RequierePermiso('auditoria:ver')
   findAll(
     @CurrentUser() user: any,
     @Tenant() empresaId: string,

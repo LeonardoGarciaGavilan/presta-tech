@@ -6,7 +6,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('reportes')
@@ -16,7 +16,8 @@ export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Get('cobros')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('reportes:exportar')
   cobrosPorPeriodo(
     @CurrentUser() user: any,
     @Query('desde') desde: string,
@@ -27,7 +28,8 @@ export class ReportesController {
   }
 
   @Get('cartera-vencida')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('reportes:exportar')
   carteraVencida(
     @CurrentUser() user: any,
     @Query('provincia') provincia: string,
@@ -36,7 +38,8 @@ export class ReportesController {
   }
 
   @Get('estado-general')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('reportes:exportar')
   estadoGeneral(
     @CurrentUser() user: any,
     @Query('provincia') provincia: string,
@@ -51,7 +54,8 @@ export class ReportesController {
   }
 
   @Get('cajas')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('reportes:exportar')
   reporteCajas(
     @CurrentUser() user: any,
     @Query('desde') desde: string,

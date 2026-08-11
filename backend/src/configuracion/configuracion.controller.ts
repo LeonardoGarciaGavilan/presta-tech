@@ -7,7 +7,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -24,7 +24,8 @@ export class ConfiguracionController {
   }
 
   @Put()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('configuracion:editar')
   upsert(
     @Body() dto: UpsertConfiguracionDto,
     @Tenant() empresaId: string,

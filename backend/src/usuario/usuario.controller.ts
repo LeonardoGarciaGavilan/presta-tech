@@ -17,8 +17,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
-import { RequierePermiso } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('usuarios')
@@ -26,7 +25,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class UsuarioController {
   constructor(private usuarioService: UsuarioService) {}
 
-  // POST /usuarios — crear empleado (ADMIN)
+  // POST /usuarios — crear empleado (ADMIN o con usuarios:gestionar)
   @UseGuards(
     JwtAuthGuard,
     RolesGuard,
@@ -34,7 +33,8 @@ export class UsuarioController {
     PermisosGuard,
     SuperAdminGuard,
   )
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('usuarios:gestionar')
   @Post()
   crearEmpleado(
     @CurrentUser() user: any,
@@ -43,7 +43,7 @@ export class UsuarioController {
     return this.usuarioService.crearEmpleado(user, body);
   }
 
-  // GET /usuarios — listar todos (ADMIN)
+  // GET /usuarios — listar todos (requiere usuarios:ver)
   @UseGuards(
     JwtAuthGuard,
     RolesGuard,
@@ -51,13 +51,14 @@ export class UsuarioController {
     PermisosGuard,
     SuperAdminGuard,
   )
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('usuarios:ver')
   @Get()
   listarUsuarios(@CurrentUser() user: any) {
     return this.usuarioService.listarUsuarios(user);
   }
 
-  // PUT /usuarios/:id — editar nombre, rol, activo (ADMIN)
+  // PUT /usuarios/:id — editar nombre, rol, activo (usuarios:gestionar)
   @UseGuards(
     JwtAuthGuard,
     RolesGuard,
@@ -65,7 +66,7 @@ export class UsuarioController {
     PermisosGuard,
     SuperAdminGuard,
   )
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
   @RequierePermiso('usuarios:gestionar')
   @Put(':id')
   actualizarUsuario(
@@ -76,7 +77,7 @@ export class UsuarioController {
     return this.usuarioService.actualizarUsuario(user, id, body);
   }
 
-  // GET /usuarios/:id/permisos — matriz tri-estado de un usuario (ADMIN)
+  // GET /usuarios/:id/permisos — matriz tri-estado de un usuario (usuarios:gestionar)
   @UseGuards(
     JwtAuthGuard,
     RolesGuard,
@@ -84,14 +85,14 @@ export class UsuarioController {
     PermisosGuard,
     SuperAdminGuard,
   )
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
   @RequierePermiso('usuarios:gestionar')
   @Get(':id/permisos')
   obtenerPermisos(@CurrentUser() user: any, @Param('id') id: string) {
     return this.usuarioService.obtenerPermisos(user, id);
   }
 
-  // PUT /usuarios/:id/permisos — guardar matriz + bump authVersion (ADMIN)
+  // PUT /usuarios/:id/permisos — guardar matriz + bump authVersion (usuarios:gestionar)
   @UseGuards(
     JwtAuthGuard,
     RolesGuard,
@@ -99,7 +100,7 @@ export class UsuarioController {
     PermisosGuard,
     SuperAdminGuard,
   )
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
   @RequierePermiso('usuarios:gestionar')
   @Put(':id/permisos')
   actualizarPermisos(
@@ -110,7 +111,7 @@ export class UsuarioController {
     return this.usuarioService.actualizarPermisos(user, id, body);
   }
 
-  // PATCH /usuarios/:id/reset-password — resetear a temporal (ADMIN)
+  // PATCH /usuarios/:id/reset-password — resetear a temporal (usuarios:resetPassword)
   @UseGuards(
     JwtAuthGuard,
     RolesGuard,
@@ -118,7 +119,8 @@ export class UsuarioController {
     PermisosGuard,
     SuperAdminGuard,
   )
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('usuarios:resetPassword')
   @Throttle({ password: { limit: 3, ttl: 300_000 } })
   @Patch(':id/reset-password')
   resetPassword(@CurrentUser() user: any, @Param('id') id: string) {

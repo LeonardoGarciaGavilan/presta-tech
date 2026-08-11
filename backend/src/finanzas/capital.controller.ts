@@ -15,7 +15,7 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 
 @Controller('finanzas')
 @UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
@@ -24,16 +24,19 @@ export class CapitalController {
   constructor(private readonly capitalService: CapitalService) {}
 
   @Get('dashboard')
+  @RequierePermiso('finanzas:ver')
   async getDashboard(@Request() req: any) {
     return this.capitalService.getDashboard(req.user.empresaId);
   }
 
   @Get('rutas')
+  @RequierePermiso('finanzas:ver')
   async getResumenRutas(@Request() req: any) {
     return this.capitalService.getResumenRutas(req.user.empresaId);
   }
 
   @Get('movimientos')
+  @RequierePermiso('finanzas:ver')
   async getMovimientos(@Request() req: any, @Query('limite') limite?: string) {
     return this.capitalService.getMovimientos(
       req.user,
@@ -42,11 +45,13 @@ export class CapitalController {
   }
 
   @Get('capital')
+  @RequierePermiso('finanzas:ver')
   async getCapital(@Request() req: any) {
     return this.capitalService.getCapitalEmpresa(req.user.empresaId);
   }
 
   @Post('capital')
+  @RequierePermiso('finanzas:inyeccionCapital')
   async registrarCapitalInicial(
     @Body() dto: CreateCapitalInicialDto,
     @Request() req: any,
@@ -55,26 +60,31 @@ export class CapitalController {
   }
 
   @Post('inyeccion')
+  @RequierePermiso('finanzas:inyeccionCapital')
   async inyectarCapital(@Body() dto: CreateInyeccionDto, @Request() req: any) {
     return this.capitalService.inyectarCapital(dto, req.user);
   }
 
   @Get('retiros')
+  @RequierePermiso('finanzas:ver')
   async getRetiros(@Request() req: any) {
     return this.capitalService.getRetiros(req.user);
   }
 
   @Post('retiro')
+  @RequierePermiso('finanzas:retiroGanancias')
   async retirarGanancias(@Body() dto: CreateRetiroDto, @Request() req: any) {
     return this.capitalService.retirarGanancias(dto, req.user);
   }
 
   @Post('retiro-capital')
+  @RequierePermiso('finanzas:retiroGanancias')
   async retirarCapital(@Body() dto: CreateRetiroDto, @Request() req: any) {
     return this.capitalService.retirarCapital(dto, req.user);
   }
 
   @Get('capital-retirable')
+  @RequierePermiso('finanzas:ver')
   async getCapitalRetirable(@Request() req: any) {
     const retirable = await this.capitalService.calcularCapitalRetirable(
       req.user.empresaId,
@@ -83,6 +93,7 @@ export class CapitalController {
   }
 
   @Get('ganancias-disponibles')
+  @RequierePermiso('finanzas:ver')
   async getGananciasDisponibles(@Request() req: any) {
     const disponibles = await this.capitalService.calcularGananciasDisponibles(
       req.user.empresaId,
@@ -91,11 +102,13 @@ export class CapitalController {
   }
 
   @Get('resumen')
+  @RequierePermiso('finanzas:ver')
   async getResumen(@Request() req: any) {
     return this.capitalService.getResumenFinanciero(req.user.empresaId);
   }
 
   @Get('balance')
+  @RequierePermiso('finanzas:ver')
   async getBalance(@Request() req: any) {
     return this.capitalService.validarBalance(req.user.empresaId);
   }
