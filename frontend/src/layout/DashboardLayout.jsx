@@ -6,6 +6,7 @@ import Notificaciones from "../components/Notificaciones";
 import InstallPWAButton from "../components/InstallPWAButton";
 import api from "../services/api";
 import { connectSocket, disconnectSocket, getSocket } from "../services/socket";
+import { tienePermiso } from "../utils/permisos";
 
 const IconDashboard = () => (
   <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -146,40 +147,40 @@ const NAV_SECTIONS = [
 
 // ─── ITEMS DEL SIDEBAR (ordenados por sección) ───────────────────────
 // Los items se renderizan agrupados según NAV_SECTIONS más arriba.
-// adminOnly: solo ADMIN/SUPERADMIN ven el item.
+// permiso: permiso efectivo requerido para ver el item ("" o ausente = siempre).
 // superAdminOnly: solo SUPERADMIN ve el item.
 // badge: habilita contador de alertas vía WebSocket.
 const NAV_ITEMS = [
   // PANEL
-  { to: "/dashboard",              label: "Dashboard",                Icon: IconDashboard },
+  { to: "/dashboard",              label: "Dashboard",                Icon: IconDashboard,       permiso: "dashboard:ver" },
 
   // OPERACIONES
-  { to: "/clientes",               label: "Clientes",                 Icon: IconClientes },
-  { to: "/prestamos",              label: "Préstamos",                Icon: IconPrestamos },
-  { to: "/pagos",                  label: "Pagos",                    Icon: IconPagos },
-  { to: "/caja",                   label: "Caja",                     Icon: IconCaja },
-  { to: "/rutas",                  label: "Rutas de Cobro",           Icon: IconRuta },
+  { to: "/clientes",               label: "Clientes",                 Icon: IconClientes,        permiso: "clientes:ver" },
+  { to: "/prestamos",              label: "Préstamos",                Icon: IconPrestamos,       permiso: "prestamos:ver" },
+  { to: "/pagos",                  label: "Pagos",                    Icon: IconPagos,           permiso: "pagos:ver" },
+  { to: "/caja",                   label: "Caja",                     Icon: IconCaja,            permiso: "caja:ver" },
+  { to: "/rutas",                  label: "Rutas de Cobro",           Icon: IconRuta,            permiso: "rutas:ver" },
 
   // FINANZAS
-  { to: "/finanzas",               label: "Estado Financiero",        Icon: IconFinanzas,       adminOnly: true },
-  { to: "/control-cajas",          label: "Control de Caja",          Icon: IconCaja,           adminOnly: true },
-  { to: "/gastos",                 label: "Gastos",                   Icon: IconGastos,         adminOnly: true },
-  { to: "/reportes",               label: "Reportes",                 Icon: IconReportes,       adminOnly: true },
+  { to: "/finanzas",               label: "Estado Financiero",        Icon: IconFinanzas,        permiso: "finanzas:ver" },
+  { to: "/control-cajas",          label: "Control de Caja",          Icon: IconCaja,            permiso: "caja:ajuste" },
+  { to: "/gastos",                 label: "Gastos",                   Icon: IconGastos,          permiso: "gastos:ver" },
+  { to: "/reportes",               label: "Reportes",                 Icon: IconReportes,        permiso: "reportes:exportar" },
 
   // HERRAMIENTAS
   { to: "/amortizacion",           label: "Simulador de Amortización", Icon: IconAmortizacion },
 
   // ADMINISTRACIÓN
-  { to: "/analisis-rutas",         label: "Análisis de Rutas",        Icon: IconAnalisisRutas,  adminOnly: true },
-  { to: "/usuarios",               label: "Usuarios",                 Icon: IconUsuario,        adminOnly: true },
-  { to: "/alertas",                label: "Buzón de Alertas",         Icon: IconAlertas,        adminOnly: true, badge: true },
-  { to: "/empleados",              label: "Empleados",                Icon: IconEmpleados,      adminOnly: true },
-  { to: "/auditoria",              label: "Auditoría",                Icon: IconAuditoria,      adminOnly: true },
+  { to: "/analisis-rutas",         label: "Análisis de Rutas",        Icon: IconAnalisisRutas,   permiso: "finanzas:ver" },
+  { to: "/usuarios",               label: "Usuarios",                 Icon: IconUsuario,         permiso: "usuarios:ver" },
+  { to: "/alertas",                label: "Buzón de Alertas",         Icon: IconAlertas,         permiso: "alertas:ver", badge: true },
+  { to: "/empleados",              label: "Empleados",                Icon: IconEmpleados,       permiso: "empleados:ver" },
+  { to: "/auditoria",              label: "Auditoría",                Icon: IconAuditoria,       permiso: "auditoria:ver" },
 
   // CONFIGURACIÓN
   { to: "/perfil",                 label: "Perfil",                   Icon: IconPerfil },
-  { to: "/configuracion",          label: "Configuración",            Icon: IconConfig,         adminOnly: true },
-  { to: "/superadmin/auditoria",   label: "Auditoría del Sistema",    Icon: IconAuditoria,      superAdminOnly: true },
+  { to: "/configuracion",          label: "Configuración",            Icon: IconConfig,          permiso: "configuracion:editar" },
+  { to: "/superadmin/auditoria",   label: "Auditoría del Sistema",    Icon: IconAuditoria,       superAdminOnly: true },
 ];
 
 const NavItem = ({ to, label, Icon, collapsed, onClick, badgeCount }) => (
@@ -232,13 +233,13 @@ export default function DashboardLayout({ children }) {
   const isSuperAdmin = user?.rol === "SUPERADMIN";
   const initials = user?.empresa ? user.empresa.slice(0, 2).toUpperCase() : "ME";
   const navItems = NAV_ITEMS.filter(item => 
-    (!item.adminOnly || isAdmin) && 
-    (!item.superAdminOnly || isSuperAdmin)
+    (!item.superAdminOnly || isSuperAdmin) && 
+    (!item.permiso || tienePermiso(user, item.permiso))
   );
 
   // ── Badge de alertas — WebSocket puro, sin polling ──────────────────────────
   useEffect(() => {
-    if (!isAdmin || isSuperAdmin || !user?.empresaId) return;
+    if (isSuperAdmin || !tienePermiso(user, "alertas:ver") || !user?.empresaId) return;
 
     // 1. Cargar contador inicial desde la API (una sola vez al montar)
     api.get("/prestamos/alertas/contador")
@@ -261,7 +262,7 @@ export default function DashboardLayout({ children }) {
       // No desconectar el socket aquí — lo usa también Alertas.jsx
       // disconnectSocket() solo al hacer logout
     };
-  }, [isAdmin, isSuperAdmin, user?.empresaId]);
+  }, [isSuperAdmin, user, tienePermiso]);
 
   // ── Desconectar WebSocket al hacer logout ────────────────────────────────────
   const handleLogout = () => {
@@ -324,7 +325,7 @@ export default function DashboardLayout({ children }) {
                     key={to} to={to} label={label} Icon={Icon}
                     collapsed={collapsed && !onNav}
                     onClick={onNav}
-                    badgeCount={badge && isAdmin ? alertasBadge : 0}
+                    badgeCount={badge && !isSuperAdmin ? alertasBadge : 0}
                   />
                 ))}
               </div>
