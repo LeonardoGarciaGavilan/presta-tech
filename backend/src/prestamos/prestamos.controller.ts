@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  ForbiddenException,
   DefaultValuePipe,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -23,7 +24,8 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
+import { PermisosService } from '../common/permisos/permisos.service';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
@@ -35,10 +37,14 @@ import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
 @UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
 @Modulo('PRESTAMOS')
 export class PrestamosController {
-  constructor(private readonly prestamosService: PrestamosService) {}
+  constructor(
+    private readonly prestamosService: PrestamosService,
+    private readonly permisosService: PermisosService,
+  ) {}
 
   @Post()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:crear')
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -53,6 +59,7 @@ export class PrestamosController {
 
   @Get('resumen')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:ver')
   getResumen(@Tenant() empresaId: string) {
     return this.prestamosService.getResumen(empresaId);
   }
@@ -132,6 +139,7 @@ export class PrestamosController {
 
   @Get('cliente/:clienteId')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:ver')
   findByCliente(
     @Param('clienteId') clienteId: string,
     @Tenant() empresaId: string,
@@ -147,6 +155,7 @@ export class PrestamosController {
 
   @Get()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:ver')
   findAll(
     @Tenant() empresaId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -165,12 +174,14 @@ export class PrestamosController {
 
   @Get(':id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:ver')
   findOne(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.prestamosService.findOne(id, empresaId);
   }
 
   @Patch(':id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:editar')
   update(
     @Param('id') id: string,
     @Body() dto: UpdatePrestamoDto,
@@ -180,7 +191,8 @@ export class PrestamosController {
   }
 
   @Patch(':id/cancelar')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:cancelar')
   @Idempotent()
   cancelar(
     @Param('id') id: string,
@@ -192,15 +204,29 @@ export class PrestamosController {
   }
 
   @Patch(':id/estado')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
   @Idempotent()
-  cambiarEstado(
+  async cambiarEstado(
     @Param('id') id: string,
     @Body() body: { estado: string; motivo?: string },
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
   ) {
     const adminId = user.sub ?? user.userId ?? user.id;
+
+    const permisoRequerido =
+      body.estado === 'APROBADO'
+        ? 'prestamos:aprobar'
+        : body.estado === 'CANCELADO'
+          ? 'prestamos:cancelar'
+          : 'prestamos:revisar';
+
+    if (!(await this.permisosService.tienePermiso(adminId, permisoRequerido))) {
+      throw new ForbiddenException(
+        `No tienes el permiso "${permisoRequerido}" para realizar esta acción.`,
+      );
+    }
+
     return this.prestamosService.cambiarEstado(
       id,
       empresaId,
@@ -212,6 +238,7 @@ export class PrestamosController {
 
   @Patch(':id/desembolsar')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:desembolsar')
   @Idempotent()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   desembolsar(
@@ -225,6 +252,7 @@ export class PrestamosController {
 
   @Patch(':id/refinanciar')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:refinanciar')
   refinanciar(
     @Param('id') id: string,
     @Body() dto: RefinanciarPrestamoDto,

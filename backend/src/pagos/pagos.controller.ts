@@ -16,7 +16,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
@@ -30,6 +30,7 @@ export class PagosController {
 
   @Post()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:registrar')
   @HttpCode(HttpStatus.CREATED)
   @Idempotent()
   @Throttle({ default: { limit: 20, ttl: 60000 } })
@@ -70,6 +71,7 @@ export class PagosController {
 
   @Post('saldar/:id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:registrar')
   @Idempotent()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   saldarPrestamo(
