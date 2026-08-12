@@ -16,7 +16,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
@@ -31,6 +31,7 @@ export class CajaController {
   // GET /caja/resumen?fecha=2026-02-26&cajaId=xxx
   @Get('resumen')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:ver')
   getResumen(
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
@@ -51,6 +52,7 @@ export class CajaController {
   // GET /caja/activa?fecha=2026-02-26
   @Get('activa')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:ver')
   miCajaActiva(
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
@@ -63,6 +65,7 @@ export class CajaController {
   // GET /caja/historial
   @Get('historial')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:ver')
   historial(@Tenant() empresaId: string, @CurrentUser() user: any) {
     const isAdmin = user.rol === 'ADMIN';
     return this.cajaService.historialCajas(empresaId, user.userId, isAdmin);
@@ -71,6 +74,7 @@ export class CajaController {
   // POST /caja/abrir
   @Post('abrir')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:abrir')
   @Idempotent()
   abrir(
     @Tenant() empresaId: string,
@@ -89,6 +93,7 @@ export class CajaController {
   // PATCH /caja/:id/cerrar (delegates to cerrarCajaSimple)
   @Patch(':id/cerrar')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:ajuste')
   @Idempotent()
   cerrar(
     @Tenant() empresaId: string,
@@ -110,6 +115,7 @@ export class CajaController {
   // POST /caja/cerrar (simplificado - cierra la caja abierta actual)
   @Post('cerrar')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:cerrar')
   @Idempotent()
   cerrarCajaSimple(
     @Tenant() empresaId: string,
@@ -130,6 +136,7 @@ export class CajaController {
   // GET /caja?estado=ABIERTA
   @Get()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:ver')
   getCajas(
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
@@ -142,6 +149,7 @@ export class CajaController {
   // GET /caja/:id/auditoria
   @Get(':id/auditoria')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('caja:ver')
   getAuditoria(
     @Param('id') id: string,
     @Tenant() empresaId: string,

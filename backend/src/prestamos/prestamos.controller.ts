@@ -65,7 +65,7 @@ export class PrestamosController {
   }
 
   @Get('calcular')
-  @Roles('SUPERADMIN', 'ADMIN', 'EMPLEADO')
+  @Roles('ADMIN', 'EMPLEADO')
   calcular(
     @Query('monto') monto: string,
     @Query('tasaInteres') tasaInteres: string,
@@ -100,6 +100,7 @@ export class PrestamosController {
 
   @Get('alertas')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('alertas:ver')
   getAlertas(
     @Tenant() empresaId: string,
     @Query('desde') desde?: string,
@@ -116,6 +117,7 @@ export class PrestamosController {
 
   @Get('alertas/contador')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('alertas:ver')
   contarAlertas(@Tenant() empresaId: string) {
     return this.prestamosService
       .contarAlertasNoLeidas(empresaId)
@@ -124,12 +126,14 @@ export class PrestamosController {
 
   @Patch('alertas/marcar-todas')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('alertas:ver')
   marcarTodasLeidas(@Tenant() empresaId: string) {
     return this.prestamosService.marcarTodasLeidas(empresaId);
   }
 
   @Patch('alertas/:alertaId/leer')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('alertas:ver')
   marcarLeida(
     @Param('alertaId') alertaId: string,
     @Tenant() empresaId: string,
@@ -148,7 +152,7 @@ export class PrestamosController {
   }
 
   @Post('moras/actualizar')
-  @Roles('ADMIN', 'EMPLEADO')
+  @Roles('ADMIN')
   actualizarMoras(@Tenant() empresaId: string) {
     return this.prestamosService.actualizarMoras(empresaId);
   }
@@ -253,6 +257,7 @@ export class PrestamosController {
   @Patch(':id/refinanciar')
   @Roles('ADMIN', 'EMPLEADO')
   @RequierePermiso('prestamos:refinanciar')
+  @Idempotent()
   refinanciar(
     @Param('id') id: string,
     @Body() dto: RefinanciarPrestamoDto,

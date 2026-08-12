@@ -9,23 +9,28 @@ import {
   Body,
   Query,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { RutasService } from './rutas.service';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles/roles.guard';
+import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
+import { PermisosService } from '../common/permisos/permisos.service';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('rutas')
-@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
 @Modulo('RUTAS')
 export class RutasController {
-  constructor(private readonly rutasService: RutasService) {}
+  constructor(
+    private readonly rutasService: RutasService,
+    private readonly permisosService: PermisosService,
+  ) {}
 
   private ctx(user: any) {
     return {
@@ -36,12 +41,17 @@ export class RutasController {
   }
 
   @Get()
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:ver')
   findAll(@Tenant() empresaId: string, @CurrentUser() user: any) {
     const { usuarioId, isAdmin } = this.ctx(user);
     return this.rutasService.findAll(empresaId, usuarioId, isAdmin);
   }
 
   @Post()
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:crear')
+  @Idempotent()
   create(
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
@@ -57,36 +67,47 @@ export class RutasController {
   }
 
   @Post('reset-visitados')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:marcarVisita')
   @Idempotent()
   resetVisitados(@Tenant() empresaId: string) {
     return this.rutasService.resetVisitados(empresaId);
   }
 
   @Patch('clientes/:rcId/visita')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:marcarVisita')
   @Idempotent()
-  marcarVisitado(
+  async marcarVisitado(
     @Param('rcId') rcId: string,
     @Body() body: { visitado: boolean },
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
   ) {
     const { usuarioId } = this.ctx(user);
+    const puedeGestionar = await this.permisosService.tienePermiso(
+      usuarioId,
+      'rutas:asignar',
+    );
     return this.rutasService.marcarVisitado(
       rcId,
       empresaId,
       usuarioId,
       body.visitado,
+      puedeGestionar,
     );
   }
 
   @Get('usuarios')
-  getUsuarios(@Tenant() empresaId: string, @CurrentUser() user: any) {
-    const { isAdmin } = this.ctx(user);
-    if (!isAdmin) throw new ForbiddenException('Solo administradores');
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:ver')
+  getUsuarios(@Tenant() empresaId: string) {
     return this.rutasService.getUsuariosEmpresa(empresaId);
   }
 
   @Get('cliente/:clienteId')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:ver')
   getRutaDeCliente(
     @Param('clienteId') clienteId: string,
     @Tenant() empresaId: string,
@@ -95,6 +116,8 @@ export class RutasController {
   }
 
   @Patch('cliente/:clienteId/asignar')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   asignarRuta(
     @Param('clienteId') clienteId: string,
     @Tenant() empresaId: string,
@@ -104,6 +127,8 @@ export class RutasController {
   }
 
   @Get(':id')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:ver')
   findOne(
     @Param('id') id: string,
     @Tenant() empresaId: string,
@@ -114,6 +139,8 @@ export class RutasController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   update(
     @Param('id') id: string,
     @Tenant() empresaId: string,
@@ -125,6 +152,8 @@ export class RutasController {
   }
 
   @Delete(':id')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:eliminar')
   remove(
     @Param('id') id: string,
     @Tenant() empresaId: string,
@@ -135,18 +164,19 @@ export class RutasController {
   }
 
   @Patch(':id/asignar-usuario')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   asignarUsuario(
     @Param('id') id: string,
     @Tenant() empresaId: string,
-    @CurrentUser() user: any,
     @Body() body: { usuarioId: string },
   ) {
-    const { isAdmin } = this.ctx(user);
-    if (!isAdmin) throw new ForbiddenException('Solo administradores');
     return this.rutasService.asignarUsuario(id, empresaId, body.usuarioId);
   }
 
   @Get(':id/dia')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:ver')
   vistaDia(
     @Param('id') id: string,
     @Tenant() empresaId: string,
@@ -158,6 +188,8 @@ export class RutasController {
   }
 
   @Post(':id/generar-dia')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:marcarVisita')
   @Idempotent()
   generarRutaDia(
     @Param('id') id: string,
@@ -177,6 +209,8 @@ export class RutasController {
   }
 
   @Post(':id/clientes')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   agregarCliente(
     @Param('id') id: string,
     @Tenant() empresaId: string,
@@ -195,6 +229,8 @@ export class RutasController {
   }
 
   @Patch(':id/clientes/:rcId')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   actualizarCliente(
     @Param('id') id: string,
     @Param('rcId') rcId: string,
@@ -214,6 +250,8 @@ export class RutasController {
   }
 
   @Delete(':id/clientes/:rcId')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   quitarCliente(
     @Param('id') id: string,
     @Param('rcId') rcId: string,
@@ -231,6 +269,8 @@ export class RutasController {
   }
 
   @Patch(':id/reordenar')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('rutas:asignar')
   reordenar(
     @Param('id') id: string,
     @Tenant() empresaId: string,

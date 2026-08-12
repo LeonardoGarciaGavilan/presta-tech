@@ -44,12 +44,14 @@ export class PagosController {
 
   @Get('resumen')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:ver')
   getResumen(@Tenant() empresaId: string) {
     return this.pagosService.getResumen(empresaId);
   }
 
   @Get('prestamo/:prestamoId')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:ver')
   findByPrestamo(
     @Param('prestamoId') prestamoId: string,
     @Tenant() empresaId: string,
@@ -59,12 +61,14 @@ export class PagosController {
 
   @Get()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:ver')
   findAll(@Tenant() empresaId: string) {
     return this.pagosService.findAll(empresaId);
   }
 
   @Get(':id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:ver')
   findOne(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.pagosService.findOne(id, empresaId);
   }

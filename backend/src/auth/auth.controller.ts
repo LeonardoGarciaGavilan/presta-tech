@@ -118,10 +118,4 @@ export class AuthController {
   getProfile(@Request() req: any) {
     return req.user;
   }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('admin-only')
-  adminOnly(@Request() req: any) {
-    return { message: 'Solo admins', user: req.user };
-  }
 }

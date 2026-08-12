@@ -19,6 +19,7 @@ export class ConfiguracionController {
 
   @Get()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('configuracion:ver')
   findOne(@Tenant() empresaId: string) {
     return this.configuracionService.findOne(empresaId);
   }

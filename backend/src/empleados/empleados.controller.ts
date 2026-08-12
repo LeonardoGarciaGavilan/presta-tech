@@ -20,6 +20,7 @@ import { SuperAdminGuard } from '../common/guards/superadmin.guard';
 import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
 
 @Controller('empleados')
 @UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
@@ -136,6 +137,7 @@ export class EmpleadosController {
   // POST /empleados/pagos
   @Post('pagos')
   @RequierePermiso('empleados:pagosSalario')
+  @Idempotent()
   registrarPago(@Body() dto: any, @Tenant() empresaId: string) {
     return this.empleadosService.registrarPago(empresaId, dto);
   }

@@ -49,6 +49,7 @@ export class ReportesController {
 
   @Get('cliente/:id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('pagos:ver')
   pagosPorCliente(@Param('id') id: string, @CurrentUser() user: any) {
     return this.reportesService.pagosPorCliente(user, id);
   }

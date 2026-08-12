@@ -2,6 +2,14 @@ import { SyncService } from './sync.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
 describe('SyncService', () => {
+  const permisosCompletos = {
+    clientes: true,
+    prestamos: true,
+    pagos: true,
+    rutas: true,
+    configuracion: true,
+  };
+
   function buildService(overrides: Record<string, unknown> = {}) {
     const prisma = {
       cliente: { findMany: jest.fn().mockResolvedValue([]) },
@@ -61,7 +69,7 @@ describe('SyncService', () => {
       prestamo: { findMany: jest.fn().mockResolvedValue([prestamo]) },
     });
 
-    const result = await service.cambios('emp1', { isAdmin: true });
+    const result = await service.cambios('emp1', { isAdmin: true, permisos: permisosCompletos });
 
     expect(result.prestamos).toHaveLength(1);
     expect(result.prestamos[0].saldoPendiente).toBe(1550);
@@ -74,7 +82,7 @@ describe('SyncService', () => {
     const { service } = buildService({ prestamo: { findMany } });
 
     const desde = new Date('2026-08-01T00:00:00.000Z');
-    await service.cambios('emp1', { isAdmin: true }, desde);
+    await service.cambios('emp1', { isAdmin: true, permisos: permisosCompletos }, desde);
 
     const esperado: { where: { empresaId: string; updatedAt: { gt: Date } } } =
       {
@@ -87,7 +95,7 @@ describe('SyncService', () => {
     const { service } = buildService();
 
     const desde = new Date('2026-08-01T00:00:00.000Z');
-    const result = await service.cambios('emp1', { isAdmin: true }, desde);
+    const result = await service.cambios('emp1', { isAdmin: true, permisos: permisosCompletos }, desde);
 
     expect(result.serverTime).toBeTruthy();
     expect(new Date(result.serverTime).getTime()).toBeGreaterThanOrEqual(

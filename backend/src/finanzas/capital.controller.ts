@@ -16,6 +16,8 @@ import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
 import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
+import { Idempotent } from '../common/decorators/idempotent.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('finanzas')
 @UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
@@ -52,6 +54,8 @@ export class CapitalController {
 
   @Post('capital')
   @RequierePermiso('finanzas:inyeccionCapital')
+  @Idempotent()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async registrarCapitalInicial(
     @Body() dto: CreateCapitalInicialDto,
     @Request() req: any,
@@ -61,6 +65,8 @@ export class CapitalController {
 
   @Post('inyeccion')
   @RequierePermiso('finanzas:inyeccionCapital')
+  @Idempotent()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async inyectarCapital(@Body() dto: CreateInyeccionDto, @Request() req: any) {
     return this.capitalService.inyectarCapital(dto, req.user);
   }
@@ -73,12 +79,16 @@ export class CapitalController {
 
   @Post('retiro')
   @RequierePermiso('finanzas:retiroGanancias')
+  @Idempotent()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async retirarGanancias(@Body() dto: CreateRetiroDto, @Request() req: any) {
     return this.capitalService.retirarGanancias(dto, req.user);
   }
 
   @Post('retiro-capital')
   @RequierePermiso('finanzas:retiroGanancias')
+  @Idempotent()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async retirarCapital(@Body() dto: CreateRetiroDto, @Request() req: any) {
     return this.capitalService.retirarCapital(dto, req.user);
   }

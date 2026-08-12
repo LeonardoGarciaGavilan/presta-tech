@@ -43,7 +43,6 @@ export const PERMISOS = [
 
   'pagos:ver',
   'pagos:registrar',
-  'pagos:revertir',
 
   'caja:ver',
   'caja:abrir',
@@ -56,7 +55,6 @@ export const PERMISOS = [
   'rutas:eliminar',
   'rutas:marcarVisita',
 
-  'reportes:ver',
   'reportes:exportar',
 
   'gastos:ver',
@@ -83,7 +81,6 @@ export const PERMISOS = [
   'auditoria:ver',
 
   'alertas:ver',
-  'alertas:gestionar',
 ] as const;
 
 export type Permiso = (typeof PERMISOS)[number];
@@ -95,8 +92,9 @@ export const PERMISO_TODOS = '*';
 
 export const PERMISOS_ADMIN: string[] = [...PERMISOS];
 
-// Acceso actual de EMPLEADO (retrocompatible): refleja exactamente lo que un
-// EMPLEADO puede hacer HOY en los controllers. No quitar nada de aquí.
+// Acceso actual de EMPLEADO: refleja exactamente lo que un EMPLEADO puede hacer
+// HOY en los controllers. Los permisos retirados del catálogo (pagos:revertir,
+// reportes:ver) se quitaron también de aquí por no tener endpoint asociado.
 export const PERMISOS_EMPLEADO_DEFAULT: string[] = [
   'dashboard:ver',
   'clientes:ver',
@@ -109,14 +107,12 @@ export const PERMISOS_EMPLEADO_DEFAULT: string[] = [
   'prestamos:refinanciar',
   'pagos:ver',
   'pagos:registrar',
-  'pagos:revertir',
   'caja:ver',
   'caja:abrir',
   'caja:cerrar',
   'rutas:ver',
   'rutas:marcarVisita',
   'configuracion:ver',
-  'reportes:ver',
   'alertas:ver',
 ];
 

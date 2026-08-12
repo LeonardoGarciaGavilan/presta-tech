@@ -5,7 +5,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { DashboardService } from './dashboard.service';
 import { DashboardMobileService } from './dashboard-mobile.service';
@@ -21,6 +21,7 @@ export class DashboardController {
 
   @Get()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('dashboard:ver')
   getDashboard(@CurrentUser() user: any) {
     const empresaId = user.empresaId;
     return this.dashboardService.getDashboard(empresaId);
@@ -28,10 +29,11 @@ export class DashboardController {
 
   @Get('mobile')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('dashboard:ver')
   getDashboardMobile(@CurrentUser() user: any) {
     return this.dashboardMobileService.getDashboardMobile(
       user.empresaId,
-      user.id,
+      user.userId,
     );
   }
 }

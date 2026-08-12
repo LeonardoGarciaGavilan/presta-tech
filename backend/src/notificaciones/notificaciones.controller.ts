@@ -5,7 +5,7 @@ import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('notificaciones')
@@ -16,6 +16,7 @@ export class NotificacionesController {
 
   // GET /notificaciones/alertas
   @Get('alertas')
+  @RequierePermiso('alertas:ver')
   getAlertas(@CurrentUser() user: any) {
     return this.notificacionesService.getAlertas(user);
   }

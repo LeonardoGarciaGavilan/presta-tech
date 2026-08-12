@@ -20,6 +20,7 @@ import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
 import { Modulo } from '../common/permisos/permisos.decorator';
+import { PermisosService } from '../common/permisos/permisos.service';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -42,6 +43,7 @@ export class SyncController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly syncService: SyncService,
+    private readonly permisosService: PermisosService,
   ) {}
 
   /**
@@ -53,7 +55,7 @@ export class SyncController {
    * Responde `serverTime` para usarlo como nuevo cursor de sincronización.
    */
   @Get('cambios')
-  @Roles('SUPERADMIN', 'ADMIN', 'EMPLEADO')
+  @Roles('ADMIN', 'EMPLEADO')
   async cambios(
     @Tenant() empresaId: string | null,
     @CurrentUser() user: AuthUser,
@@ -66,10 +68,33 @@ export class SyncController {
       );
     }
 
-    const isAdmin = user.rol === 'SUPERADMIN' || user.rol === 'ADMIN';
+    const isAdmin = user.rol === 'ADMIN';
     const usuarioId = user.userId ?? user.sub ?? user.id;
 
-    return this.syncService.cambios(empresaId, { isAdmin, usuarioId }, desde);
+    const [permClientes, permPrestamos, permPagos, permRutas, permConfig] =
+      await Promise.all([
+        this.permisosService.tienePermiso(usuarioId, 'clientes:ver'),
+        this.permisosService.tienePermiso(usuarioId, 'prestamos:ver'),
+        this.permisosService.tienePermiso(usuarioId, 'pagos:ver'),
+        this.permisosService.tienePermiso(usuarioId, 'rutas:ver'),
+        this.permisosService.tienePermiso(usuarioId, 'configuracion:ver'),
+      ]);
+
+    return this.syncService.cambios(
+      empresaId,
+      {
+        isAdmin,
+        usuarioId,
+        permisos: {
+          clientes: permClientes,
+          prestamos: permPrestamos,
+          pagos: permPagos,
+          rutas: permRutas,
+          configuracion: permConfig,
+        },
+      },
+      desde,
+    );
   }
 
   /**

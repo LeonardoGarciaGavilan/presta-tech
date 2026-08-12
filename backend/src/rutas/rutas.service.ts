@@ -336,6 +336,7 @@ export class RutasService {
     empresaId: string,
     usuarioId: string,
     visitado: boolean,
+    puedeGestionar = false,
   ) {
     const rc = await this.prisma.rutaCliente.findFirst({
       where: { id: rutaClienteId },
@@ -343,6 +344,10 @@ export class RutasService {
     });
     if (!rc || rc.ruta.empresaId !== empresaId)
       throw new NotFoundException('No encontrado');
+    if (!puedeGestionar && rc.ruta.usuarioId !== usuarioId)
+      throw new ForbiddenException(
+        'No puedes marcar visitas en una ruta que no te pertenece',
+      );
     return this.prisma.rutaCliente.update({
       where: { id: rutaClienteId },
       data: {

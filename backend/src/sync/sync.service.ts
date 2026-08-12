@@ -52,6 +52,18 @@ export interface CambiosResult {
 }
 
 /**
+ * Permisos efectivos del usuario para acotar el payload offline:
+ * solo se descargan los datos de los módulos que el usuario puede ver.
+ */
+export interface SyncPermisos {
+  clientes: boolean;
+  prestamos: boolean;
+  pagos: boolean;
+  rutas: boolean;
+  configuracion: boolean;
+}
+
+/**
  * Descarga de datos para modo offline, incremental o completa.
  *
  * - `desde` definido → solo registros con `updatedAt > desde` (deltas).
@@ -66,10 +78,10 @@ export class SyncService {
 
   async cambios(
     empresaId: string,
-    options: { isAdmin: boolean; usuarioId?: string },
+    options: { isAdmin: boolean; usuarioId?: string; permisos: SyncPermisos },
     desde?: Date,
   ): Promise<CambiosResult> {
-    const { isAdmin, usuarioId } = options;
+    const { isAdmin, usuarioId, permisos } = options;
 
     // El cursor se captura ANTES de ejecutar las queries. Si se capturara
     // después, un registro actualizado entre la lectura y la captura tendría
@@ -98,48 +110,64 @@ export class SyncService {
       ...(updatedSince ?? {}),
     };
 
-    const [clientes, prestamosRaw, rutas, rutaClientes] = await Promise.all([
-      this.prisma.cliente.findMany({
-        where: { empresaId, activo: true, ...(updatedSince ?? {}) },
-        orderBy: { updatedAt: 'desc' },
-      }),
-      this.prisma.prestamo.findMany({
-        where: { empresaId, ...(updatedSince ?? {}) },
-        include: {
-          cliente: { select: CLIENTE_RESUMEN_SELECT },
-          garante: { select: CLIENTE_RESUMEN_SELECT },
-          cuotas: { orderBy: { numero: 'asc' } },
-          pagos: {
-            include: { usuario: { select: { id: true, nombre: true } } },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
-      }),
-      this.prisma.ruta.findMany({
-        where: rutaWhere,
-        include: {
-          usuario: { select: { id: true, nombre: true } },
-          clientes: {
-            select: {
-              id: true,
-              clienteId: true,
-              orden: true,
-              observacion: true,
-              visitadoHoy: true,
-              ultimaVisita: true,
-              fechaRuta: true,
+    const prestamoInclude: Prisma.PrestamoInclude = {
+      cliente: { select: CLIENTE_RESUMEN_SELECT },
+      garante: { select: CLIENTE_RESUMEN_SELECT },
+      cuotas: { orderBy: { numero: 'asc' } },
+      ...(permisos.pagos
+        ? {
+            pagos: {
+              include: { usuario: { select: { id: true, nombre: true } } },
+              orderBy: { createdAt: 'desc' },
             },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.rutaCliente.findMany({
-        where: rutaClienteWhere,
-        orderBy: { updatedAt: 'desc' },
-      }),
+          }
+        : {}),
+    };
+
+    const [clientes, prestamosRaw, rutas, rutaClientes] = await Promise.all([
+      permisos.clientes
+        ? this.prisma.cliente.findMany({
+            where: { empresaId, activo: true, ...(updatedSince ?? {}) },
+            orderBy: { updatedAt: 'desc' },
+          })
+        : Promise.resolve([]),
+      permisos.prestamos
+        ? this.prisma.prestamo.findMany({
+            where: { empresaId, ...(updatedSince ?? {}) },
+            include: prestamoInclude,
+          })
+        : Promise.resolve([]),
+      permisos.rutas
+        ? this.prisma.ruta.findMany({
+            where: rutaWhere,
+            include: {
+              usuario: { select: { id: true, nombre: true } },
+              clientes: {
+                select: {
+                  id: true,
+                  clienteId: true,
+                  orden: true,
+                  observacion: true,
+                  visitadoHoy: true,
+                  ultimaVisita: true,
+                  fechaRuta: true,
+                },
+              },
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : Promise.resolve([]),
+      permisos.rutas
+        ? this.prisma.rutaCliente.findMany({
+            where: rutaClienteWhere,
+            orderBy: { updatedAt: 'desc' },
+          })
+        : Promise.resolve([]),
     ]);
 
-    const configuracion = await this.getConfiguracion(empresaId);
+    const configuracion = permisos.configuracion
+      ? await this.getConfiguracion(empresaId)
+      : null;
 
     // Paridad con prestamos.listar/findOne: saldoPendiente y moraAcumulada se
     // calculan desde las cuotas pendientes (la columna no es fuente de verdad).

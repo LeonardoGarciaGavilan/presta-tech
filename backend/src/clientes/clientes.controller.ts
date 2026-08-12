@@ -24,7 +24,7 @@ import { Roles } from '../auth/roles/roles.decorator';
 import { PermisosGuard } from '../common/guards/permisos.guard';
 import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
-import { Modulo } from '../common/permisos/permisos.decorator';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
 import { Throttle } from '@nestjs/throttler';
@@ -37,6 +37,7 @@ export class ClientesController {
 
   @Post()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:crear')
   @Idempotent()
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   create(@Body() dto: CreateClienteDto, @Tenant() empresaId: string) {
@@ -45,6 +46,7 @@ export class ClientesController {
 
   @Get()
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:ver')
   findAll(
     @Tenant() empresaId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -64,7 +66,8 @@ export class ClientesController {
   }
 
   @Get('inactivos')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:ver')
   findInactivos(
     @Tenant() empresaId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -82,12 +85,14 @@ export class ClientesController {
 
   @Get(':id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:ver')
   findOne(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.clientesService.findOne(id, empresaId);
   }
 
   @Patch(':id')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:editar')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateClienteDto,
@@ -97,19 +102,22 @@ export class ClientesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:desactivar')
   remove(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.clientesService.remove(id, empresaId);
   }
 
   @Patch(':id/reactivar')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:desactivar')
   reaccionar(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.clientesService.reactivar(id, empresaId);
   }
 
   @Post(':id/cedula')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:editar')
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 5 * 1024 * 1024 },
@@ -150,15 +158,9 @@ export class ClientesController {
     );
   }
 
-  @Post('test-upload')
-  @UseInterceptors(FileInterceptor('file'))
-  test(@UploadedFile() file: any) {
-    console.log(file);
-    return file;
-  }
-
   @Get(':id/cedula/signed-url')
   @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('clientes:ver')
   getCedulaSignedUrl(
     @Param('id') id: string,
     @Tenant() empresaId: string,
