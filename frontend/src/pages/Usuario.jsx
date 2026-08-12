@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Animaciones — inyectadas una sola vez fuera del componente ───────────────
 if (
@@ -111,7 +112,7 @@ const inputCls =
 const labelCls = "block text-xs font-semibold text-gray-600 mb-1.5";
 
 // ─── Tarjeta móvil de usuario ─────────────────────────────────────────────────
-function UsuarioCard({ u, authUser, onEditar, onReset, onToggle, onPermisos }) {
+function UsuarioCard({ u, authUser, onEditar, onReset, onToggle, onPermisos, puedeGestionar }) {
   const rolCfg = ROL_CFG[u.rol] ?? ROL_CFG.EMPLEADO;
   const esYo = u.id === authUser?.id;
   const tienePermisosCustom =
@@ -150,21 +151,23 @@ function UsuarioCard({ u, authUser, onEditar, onReset, onToggle, onPermisos }) {
         >
           {rolCfg.label}
         </span>
-        <button
-          onClick={() => onToggle(u)}
-          disabled={esYo}
-          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all disabled:cursor-not-allowed
-            ${
-              u.activo
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
-            }`}
-        >
-          <div
-            className={`w-1.5 h-1.5 rounded-full ${u.activo ? "bg-emerald-500" : "bg-gray-400"}`}
-          />
-          {u.activo ? "Activo" : "Inactivo"}
-        </button>
+        {puedeGestionar && (
+          <button
+            onClick={() => onToggle(u)}
+            disabled={esYo}
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all disabled:cursor-not-allowed
+              ${
+                u.activo
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                  : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+              }`}
+          >
+            <div
+              className={`w-1.5 h-1.5 rounded-full ${u.activo ? "bg-emerald-500" : "bg-gray-400"}`}
+            />
+            {u.activo ? "Activo" : "Inactivo"}
+          </button>
+        )}
         {u.debeCambiarPassword && (
           <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
             ⏳ Temporal
@@ -177,7 +180,7 @@ function UsuarioCard({ u, authUser, onEditar, onReset, onToggle, onPermisos }) {
         )}
       </div>
       {/* Acciones */}
-      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-50">
+      <div className={`grid grid-cols-3 gap-2 pt-1 border-t border-gray-50 ${puedeGestionar ? "" : "hidden"}`}>
         <button
           onClick={() => onPermisos(u)}
           className="flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-colors active:scale-95"
@@ -248,6 +251,7 @@ function UsuarioCard({ u, authUser, onEditar, onReset, onToggle, onPermisos }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function Usuarios() {
   const { user: authUser } = useAuth();
+  const puedeGestionar = tienePermiso(authUser, "usuarios:gestionar");
   const navigate = useNavigate();
 
   const [usuarios, setUsuarios] = useState([]);
@@ -427,26 +431,28 @@ export default function Usuarios() {
               Gestiona el acceso al sistema
             </p>
           </div>
-          <button
-            onClick={() => setModalCrear(true)}
-            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all active:scale-95 whitespace-nowrap"
-          >
-            <svg
-              className="w-4 h-4 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
+          {puedeGestionar && (
+            <button
+              onClick={() => setModalCrear(true)}
+              className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all active:scale-95 whitespace-nowrap"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            <span className="hidden xs:inline">Nuevo usuario</span>
-            <span className="xs:hidden">Nuevo</span>
-          </button>
+              <svg
+                className="w-4 h-4 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="hidden xs:inline">Nuevo usuario</span>
+              <span className="xs:hidden">Nuevo</span>
+            </button>
+          )}
         </div>
 
         {/* ── Stats ── */}
@@ -600,6 +606,7 @@ export default function Usuarios() {
                 onReset={(u) => setModalReset(u)}
                 onToggle={handleToggleActivo}
                 onPermisos={(u) => navigate(`/usuarios/${u.id}/permisos`)}
+                puedeGestionar={puedeGestionar}
               />
             ))
           )}
@@ -677,28 +684,30 @@ export default function Usuarios() {
                           </span>
                         </td>
                         <td className="px-5 py-3.5">
-                          <button
-                            onClick={() => handleToggleActivo(u)}
-                            disabled={esYo}
-                            title={
-                              esYo
-                                ? "No puedes desactivarte a ti mismo"
-                                : u.activo
-                                  ? "Clic para desactivar"
-                                  : "Clic para activar"
-                            }
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all disabled:cursor-not-allowed
-                              ${
-                                u.activo
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                  : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
-                              }`}
-                          >
-                            <div
-                              className={`w-1.5 h-1.5 rounded-full ${u.activo ? "bg-emerald-500" : "bg-gray-400"}`}
-                            />
-                            {u.activo ? "Activo" : "Inactivo"}
-                          </button>
+                          {puedeGestionar && (
+                            <button
+                              onClick={() => handleToggleActivo(u)}
+                              disabled={esYo}
+                              title={
+                                esYo
+                                  ? "No puedes desactivarte a ti mismo"
+                                  : u.activo
+                                    ? "Clic para desactivar"
+                                    : "Clic para activar"
+                              }
+                              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all disabled:cursor-not-allowed
+                                ${
+                                  u.activo
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                                    : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+                                }`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full ${u.activo ? "bg-emerald-500" : "bg-gray-400"}`}
+                              />
+                              {u.activo ? "Activo" : "Inactivo"}
+                            </button>
+                          )}
                         </td>
                         <td className="px-5 py-3.5">
                           {u.debeCambiarPassword ? (
@@ -715,6 +724,7 @@ export default function Usuarios() {
                           {formatDate(u.createdAt)}
                         </td>
                         <td className="px-5 py-3.5">
+                          {puedeGestionar && (
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() =>
@@ -781,6 +791,7 @@ export default function Usuarios() {
                               </svg>
                             </button>
                           </div>
+                          )}
                         </td>
                       </tr>
                     );

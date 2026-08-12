@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Animaciones — inyectadas una sola vez fuera del componente ───────────────
 if (typeof document !== "undefined" && !document.getElementById("perfil-styles")) {
@@ -99,7 +100,7 @@ const ROL_BADGE = {
 
 export default function Perfil() {
   const { user: authUser } = useAuth();
-  const isAdmin = authUser?.rol === "ADMIN";
+  const puedeEditarEmpresa = tienePermiso(authUser, "configuracion:editar");
 
   const [perfil,  setPerfil]  = useState(null);
   const [loading, setLoading] = useState(true);
@@ -269,8 +270,8 @@ export default function Perfil() {
           </form>
         </SectionCard>
 
-        {/* ── Empresa — solo ADMIN ── */}
-        {isAdmin && (
+        {/* ── Empresa — solo con configuracion:editar ── */}
+        {puedeEditarEmpresa && (
           <SectionCard title="Datos de la empresa" description="Solo el administrador puede modificar estos datos" icon="🏢">
             <form onSubmit={handleGuardarEmpresa} className="space-y-4">
               <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4">

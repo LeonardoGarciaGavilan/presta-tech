@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import EstadoCuenta from "../components/EstadoCuenta";
 import MiniMapa from "../components/MiniMapa";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 import { PROVINCIAS_MUNICIPIOS, PROVINCIAS } from "../utils/provincias-municipios";
 import { getSectores } from "../utils/sectores-municipios";
 import CedulaUploader from "../components/clientes/CedulaUploader";
@@ -107,7 +109,7 @@ const Paginacion = ({ pagina, totalPaginas, total, porPagina, onChange, loading 
 };
 
 // ─── Tarjeta móvil ────────────────────────────────────────────────────────────
-const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelete, onReactivar, onPerfil }) => (
+const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelete, onReactivar, onPerfil, puedeEditar, puedeDesactivar }) => (
   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
     <div className="flex items-start justify-between gap-2">
       <div>
@@ -165,39 +167,45 @@ const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelet
           </button>
 
           {/* Editar */}
-          <button
-            onClick={() => onEdit(cliente)}
-            title="Editar cliente"
-            className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-            </svg>
-            {/* <span className="text-[10px] font-medium">Editar</span> */}
-          </button>
+          {puedeEditar && (
+            <button
+              onClick={() => onEdit(cliente)}
+              title="Editar cliente"
+              className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+              </svg>
+              {/* <span className="text-[10px] font-medium">Editar</span> */}
+            </button>
+          )}
 
           {/* Desactivar */}
-          <button
-            onClick={() => onDelete(cliente)}
-            title="Desactivar cliente"
-            className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            {/* <span className="text-[10px] font-medium">Desactivar</span> */}
-          </button>
+          {puedeDesactivar && (
+            <button
+              onClick={() => onDelete(cliente)}
+              title="Desactivar cliente"
+              className="flex-1 inline-flex flex-col items-center gap-1 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              {/* <span className="text-[10px] font-medium">Desactivar</span> */}
+            </button>
+          )}
         </>
       ) : (
-        <button
-          onClick={() => onReactivar(cliente)}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-          </svg>
-          Reactivar
-        </button>
+        puedeDesactivar && (
+          <button
+            onClick={() => onReactivar(cliente)}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            Reactivar
+          </button>
+        )
       )}
     </div>
   </div>
@@ -206,6 +214,10 @@ const TarjetaCliente = ({ cliente, verInactivos, onEstadoCuenta, onEdit, onDelet
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Clientes() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const puedeCrear       = tienePermiso(user, "clientes:crear");
+  const puedeEditar      = tienePermiso(user, "clientes:editar");
+  const puedeDesactivar  = tienePermiso(user, "clientes:desactivar");
 
   // ── Estado paginación server-side ──
   const [clientes,       setClientes]       = useState([]);
@@ -577,11 +589,13 @@ export default function Clientes() {
               {totalClientes} {verInactivos ? "inactivos" : "activos"} en total
             </p>
           </div>
-          <button onClick={openNewModal}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all w-full sm:w-auto justify-center">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Nuevo Cliente
-          </button>
+          {puedeCrear && (
+            <button onClick={openNewModal}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all w-full sm:w-auto justify-center">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              Nuevo Cliente
+            </button>
+          )}
         </div>
 
         {/* Tabla */}
@@ -656,11 +670,11 @@ export default function Clientes() {
                               <>
                                 <button onClick={() => navigate(`/clientes/${c.id}`)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200">Perfil</button>
                                 <button onClick={() => setEstadoCuentaId(c.id)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200"><span className="hidden lg:inline">Estado de Cuenta</span><span className="lg:hidden">Estado</span></button>
-                                <button onClick={() => handleEdit(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>
-                                <button onClick={() => handleDelete(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>
+                                {puedeEditar && <button onClick={() => handleEdit(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>}
+                                {puedeDesactivar && <button onClick={() => handleDelete(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>}
                               </>
                             ) : (
-                              <button onClick={() => handleReactivar(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
+                              puedeDesactivar && <button onClick={() => handleReactivar(c)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
                             )}
                           </div>
                         </td>
@@ -677,7 +691,8 @@ export default function Clientes() {
                     <TarjetaCliente cliente={c} verInactivos={verInactivos}
                       onEstadoCuenta={setEstadoCuentaId} onEdit={handleEdit}
                       onDelete={handleDelete} onReactivar={handleReactivar}
-                      onPerfil={(id) => navigate(`/clientes/${id}`)} />
+                      onPerfil={(id) => navigate(`/clientes/${id}`)}
+                      puedeEditar={puedeEditar} puedeDesactivar={puedeDesactivar} />
                   </div>
                 ))}
               </div>

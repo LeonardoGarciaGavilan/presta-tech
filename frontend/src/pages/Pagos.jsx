@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 import { formatCurrency, formatDate, formatCedula, EstadoBadge, FRECUENCIA_LABEL } from "../utils/prestamosUtils";
 import ReciboPago from "./recibopago";
 
@@ -185,6 +187,8 @@ export default function Pagos() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchRef = useRef(null);
+  const { user } = useAuth();
+  const puedeRegistrar = tienePermiso(user, "pagos:registrar");
 
   const [resumen, setResumen] = useState(null);
   const [searchText, setSearchText] = useState("");
@@ -538,7 +542,7 @@ const seleccionarPrestamo = async (prestamo) => {
 
         {/* ── Tabs móvil ── */}
         <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-white lg:hidden">
-          {[["form", "Registrar Pago"], ["recientes", "Pagos Recientes"]].map(([k, l]) => (
+          {(puedeRegistrar ? [["form", "Registrar Pago"], ["recientes", "Pagos Recientes"]] : [["recientes", "Pagos Recientes"]]).map(([k, l]) => (
             <button key={k} onClick={() => setTabMobile(k)}
               className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${tabMobile === k ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
               {l}
@@ -553,7 +557,7 @@ const seleccionarPrestamo = async (prestamo) => {
               PANEL IZQUIERDO — Formulario
           ════════════════════════════════ */}
           <div className={`lg:col-span-3 space-y-4 ${tabMobile === "form" ? "block" : "hidden lg:block"} ${!loadingCaja && !cajaAbierta ? "pointer-events-none opacity-50 select-none" : ""}`}>
-
+            {puedeRegistrar ? (<>
             {/* Buscar préstamo */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5">
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Préstamo</h2>
@@ -761,6 +765,13 @@ const seleccionarPrestamo = async (prestamo) => {
                   </button>
                 </div>
               </form>
+            )}
+            </>) : (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-center">
+                <div className="text-4xl mb-2">🔒</div>
+                <p className="text-sm font-semibold text-gray-700">No tienes permiso para registrar pagos</p>
+                <p className="text-xs text-gray-400 mt-1">Contacta al administrador para gestionar tu acceso.</p>
+              </div>
             )}
           </div>
 

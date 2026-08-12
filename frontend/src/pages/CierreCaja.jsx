@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n = 0) =>
@@ -251,7 +252,7 @@ const EstadoCajaBadge = ({ estado }) =>
     : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-bold border border-gray-200"><span className="w-1.5 h-1.5 rounded-full bg-gray-400"/>Cerrada</span>;
 
 // ─── PDF del cierre ───────────────────────────────────────────────────────────
-const imprimirCierre = (caja, resumenDia, empresa, isAdmin) => {
+const imprimirCierre = (caja, resumenDia, empresa, puedeAjustar) => {
   const pagosPorMetodo     = caja?.resumen?.pagosPorMetodo ?? resumenDia?.pagosPorMetodo ?? {};
   const pagos              = caja?.resumen?.pagos ?? resumenDia?.pagos ?? [];
   const desembolsos        = caja?.resumen?.desembolsos ?? resumenDia?.desembolsos ?? [];
@@ -327,7 +328,7 @@ const imprimirCierre = (caja, resumenDia, empresa, isAdmin) => {
     <div class="header">
       <h1>${empresa}</h1>
       <p>Arqueo de Caja · ${fmtFechaLarga(fecha)}</p>
-      ${isAdmin ? "" : `<p style="margin-top:3px">Cajero: <strong>${cajero}</strong></p>`}
+      ${puedeAjustar ? "" : `<p style="margin-top:3px">Cajero: <strong>${cajero}</strong></p>`}
     </div>
     <div class="section">
       <div class="section-title">Resumen del día</div>
@@ -335,7 +336,7 @@ const imprimirCierre = (caja, resumenDia, empresa, isAdmin) => {
         <div class="info-card"><div class="label">Total cobrado</div><div class="value" style="color:#059669">${fmtC(totalCobrado)}</div></div>
         <div class="info-card"><div class="label">En efectivo</div><div class="value" style="color:#2563eb">${fmtC(totalEfectivo)}</div></div>
         <div class="info-card"><div class="label">Total desembolsado</div><div class="value" style="color:#dc2626">${fmtC(totalDesembolsado)}</div></div>
-        ${isAdmin
+        ${puedeAjustar
           ? `<div class="info-card"><div class="label">Efectivo sistema</div><div class="value" style="color:#2563eb">${fmtC(efectivoSistema)}</div></div>`
           : `<div class="info-card"><div class="label">Monto inicial</div><div class="value">${fmtC(montoInicial)}</div></div>`
         }
@@ -376,7 +377,7 @@ const imprimirCierre = (caja, resumenDia, empresa, isAdmin) => {
 };
 
 // ─── Historial ────────────────────────────────────────────────────────────────
-const Historial = ({ isAdmin }) => {
+const Historial = ({ puedeAjustar }) => {
   const [historial,    setHistorial]    = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [pagina,       setPagina]       = useState(1);
@@ -428,7 +429,7 @@ const Historial = ({ isAdmin }) => {
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
                 <th className="px-4 py-3 text-left font-semibold">Fecha</th>
-                {isAdmin && <th className="px-4 py-3 text-left font-semibold">Cajero</th>}
+                {puedeAjustar && <th className="px-4 py-3 text-left font-semibold">Cajero</th>}
                 <th className="px-4 py-3 text-left font-semibold">Estado</th>
                 <th className="px-4 py-3 text-right font-semibold">Inicial</th>
                 <th className="px-4 py-3 text-right font-semibold">Cierre</th>
@@ -439,7 +440,7 @@ const Historial = ({ isAdmin }) => {
                 {paginados.map((c) => (
                   <tr key={c.id} className="hover:bg-blue-50/30 transition-colors">
                     <td className="px-4 py-3"><p className="font-semibold text-gray-800">{fmtFechaCorta(c.fecha)}</p><p className="text-xs text-gray-400 font-mono">{fmtHora(c.createdAt)}</p></td>
-                    {isAdmin && <td className="px-4 py-3 text-gray-700">{c.usuario?.nombre ?? "—"}</td>}
+                    {puedeAjustar && <td className="px-4 py-3 text-gray-700">{c.usuario?.nombre ?? "—"}</td>}
                     <td className="px-4 py-3"><EstadoCajaBadge estado={c.estado}/></td>
                     <td className="px-4 py-3 text-right text-gray-600">{fmt(c.montoInicial)}</td>
                     <td className="px-4 py-3 text-right text-gray-600">{c.montoCierre != null ? fmt(c.montoCierre) : "—"}</td>
@@ -460,7 +461,7 @@ const Historial = ({ isAdmin }) => {
             {paginados.map((c) => (
               <div key={c.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div><p className="font-bold text-gray-800">{fmtFechaCorta(c.fecha)}</p>{isAdmin && <p className="text-xs text-gray-400">{c.usuario?.nombre}</p>}</div>
+                  <div><p className="font-bold text-gray-800">{fmtFechaCorta(c.fecha)}</p>{puedeAjustar && <p className="text-xs text-gray-400">{c.usuario?.nombre}</p>}</div>
                   <EstadoCajaBadge estado={c.estado}/>
                 </div>
                 <div className="grid grid-cols-3 gap-1 text-[10px]">
@@ -505,7 +506,9 @@ const Historial = ({ isAdmin }) => {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function CierreCaja() {
   const { user } = useAuth();
-  const isAdmin  = user?.rol === "ADMIN";
+  const puedeAjustar  = tienePermiso(user, "caja:ajuste");
+  const puedeAbrir    = tienePermiso(user, "caja:abrir");
+  const puedeCerrar   = tienePermiso(user, "caja:cerrar");
   const hoy      = hoyStr();
   const empresa  = JSON.parse(localStorage.getItem("user") || "{}").empresa || "Sistema de Préstamos";
 
@@ -528,13 +531,13 @@ export default function CierreCaja() {
     try {
       const [cajaRes, resumenRes] = await Promise.all([
         api.get(`/caja/activa?fecha=${fecha}`),
-        isAdmin ? api.get(`/caja/resumen?fecha=${fecha}`) : Promise.resolve(null),
+        puedeAjustar ? api.get(`/caja/resumen?fecha=${fecha}`) : Promise.resolve(null),
       ]);
       setMiCaja(cajaRes.data);
       if (resumenRes) setResumenDia(resumenRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [fecha, isAdmin]);
+  }, [fecha, puedeAjustar]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -595,7 +598,7 @@ export default function CierreCaja() {
               {!esHoy && <button onClick={() => setFecha(hoy)} className="px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 whitespace-nowrap">Hoy</button>}
             </div>
             {(miCaja || resumenDia) && (
-              <button onClick={() => imprimirCierre(miCaja, resumenDia, empresa, isAdmin)}
+              <button onClick={() => imprimirCierre(miCaja, resumenDia, empresa, puedeAjustar)}
                 className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold border border-red-200 transition-all active:scale-95">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                 <span className="hidden sm:inline">Imprimir / </span>PDF
@@ -603,13 +606,13 @@ export default function CierreCaja() {
             )}
             {esHoy && (
               !miCaja
-                ? <button onClick={() => setModalAbrir(true)}
+                ? puedeAbrir && <button onClick={() => setModalAbrir(true)}
                     className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-sm transition-all active:scale-95">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
                     Abrir caja
                   </button>
                 : miCaja.estado === "ABIERTA"
-                  ? <button onClick={() => setModalCerrar(true)}
+                  ? puedeCerrar && <button onClick={() => setModalCerrar(true)}
                       className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-all active:scale-95">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                       Cerrar caja
@@ -635,7 +638,7 @@ export default function CierreCaja() {
         {tabPrincipal === "historial" && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
             <h2 className="text-sm font-bold text-gray-700 mb-4">Historial de sesiones de caja</h2>
-            <Historial isAdmin={isAdmin} />
+            <Historial puedeAjustar={puedeAjustar} />
           </div>
         )}
 
@@ -805,10 +808,12 @@ export default function CierreCaja() {
                   <div className="text-4xl mb-2">🔓</div>
                   <p className="font-bold text-amber-800">No tienes caja abierta hoy</p>
                   <p className="text-sm text-amber-600 mt-1">Abre tu caja para comenzar a registrar cobros del día</p>
-                  <button onClick={() => setModalAbrir(true)}
-                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold shadow-sm transition-all">
-                    Abrir caja ahora
-                  </button>
+                  {puedeAbrir && (
+                    <button onClick={() => setModalAbrir(true)}
+                      className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold shadow-sm transition-all">
+                      Abrir caja ahora
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-gray-400">
@@ -818,7 +823,7 @@ export default function CierreCaja() {
               )}
 
               {/* Vista Admin */}
-              {isAdmin && resumenDia && (
+              {puedeAjustar && resumenDia && (
                 <div className="space-y-4">
                   <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Resumen global del día</h2>
 

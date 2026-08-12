@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { formatCurrency, formatDate, formatCedula } from "../utils/prestamosUtils";
+import { tienePermiso } from "../utils/permisos";
 import { PROVINCIAS, PROVINCIAS_MUNICIPIOS } from "../utils/provincias-municipios";
 import ReciboPago from "./recibopago";
 import { usePago } from "../hooks/usePago";
@@ -1584,7 +1585,7 @@ const ModalGenerarDia = ({ orden, selDia, setSelDia, fechaDia, setFechaDia, gene
 };
 
 // ─── GestionRuta ──────────────────────────────────────────────────────────────
-const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar, isAdmin = false }) => {
+const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar, puedeAsignar = false }) => {
   const [det, setDet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mObs, setMObs] = useState(null);
@@ -1814,7 +1815,7 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
                 🗓️ <span className="hide-mobile">Ruta del día</span>
               </button>
             )}
-            {isAdmin && (
+            {puedeAsignar && (
               <button onClick={() => setModalAgregar(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-all active:scale-95">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -1864,8 +1865,8 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
 
         {loading ? <Spin /> : det?.clientes?.length === 0 ? (
           <EmptyState icon="👤" title="Esta ruta no tiene clientes"
-            subtitle={isAdmin ? "Agrega clientes para comenzar a organizar tus cobros" : "El administrador aún no ha agregado clientes a esta ruta"}
-            action={isAdmin ? () => setModalAgregar(true) : null} actionLabel="+ Agregar clientes" />
+            subtitle={puedeAsignar ? "Agrega clientes para comenzar a organizar tus cobros" : "El administrador aún no ha agregado clientes a esta ruta"}
+            action={puedeAsignar ? () => setModalAgregar(true) : null} actionLabel="+ Agregar clientes" />
         ) : clientesFiltrados.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
             <p className="text-3xl mb-2">🔍</p>
@@ -1939,7 +1940,7 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
                       </div>
                     </div>
 
-                    {isAdmin && (
+                    {puedeAsignar && (
                       <button onClick={() => quitar(rc.id)} className="w-8 h-8 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center shrink-0">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
@@ -1958,7 +1959,9 @@ const GestionRuta = ({ ruta, onVolver, showToast, modalAgregar, setModalAgregar,
 // ─── Rutas (main) ─────────────────────────────────────────────────────────────
 export default function Rutas() {
   const { user } = useAuth();
-  const isAdmin = user?.rol === "ADMIN";
+  const puedeCrear    = tienePermiso(user, "rutas:crear");
+  const puedeAsignar  = tienePermiso(user, "rutas:asignar");
+  const puedeEliminar = tienePermiso(user, "rutas:eliminar");
   const [rutas, setRutas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -1980,9 +1983,9 @@ export default function Rutas() {
   useEffect(() => { cargar(); }, [cargar]);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!puedeAsignar) return;
     api.get("/rutas/usuarios").then(r => setUsuarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-  }, [isAdmin]);
+  }, [puedeAsignar]);
 
   const crear = async ({ nombre, descripcion }) => {
     setSavN(true);
@@ -2027,7 +2030,7 @@ export default function Rutas() {
     <div className="rutas-root">
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       <GestionRuta ruta={vista.ruta} onVolver={() => { setVista(null); cargar(); setModalAgregar(false); }}
-        showToast={showToast} modalAgregar={modalAgregar} setModalAgregar={setModalAgregar} isAdmin={isAdmin} />
+        showToast={showToast} modalAgregar={modalAgregar} setModalAgregar={setModalAgregar} puedeAsignar={puedeAsignar} />
     </div>
   );
 
@@ -2042,7 +2045,7 @@ export default function Rutas() {
             <h1 className="text-2xl font-extrabold text-gray-900">Rutas</h1>
             <p className="text-sm text-gray-400 mt-0.5">Organiza tus zonas de cobro y clientes a visitar</p>
           </div>
-          {isAdmin && tabPrincipal === "rutas" && (
+          {puedeCrear && tabPrincipal === "rutas" && (
             <button onClick={() => setMNueva(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-all active:scale-95 shrink-0">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -2051,7 +2054,7 @@ export default function Rutas() {
           )}
         </div>
 
-        {isAdmin && (
+        {puedeAsignar && (
           <div className="flex gap-1.5 bg-gray-100 p-1 rounded-2xl w-fit">
             {[["rutas","🗺️ Rutas"],["cobradores","👥 Cobradores"]].map(([k,l]) => (
               <button key={k} onClick={() => setTabPrincipal(k)}
@@ -2083,7 +2086,7 @@ export default function Rutas() {
             {loading ? <Spin /> : rutas.length === 0 ? (
               <EmptyState icon="🗺️" title="No tienes rutas creadas"
                 subtitle="Crea una ruta para organizar los clientes que visitas cada día"
-                action={isAdmin ? () => setMNueva(true) : null} actionLabel="+ Crear primera ruta" />
+                action={puedeCrear ? () => setMNueva(true) : null} actionLabel="+ Crear primera ruta" />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {rutas.map((r, i) => (
@@ -2095,11 +2098,11 @@ export default function Rutas() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-extrabold text-gray-900 truncate text-base leading-tight">{r.nombre}</h3>
                           {r.descripcion && <p className="text-xs text-gray-400 mt-0.5 truncate">{r.descripcion}</p>}
-                          {isAdmin && r.usuario && (
+                          {puedeAsignar && r.usuario && (
                             <p className="text-xs text-blue-500 mt-1 font-semibold">👤 {r.usuario.nombre}</p>
                           )}
                         </div>
-                        {isAdmin && (
+                        {puedeEliminar && (
                           <button onClick={() => eliminar(r)}
                             className="w-8 h-8 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center shrink-0">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -2134,7 +2137,7 @@ export default function Rutas() {
           </>
         )}
 
-        {tabPrincipal === "cobradores" && isAdmin && (
+        {tabPrincipal === "cobradores" && puedeAsignar && (
           <div className="space-y-3">
             <p className="text-xs text-gray-400">Asigna un cobrador responsable a cada ruta. El cobrador solo verá sus rutas asignadas.</p>
             {loading ? <Spin /> : rutas.length === 0 ? (

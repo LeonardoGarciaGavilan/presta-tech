@@ -1,6 +1,8 @@
 //Gastos.jsx
 import { useState, useEffect, useCallback, useMemo } from "react";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Categorías predefinidas ──────────────────────────────────────────────────
 const CATEGORIAS = [
@@ -370,6 +372,10 @@ function GastoCard({ g, onEdit, onDelete, deleting }) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function Gastos() {
+  const { user } = useAuth();
+  const puedeCrear    = tienePermiso(user, "gastos:crear");
+  const puedeEditar   = tienePermiso(user, "gastos:editar");
+  const puedeEliminar = tienePermiso(user, "gastos:eliminar");
   const [gastos,   setGastos]   = useState([]);
   const [resumen,  setResumen]  = useState(null);
   const [loading,  setLoading]  = useState(true);
@@ -469,16 +475,18 @@ export default function Gastos() {
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Gastos</h1>
             <p className="text-xs sm:text-sm text-gray-400 mt-0.5">Control de gastos de la empresa</p>
           </div>
-          <button
-            onClick={() => setModal("nuevo")}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all whitespace-nowrap"
-          >
-            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="hidden xs:inline">Nuevo Gasto</span>
-            <span className="xs:hidden">Nuevo</span>
-          </button>
+          {puedeCrear && (
+            <button
+              onClick={() => setModal("nuevo")}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition-all whitespace-nowrap"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden xs:inline">Nuevo Gasto</span>
+              <span className="xs:hidden">Nuevo</span>
+            </button>
+          )}
         </div>
 
         {/* ── KPI cards ── */}
@@ -646,23 +654,27 @@ export default function Gastos() {
                         <td className="px-4 py-3 text-right font-bold text-red-600 whitespace-nowrap">{formatCurrency(g.monto)}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
-                            <button onClick={() => setModal(g)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200 transition-colors active:scale-95">
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                              Editar
-                            </button>
-                            <button onClick={() => handleDelete(g)} disabled={deleting === g.id}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200 transition-colors active:scale-95 disabled:opacity-50">
-                              {deleting === g.id
-                                ? <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                            {puedeEditar && (
+                              <button onClick={() => setModal(g)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200 transition-colors active:scale-95">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                                Editar
+                              </button>
+                            )}
+                            {puedeEliminar && (
+                              <button onClick={() => handleDelete(g)} disabled={deleting === g.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200 transition-colors active:scale-95 disabled:opacity-50">
+                                {deleting === g.id
+                                  ? <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
                                 : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                               }
                               Eliminar
                             </button>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { getSocket, connectSocket } from "../services/socket";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Config visual ────────────────────────────────────────────────────────────
 const TIPO_CONFIG = {
@@ -419,7 +420,7 @@ const SelectorFecha = ({ rango, onRango, loading }) => {
 export default function Alertas() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = user?.rol === "ADMIN";
+  const puedeVerAlertas = tienePermiso(user, "alertas:ver");
 
   const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -447,13 +448,13 @@ export default function Alertas() {
   }, []);
 
   useEffect(() => {
-    if (!isAdmin) { navigate("/dashboard"); return; }
+    if (!puedeVerAlertas) return;
     cargar(rango.desde, rango.hasta);
-  }, [isAdmin, navigate, cargar, rango.desde, rango.hasta]);
+  }, [puedeVerAlertas, cargar, rango.desde, rango.hasta]);
 
   // ── WebSocket: conectar y escuchar alertas en tiempo real ──────────────────
   useEffect(() => {
-    if (!isAdmin || !user?.empresaId) return;
+    if (!puedeVerAlertas || !user?.empresaId) return;
 
     connectSocket(user.empresaId);
     const socket = getSocket();
@@ -485,7 +486,7 @@ export default function Alertas() {
     return () => {
       socket.off("nueva_alerta", onNuevaAlerta);
     };
-  }, [isAdmin, user?.empresaId, rango.desde, rango.hasta]);
+  }, [puedeVerAlertas, user?.empresaId, rango.desde, rango.hasta]);
 
   // ── Acciones ───────────────────────────────────────────────────────────────
   const marcarLeidas = async (ids) => {

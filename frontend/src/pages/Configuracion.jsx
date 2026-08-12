@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Animaciones — inyectadas una sola vez fuera del componente ───────────────
 if (typeof document !== "undefined" && !document.getElementById("configuracion-styles")) {
@@ -70,7 +71,7 @@ const SuffixInput = ({ name, value, onChange, placeholder, step, min, max, suffi
 
 export default function Configuracion() {
   const { user } = useAuth();
-  const isAdmin  = user?.rol === "ADMIN";
+  const puedeEditar = tienePermiso(user, "configuracion:editar");
 
   const [form, setForm] = useState({
     tasaInteresBase:       "",
@@ -114,7 +115,7 @@ export default function Configuracion() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!puedeEditar) return;
     setSaving(true);
     try {
       await api.put("/configuracion", {
@@ -152,7 +153,7 @@ export default function Configuracion() {
         </div>
 
         {/* ── Aviso solo lectura ── */}
-        {!isAdmin && (
+        {!puedeEditar && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3 text-sm text-amber-700">
             <span className="text-lg shrink-0">🔒</span>
             Solo el administrador puede modificar la configuración. Estás en modo lectura.
@@ -160,7 +161,7 @@ export default function Configuracion() {
         )}
 
         {/* ── Aviso primer guardado ── */}
-        {!hasConfig && isAdmin && (
+        {!hasConfig && puedeEditar && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3 text-sm text-blue-700">
             <span className="text-lg shrink-0">ℹ️</span>
             La configuración aún no ha sido guardada. Completa los campos y guarda para activar las reglas del sistema.
@@ -180,7 +181,7 @@ export default function Configuracion() {
                 <label className={labelCls}>Tasa de interés base</label>
                 <SuffixInput
                   name="tasaInteresBase" value={form.tasaInteresBase} onChange={handleChange}
-                  placeholder="0.00" step="0.01" min="0" max="100" suffix="%" disabled={!isAdmin}
+                  placeholder="0.00" step="0.01" min="0" max="100" suffix="%" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Se usa como sugerencia al crear un préstamo</p>
               </div>
@@ -188,7 +189,7 @@ export default function Configuracion() {
                 <label className={labelCls}>Porcentaje de mora</label>
                 <SuffixInput
                   name="moraPorcentajeMensual" value={form.moraPorcentajeMensual} onChange={handleChange}
-                  placeholder="0.00" step="0.01" min="0" max="100" suffix="%" disabled={!isAdmin}
+                  placeholder="0.00" step="0.01" min="0" max="100" suffix="%" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Se aplica una sola vez tras los días de gracia</p>
               </div>
@@ -206,7 +207,7 @@ export default function Configuracion() {
                 <label className={labelCls}>Días de gracia</label>
                 <SuffixInput
                   name="diasGracia" value={form.diasGracia} onChange={handleChange}
-                  placeholder="5" step="1" min="0" max="30" suffix="días" disabled={!isAdmin}
+                  placeholder="5" step="1" min="0" max="30" suffix="días" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Días después del vencimiento antes de aplicar mora</p>
               </div>
@@ -216,8 +217,8 @@ export default function Configuracion() {
                   ${form.permitirAbonoCapital ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"}`}>
                   <button
                     type="button"
-                    onClick={() => isAdmin && setForm((p) => ({ ...p, permitirAbonoCapital: !p.permitirAbonoCapital }))}
-                    disabled={!isAdmin}
+                    onClick={() => puedeEditar && setForm((p) => ({ ...p, permitirAbonoCapital: !p.permitirAbonoCapital }))}
+                    disabled={!puedeEditar}
                     className={`relative w-10 h-5 rounded-full transition-colors shrink-0 focus:outline-none disabled:cursor-not-allowed
                       ${form.permitirAbonoCapital ? "bg-emerald-500" : "bg-gray-300"}`}
                   >
@@ -246,7 +247,7 @@ export default function Configuracion() {
                 <label className={labelCls}>Monto mínimo de préstamo</label>
                 <SuffixInput
                   name="montoMinimoPrestamo" value={form.montoMinimoPrestamo} onChange={handleChange}
-                  placeholder="500" step="1" min="0" suffix="RD$" disabled={!isAdmin}
+                  placeholder="500" step="1" min="0" suffix="RD$" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Monto mínimo para nuevos préstamos (dejar vacío = RD$500 por defecto)</p>
               </div>
@@ -254,7 +255,7 @@ export default function Configuracion() {
                 <label className={labelCls}>Monto máximo de préstamo</label>
                 <SuffixInput
                   name="montoMaximoPrestamo" value={form.montoMaximoPrestamo} onChange={handleChange}
-                  placeholder="Sin límite" step="1" min="0" suffix="RD$" disabled={!isAdmin}
+                  placeholder="Sin límite" step="1" min="0" suffix="RD$" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Dejar vacío para no establecer límite</p>
               </div>
@@ -262,7 +263,7 @@ export default function Configuracion() {
                 <label className={labelCls}>Monto máximo por pago</label>
                 <SuffixInput
                   name="montoMaximoPago" value={form.montoMaximoPago} onChange={handleChange}
-                  placeholder="Sin límite" step="1" min="0" suffix="RD$" disabled={!isAdmin}
+                  placeholder="Sin límite" step="1" min="0" suffix="RD$" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Límite por transacción de pago (dejar vacío para no establecer límite)</p>
               </div>
@@ -288,7 +289,7 @@ export default function Configuracion() {
           </div>
 
           {/* ── Botón guardar — ancho completo en móvil ── */}
-          {isAdmin && (
+          {puedeEditar && (
             <div className="flex justify-stretch sm:justify-end">
               <button
                 type="submit" disabled={saving}

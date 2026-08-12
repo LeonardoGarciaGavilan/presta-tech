@@ -1,10 +1,11 @@
 // src/App.jsx
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import CambiarPassword from "./pages/CambiarPassword";
 import Dashboard from "./pages/Dashboard";
 import DashboardLayout from "./layout/DashboardLayout";
-import ProtectedRoute from "./components/ProtectedRoute";
+import PermisoRoute from "./components/PermisoRoute";
+import { permisoDeRuta } from "./utils/rutaPermisos";
 import Clientes from "./pages/Clientes";
 import ClienteDetalle from "./pages/ClienteDetalle";
 import Prestamos from "./pages/Prestamos";
@@ -36,8 +37,7 @@ function SuperAdminRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user || user.rol !== "SUPERADMIN") {
-    window.location.href = "/";
-    return null;
+    return <Navigate to="/" replace />;
   }
   return children;
 }
@@ -66,221 +66,221 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/dashboard")}>
               <DashboardLayout>
                 <Dashboard />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/clientes"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/clientes")}>
               <DashboardLayout>
                 <Clientes />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/clientes/:id"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/clientes")}>
               <DashboardLayout>
                 <ClienteDetalle />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/prestamos"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/prestamos")}>
               <DashboardLayout>
                 <Prestamos />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/prestamos/nuevo"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/prestamos/nuevo")}>
               <DashboardLayout>
                 <NuevoPrestamo />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/prestamos/:id"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/prestamos")}>
               <DashboardLayout>
                 <DetallePrestamo />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/pagos"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/pagos")}>
               <DashboardLayout>
                 <Pagos />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/configuracion"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/configuracion")}>
               <DashboardLayout>
                 <Configuracion />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/perfil"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/perfil")}>
               <DashboardLayout>
                 <Perfil />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/usuarios"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/usuarios")}>
               <DashboardLayout>
                 <Usuarios />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/usuarios/:id/permisos"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/usuarios/:id/permisos")}>
               <DashboardLayout>
                 <Permisos />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/reportes"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/reportes")}>
               <DashboardLayout>
                 <Reportes />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/gastos"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/gastos")}>
               <DashboardLayout>
                 <Gastos />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/amortizacion"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/amortizacion")}>
               <DashboardLayout>
                 <Amortizacion />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/caja"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/caja")}>
               <DashboardLayout>
                 <CierreCaja />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/rutas"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/rutas")}>
               <DashboardLayout>
                 <Rutas />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/alertas"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/alertas")}>
               <DashboardLayout>
                 <Alertas />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/finanzas"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/finanzas")}>
               <DashboardLayout>
                 <Finanzas />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/analisis-rutas"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/analisis-rutas")}>
               <DashboardLayout>
                 <AnalisisRutas />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/empleados"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/empleados")}>
               <DashboardLayout>
                 <Empleados />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/auditoria"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/auditoria")}>
               <DashboardLayout>
                 <Auditoria />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
         <Route
           path="/control-cajas"
           element={
-            <ProtectedRoute>
+            <PermisoRoute permiso={permisoDeRuta("/control-cajas")}>
               <DashboardLayout>
                 <ControlCajas />
               </DashboardLayout>
-            </ProtectedRoute>
+            </PermisoRoute>
           }
         />
 

@@ -107,6 +107,29 @@ export function AuthProvider({ children }) {
 
  const initializedRef = useRef(false);
  const isAuthenticatedRef = useRef(false);
+ const authVersionRef = useRef(null);
+ const [authVersion, setAuthVersion] = useState(null);
+
+
+ // ─── APLICAR USUARIO DESDE /auth/me ────────────────────────────────────────
+ // Centraliza el setUser + caché y detecta cambios de authVersion (permisos
+ // modificados por un admin). Si cambió, emite un evento para avisar en la UI.
+ const aplicarUsuario = useCallback((userData) => {
+   setUser(userData);
+   isAuthenticatedRef.current = true;
+   localStorage.setItem("user", JSON.stringify(userData));
+   const v = userData?.authVersion;
+   if (v !== undefined && v !== null) {
+     if (authVersionRef.current !== null && v !== authVersionRef.current) {
+       try {
+         window.dispatchEvent(new CustomEvent("permisos-cambiaros"));
+       } catch { /* entornos sin window */ }
+     }
+     authVersionRef.current = v;
+     setAuthVersion(v);
+   }
+   return userData;
+ }, []);
 
 
  const clearSession = useCallback(() => {
@@ -120,15 +143,11 @@ export function AuthProvider({ children }) {
 
 
  // ─── VALIDAR SESIÓN (solo lectura, sin side-effects destructivos) ─────────
- const validarSesion = useCallback(async (showErrors = false) => {
-   try {
-     const res = await api.get("/auth/me");
-     const userData = res.data;
-     setUser(userData);
-     isAuthenticatedRef.current = true;
-     localStorage.setItem("user", JSON.stringify(userData));
-     return userData;
-   } catch (err) {
+  const validarSesion = useCallback(async (showErrors = false) => {
+    try {
+      const res = await api.get("/auth/me");
+      return aplicarUsuario(res.data);
+    } catch (err) {
      // Solo limpiar si el servidor confirma 401 — errores de red no destruyen la sesión
      if (err.response?.status === 401) {
        localStorage.removeItem("user");
@@ -138,9 +157,10 @@ export function AuthProvider({ children }) {
      if (showErrors) {
        setError("Error de conexión o sesión inválida");
      }
-     return null;
-   }
- }, []);
+      return null;
+    }
+  }, [aplicarUsuario]);
+
 
 
  const logout = useCallback(() => {
@@ -209,47 +229,44 @@ export function AuthProvider({ children }) {
          const newToken = res.data?.access_token;
          if (newToken) {
            setAccessTokenGlobal(newToken);
-           const meRes = await api.get("/auth/me");
-           const userData = meRes.data;
-           setUser(userData);
-           isAuthenticatedRef.current = true;
-           localStorage.setItem("user", JSON.stringify(userData));
-         }
-       } catch {
-         // No hay cookie válida — usuario genuinamente no autenticado
-       }
-       setLoading(false);
-       return;
-     }
+          const meRes = await api.get("/auth/me");
+          aplicarUsuario(meRes.data);
+        }
+      } catch {
+        // No hay cookie válida — usuario genuinamente no autenticado
+      }
+      setLoading(false);
+      return;
+    }
 
 
-     // Hay caché: mostrar al usuario inmediatamente para evitar parpadeo
-     try {
-       const parsed = JSON.parse(cachedUser);
-       setUser(parsed);
-       isAuthenticatedRef.current = true;
-     } catch {
-       localStorage.removeItem("user");
-       setLoading(false);
-       return;
-     }
+    // Hay caché: mostrar al usuario inmediatamente para evitar parpadeo
+    try {
+      const parsed = JSON.parse(cachedUser);
+      setUser(parsed);
+      isAuthenticatedRef.current = true;
+      if (parsed?.authVersion !== undefined && parsed?.authVersion !== null) {
+        authVersionRef.current = parsed.authVersion;
+      }
+    } catch {
+      localStorage.removeItem("user");
+      setLoading(false);
+      return;
+    }
 
 
-     // IMPORTANTE: setLoading(false) va ANTES de la verificación en background.
-     // Así el usuario ve su pantalla de inmediato (con los datos cacheados)
-     // mientras se verifica la sesión silenciosamente detrás.
-     setLoading(false);
+    // IMPORTANTE: setLoading(false) va ANTES de la verificación en background.
+    // Así el usuario ve su pantalla de inmediato (con los datos cacheados)
+    // mientras se verifica la sesión silenciosamente detrás.
+    setLoading(false);
 
 
-     // Verificar sesión en background — el interceptor de api.js hace
-     // el refresh automático si el access token expiró antes de llamar /auth/me
-     try {
-       const res = await api.get("/auth/me");
-       const freshUser = res.data;
-       setUser(freshUser);
-       isAuthenticatedRef.current = true;
-       localStorage.setItem("user", JSON.stringify(freshUser));
-     } catch (err) {
+    // Verificar sesión en background — el interceptor de api.js hace
+    // el refresh automático si el access token expiró antes de llamar /auth/me
+    try {
+      const res = await api.get("/auth/me");
+      aplicarUsuario(res.data);
+    } catch (err) {
        if (err.response?.status === 401) {
          // Servidor confirmó sesión inválida (refresh también falló)
          localStorage.removeItem("user");
@@ -263,7 +280,7 @@ export function AuthProvider({ children }) {
 
 
    initAuth();
- }, []);
+ }, [aplicarUsuario]);
 
 
  // ─── VISIBILIDAD: al volver a la pestaña/app, verificar token ─────────────
@@ -280,18 +297,15 @@ export function AuthProvider({ children }) {
 
      // Sin token en memoria: el OS reinició el JS (PWA en background por mucho tiempo)
      // Intentar recuperar la sesión via /auth/me — el interceptor hará el refresh
-     if (!token) {
-       try {
-         const res = await api.get("/auth/me");
-         const freshUser = res.data;
-         setUser(freshUser);
-         isAuthenticatedRef.current = true;
-         localStorage.setItem("user", JSON.stringify(freshUser));
-       } catch {
-         // Si falla con 401, el interceptor de response ya llama clearSession
-       }
-       return;
-     }
+      if (!token) {
+        try {
+          const res = await api.get("/auth/me");
+          aplicarUsuario(res.data);
+        } catch {
+          // Si falla con 401, el interceptor de response ya llama clearSession
+        }
+        return;
+      }
 
 
      // Hay token: verificar si expira en menos de 5 minutos y refrescar proactivamente
@@ -313,7 +327,7 @@ export function AuthProvider({ children }) {
 
    document.addEventListener("visibilitychange", handleVisibility);
    return () => document.removeEventListener("visibilitychange", handleVisibility);
- }, []);
+ }, [aplicarUsuario]);
 
 
  const login = useCallback((userData, accessToken = null) => {
@@ -334,7 +348,7 @@ export function AuthProvider({ children }) {
 
 
  return (
-   <AuthContext.Provider value={{ user, login, logout, loading, error, refreshUser }}>
+   <AuthContext.Provider value={{ user, login, logout, loading, error, refreshUser, authVersion }}>
      {children}
      <LogoutModal
        isOpen={showLogoutModal}

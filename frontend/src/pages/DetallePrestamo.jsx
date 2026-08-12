@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { formatCurrency, formatDate, formatCedula, EstadoBadge } from "../utils/prestamosUtils";
+import { tienePermiso } from "../utils/permisos";
 import ReciboPago from "./recibopago";
 import RefinanciarModal from "../components/RefinanciarModal";
 
@@ -120,8 +121,10 @@ export default function DetallePrestamo() {
   const { id }       = useParams();
   const navigate     = useNavigate();
   const { user }     = useAuth();
-  const isAdmin      = user?.rol === "ADMIN";
   const userId       = user?.id ?? user?.sub ?? user?.userId;
+  const puedeDesembolsarPermiso = tienePermiso(user, "prestamos:desembolsar");
+  const puedeRefinanciarPermiso = tienePermiso(user, "prestamos:refinanciar");
+  const puedeCancelarPermiso    = tienePermiso(user, "prestamos:cancelar");
 
   const [prestamo,           setPrestamo]           = useState(null);
   const [loading,            setLoading]            = useState(true);
@@ -199,10 +202,10 @@ export default function DetallePrestamo() {
   const cuotasVencidas   = cuotasPendientes.filter((c) => new Date(c.fechaVencimiento) < new Date());
   const proximaCuota     = [...cuotasPendientes].sort((a, b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento))[0];
   const progresoPorc     = cuotas.length > 0 ? Math.round((cuotasPagadas.length / cuotas.length) * 100) : 0;
-  const puedeCancelar    = !["PAGADO", "CANCELADO"].includes(prestamo.estado);
-  const puedeRefinanciar = ["ACTIVO", "ATRASADO"].includes(prestamo.estado);
-  // Puede desembolsar: admin O el usuario que solicitó el préstamo
-  const puedeDesembolsar = prestamo.estado === "APROBADO" && (isAdmin || prestamo.solicitadoPor === userId);
+  const puedeCancelar    = !["PAGADO", "CANCELADO"].includes(prestamo.estado) && puedeCancelarPermiso;
+  const puedeRefinanciar = ["ACTIVO", "ATRASADO"].includes(prestamo.estado) && puedeRefinanciarPermiso;
+  // Puede desembolsar: quien tiene permiso O el usuario que solicitó el préstamo
+  const puedeDesembolsar = prestamo.estado === "APROBADO" && (puedeDesembolsarPermiso || prestamo.solicitadoPor === userId);
 
   const FILTROS_CUOTAS = [
     { id:"todas",      label:"Todas",      count: cuotas.length          },

@@ -7,6 +7,7 @@ import InstallPWAButton from "../components/InstallPWAButton";
 import api from "../services/api";
 import { connectSocket, disconnectSocket, getSocket } from "../services/socket";
 import { tienePermiso } from "../utils/permisos";
+import { permisoDeRuta } from "../utils/rutaPermisos";
 
 const IconDashboard = () => (
   <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -147,39 +148,39 @@ const NAV_SECTIONS = [
 
 // ─── ITEMS DEL SIDEBAR (ordenados por sección) ───────────────────────
 // Los items se renderizan agrupados según NAV_SECTIONS más arriba.
-// permiso: permiso efectivo requerido para ver el item ("" o ausente = siempre).
+// permiso: se deriva del mapa centralizado ruta→permiso (utils/rutaPermisos.js).
 // superAdminOnly: solo SUPERADMIN ve el item.
 // badge: habilita contador de alertas vía WebSocket.
 const NAV_ITEMS = [
   // PANEL
-  { to: "/dashboard",              label: "Dashboard",                Icon: IconDashboard,       permiso: "dashboard:ver" },
+  { to: "/dashboard",              label: "Dashboard",                Icon: IconDashboard,       permiso: permisoDeRuta("/dashboard") },
 
   // OPERACIONES
-  { to: "/clientes",               label: "Clientes",                 Icon: IconClientes,        permiso: "clientes:ver" },
-  { to: "/prestamos",              label: "Préstamos",                Icon: IconPrestamos,       permiso: "prestamos:ver" },
-  { to: "/pagos",                  label: "Pagos",                    Icon: IconPagos,           permiso: "pagos:ver" },
-  { to: "/caja",                   label: "Caja",                     Icon: IconCaja,            permiso: "caja:ver" },
-  { to: "/rutas",                  label: "Rutas de Cobro",           Icon: IconRuta,            permiso: "rutas:ver" },
+  { to: "/clientes",               label: "Clientes",                 Icon: IconClientes,        permiso: permisoDeRuta("/clientes") },
+  { to: "/prestamos",              label: "Préstamos",                Icon: IconPrestamos,       permiso: permisoDeRuta("/prestamos") },
+  { to: "/pagos",                  label: "Pagos",                    Icon: IconPagos,           permiso: permisoDeRuta("/pagos") },
+  { to: "/caja",                   label: "Caja",                     Icon: IconCaja,            permiso: permisoDeRuta("/caja") },
+  { to: "/rutas",                  label: "Rutas de Cobro",           Icon: IconRuta,            permiso: permisoDeRuta("/rutas") },
 
   // FINANZAS
-  { to: "/finanzas",               label: "Estado Financiero",        Icon: IconFinanzas,        permiso: "finanzas:ver" },
-  { to: "/control-cajas",          label: "Control de Caja",          Icon: IconCaja,            permiso: "caja:ajuste" },
-  { to: "/gastos",                 label: "Gastos",                   Icon: IconGastos,          permiso: "gastos:ver" },
-  { to: "/reportes",               label: "Reportes",                 Icon: IconReportes,        permiso: "reportes:exportar" },
+  { to: "/finanzas",               label: "Estado Financiero",        Icon: IconFinanzas,        permiso: permisoDeRuta("/finanzas") },
+  { to: "/control-cajas",          label: "Control de Caja",          Icon: IconCaja,            permiso: permisoDeRuta("/control-cajas") },
+  { to: "/gastos",                 label: "Gastos",                   Icon: IconGastos,          permiso: permisoDeRuta("/gastos") },
+  { to: "/reportes",               label: "Reportes",                 Icon: IconReportes,        permiso: permisoDeRuta("/reportes") },
 
   // HERRAMIENTAS
   { to: "/amortizacion",           label: "Simulador de Amortización", Icon: IconAmortizacion },
 
   // ADMINISTRACIÓN
-  { to: "/analisis-rutas",         label: "Análisis de Rutas",        Icon: IconAnalisisRutas,   permiso: "finanzas:ver" },
-  { to: "/usuarios",               label: "Usuarios",                 Icon: IconUsuario,         permiso: "usuarios:ver" },
-  { to: "/alertas",                label: "Buzón de Alertas",         Icon: IconAlertas,         permiso: "alertas:ver", badge: true },
-  { to: "/empleados",              label: "Empleados",                Icon: IconEmpleados,       permiso: "empleados:ver" },
-  { to: "/auditoria",              label: "Auditoría",                Icon: IconAuditoria,       permiso: "auditoria:ver" },
+  { to: "/analisis-rutas",         label: "Análisis de Rutas",        Icon: IconAnalisisRutas,   permiso: permisoDeRuta("/analisis-rutas") },
+  { to: "/usuarios",               label: "Usuarios",                 Icon: IconUsuario,         permiso: permisoDeRuta("/usuarios") },
+  { to: "/alertas",                label: "Buzón de Alertas",         Icon: IconAlertas,         permiso: permisoDeRuta("/alertas"), badge: true },
+  { to: "/empleados",              label: "Empleados",                Icon: IconEmpleados,       permiso: permisoDeRuta("/empleados") },
+  { to: "/auditoria",              label: "Auditoría",                Icon: IconAuditoria,       permiso: permisoDeRuta("/auditoria") },
 
   // CONFIGURACIÓN
   { to: "/perfil",                 label: "Perfil",                   Icon: IconPerfil },
-  { to: "/configuracion",          label: "Configuración",            Icon: IconConfig,          permiso: "configuracion:editar" },
+  { to: "/configuracion",          label: "Configuración",            Icon: IconConfig,          permiso: permisoDeRuta("/configuracion") },
   { to: "/superadmin/auditoria",   label: "Auditoría del Sistema",    Icon: IconAuditoria,       superAdminOnly: true },
 ];
 
@@ -275,6 +276,20 @@ export default function DashboardLayout({ children }) {
     window.addEventListener("resize", fn);
     return () => window.removeEventListener("resize", fn);
   }, []);
+
+  // ── Aviso cuando un admin cambió tus permisos (evento de AuthContext) ──────
+  const [avisoPermisos, setAvisoPermisos] = useState(false);
+  useEffect(() => {
+    const fn = () => setAvisoPermisos(true);
+    window.addEventListener("permisos-cambiaros", fn);
+    return () => window.removeEventListener("permisos-cambiaros", fn);
+  }, []);
+
+  useEffect(() => {
+    if (!avisoPermisos) return;
+    const t = setTimeout(() => setAvisoPermisos(false), 5000);
+    return () => clearTimeout(t);
+  }, [avisoPermisos]);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -434,6 +449,12 @@ export default function DashboardLayout({ children }) {
         </header>
 
         <div className="p-4 md:p-6">
+          {avisoPermisos && (
+            <div className="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+              <span className="text-lg shrink-0">🔄</span>
+              <p>Tus permisos fueron actualizados. La interfaz se ajustó automáticamente.</p>
+            </div>
+          )}
           {children}
         </div>
       </main>

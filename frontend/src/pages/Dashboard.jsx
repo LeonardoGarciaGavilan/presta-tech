@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import { formatCurrency } from "../utils/prestamosUtils";
+import { puedeVerRuta } from "../utils/rutaPermisos";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -87,7 +88,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-const ResumenEjecutivo = ({ resumen, cobradoHoy, navigate }) => {
+const ResumenEjecutivo = ({ resumen, cobradoHoy, navigate, puedeCobrar, puedeVerPrestamos }) => {
   const monto = resumen?.cobroEsperadoHoy?.monto || 0;
   const cuotas = resumen?.cobroEsperadoHoy?.cuotas || 0;
   const moraCritica = resumen?.moraCritica?.clientes || 0;
@@ -117,13 +118,15 @@ const ResumenEjecutivo = ({ resumen, cobradoHoy, navigate }) => {
           )}
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate("/pagos")}
-            className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Cobrar ahora
-          </button>
-          {moraCritica > 0 && (
+          {puedeCobrar && (
+            <button
+              onClick={() => navigate("/pagos")}
+              className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              Cobrar ahora
+            </button>
+          )}
+          {moraCritica > 0 && puedeVerPrestamos && (
             <button
               onClick={() => navigate("/prestamos?estado=atrasado")}
               className="px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700 border border-red-200 rounded-lg hover:bg-red-200 transition-colors"
@@ -140,6 +143,7 @@ const ResumenEjecutivo = ({ resumen, cobradoHoy, navigate }) => {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const puedeIr = (path) => puedeVerRuta(user, path);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -232,7 +236,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <ResumenEjecutivo resumen={d.resumen} cobradoHoy={d.pagosResumen?.cobradoHoy} navigate={navigate} />
+      <ResumenEjecutivo resumen={d.resumen} cobradoHoy={d.pagosResumen?.cobradoHoy} navigate={navigate}
+        puedeCobrar={puedeIr("/pagos")} puedeVerPrestamos={puedeIr("/prestamos")} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Cartera activa" value={formatCurrency(d.saldoPendienteTotal)} sub={null} icon="💼" accent="bg-blue-50" />
@@ -242,45 +247,53 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
-        <QuickActionCard
-          icon={<IconWrapper icon={Users} color="blue" />}
-          title="Clientes"
-          description="Gestiona tu cartera de clientes"
-          label={`${d.totalClientes} clientes`}
-          action="Abrir"
-          onClick={() => navigate("/clientes")}
-          color="blue"
-        />
+        {puedeIr("/clientes") && (
+          <QuickActionCard
+            icon={<IconWrapper icon={Users} color="blue" />}
+            title="Clientes"
+            description="Gestiona tu cartera de clientes"
+            label={`${d.totalClientes} clientes`}
+            action="Abrir"
+            onClick={() => navigate("/clientes")}
+            color="blue"
+          />
+        )}
 
-        <QuickActionCard
-          icon={<IconWrapper icon={HandCoins} color="green" />}
-          title="Nuevo préstamo"
-          description="Registrar nuevo préstamo"
-          label="Crear préstamo"
-          action="Abrir"
-          onClick={() => navigate("/prestamos/nuevo")}
-          color="green"
-        />
+        {puedeIr("/prestamos/nuevo") && (
+          <QuickActionCard
+            icon={<IconWrapper icon={HandCoins} color="green" />}
+            title="Nuevo préstamo"
+            description="Registrar nuevo préstamo"
+            label="Crear préstamo"
+            action="Abrir"
+            onClick={() => navigate("/prestamos/nuevo")}
+            color="green"
+          />
+        )}
 
-        <QuickActionCard
-          icon={<IconWrapper icon={AlertTriangle} color="red" />}
-          title="Atrasados"
-          description="Clientes con cuotas vencidas"
-          label={`${d.cantidades?.atrasados || 0} préstamos`}
-          action="Abrir"
-          onClick={() => navigate("/prestamos?estado=atrasado")}
-          color="red"
-        />
+        {puedeIr("/prestamos") && (
+          <QuickActionCard
+            icon={<IconWrapper icon={AlertTriangle} color="red" />}
+            title="Atrasados"
+            description="Clientes con cuotas vencidas"
+            label={`${d.cantidades?.atrasados || 0} préstamos`}
+            action="Abrir"
+            onClick={() => navigate("/prestamos?estado=atrasado")}
+            color="red"
+          />
+        )}
 
-        <QuickActionCard
-          icon={<IconWrapper icon={CreditCard} color="emerald" />}
-          title="Cobros"
-          description="Registrar pagos recibidos"
-          label={pagosHoy > 0 ? `${pagosHoy} hoy` : "Sin cobros hoy"}
-          action="Abrir"
-          onClick={() => navigate("/pagos")}
-          color="emerald"
-        />
+        {puedeIr("/pagos") && (
+          <QuickActionCard
+            icon={<IconWrapper icon={CreditCard} color="emerald" />}
+            title="Cobros"
+            description="Registrar pagos recibidos"
+            label={pagosHoy > 0 ? `${pagosHoy} hoy` : "Sin cobros hoy"}
+            action="Abrir"
+            onClick={() => navigate("/pagos")}
+            color="emerald"
+          />
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">

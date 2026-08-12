@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { tienePermiso } from '../utils/permisos';
 
 function ControlCajas() {
+  const { user } = useAuth();
+  const puedeAjustar = tienePermiso(user, "caja:ajuste");
   const [cajas, setCajas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -347,7 +351,7 @@ function ControlCajas() {
           </div>
         </div>
 
-        {caja.estado === 'ABIERTA' && (
+        {caja.estado === 'ABIERTA' && puedeAjustar && (
           <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
             <button
               onClick={() => setModalCerrar(caja)}

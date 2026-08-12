@@ -1,8 +1,8 @@
 // src/pages/Empleados.jsx
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n = 0) =>
@@ -84,10 +84,10 @@ const Modal = ({ title, onClose, children }) => (
 
 // ─── Tab navigation ───────────────────────────────────────────────────────────
 const TABS = [
-  { id: "empleados",  label: "Empleados",  icon: "👥" },
-  { id: "asistencia", label: "Asistencia", icon: "📋" },
-  { id: "pagos",      label: "Pagos",      icon: "💰" },
-  { id: "descuentos", label: "Descuentos", icon: "✂️"  },
+  { id: "empleados",  label: "Empleados",  icon: "👥",  permiso: "empleados:ver" },
+  { id: "asistencia", label: "Asistencia", icon: "📋",  permiso: "empleados:asistencia" },
+  { id: "pagos",      label: "Pagos",      icon: "💰",  permiso: "empleados:pagosSalario" },
+  { id: "descuentos", label: "Descuentos", icon: "✂️",  permiso: "empleados:pagosSalario" },
 ];
 
 // ─── Formulario empleado ──────────────────────────────────────────────────────
@@ -174,8 +174,10 @@ const FormEmpleado = ({ inicial, onGuardar, onCancelar, guardando }) => {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function Empleados() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const isAdmin = user?.rol === "ADMIN";
+
+  const tabsVisibles = TABS.filter(t => tienePermiso(user, t.permiso));
+  const puedeGestionar = tienePermiso(user, "empleados:gestionar");
+  const puedePagarSalario = tienePermiso(user, "empleados:pagosSalario");
 
   const [tab, setTab]               = useState("empleados");
   const [toast, setToast]           = useState(null);
@@ -206,11 +208,6 @@ export default function Empleados() {
   const [formDesc, setFormDesc]     = useState({ empleadoId: "", tipo: "TARDANZA", descripcion: "", monto: "" });
 
   const showToast = (msg, type = "success") => setToast({ message: msg, type });
-
-  // ── Protección de ruta ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isAdmin) navigate("/dashboard");
-  }, [isAdmin, navigate]);
 
   // ── Carga inicial ──────────────────────────────────────────────────────────
   const cargarEmpleados = useCallback(async () => {
@@ -529,7 +526,7 @@ export default function Empleados() {
             <p className="text-sm text-gray-400 mt-0.5">Gestión de personal, asistencia y nómina</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {tab === "empleados" && (
+            {tab === "empleados" && puedeGestionar && (
               <button onClick={() => setModalEmp("nuevo")}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-all active:scale-95">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -564,7 +561,7 @@ export default function Empleados() {
         {/* Tabs */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex border-b border-gray-100">
-            {TABS.map(t => (
+            {tabsVisibles.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex-1 py-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${tab === t.id ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
                 {t.icon} <span className="hidden sm:inline">{t.label}</span>
@@ -587,7 +584,7 @@ export default function Empleados() {
                 <div className="text-center py-16 text-gray-400">
                   <p className="text-4xl mb-3">👥</p>
                   <p className="font-semibold">No hay empleados {verInactivos ? "inactivos" : "activos"}</p>
-                  {!verInactivos && <button onClick={() => setModalEmp("nuevo")} className="mt-3 text-xs text-blue-500 hover:underline">Agregar el primero</button>}
+                  {!verInactivos && puedeGestionar && <button onClick={() => setModalEmp("nuevo")} className="mt-3 text-xs text-blue-500 hover:underline">Agregar el primero</button>}
                 </div>
               ) : (
                 <>
@@ -622,12 +619,12 @@ export default function Empleados() {
                               <div className="flex justify-end gap-2">
                                 {!verInactivos ? (
                                   <>
-                                    <button onClick={() => abrirModalPago(e.id)} className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Pagar</button>
-                                    <button onClick={() => setModalEmp(e)} className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>
-                                    <button onClick={() => handleDesactivar(e)} className="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>
+                                    {puedePagarSalario && <button onClick={() => abrirModalPago(e.id)} className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Pagar</button>}
+                                    {puedeGestionar && <button onClick={() => setModalEmp(e)} className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>}
+                                    {puedeGestionar && <button onClick={() => handleDesactivar(e)} className="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>}
                                   </>
                                 ) : (
-                                  <button onClick={() => handleReactivar(e)} className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
+                                  puedeGestionar && <button onClick={() => handleReactivar(e)} className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
                                 )}
                               </div>
                             </td>
@@ -651,12 +648,12 @@ export default function Empleados() {
                         <div className="flex gap-2 flex-wrap">
                           {!verInactivos ? (
                             <>
-                              <button onClick={() => abrirModalPago(e.id)} className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">Pagar</button>
-                              <button onClick={() => setModalEmp(e)} className="flex-1 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>
-                              <button onClick={() => handleDesactivar(e)} className="flex-1 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>
+                              {puedePagarSalario && <button onClick={() => abrirModalPago(e.id)} className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">Pagar</button>}
+                              {puedeGestionar && <button onClick={() => setModalEmp(e)} className="flex-1 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200">Editar</button>}
+                              {puedeGestionar && <button onClick={() => handleDesactivar(e)} className="flex-1 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-semibold border border-red-200">Desactivar</button>}
                             </>
                           ) : (
-                            <button onClick={() => handleReactivar(e)} className="w-full py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
+                            puedeGestionar && <button onClick={() => handleReactivar(e)} className="w-full py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">Reactivar</button>
                           )}
                         </div>
                       </div>

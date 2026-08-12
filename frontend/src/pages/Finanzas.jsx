@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 
 // ─── Formatters ────────────────────────────────────────────────────────────
 const fmt = (v) =>
@@ -257,7 +259,6 @@ function CapitalBreakdown({ capitalTotal, capitalRetirable, dineroEnCaja, dinero
 // ─── Distribution Bar ────────────────────────────────────────────────────────
 function DistributionBar({ capital, ganancias }) {
   const total = capital + ganancias;
-  const capitalPct = total > 0 ? (capital / total) * 100 : 0;
   const gananciasPct = total > 0 ? (ganancias / total) * 100 : 0;
 
   return (
@@ -490,6 +491,9 @@ function SectionHeader({ title, action }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Finanzas() {
+  const { user } = useAuth();
+  const puedeInyectar      = tienePermiso(user, "finanzas:inyeccionCapital");
+  const puedeRetirar       = tienePermiso(user, "finanzas:retiroGanancias");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -850,27 +854,32 @@ export default function Finanzas() {
 
         {/* Action Buttons */}
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-          <button
-            onClick={() => setModal("inyeccion")}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-bold whitespace-nowrap flex-shrink-0 hover:bg-blue-700 active:scale-95 transition-all shadow-sm shadow-blue-200"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Inyectar
-          </button>
-          <button
-            onClick={() => setModal("retiro")}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 text-white text-sm font-bold whitespace-nowrap flex-shrink-0 hover:bg-emerald-700 active:scale-95 transition-all shadow-sm shadow-emerald-200"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-            </svg>
-            Ganancias
-          </button>
-          <button
-            onClick={() => capitalRetirable > 0 && setModal("retiroCapital")}
-            disabled={capitalRetirable <= 0}
+          {puedeInyectar && (
+            <button
+              onClick={() => setModal("inyeccion")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 text-white text-sm font-bold whitespace-nowrap flex-shrink-0 hover:bg-blue-700 active:scale-95 transition-all shadow-sm shadow-blue-200"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Inyectar
+            </button>
+          )}
+          {puedeRetirar && (
+            <button
+              onClick={() => setModal("retiro")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 text-white text-sm font-bold whitespace-nowrap flex-shrink-0 hover:bg-emerald-700 active:scale-95 transition-all shadow-sm shadow-emerald-200"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              </svg>
+              Ganancias
+            </button>
+          )}
+          {puedeRetirar && (
+            <button
+              onClick={() => capitalRetirable > 0 && setModal("retiroCapital")}
+              disabled={capitalRetirable <= 0}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold whitespace-nowrap flex-shrink-0 transition-all ${
               capitalRetirable > 0
                 ? "bg-amber-500 text-white hover:bg-amber-600 active:scale-95 shadow-sm shadow-amber-200"
@@ -882,6 +891,7 @@ export default function Finanzas() {
             </svg>
             Capital
           </button>
+          )}
         </div>
 
         {/* Loading */}

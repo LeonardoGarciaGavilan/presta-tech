@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import TablaAmortizacionModal from "../components/TablaAmortizacionModal";
 import { useAuth } from "../context/AuthContext";
+import { tienePermiso } from "../utils/permisos";
 import {
   formatCurrency, formatDate, formatCedula,
   EstadoBadge, ESTADO_CONFIG, FRECUENCIA_LABEL,
@@ -159,12 +160,12 @@ const Paginacion = ({ pagina, totalPaginas, total, porPagina, onChange, loading 
 };
 
 // ── Tarjeta móvil ─────────────────────────────────────────────────────────────
-const TarjetaPrestamo = ({ p, isAdmin, userId, onPagar, onAmortizacion, onDetalle, onAccion, diasGracia = 0 }) => {
+const TarjetaPrestamo = ({ p, puedeRevisar, puedeAprobar, puedeDesembolsarPermiso, userId, onPagar, onAmortizacion, onDetalle, onAccion, diasGracia = 0 }) => {
   const cuota   = p.cuotas?.[0] ?? null;
   const vencida = cuota && (() => { const lim = new Date(cuota.fechaVencimiento); lim.setDate(lim.getDate() + diasGracia); return lim < new Date(); })();
   const esFlujo          = ESTADOS_FLUJO.includes(p.estado);
   const puedesPagar      = ["ACTIVO","ATRASADO"].includes(p.estado);
-  const puedeDesembolsar = p.estado === "APROBADO" && (isAdmin || p.solicitadoPor === userId);
+  const puedeDesembolsar = p.estado === "APROBADO" && (puedeDesembolsarPermiso || p.solicitadoPor === userId);
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
@@ -196,13 +197,17 @@ const TarjetaPrestamo = ({ p, isAdmin, userId, onPagar, onAmortizacion, onDetall
         )}
       </div>
       <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
-        {isAdmin && p.estado === "SOLICITADO" && (<>
+        {puedeRevisar && p.estado === "SOLICITADO" && (<>
           <button onClick={() => onAccion(p,"EN_REVISION")} className="flex-1 py-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">🔍 Revisar</button>
           <button onClick={() => onAccion(p,"RECHAZADO")}   className="flex-1 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">❌ Rechazar</button>
         </>)}
-        {isAdmin && p.estado === "EN_REVISION" && (<>
-          <button onClick={() => onAccion(p,"APROBADO")}  className="flex-1 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">✅ Aprobar</button>
-          <button onClick={() => onAccion(p,"RECHAZADO")} className="flex-1 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">❌ Rechazar</button>
+        {p.estado === "EN_REVISION" && (puedeRevisar || puedeAprobar) && (<>
+          {puedeAprobar && (
+            <button onClick={() => onAccion(p,"APROBADO")}  className="flex-1 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">✅ Aprobar</button>
+          )}
+          {puedeRevisar && (
+            <button onClick={() => onAccion(p,"RECHAZADO")} className="flex-1 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200">❌ Rechazar</button>
+          )}
         </>)}
         {/* Desembolsar: admin O el usuario que solicitó el préstamo */}
         {puedeDesembolsar && (
@@ -227,9 +232,11 @@ if (typeof document !== "undefined" && !document.getElementById("prestamos-style
 export default function Prestamos() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin  = user?.rol === "ADMIN";
   // Extraer userId de forma segura independiente de cómo venga el token
   const userId   = user?.id ?? user?.sub ?? user?.userId;
+  const puedeRevisar          = tienePermiso(user, "prestamos:revisar");
+  const puedeAprobar          = tienePermiso(user, "prestamos:aprobar");
+  const puedeDesembolsarPermiso = tienePermiso(user, "prestamos:desembolsar");
 
   const [prestamos,        setPrestamos]        = useState([]);
   const [totalPrestamos,   setTotalPrestamos]   = useState(0);
@@ -255,13 +262,13 @@ export default function Prestamos() {
   const fetchStatic = useCallback(async () => {
     try {
       const calls = [api.get("/prestamos/resumen"), api.get("/configuracion")];
-      if (isAdmin) calls.push(api.get("/prestamos/solicitudes"));
+      if (puedeRevisar) calls.push(api.get("/prestamos/solicitudes"));
       const [rRes, cfgRes, sRes] = await Promise.all(calls);
       setResumen(rRes.data);
       setDiasGracia(cfgRes.data?.diasGracia ?? 0);
       if (sRes) setSolicitudes(sRes.data);
     } catch (err) { console.error(err); }
-  }, [isAdmin]);
+  }, [puedeRevisar]);
 
   const fetchPrestamos = useCallback(async (pg = 1) => {
     setLoadingPrestamos(true);
@@ -321,8 +328,8 @@ export default function Prestamos() {
 
   const estadosFiltro    = ["TODOS","ACTIVO","ATRASADO","PAGADO","CANCELADO","SOLICITADO","EN_REVISION","APROBADO","RECHAZADO"];
   const puedesPagar      = (estado) => ["ACTIVO","ATRASADO"].includes(estado);
-  // Puede desembolsar: admin O el usuario que solicitó el préstamo
-  const puedeDesembolsar = (p) => p.estado === "APROBADO" && (isAdmin || p.solicitadoPor === userId);
+  // Puede desembolsar: con permiso O el usuario que solicitó el préstamo
+  const puedeDesembolsar = (p) => p.estado === "APROBADO" && (puedeDesembolsarPermiso || p.solicitadoPor === userId);
 
   return (
     <>
@@ -352,13 +359,13 @@ export default function Prestamos() {
             <StatCard label="Cartera activa"    value={formatCurrency(resumen.saldoPendienteTotal)} sub="Saldo pendiente total" color="blue" />
             <StatCard label="Préstamos activos" value={resumen.cantidades.activos} sub={`${resumen.cantidades.atrasados} atrasados`} color="emerald" />
             <StatCard label="Cuotas vencidas"   value={resumen.cuotasVencidasHoy} sub="Sin pagar hoy" color="red" />
-            {isAdmin && solicitudes.length > 0
+            {puedeRevisar && solicitudes.length > 0
               ? <StatCard label="Solicitudes" value={solicitudes.length} sub="Pendientes de gestión" color="sky" />
               : <StatCard label="Total prestado" value={formatCurrency(resumen.montoTotalPrestado)} sub="Capital en cartera" color="amber" />}
           </div>
         )}
 
-        {isAdmin && (
+        {puedeRevisar && (
           <div className="flex rounded-xl border border-gray-200 overflow-hidden bg-white">
             <button onClick={() => setTab("prestamos")}
               className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${tab === "prestamos" ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
@@ -377,7 +384,7 @@ export default function Prestamos() {
         )}
 
         {/* Tab solicitudes — solo admin */}
-        {isAdmin && tab === "solicitudes" && (
+        {puedeRevisar && tab === "solicitudes" && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 border-b border-gray-100">
               <h2 className="text-sm font-bold text-gray-700">Solicitudes pendientes de gestión</h2>
@@ -431,7 +438,7 @@ export default function Prestamos() {
                 </div>
                 <div className="sm:hidden divide-y divide-gray-50 p-3 space-y-3">
                   {solicitudes.map(p => (
-                    <TarjetaPrestamo key={p.id} p={p} isAdmin={isAdmin} userId={userId}
+                    <TarjetaPrestamo key={p.id} p={p} puedeRevisar={puedeRevisar} puedeAprobar={puedeAprobar} puedeDesembolsarPermiso={puedeDesembolsarPermiso} userId={userId}
                       onPagar={() => navigate(`/pagos?prestamoId=${p.id}`)}
                       onAmortizacion={() => setAmortizacionId(p.id)}
                       onDetalle={() => navigate(`/prestamos/${p.id}`)}
@@ -444,7 +451,7 @@ export default function Prestamos() {
         )}
 
         {/* Tab préstamos */}
-        {(!isAdmin || tab === "prestamos") && (
+        {(!puedeRevisar || tab === "prestamos") && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 border-b border-gray-100 space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
@@ -529,8 +536,8 @@ export default function Prestamos() {
                             <td className="px-4 py-3"><FlujoBadge estado={p.estado} /></td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex justify-end gap-1.5 flex-wrap">
-                                {isAdmin && p.estado === "SOLICITADO"  && <button onClick={() => setModalAccion({prestamo:p,accion:"EN_REVISION"})} className="px-2 py-1 rounded-md bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">🔍</button>}
-                                {isAdmin && p.estado === "EN_REVISION"  && <button onClick={() => setModalAccion({prestamo:p,accion:"APROBADO"})}    className="px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">✅</button>}
+                                {puedeRevisar && p.estado === "SOLICITADO"  && <button onClick={() => setModalAccion({prestamo:p,accion:"EN_REVISION"})} className="px-2 py-1 rounded-md bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-semibold border border-violet-200">🔍</button>}
+                                {puedeAprobar && p.estado === "EN_REVISION"  && <button onClick={() => setModalAccion({prestamo:p,accion:"APROBADO"})}    className="px-2 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200">✅</button>}
                                 {/* 💰 Desembolsar: visible para admin O para el usuario que solicitó el préstamo */}
                                 {puedeDesembolsar(p) && (
                                   <button onClick={() => setModalAccion({prestamo:p,accion:"DESEMBOLSADO"})} className="px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold">💰</button>
@@ -556,7 +563,7 @@ export default function Prestamos() {
                 <div className="sm:hidden divide-y divide-gray-50">
                   {prestamos.map(p => (
                     <div key={p.id} className="p-3">
-                      <TarjetaPrestamo p={p} isAdmin={isAdmin} userId={userId}
+                      <TarjetaPrestamo p={p} puedeRevisar={puedeRevisar} puedeAprobar={puedeAprobar} puedeDesembolsarPermiso={puedeDesembolsarPermiso} userId={userId}
                         onPagar={() => navigate(`/pagos?prestamoId=${p.id}`)}
                         onAmortizacion={() => setAmortizacionId(p.id)}
                         onDetalle={() => navigate(`/prestamos/${p.id}`)}
