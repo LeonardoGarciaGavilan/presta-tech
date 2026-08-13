@@ -84,7 +84,7 @@ export default function AuditoriaScreen() {
   const { colorScheme, colors } = useTheme();
   const user = useAuthStore((s) => s.user);
   const isSuperAdmin = user?.rol === 'SUPERADMIN';
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   // ---- server-side filters ----
   const [filters, setFilters] = useState<AuditoriaFilters>({});
@@ -283,7 +283,7 @@ export default function AuditoriaScreen() {
     );
   }
 
-  if (!moduloHabilitado('AUDITORIA')) {
+  if (!moduloHabilitado('AUDITORIA') || !tienePermiso('auditoria:ver')) {
     return <SinAcceso />;
   }
 

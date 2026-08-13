@@ -10,7 +10,7 @@ import { AppInput } from '@/components/ui/app-input';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useCajaActiva, useAbrirCaja, useCerrarCaja, useCajas } from '@/hooks/use-caja';
-import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import { obtenerPago } from '@/api/pagos.api';
 import { guardarReciboPDF } from '@/utils/recibo-pdf';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
@@ -41,9 +41,9 @@ export default function CajaScreen() {
   const { mutateAsync: abrirCajaFn, isPending: abriendo } = useAbrirCaja();
   const { mutateAsync: cerrarCajaFn, isPending: cerrando } = useCerrarCaja();
 
-  const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.rol === 'ADMIN';
-  const { data: cajasAbiertas } = useCajas(isAdmin ? 'ABIERTA' : undefined);
+  const { tienePermiso } = usePermisos();
+  const puedeControlar = tienePermiso('caja:ajuste');
+  const { data: cajasAbiertas } = useCajas(puedeControlar ? 'ABIERTA' : undefined);
   const abiertasCount = cajasAbiertas?.length ?? 0;
 
   const [showAbrirModal, setShowAbrirModal] = useState(false);
@@ -319,7 +319,7 @@ export default function CajaScreen() {
             <Ionicons name="chevron-forward" size={scale(18)} color={colors.textTertiary} />
           </Pressable>
 
-          {isAdmin && (
+          {puedeControlar && (
             <Pressable
               onPress={() => router.push('/caja/activas')}
               style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}

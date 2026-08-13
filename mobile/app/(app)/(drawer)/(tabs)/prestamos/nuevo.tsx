@@ -18,6 +18,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { FrecuenciaPago } from '@/types/prestamo.types';
 import type { ApiError } from '@/types/api.types';
 import { useTheme } from '@/components/ui/theme-provider';
+import { PermisoGate } from '@/components/permisos/permiso-gate';
 
 const FRECUENCIA_OPTIONS: { label: string; value: FrecuenciaPago }[] = [
   { label: 'Diario', value: 'DIARIO' },
@@ -167,10 +168,11 @@ export default function NuevoPrestamoScreen() {
   }, [validate, modoRapido, preview, crearPrestamo, clienteSearch.entity, garanteSearch.entity, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, showToast]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <PermisoGate modulo="PRESTAMOS" permiso="prestamos:crear">
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScreenContainer style={{ flex: 1 }}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -522,7 +524,8 @@ export default function NuevoPrestamoScreen() {
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
       </ScreenContainer>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </PermisoGate>
   );
 }
 

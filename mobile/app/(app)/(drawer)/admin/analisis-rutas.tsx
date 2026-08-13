@@ -59,7 +59,7 @@ function initialAvatar(name: string): string {
 
 export default function AnalisisRutasScreen() {
   const { colorScheme, colors } = useTheme();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   const { data, isLoading, refetch, isRefetching } = useResumenRutas();
 
@@ -212,7 +212,7 @@ export default function AnalisisRutasScreen() {
     );
   }
 
-  if (!moduloHabilitado('RUTAS')) {
+  if (!moduloHabilitado('RUTAS') || !tienePermiso('finanzas:ver')) {
     return <SinAcceso />;
   }
 

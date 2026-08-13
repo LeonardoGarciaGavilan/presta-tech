@@ -91,7 +91,7 @@ function Badge({ label, color }: { label: string; color: string }) {
 export default function ReportesScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   // Tab state
   const [tab, setTab] = useState<TabId>('cobros');
@@ -579,7 +579,7 @@ export default function ReportesScreen() {
     );
   }
 
-  if (!moduloHabilitado('REPORTES')) {
+  if (!moduloHabilitado('REPORTES') || !tienePermiso('reportes:exportar')) {
     return <SinAcceso />;
   }
 

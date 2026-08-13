@@ -10,7 +10,6 @@ import { Colors,
   Spacing,
   BorderRadius,
   Shadows, scale} from '@/constants/theme';
-import { useAuthStore } from '@/store/auth.store';
 import { useConfiguracion,
   useGuardarConfiguracion } from '@/hooks/use-configuracion';
 import { configuracionSchema, type ConfiguracionFormData } from '@/schemas/configuracion.schema';
@@ -69,10 +68,9 @@ function ToggleSwitch({
 
 export default function ConfiguracionScreen() {
   const { colorScheme, colors } = useTheme();
-  const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
   const { showToast } = useToast();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
+  const puedeEditar = tienePermiso('configuracion:editar');
 
   const { data: config, isLoading, isError } = useConfiguracion();
   const guardarMutation = useGuardarConfiguracion();
@@ -143,7 +141,7 @@ export default function ConfiguracionScreen() {
     );
   }
 
-  if (!moduloHabilitado('CONFIGURACION')) {
+  if (!moduloHabilitado('CONFIGURACION') || !puedeEditar) {
     return <SinAcceso />;
   }
 
@@ -157,7 +155,7 @@ export default function ConfiguracionScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        {!isAdmin && (
+        {!puedeEditar && (
           <View
             style={[
               styles.readOnlyBanner,
@@ -223,7 +221,7 @@ export default function ConfiguracionScreen() {
                 onChangeText={(v) => onChange(v ? parseFloat(v) : 0)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
-                editable={isAdmin}
+                editable={puedeEditar}
                 error={errors.tasaInteresBase?.message}
                 hint="Se usa como sugerencia al crear un préstamo"
               />
@@ -240,7 +238,7 @@ export default function ConfiguracionScreen() {
                 onChangeText={(v) => onChange(v ? parseFloat(v) : 0)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
-                editable={isAdmin}
+                editable={puedeEditar}
                 error={errors.moraPorcentajeMensual?.message}
                 hint="Se aplica una sola vez tras los días de gracia"
               />
@@ -265,7 +263,7 @@ export default function ConfiguracionScreen() {
                 onChangeText={(v) => onChange(v ? parseInt(v, 10) : 0)}
                 onBlur={onBlur}
                 keyboardType="number-pad"
-                editable={isAdmin}
+                editable={puedeEditar}
                 error={errors.diasGracia?.message}
                 hint="Días después del vencimiento antes de aplicar mora"
               />
@@ -282,7 +280,7 @@ export default function ConfiguracionScreen() {
                 <ToggleSwitch
                   value={value}
                   onValueChange={onChange}
-                  disabled={!isAdmin}
+                  disabled={!puedeEditar}
                   colors={colors}
                 />
               </View>
@@ -308,7 +306,7 @@ export default function ConfiguracionScreen() {
                 onChangeText={(v) => onChange(v ? parseFloat(v) : undefined)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
-                editable={isAdmin}
+                editable={puedeEditar}
                 error={errors.montoMinimoPrestamo?.message}
                 hint="Dejar vacío = RD$500 por defecto"
               />
@@ -326,7 +324,7 @@ export default function ConfiguracionScreen() {
                 onChangeText={(v) => onChange(v ? parseFloat(v) : null)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
-                editable={isAdmin}
+                editable={puedeEditar}
                 error={errors.montoMaximoPrestamo?.message}
                 hint="Dejar vacío para no establecer límite"
               />
@@ -344,7 +342,7 @@ export default function ConfiguracionScreen() {
                 onChangeText={(v) => onChange(v ? parseFloat(v) : null)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
-                editable={isAdmin}
+                editable={puedeEditar}
                 error={errors.montoMaximoPago?.message}
                 hint="Límite por transacción de pago"
               />
@@ -352,7 +350,7 @@ export default function ConfiguracionScreen() {
           />
         </SectionCard>
 
-        {isAdmin && (
+        {puedeEditar && (
           <AppButton
             title="Guardar configuración"
             onPress={handleSubmit(onSubmit)}

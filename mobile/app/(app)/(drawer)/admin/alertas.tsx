@@ -114,7 +114,7 @@ export default function AlertasScreen() {
   const { colors } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   const [fechaMode, setFechaMode] = useState<'7d' | 'today'>('7d');
   const [offset, setOffset] = useState(0);
@@ -230,7 +230,7 @@ export default function AlertasScreen() {
     );
   }
 
-  if (!moduloHabilitado('ALERTAS')) {
+  if (!moduloHabilitado('ALERTAS') || !tienePermiso('alertas:ver')) {
     return <SinAcceso />;
   }
 

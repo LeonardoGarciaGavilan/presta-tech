@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRutas, useEliminarRuta, useCrearRuta, useUsuarios, useAsignarUsuarioRuta } from '@/hooks/use-rutas';
-import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import EmptyState from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
@@ -13,12 +13,13 @@ import { SkeletonCard } from '@/components/ui/skeleton';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
-const ROL_ADMIN = 'ADMIN';
 
 export default function RutasListScreen() {
   const { colorScheme, colors } = useTheme();
-  const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === ROL_ADMIN;
+  const { tienePermiso } = usePermisos();
+  const puedeCrear = tienePermiso('rutas:crear');
+  const puedeEliminar = tienePermiso('rutas:eliminar');
+  const puedeAsignar = tienePermiso('rutas:asignar');
 
   const { data: rutas, isLoading, error, refetch, isFetching } = useRutas();
   const { mutateAsync: eliminar } = useEliminarRuta();
@@ -73,7 +74,7 @@ export default function RutasListScreen() {
       <Pressable
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => router.push(`/rutas/${item.id}`)}
-        onLongPress={() => isAdmin && setDeleteId(item.id)}
+        onLongPress={() => puedeEliminar && setDeleteId(item.id)}
         accessibilityRole="button"
         accessibilityLabel={`Ruta ${item.nombre}, ${item.clientes?.length ?? 0} clientes`}
       >
@@ -103,7 +104,7 @@ export default function RutasListScreen() {
               <Pressable
                 style={styles.cobradorRow}
                 onPress={() => {
-                  if (isAdmin) {
+                  if (puedeAsignar) {
                     setAsignarRutaId(item.id);
                     setAsignarUsuarioId(item.usuario?.id || '');
                   }
@@ -111,14 +112,14 @@ export default function RutasListScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Cobrador: ${item.usuario.nombre}`}
               >
-                <Ionicons name="person-outline" size={scale(12)} color={isAdmin ? colors.primary : colors.textTertiary} />
-                <Text style={[styles.cobradorText, { color: isAdmin ? colors.primary : colors.textTertiary }]}>
+                <Ionicons name="person-outline" size={scale(12)} color={puedeAsignar ? colors.primary : colors.textTertiary} />
+                <Text style={[styles.cobradorText, { color: puedeAsignar ? colors.primary : colors.textTertiary }]}>
                   {item.usuario.nombre}
                 </Text>
-                {isAdmin && <Ionicons name="chevron-forward" size={scale(12)} color={colors.primary} />}
+                {puedeAsignar && <Ionicons name="chevron-forward" size={scale(12)} color={colors.primary} />}
               </Pressable>
             )}
-            {isAdmin && !item.usuario && (
+            {puedeAsignar && !item.usuario && (
               <Pressable
                 style={styles.cobradorRow}
                 onPress={() => {
@@ -144,7 +145,7 @@ export default function RutasListScreen() {
         </View>
       </Pressable>
     ),
-    [colors, isAdmin],
+    [colors, puedeAsignar],
   );
 
   if (isLoading) {
@@ -195,8 +196,8 @@ export default function RutasListScreen() {
             icon="map-outline"
             title="Sin rutas"
             subtitle="No hay rutas de cobro creadas todavía"
-            actionLabel={isAdmin ? 'Crear ruta' : undefined}
-            onAction={isAdmin ? () => setShowCreate(true) : undefined}
+            actionLabel={puedeCrear ? 'Crear ruta' : undefined}
+            onAction={puedeCrear ? () => setShowCreate(true) : undefined}
           />
         }
       />
@@ -254,7 +255,7 @@ export default function RutasListScreen() {
       />
 
       {/* Cobrador Assignment Modal */}
-      {asignarRutaId && (
+      {puedeAsignar && asignarRutaId && (
         <Pressable style={styles.overlay} onPress={() => setAsignarRutaId(null)}>
           <Pressable style={[styles.modal, { backgroundColor: colors.surfaceElevated }]} onPress={() => {}}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Asignar Cobrador</Text>
@@ -285,7 +286,7 @@ export default function RutasListScreen() {
         </Pressable>
       )}
 
-      {isAdmin && (
+      {puedeCrear && (
         <Pressable
           style={[styles.fab, { backgroundColor: colors.primary }]}
           onPress={() => setShowCreate(true)}

@@ -5,6 +5,7 @@ import { router, useNavigation } from 'expo-router';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { ProximoCobro, Today } from '@/types/dashboard.types';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
 
 interface UpcomingCollectionsProps {
   cobros: ProximoCobro[];
@@ -14,6 +15,9 @@ interface UpcomingCollectionsProps {
 export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps) {
   const { colorScheme, colors } = useTheme();
   const navigation = useNavigation();
+  const { tienePermiso } = usePermisos();
+  const puedeVerPagos = tienePermiso('pagos:ver');
+  const puedeRegistrar = tienePermiso('pagos:registrar');
 
   if (cobros.length === 0) {
     return (
@@ -51,7 +55,7 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
               index < cobros.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
             ]}
             activeOpacity={0.6}
-            onPress={() => router.push(`/pagos/prestamo/${cobro.prestamoId}`)}
+            onPress={() => puedeVerPagos && router.push(`/pagos/prestamo/${cobro.prestamoId}`)}
           >
             <View style={styles.itemLeft}>
               <Text style={[styles.clienteNombre, { color: colors.text }]}>
@@ -91,7 +95,7 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
       <TouchableOpacity
         style={[styles.verTodos, { borderColor: colors.border }]}
         activeOpacity={0.6}
-        onPress={() => (navigation as any).navigate('caja', { screen: 'pago' })}
+        onPress={() => puedeRegistrar && (navigation as any).navigate('caja', { screen: 'pago' })}
       >
         <Text style={[styles.verTodosText, { color: colors.primary }]}>
           Ver todos los cobros

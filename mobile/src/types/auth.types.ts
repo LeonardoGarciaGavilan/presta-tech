@@ -9,6 +9,7 @@ export interface User {
   empresaId: string | null;
   permisos?: string[];
   modulosDeshabilitados?: string[];
+  authVersion?: number;
 }
 
 export interface LoginRequest {

@@ -110,7 +110,7 @@ export default function UsuariosScreen() {
   const { colorScheme, colors } = useTheme();
   const currentUser = useAuthStore((s) => s.user);
   const { showToast } = useToast();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   const { data: usuarios, isLoading } = useUsuarios();
   const crearMutation = useCrearUsuario();
@@ -342,7 +342,7 @@ export default function UsuariosScreen() {
     );
   }
 
-  if (!moduloHabilitado('USUARIOS')) {
+  if (!moduloHabilitado('USUARIOS') || !tienePermiso('usuarios:ver')) {
     return <SinAcceso />;
   }
 

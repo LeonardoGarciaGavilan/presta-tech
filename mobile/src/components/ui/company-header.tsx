@@ -9,14 +9,30 @@ import { useAuthStore } from '@/store/auth.store';
 import { useTheme } from '@/components/ui/theme-provider';
 import { ThemeSelectorModal } from '@/components/ui/theme-selector-modal';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { usePermisos } from '@/permisos/use-permisos';
+import { PERMISO_POR_PANTALLA } from '@/permisos/permisos';
 
 export function CompanyHeader() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const insets = useSafeAreaInsets();
   const { colors, themeMode } = useTheme();
   const companyName = useAuthStore((s) => s.user?.empresa);
-  const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
+  const { tienePermiso } = usePermisos();
+  const pantallasAdmin = [
+    'admin/alertas',
+    'admin/analisis-rutas',
+    'admin/auditoria',
+    'admin/empleados',
+    'admin/estado-financiero',
+    'admin/gastos',
+    'admin/usuarios',
+    'admin/reportes',
+    'admin/configuracion',
+  ];
+  const tieneAccesoAdmin = pantallasAdmin.some((screen) => {
+    const permiso = PERMISO_POR_PANTALLA[screen];
+    return permiso ? tienePermiso(permiso) : true;
+  });
   const { bannerVisible, pendingCount } = useNetworkContext();
 
   const drawerNav = useNavigation('/(app)/(drawer)') as unknown as {
@@ -44,7 +60,7 @@ export function CompanyHeader() {
           alignItems: 'center',
         }}
       >
-        {isAdmin && (
+        {tieneAccesoAdmin && (
           <TouchableOpacity
             onPress={() => drawerNav.toggleDrawer()}
             activeOpacity={0.6}

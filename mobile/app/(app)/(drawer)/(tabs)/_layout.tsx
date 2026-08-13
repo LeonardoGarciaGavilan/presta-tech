@@ -13,7 +13,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { colorScheme, colors } = useTheme();
   const { pendingCount } = useNetworkContext();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   return (
     <Tabs
@@ -50,7 +50,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      {moduloHabilitado('CAJA') && (
+      {moduloHabilitado('CAJA') && tienePermiso('caja:ver') && (
         <Tabs.Screen
           name="caja"
           listeners={({ navigation }) => ({
@@ -77,7 +77,7 @@ export default function TabLayout() {
           }}
         />
       )}
-      {moduloHabilitado('PRESTAMOS') && (
+      {moduloHabilitado('PRESTAMOS') && tienePermiso('prestamos:ver') && (
         <Tabs.Screen
           name="prestamos"
           options={{
@@ -89,7 +89,7 @@ export default function TabLayout() {
           }}
         />
       )}
-      {moduloHabilitado('RUTAS') && (
+      {moduloHabilitado('RUTAS') && tienePermiso('rutas:ver') && (
         <Tabs.Screen
           name="rutas"
           options={{
@@ -101,7 +101,7 @@ export default function TabLayout() {
           }}
         />
       )}
-      {moduloHabilitado('CLIENTES') && (
+      {moduloHabilitado('CLIENTES') && tienePermiso('clientes:ver') && (
         <Tabs.Screen
           name="clientes"
           options={{

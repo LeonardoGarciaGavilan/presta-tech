@@ -4,6 +4,7 @@ import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, V
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import PaymentForm from '@/components/pagos/payment-form';
+import { PermisoGate } from '@/components/permisos/permiso-gate';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
@@ -20,15 +21,12 @@ import { useTheme } from '@/components/ui/theme-provider';
 
 export default function CajaPagoScreen() {
   const { prestamoId } = useLocalSearchParams<{ prestamoId?: string }>();
-  const { colorScheme, colors } = useTheme();
 
-  // ── Modo directo (viene de detalle de préstamo) ──
-  if (prestamoId) {
-    return <DirectPaymentMode prestamoId={prestamoId} />;
-  }
-
-  // ── Modo búsqueda (navegación normal desde Caja) ──
-  return <SearchPaymentMode />;
+  return (
+    <PermisoGate permiso="pagos:registrar">
+      {prestamoId ? <DirectPaymentMode prestamoId={prestamoId} /> : <SearchPaymentMode />}
+    </PermisoGate>
+  );
 }
 
 function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {

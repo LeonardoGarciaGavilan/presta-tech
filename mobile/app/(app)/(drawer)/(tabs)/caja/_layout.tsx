@@ -6,7 +6,7 @@ export default function CajaLayout() {
   const { colorScheme, colors } = useTheme();
 
   return (
-    <PermisoGate modulo="CAJA" permiso="pagos:registrar">
+    <PermisoGate modulo="CAJA" permiso="caja:ver">
       <Stack
         screenOptions={{
           headerShown: false,

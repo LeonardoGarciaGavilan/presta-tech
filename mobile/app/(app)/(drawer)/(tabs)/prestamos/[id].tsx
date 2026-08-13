@@ -17,6 +17,7 @@ import LoadingScreen from '@/components/ui/loading-screen';
 import { SkeletonCard, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import { FontSize, Fonts, FontWeight, IoniconsName, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { ESTADO_CONFIG, ACCIONES_FLOW_CONFIG } from '@/constants/prestamos.constants';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
@@ -135,8 +136,10 @@ export default function PrestamoDetalleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme, colors } = useTheme();
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
   const userId = user?.id;
+  const { tienePermiso } = usePermisos();
+  const puedeRevisar = tienePermiso('prestamos:revisar');
+  const puedeAprobar = tienePermiso('prestamos:aprobar');
   const { showToast } = useToast();
 
   const { data: prestamo, isLoading, error: queryError, refetch } = usePrestamo(id!);
@@ -164,10 +167,10 @@ export default function PrestamoDetalleScreen() {
   const cuotasVencidas = cuotasPendientes.filter(c => new Date(c.fechaVencimiento) < new Date());
   const proximaCuota = [...cuotasPendientes].sort((a, b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime())[0];
   const progresoPorc = cuotas.length > 0 ? Math.round((cuotasPagadas.length / cuotas.length) * 100) : 0;
-  const puedeCancelar = prestamo && !['PAGADO', 'CANCELADO'].includes(prestamo.estado);
-  const puedeRefinanciar = prestamo && ['ACTIVO', 'ATRASADO'].includes(prestamo.estado);
-  const puedePagar = prestamo && ['ACTIVO', 'ATRASADO'].includes(prestamo.estado);
-  const puedeDesembolsar = prestamo?.estado === 'APROBADO' && (isAdmin || prestamo.solicitadoPor === userId);
+  const puedeCancelar = prestamo && !['PAGADO', 'CANCELADO'].includes(prestamo.estado) && tienePermiso('prestamos:cancelar');
+  const puedeRefinanciar = prestamo && ['ACTIVO', 'ATRASADO'].includes(prestamo.estado) && tienePermiso('prestamos:refinanciar');
+  const puedePagar = prestamo && ['ACTIVO', 'ATRASADO'].includes(prestamo.estado) && tienePermiso('pagos:registrar');
+  const puedeDesembolsar = prestamo?.estado === 'APROBADO' && (tienePermiso('prestamos:desembolsar') || prestamo.solicitadoPor === userId);
 
   const cuotasFiltradas = useMemo(() => {
     if (filtroCuotas === 'pendientes') return cuotasPendientes;
@@ -287,7 +290,7 @@ export default function PrestamoDetalleScreen() {
         {/* Action buttons */}
         <View style={styles.actionRow}>
           {/* Flow actions: Revisar / Aprobar / Rechazar */}
-          {prestamo.estado === 'SOLICITADO' && isAdmin && (
+          {prestamo.estado === 'SOLICITADO' && puedeRevisar && (
             <>
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'EN_REVISION', estado: 'EN_REVISION' }); setShowFlowModal(true); }}
@@ -309,29 +312,33 @@ export default function PrestamoDetalleScreen() {
               </Pressable>
             </>
           )}
-          {prestamo.estado === 'EN_REVISION' && isAdmin && (
+          {prestamo.estado === 'EN_REVISION' && (puedeRevisar || puedeAprobar) && (
             <>
-              <Pressable
-                onPress={() => { setFlowAccion({ accion: 'APROBADO', estado: 'APROBADO' }); setShowFlowModal(true); }}
-                style={[styles.actionButton, { backgroundColor: colors.success }]}
-                accessibilityRole="button"
-                accessibilityLabel="Aprobar préstamo"
-              >
-                <Ionicons name="checkmark-circle-outline" size={scale(16)} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Aprobar</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => { setFlowAccion({ accion: 'RECHAZADO', estado: 'RECHAZADO' }); setShowFlowModal(true); }}
-                style={[styles.actionButton, { backgroundColor: colors.error }]}
-                accessibilityRole="button"
-                accessibilityLabel="Rechazar préstamo"
-              >
-                <Ionicons name="close-circle-outline" size={scale(16)} color="#FFFFFF" />
-                <Text style={styles.actionButtonText}>Rechazar</Text>
-              </Pressable>
+              {puedeAprobar && (
+                <Pressable
+                  onPress={() => { setFlowAccion({ accion: 'APROBADO', estado: 'APROBADO' }); setShowFlowModal(true); }}
+                  style={[styles.actionButton, { backgroundColor: colors.success }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Aprobar préstamo"
+                >
+                  <Ionicons name="checkmark-circle-outline" size={scale(16)} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>Aprobar</Text>
+                </Pressable>
+              )}
+              {puedeRevisar && (
+                <Pressable
+                  onPress={() => { setFlowAccion({ accion: 'RECHAZADO', estado: 'RECHAZADO' }); setShowFlowModal(true); }}
+                  style={[styles.actionButton, { backgroundColor: colors.error }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Rechazar préstamo"
+                >
+                  <Ionicons name="close-circle-outline" size={scale(16)} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>Rechazar</Text>
+                </Pressable>
+              )}
             </>
           )}
-          {prestamo.estado === 'APROBADO' && isAdmin && (
+          {prestamo.estado === 'APROBADO' && puedeRevisar && (
             <>
               <Pressable
                 onPress={() => { setFlowAccion({ accion: 'RECHAZADO', estado: 'RECHAZADO' }); setShowFlowModal(true); }}

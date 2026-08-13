@@ -13,6 +13,7 @@ import { useCajas, useCerrarCaja } from '@/hooks/use-caja';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
 
 type RiskLevel = 'critico' | 'alerta' | 'normal';
 
@@ -63,6 +64,8 @@ function formatHoras(horas: number) {
 export default function CajasActivasScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { tienePermiso } = usePermisos();
+  const puedeCerrar = tienePermiso('caja:ajuste');
 
   const { data: cajas, isLoading, refetch } = useCajas('ABIERTA');
   const { mutateAsync: cerrarCajaFn, isPending: cerrando } = useCerrarCaja();
@@ -205,22 +208,24 @@ export default function CajasActivasScreen() {
             </View>
           )}
 
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation?.();
-              setCloseTarget(caja);
-              setMontoCierre('');
-              setObservaciones('');
-            }}
-            style={[styles.cerrarButton, { borderColor: colors.border }]}
-          >
-            <Ionicons name="lock-closed-outline" size={scale(14)} color={colors.textTertiary} />
-            <Text style={[styles.cerrarButtonText, { color: colors.textTertiary }]}>Cerrar Caja</Text>
-          </Pressable>
+          {puedeCerrar && (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                setCloseTarget(caja);
+                setMontoCierre('');
+                setObservaciones('');
+              }}
+              style={[styles.cerrarButton, { borderColor: colors.border }]}
+            >
+              <Ionicons name="lock-closed-outline" size={scale(14)} color={colors.textTertiary} />
+              <Text style={[styles.cerrarButtonText, { color: colors.textTertiary }]}>Cerrar Caja</Text>
+            </Pressable>
+          )}
         </Pressable>
       );
     },
-    [colors, handleDetalle],
+    [colors, handleDetalle, puedeCerrar],
   );
 
   const ListHeader = kpis

@@ -76,3 +76,26 @@ export const MODULO_POR_PANTALLA: Record<string, Modulo | null> = {
   'admin/reportes': 'REPORTES',
   'admin/configuracion': 'CONFIGURACION',
 };
+
+// Permiso requerido para ver cada pantalla (espejo de frontend rutaPermisos.js).
+// `null` = sin permiso específico (solo módulo o acceso público autenticado).
+export const PERMISO_POR_PANTALLA: Record<string, string | null> = {
+  dashboard: 'dashboard:ver',
+  clientes: 'clientes:ver',
+  prestamos: 'prestamos:ver',
+  caja: 'caja:ver',
+  rutas: 'rutas:ver',
+  pagos: 'pagos:ver',
+  perfil: null,
+  'admin/alertas': 'alertas:ver',
+  'admin/analisis-rutas': 'finanzas:ver',
+  'admin/auditoria': 'auditoria:ver',
+  'admin/empleados': 'empleados:ver',
+  'admin/estado-financiero': 'finanzas:ver',
+  'admin/gastos': 'gastos:ver',
+  'admin/usuarios': 'usuarios:ver',
+  'admin/permisos/[id]': 'usuarios:gestionar',
+  'admin/reportes': 'reportes:exportar',
+  'admin/configuracion': 'configuracion:editar',
+  sincronizacion: null,
+};

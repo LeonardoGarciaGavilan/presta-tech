@@ -4,6 +4,7 @@ import { router, useNavigation } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, Colors, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
+import { usePermisos } from '@/permisos/use-permisos';
 
 interface ActionItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -11,13 +12,14 @@ interface ActionItem {
   route: string;
   colorKey: keyof typeof Colors.light;
   bgKey: keyof typeof Colors.light;
+  permiso?: string;
 }
 
 const ACTIONS: ActionItem[] = [
-  { icon: 'cash', label: 'Registrar pago', route: '/caja/pago', colorKey: 'success', bgKey: 'successLight' },
-  { icon: 'person-add', label: 'Nuevo cliente', route: '/clientes/crear', colorKey: 'primary', bgKey: 'primaryLight' },
-  { icon: 'add-circle', label: 'Nuevo préstamo', route: '/prestamos/nuevo', colorKey: 'warning', bgKey: 'warningLight' },
-  { icon: 'map', label: 'Ruta de cobro', route: '/rutas', colorKey: 'route', bgKey: 'routeBg' },
+  { icon: 'cash', label: 'Registrar pago', route: '/caja/pago', colorKey: 'success', bgKey: 'successLight', permiso: 'pagos:registrar' },
+  { icon: 'person-add', label: 'Nuevo cliente', route: '/clientes/crear', colorKey: 'primary', bgKey: 'primaryLight', permiso: 'clientes:crear' },
+  { icon: 'add-circle', label: 'Nuevo préstamo', route: '/prestamos/nuevo', colorKey: 'warning', bgKey: 'warningLight', permiso: 'prestamos:crear' },
+  { icon: 'map', label: 'Ruta de cobro', route: '/rutas', colorKey: 'route', bgKey: 'routeBg', permiso: 'rutas:ver' },
 ];
 
 const TAB_ROUTES: Record<string, { tab: string; screen: string }> = {
@@ -29,6 +31,9 @@ const TAB_ROUTES: Record<string, { tab: string; screen: string }> = {
 export function QuickActions() {
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { tienePermiso } = usePermisos();
+
+  const visibleActions = ACTIONS.filter((a) => (a.permiso ? tienePermiso(a.permiso) : true));
 
   const handleNavigate = (route: string) => {
     if (route === '/clientes/crear') {
@@ -48,7 +53,7 @@ export function QuickActions() {
     <View style={styles.container}>
       <Text style={[styles.title, { color: colors.text }]}>Acciones rápidas</Text>
       <View style={styles.grid}>
-        {ACTIONS.map((action) => (
+        {visibleActions.map((action) => (
           <TouchableOpacity
             key={action.route}
             style={[styles.card, { backgroundColor: colors.card, borderColor: colors.borderLight }]}

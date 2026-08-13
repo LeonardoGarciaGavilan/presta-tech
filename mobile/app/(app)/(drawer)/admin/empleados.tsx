@@ -104,7 +104,7 @@ const EMPTY_EMP_FORM: EmpleadoForm = {
 export default function EmpleadosScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   // ─── Tab state ──────────────────────────────────────────────
   const [tab, setTab] = useState<Tab>('empleados');
@@ -680,7 +680,7 @@ export default function EmpleadosScreen() {
     );
   }
 
-  if (!moduloHabilitado('EMPLEADOS')) {
+  if (!moduloHabilitado('EMPLEADOS') || !tienePermiso('empleados:ver')) {
     return <SinAcceso />;
   }
 

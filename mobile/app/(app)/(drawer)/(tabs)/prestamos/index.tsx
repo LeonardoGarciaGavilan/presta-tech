@@ -13,6 +13,7 @@ import { SkeletonCard } from '@/components/ui/skeleton';
 import ActionConfirmModal from '@/components/ui/action-confirm-modal';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { usePrestamoEstados, useAccionesFlow } from '@/hooks/use-prestamo-estados';
 import { formatCurrency } from '@/utils/formatters';
@@ -59,7 +60,11 @@ function usePrestamosInfinite(search: string, estado: EstadoPrestamo | '') {
 export default function PrestamosListScreen() {
   const { colorScheme, colors } = useTheme();
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
+  const userId = user?.id;
+  const { tienePermiso } = usePermisos();
+  const puedeRevisar = tienePermiso('prestamos:revisar');
+  const puedeAprobar = tienePermiso('prestamos:aprobar');
+  const puedeDesembolsarPermiso = tienePermiso('prestamos:desembolsar');
   const { showToast } = useToast();
 
   const [search, setSearch] = useState('');
@@ -138,8 +143,10 @@ export default function PrestamosListScreen() {
 
   const renderItem = useCallback(
     ({ item }: any) => {
-      const puedeDesembolsar = item.estado === 'APROBADO' && isAdmin;
-      const enFlujoAdmin = isAdmin && ['SOLICITADO', 'EN_REVISION', 'APROBADO'].includes(item.estado);
+      const puedeDesembolsar = item.estado === 'APROBADO' && (puedeDesembolsarPermiso || item.solicitadoPor === userId);
+      const enFlujo = (item.estado === 'SOLICITADO' && puedeRevisar)
+        || (item.estado === 'EN_REVISION' && (puedeRevisar || puedeAprobar))
+        || (item.estado === 'APROBADO' && (puedeDesembolsar || puedeRevisar));
 
       return (
         <View key={item.id}>
@@ -147,9 +154,9 @@ export default function PrestamosListScreen() {
             prestamo={item}
             onPress={() => router.push(`/prestamos/${item.id}`)}
           />
-          {enFlujoAdmin && (
+          {enFlujo && (
             <View style={[styles.cardActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {item.estado === 'SOLICITADO' && (
+              {item.estado === 'SOLICITADO' && puedeRevisar && (
                 <>
                   <Pressable
                     onPress={() => abrirModal(item, 'EN_REVISION', 'EN_REVISION')}
@@ -169,27 +176,31 @@ export default function PrestamosListScreen() {
                   </Pressable>
                 </>
               )}
-              {item.estado === 'EN_REVISION' && (
+              {item.estado === 'EN_REVISION' && (puedeRevisar || puedeAprobar) && (
                 <>
-                  <Pressable
-                    onPress={() => abrirModal(item, 'APROBADO', 'APROBADO')}
-                    style={[styles.actionBtn, { backgroundColor: colors.successLight, borderColor: colors.success }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Aprobar préstamo"
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.success }]}>Aprobar</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
-                    style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Rechazar préstamo"
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
-                  </Pressable>
+                  {puedeAprobar && (
+                    <Pressable
+                      onPress={() => abrirModal(item, 'APROBADO', 'APROBADO')}
+                      style={[styles.actionBtn, { backgroundColor: colors.successLight, borderColor: colors.success }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Aprobar préstamo"
+                    >
+                      <Text style={[styles.actionBtnText, { color: colors.success }]}>Aprobar</Text>
+                    </Pressable>
+                  )}
+                  {puedeRevisar && (
+                    <Pressable
+                      onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
+                      style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Rechazar préstamo"
+                    >
+                      <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
+                    </Pressable>
+                  )}
                 </>
               )}
-              {item.estado === 'APROBADO' && (
+              {item.estado === 'APROBADO' && (puedeDesembolsar || puedeRevisar) && (
                 <>
                   {puedeDesembolsar && (
                     <Pressable
@@ -202,14 +213,16 @@ export default function PrestamosListScreen() {
                       <Text style={[styles.actionBtnText, { color: colors.primary }]}>Desembolsar</Text>
                     </Pressable>
                   )}
-                  <Pressable
-                    onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
-                    style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Rechazar préstamo"
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
-                  </Pressable>
+                  {puedeRevisar && (
+                    <Pressable
+                      onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
+                      style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Rechazar préstamo"
+                    >
+                      <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
+                    </Pressable>
+                  )}
                 </>
               )}
             </View>
@@ -217,7 +230,7 @@ export default function PrestamosListScreen() {
         </View>
       );
     },
-    [colors, isAdmin, abrirModal],
+    [colors, puedeRevisar, puedeAprobar, puedeDesembolsarPermiso, userId, abrirModal],
   );
 
   const renderSeparator = useCallback(

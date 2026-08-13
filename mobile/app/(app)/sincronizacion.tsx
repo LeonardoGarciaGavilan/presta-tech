@@ -28,6 +28,7 @@ import { formatCurrency } from '@/utils/formatters';
 import { useQueryClient } from '@tanstack/react-query';
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
+import { PermisoGate } from '@/components/permisos/permiso-gate';
 
 function timeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -648,7 +649,8 @@ export default function SincronizacionScreen() {
   }, [network.isOnline, queryClient]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <PermisoGate modulo="SYNC">
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -983,7 +985,8 @@ export default function SincronizacionScreen() {
         onConfirm={handleClear}
         onCancel={() => setShowClearConfirm(false)}
       />
-    </View>
+      </View>
+    </PermisoGate>
   );
 }
 

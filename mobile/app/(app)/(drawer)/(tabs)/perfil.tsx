@@ -12,6 +12,7 @@ import { Colors,
   Shadows,
   scale } from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import { logout } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
 import { AppButton } from '@/components/ui/app-button';
@@ -28,7 +29,8 @@ export default function PerfilScreen() {
   const { colorScheme, colors } = useTheme();
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
+  const { tienePermiso } = usePermisos();
+  const puedeEditarEmpresa = tienePermiso('configuracion:editar');
 
   const { data: perfil, isLoading } = usePerfil();
   const actualizarNombreMutation = useActualizarNombre();
@@ -310,7 +312,7 @@ export default function PerfilScreen() {
         </SectionCard>
 
         {/* Empresa (solo admin) */}
-        {isAdmin && (
+        {puedeEditarEmpresa && (
           <SectionCard
             icon="🏢"
             title="Datos de la empresa"

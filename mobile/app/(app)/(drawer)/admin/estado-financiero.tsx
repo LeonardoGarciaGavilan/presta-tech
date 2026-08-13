@@ -62,7 +62,7 @@ const PATRIMONIO_COLORS = ['#2563EB', '#059669', '#D97706', '#7C3AED'];
 export default function EstadoFinancieroScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   const { data: dash, isLoading: dashLoading, refetch, isRefetching } = useDashboard();
   const { data: movimientos } = useMovimientos(15);
@@ -167,7 +167,7 @@ export default function EstadoFinancieroScreen() {
     );
   }
 
-  if (!moduloHabilitado('FINANZAS')) {
+  if (!moduloHabilitado('FINANZAS') || !tienePermiso('finanzas:ver')) {
     return <SinAcceso />;
   }
 

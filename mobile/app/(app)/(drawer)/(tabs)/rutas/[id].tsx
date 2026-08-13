@@ -10,7 +10,7 @@ import { useVistaDia,
   useMarcarVisitado,
   useResetVisitados } from '@/hooks/use-rutas';
 import { useRegistrarPago } from '@/hooks/use-pagos';
-import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import { useToast } from '@/components/ui/toast';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import AppMapView from '@/components/clientes/map-view';
@@ -47,8 +47,8 @@ function displayDate(iso: string): string {
 export default function VistaDiaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme, colors } = useTheme();
-  const user = useAuthStore((s) => s.user);
-  const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
+  const { tienePermiso } = usePermisos();
+  const puedeAsignar = tienePermiso('rutas:asignar');
   const { showToast } = useToast();
   const { network } = useNetworkContext();
 
@@ -391,7 +391,6 @@ export default function VistaDiaScreen() {
                 onToggleVisita={handleToggleVisita}
                 onCobroRapido={handleCobroRapido}
                 marcando={marcando}
-                isAdmin={isAdmin}
               />
             ))
           )}
@@ -406,7 +405,7 @@ export default function VistaDiaScreen() {
               icon="calendar-outline"
               onPress={() => router.push(`/rutas/generar-dia/${id}`)}
             />
-            {isAdmin && (
+            {puedeAsignar && (
               <AppButton
                 title="Gestión"
                 variant="outline"
@@ -462,14 +461,12 @@ function ClienteCardItem({
   onToggleVisita,
   onCobroRapido,
   marcando,
-  isAdmin,
 }: {
   item: ClienteVistaDia;
   colors: any;
   onToggleVisita: (rcId: string, visitadoHoy: boolean) => void;
   onCobroRapido: (item: ClienteVistaDia) => void;
   marcando: boolean;
-  isAdmin: boolean;
 }) {
   const {
     rutaClienteId,

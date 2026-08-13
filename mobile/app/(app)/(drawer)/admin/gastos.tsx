@@ -98,7 +98,7 @@ const EMPTY_FORM: GastoForm = {
 export default function GastosScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
-  const { moduloHabilitado } = usePermisos();
+  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   const [desde, setDesde] = useState(getMonthStart());
   const [hasta, setHasta] = useState(getTodayISO());
@@ -283,7 +283,7 @@ export default function GastosScreen() {
     );
   }
 
-  if (!moduloHabilitado('GASTOS')) {
+  if (!moduloHabilitado('GASTOS') || !tienePermiso('gastos:ver')) {
     return <SinAcceso />;
   }
 

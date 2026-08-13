@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { BorderRadius, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, IoniconsName, scale, Spacing } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos as usePermisosAcceso } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
@@ -54,7 +54,6 @@ const PERMISO_LABELS: Record<string, string> = {
   'prestamos:cancelar': 'Cancelar préstamos',
   'pagos:ver': 'Ver pagos',
   'pagos:registrar': 'Registrar pagos',
-  'pagos:revertir': 'Revertir pagos',
   'caja:ver': 'Ver caja',
   'caja:abrir': 'Abrir caja',
   'caja:cerrar': 'Cerrar caja',
@@ -64,7 +63,6 @@ const PERMISO_LABELS: Record<string, string> = {
   'rutas:asignar': 'Asignar clientes a rutas',
   'rutas:eliminar': 'Eliminar rutas',
   'rutas:marcarVisita': 'Marcar visitas',
-  'reportes:ver': 'Ver reportes',
   'reportes:exportar': 'Exportar reportes',
   'gastos:ver': 'Ver gastos',
   'gastos:crear': 'Registrar gastos',
@@ -84,7 +82,6 @@ const PERMISO_LABELS: Record<string, string> = {
   'configuracion:editar': 'Editar configuración',
   'auditoria:ver': 'Ver auditoría',
   'alertas:ver': 'Ver alertas',
-  'alertas:gestionar': 'Gestionar alertas',
 };
 
 const ROL_LABEL: Record<string, string> = { ADMIN: 'Admin', EMPLEADO: 'Empleado' };
@@ -97,11 +94,13 @@ type Estado = 0 | 1 | 2;
 function PermisoRow({
   permiso,
   estado,
+  baseLoConcede,
   editable,
   onCambio,
 }: {
   permiso: string;
   estado: Estado;
+  baseLoConcede: boolean;
   editable: boolean;
   onCambio: (v: Estado) => void;
 }) {
@@ -114,14 +113,31 @@ function PermisoRow({
     { val: 2, label: 'Denegar' },
   ];
 
+  const badge: { icon: IoniconsName; text: string; bg: string; color: string } =
+    estado === 1
+      ? { icon: 'checkmark-circle', text: 'Permitido', bg: colors.successLight, color: colors.success }
+      : estado === 2
+        ? { icon: 'close-circle', text: 'Denegado', bg: colors.errorLight, color: colors.error }
+        : baseLoConcede
+          ? { icon: 'help-circle', text: 'Por defecto · sí', bg: colors.warningLight, color: colors.warning }
+          : { icon: 'help-circle-outline', text: 'Por defecto · no', bg: colors.borderLight, color: colors.textSecondary };
+
   return (
     <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
-      <Text style={[styles.rowLabel, { color: colors.text }]} numberOfLines={1}>
-        {label}
-      </Text>
-      <Text style={[styles.rowCode, { color: colors.textTertiary }]} numberOfLines={1}>
-        {permiso}
-      </Text>
+      <View style={styles.rowHeader}>
+        <View style={styles.rowText}>
+          <Text style={[styles.rowLabel, { color: colors.text }]} numberOfLines={1}>
+            {label}
+          </Text>
+          <Text style={[styles.rowCode, { color: colors.textTertiary }]} numberOfLines={1}>
+            {permiso}
+          </Text>
+        </View>
+        <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.color }]}>
+          <Ionicons name={badge.icon} size={scale(10)} color={badge.color} />
+          <Text style={[styles.badgeText, { color: badge.color }]}>{badge.text}</Text>
+        </View>
+      </View>
       <View style={styles.segment}>
         {opciones.map(({ val, label: lbl }) => {
           const activo = estado === val;
@@ -139,6 +155,7 @@ function PermisoRow({
                 {
                   borderColor: activo ? colorActivo : colors.border,
                   backgroundColor: activo ? bgActivo : 'transparent',
+                  borderWidth: activo ? 2 : 1,
                 },
               ]}
               accessible
@@ -338,6 +355,7 @@ export default function PermisosScreen() {
                     key={p}
                     permiso={p}
                     estado={estados[p] ?? 0}
+                    baseLoConcede={(data.base ?? []).includes(p)}
                     editable={editable}
                     onCambio={(v) => setEstados((prev) => ({ ...prev, [p]: v }))}
                   />
@@ -497,6 +515,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
   },
+  rowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  rowText: {
+    flex: 1,
+  },
   rowLabel: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
@@ -504,6 +530,19 @@ const styles = StyleSheet.create({
   rowCode: {
     fontSize: FontSize.xs,
     marginTop: scale(1),
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(3),
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: scale(2),
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: scale(9),
+    fontWeight: FontWeight.bold,
   },
   segment: {
     flexDirection: 'row',

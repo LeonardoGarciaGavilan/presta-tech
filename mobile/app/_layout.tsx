@@ -23,6 +23,7 @@ import { ThemeProvider } from '@/components/ui/theme-provider';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NetworkProvider } from '@/components/providers/network-provider';
 import { BackgroundPrefetch } from '@/components/providers/background-prefetch';
+import { AuthVersionSync } from '@/components/providers/auth-version-sync';
 import { DatabaseProvider } from '@/db/provider';
 
 // Disable font scaling globally for consistent text sizing across devices
@@ -78,6 +79,7 @@ function RootLayout() {
               <NetworkProvider>
                 <BackgroundPrefetch />
                 <ToastProvider>
+                  <AuthVersionSync />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="index" />
                     <Stack.Screen name="(auth)" />

@@ -27,7 +27,7 @@ import { useToast } from '@/components/ui/toast';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { SkeletonCard, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import type { ClienteFormData } from '@/schemas/cliente.schema';
-import { useAuthStore } from '@/store/auth.store';
+import { usePermisos } from '@/permisos/use-permisos';
 import type { ApiError } from '@/types/api.types';
 import type { Prestamo } from '@/types/cliente.types';
 import { FontSize, FontWeight, Fonts, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
@@ -68,8 +68,8 @@ function calcularSaldoReal(prestamo: Prestamo): number {
 export default function ClienteDetalleScreen() {
   const { id, edit, from } = useLocalSearchParams<{ id: string; edit?: string; from?: string }>();
   const { colorScheme, colors } = useTheme();
-  const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.rol === 'SUPERADMIN' || user?.rol === 'ADMIN';
+  const { tienePermiso } = usePermisos();
+  const puedeGestionarCliente = tienePermiso('clientes:editar') || tienePermiso('clientes:desactivar');
 
   const { data: cliente, isLoading, error: queryError, refetch } = useCliente(id);
   const { mutateAsync: actualizarMutation, isPending: isActualizando } =
@@ -600,7 +600,7 @@ export default function ClienteDetalleScreen() {
         )}
 
         {/* Admin Actions */}
-        {isAdmin && (
+        {puedeGestionarCliente && (
           cliente.activo ? (
             <Pressable
               onPress={() => setDialogAction('eliminar')}
