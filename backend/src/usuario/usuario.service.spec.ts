@@ -6,6 +6,7 @@ import {
 import { UsuarioService } from './usuario.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { QuotaService } from '../common/quota/quota.service';
+import type { PermisosService } from '../common/permisos/permisos.service';
 
 jest.mock('../common/utils/auditoria.utils', () => ({
   registrarAuditoria: jest.fn().mockResolvedValue(undefined),
@@ -27,11 +28,15 @@ describe('UsuarioService (permisos F3)', () => {
         .fn()
         .mockResolvedValue({ uso: 0, max: null, advertencia: false }),
     };
+    const permisosService = {
+      invalidarPermisos: jest.fn().mockResolvedValue(undefined),
+    };
     const service = new UsuarioService(
       prisma as unknown as PrismaService,
       quotaService as unknown as QuotaService,
+      permisosService as unknown as PermisosService,
     );
-    return { service, prisma, quotaService };
+    return { service, prisma, quotaService, permisosService };
   }
 
   const admin = { userId: 'admin1', rol: 'ADMIN', empresaId: 'e1' };
@@ -93,6 +98,20 @@ describe('UsuarioService (permisos F3)', () => {
       }),
     );
     expect(res.mensaje).toContain('correctamente');
+  });
+
+  it('actualizarPermisos invalida la caché de permisos previa', async () => {
+    const { service, prisma, permisosService } = buildService();
+    prisma.usuario.findFirst.mockResolvedValue(
+      usuarioTarget({ authVersion: 3 }),
+    );
+    prisma.usuario.update.mockResolvedValue({ id: 'u1', authVersion: 4 });
+
+    await service.actualizarPermisos(admin, 'u1', {
+      permisos: ['pagos:registrar'],
+    });
+
+    expect(permisosService.invalidarPermisos).toHaveBeenCalledWith('u1', 3);
   });
 
   it('rechaza permisos desconocidos', async () => {

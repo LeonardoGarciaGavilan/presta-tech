@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SuperAdminService } from './superadmin.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { QuotaService } from '../common/quota/quota.service';
+import type { PermisosService } from '../common/permisos/permisos.service';
 
 jest.mock('../common/utils/auditoria.utils', () => ({
   registrarAuditoria: jest.fn().mockResolvedValue(undefined),
@@ -12,7 +13,7 @@ describe('SuperAdminService (límites)', () => {
     const prisma = {
       empresa: { findUnique: jest.fn() },
       limiteEmpresa: { findUnique: jest.fn(), upsert: jest.fn() },
-      usuario: { count: jest.fn().mockResolvedValue(2) },
+      usuario: { count: jest.fn().mockResolvedValue(2), updateMany: jest.fn() },
       cliente: { count: jest.fn().mockResolvedValue(5) },
       prestamo: { count: jest.fn().mockResolvedValue(8) },
       ruta: { count: jest.fn().mockResolvedValue(1) },
@@ -29,11 +30,15 @@ describe('SuperAdminService (límites)', () => {
         empleados: 3,
       }),
     };
+    const permisosService = {
+      invalidarModulos: jest.fn().mockResolvedValue(undefined),
+    };
     const service = new SuperAdminService(
       prisma as unknown as PrismaService,
       quotaService as unknown as QuotaService,
+      permisosService as unknown as PermisosService,
     );
-    return { service, prisma, quotaService };
+    return { service, prisma, quotaService, permisosService };
   }
 
   const superadmin = { id: 'sa1', rol: 'SUPERADMIN' };
@@ -92,7 +97,7 @@ describe('SuperAdminService (límites)', () => {
   });
 
   it('actualizarLimites hace upsert y filtra módulos inválidos', async () => {
-    const { service, prisma } = buildService();
+    const { service, prisma, permisosService } = buildService();
     prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
     prisma.limiteEmpresa.upsert.mockResolvedValue({});
 
@@ -112,6 +117,36 @@ describe('SuperAdminService (límites)', () => {
         }),
       }),
     );
+  });
+
+  it('actualizarLimites con módulos hace bump de authVersion e invalida caché', async () => {
+    const { service, prisma, permisosService } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.upsert.mockResolvedValue({});
+
+    await service.actualizarLimites(superadmin, 'e1', {
+      modulosDeshabilitados: ['SYNC'],
+    });
+
+    expect(prisma.usuario.updateMany).toHaveBeenCalledWith({
+      where: { empresaId: 'e1' },
+      data: { authVersion: { increment: 1 } },
+    });
+    expect(permisosService.invalidarModulos).toHaveBeenCalledWith('e1');
+  });
+
+  it('actualizarLimites sin tocar módulos no invalida caché', async () => {
+    const { service, prisma, permisosService } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.upsert.mockResolvedValue({});
+
+    await service.actualizarLimites(superadmin, 'e1', {
+      plan: 'Premium',
+      maxClientes: 100,
+    });
+
+    expect(prisma.usuario.updateMany).not.toHaveBeenCalled();
+    expect(permisosService.invalidarModulos).not.toHaveBeenCalled();
   });
 
   it('rechaza si todos los módulos son desconocidos', async () => {

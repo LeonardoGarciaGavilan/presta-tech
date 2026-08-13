@@ -1,3 +1,12 @@
+jest.mock('expo-server-sdk', () => {
+  class Expo {
+    static isExpoPushToken = () => false;
+    chunkPushNotifications = (messages: any[]) => messages;
+    sendPushNotificationsAsync = async () => [];
+  }
+  return { Expo, ExpoPushMessage: {}, ExpoPushTicket: {} };
+});
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -21,5 +30,9 @@ describe('AppController (e2e)', () => {
       .get('/')
       .expect(200)
       .expect('Hello World!');
+  });
+
+  afterEach(async () => {
+    await app.close();
   });
 });

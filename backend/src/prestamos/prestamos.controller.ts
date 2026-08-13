@@ -93,7 +93,8 @@ export class PrestamosController {
   }
 
   @Get('solicitudes')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:revisar')
   getSolicitudes(@Tenant() empresaId: string) {
     return this.prestamosService.getSolicitudes(empresaId);
   }

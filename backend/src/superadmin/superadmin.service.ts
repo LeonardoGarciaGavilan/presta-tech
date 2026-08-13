@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { MODULOS } from '../common/permisos/permisos.constants';
 import { QuotaService } from '../common/quota/quota.service';
+import { PermisosService } from '../common/permisos/permisos.service';
 import { validarPasswordOPopThrow } from '../common/passwords/password-policy';
 import * as bcrypt from 'bcrypt';
 
@@ -17,6 +18,7 @@ export class SuperAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotaService: QuotaService,
+    private readonly permisosService: PermisosService,
   ) {}
 
   private assertSuperAdmin(user: any) {
@@ -352,6 +354,19 @@ export class SuperAdminService {
       create: { empresaId, ...data },
       update: data,
     });
+
+    const cambiaModulos =
+      datos.modulosDeshabilitados !== undefined || datos.activo !== undefined;
+    if (cambiaModulos) {
+      // Los módulos disponibles y los permisos efectivos de los usuarios de la
+      // empresa cambian: bump authVersion (fuerza recálculo en clientes y en
+      // la caché de permisos) e invalida la caché de módulos de la empresa.
+      await this.prisma.usuario.updateMany({
+        where: { empresaId },
+        data: { authVersion: { increment: 1 } },
+      });
+      await this.permisosService.invalidarModulos(empresaId);
+    }
 
     await registrarAuditoria(this.prisma, {
       empresaId: 'sistema',

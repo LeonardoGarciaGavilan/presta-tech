@@ -8,6 +8,10 @@ import {
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
+import { PermisosGuard } from '../common/guards/permisos.guard';
+import { ModulosGuard } from '../common/guards/modulos.guard';
+import { SuperAdminGuard } from '../common/guards/superadmin.guard';
+import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -34,10 +38,12 @@ export class PerfilController {
     return this.perfilService.cambiarPassword(user.userId, dto);
   }
 
-  // PUT /perfil/empresa — actualizar nombre empresa (solo ADMIN)
+  // PUT /perfil/empresa — actualizar nombre empresa
   @Put('empresa')
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
+  @UseGuards(RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+  @Roles('ADMIN', 'EMPLEADO')
+  @Modulo('CONFIGURACION')
+  @RequierePermiso('configuracion:editar')
   updateEmpresa(@Body() dto: UpdateEmpresaDto, @Tenant() empresaId: string) {
     return this.perfilService.updateEmpresa(empresaId, dto);
   }

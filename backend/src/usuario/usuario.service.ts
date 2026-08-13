@@ -13,6 +13,7 @@ import {
   permisosBasePorRol,
   type Permiso,
 } from '../common/permisos/permisos.constants';
+import { PermisosService } from '../common/permisos/permisos.service';
 import * as bcrypt from 'bcrypt';
 import {
   generarPasswordTemporal,
@@ -24,6 +25,7 @@ export class UsuarioService {
   constructor(
     private prisma: PrismaService,
     private quotaService: QuotaService,
+    private permisosService: PermisosService,
   ) {}
 
   // ─── CREAR empleado ───────────────────────────────────────────────────────
@@ -287,6 +289,8 @@ export class UsuarioService {
       );
     }
 
+    const authVersionAnterior = usuario.authVersion;
+
     const actualizado = await this.prisma.usuario.update({
       where: { id },
       data: {
@@ -320,6 +324,8 @@ export class UsuarioService {
       datosNuevos: { permisos, permisosNegados },
       nivel: 'INFO',
     });
+
+    await this.permisosService.invalidarPermisos(id, authVersionAnterior);
 
     return {
       usuario: actualizado,
