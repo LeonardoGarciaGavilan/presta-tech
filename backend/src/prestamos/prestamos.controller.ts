@@ -17,7 +17,6 @@ import {
 } from '@nestjs/common';
 import { PrestamosService } from './prestamos.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
-import { UpdatePrestamoDto } from './dto/update-prestamo.dto';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles/roles.guard';
 import { Roles } from '../auth/roles/roles.decorator';
@@ -182,17 +181,6 @@ export class PrestamosController {
   @RequierePermiso('prestamos:ver')
   findOne(@Param('id') id: string, @Tenant() empresaId: string) {
     return this.prestamosService.findOne(id, empresaId);
-  }
-
-  @Patch(':id')
-  @Roles('ADMIN', 'EMPLEADO')
-  @RequierePermiso('prestamos:editar')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdatePrestamoDto,
-    @Tenant() empresaId: string,
-  ) {
-    return this.prestamosService.update(id, dto, empresaId);
   }
 
   @Patch(':id/cancelar')

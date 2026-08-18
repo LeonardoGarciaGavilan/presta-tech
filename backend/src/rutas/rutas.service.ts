@@ -58,6 +58,7 @@ export class RutasService {
       include: {
         usuario: { select: { id: true, nombre: true } },
         clientes: {
+          where: { eliminado: false },
           select: {
             id: true,
             clienteId: true,
@@ -131,7 +132,22 @@ export class RutasService {
       where: { id: clienteId, empresaId, activo: true },
     });
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
-    const count = await this.prisma.rutaCliente.count({ where: { rutaId } });
+    const count = await this.prisma.rutaCliente.count({
+      where: { rutaId, eliminado: false },
+    });
+    // Re-add: si el cliente ya estuvo en la ruta y fue soft-eliminado, se
+    // reactiva la misma fila (la PK compuesta [rutaId, clienteId] lo impide
+    // con un create).
+    const existente = await this.prisma.rutaCliente.findUnique({
+      where: { rutaId_clienteId: { rutaId, clienteId } },
+    });
+    if (existente?.eliminado) {
+      return this.prisma.rutaCliente.update({
+        where: { id: existente.id },
+        data: { eliminado: false, observacion, orden: count + 1 },
+        include: { cliente: { select: CLIENTE_SELECT } },
+      });
+    }
     try {
       return await this.prisma.rutaCliente.create({
         data: { rutaId, clienteId, observacion, orden: count + 1 },
@@ -167,7 +183,12 @@ export class RutasService {
     isAdmin: boolean,
   ) {
     await this.assertRuta(rutaId, empresaId, usuarioId, isAdmin);
-    return this.prisma.rutaCliente.delete({ where: { id: rutaClienteId } });
+    // Soft-delete: el registro viaja en el delta con eliminado=true y el
+    // móvil lo filtra al leer (el delete hard no llegaría nunca al offline).
+    return this.prisma.rutaCliente.update({
+      where: { id: rutaClienteId },
+      data: { eliminado: true },
+    });
   }
 
   // ─── 8. REORDENAR CLIENTES ────────────────────────────────────────────────
@@ -212,7 +233,7 @@ export class RutasService {
     // Solo clientes con fechaRuta del día seleccionado (sub-ruta del día)
     // Si no hay sub-ruta generada para ese día, devuelve todos
     const tieneSubRuta = await this.prisma.rutaCliente.count({
-      where: { rutaId, fechaRuta: fechaStr },
+      where: { rutaId, fechaRuta: fechaStr, eliminado: false },
     });
 
     // ============================================================
@@ -224,7 +245,11 @@ export class RutasService {
     // ============================================================
 
     const rutaClientes = await this.prisma.rutaCliente.findMany({
-      where: { rutaId, ...(tieneSubRuta > 0 ? { fechaRuta: fechaStr } : {}) },
+      where: {
+        rutaId,
+        eliminado: false,
+        ...(tieneSubRuta > 0 ? { fechaRuta: fechaStr } : {}),
+      },
       orderBy: { orden: 'asc' },
       include: { cliente: { select: CLIENTE_SELECT } },
     });
@@ -339,7 +364,7 @@ export class RutasService {
     puedeGestionar = false,
   ) {
     const rc = await this.prisma.rutaCliente.findFirst({
-      where: { id: rutaClienteId },
+      where: { id: rutaClienteId, eliminado: false },
       include: { ruta: true },
     });
     if (!rc || rc.ruta.empresaId !== empresaId)
@@ -360,7 +385,7 @@ export class RutasService {
   // ─── 11. RESET VISITADOS ─────────────────────────────────────────────────
   async resetVisitados(empresaId: string) {
     await this.prisma.rutaCliente.updateMany({
-      where: { ruta: { empresaId } },
+      where: { ruta: { empresaId }, eliminado: false },
       data: { visitadoHoy: false },
     });
     return { ok: true };
@@ -379,6 +404,7 @@ export class RutasService {
       include: {
         usuario: { select: { id: true, nombre: true } },
         clientes: {
+          where: { eliminado: false },
           orderBy: { orden: 'asc' },
           include: { cliente: { select: CLIENTE_SELECT } },
         },
@@ -432,13 +458,13 @@ export class RutasService {
 
     // Limpiar selección anterior del mismo día
     await this.prisma.rutaCliente.updateMany({
-      where: { rutaId, fechaRuta: fecha },
+      where: { rutaId, fechaRuta: fecha, eliminado: false },
       data: { fechaRuta: null },
     });
 
     // Marcar los seleccionados
     await this.prisma.rutaCliente.updateMany({
-      where: { id: { in: rutaClienteIds }, rutaId },
+      where: { id: { in: rutaClienteIds }, rutaId, eliminado: false },
       data: { fechaRuta: fecha },
     });
 
@@ -448,7 +474,7 @@ export class RutasService {
   // ─── 16. RUTA ACTUAL DE UN CLIENTE ───────────────────────────────────────
   async getRutaDeCliente(clienteId: string, empresaId: string) {
     const rc = await this.prisma.rutaCliente.findFirst({
-      where: { clienteId, ruta: { empresaId, activa: true } },
+      where: { clienteId, eliminado: false, ruta: { empresaId, activa: true } },
       include: { ruta: { select: { id: true, nombre: true } } },
     });
     return rc
@@ -463,10 +489,13 @@ export class RutasService {
     rutaId: string | null,
   ) {
     const actual = await this.prisma.rutaCliente.findFirst({
-      where: { clienteId, ruta: { empresaId, activa: true } },
+      where: { clienteId, eliminado: false, ruta: { empresaId, activa: true } },
     });
     if (actual)
-      await this.prisma.rutaCliente.delete({ where: { id: actual.id } });
+      await this.prisma.rutaCliente.update({
+        where: { id: actual.id },
+        data: { eliminado: true },
+      });
     if (!rutaId) return { ok: true, rutaId: null };
 
     const ruta = await this.prisma.ruta.findFirst({
@@ -479,11 +508,22 @@ export class RutasService {
     });
     if (!cliente) throw new NotFoundException('Cliente no encontrado');
 
-    const count = await this.prisma.rutaCliente.count({ where: { rutaId } });
-    const rc = await this.prisma.rutaCliente.create({
-      data: { rutaId, clienteId, orden: count + 1 },
-      include: { ruta: { select: { id: true, nombre: true } } },
+    const count = await this.prisma.rutaCliente.count({
+      where: { rutaId, eliminado: false },
     });
+    const existente = await this.prisma.rutaCliente.findUnique({
+      where: { rutaId_clienteId: { rutaId, clienteId } },
+    });
+    const rc = existente
+      ? await this.prisma.rutaCliente.update({
+          where: { id: existente.id },
+          data: { eliminado: false, orden: count + 1 },
+          include: { ruta: { select: { id: true, nombre: true } } },
+        })
+      : await this.prisma.rutaCliente.create({
+          data: { rutaId, clienteId, orden: count + 1 },
+          include: { ruta: { select: { id: true, nombre: true } } },
+        });
     return { ok: true, rutaId: rc.ruta.id, rutaNombre: rc.ruta.nombre };
   }
 }

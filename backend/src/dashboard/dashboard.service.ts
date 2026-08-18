@@ -342,7 +342,6 @@ export class DashboardService {
       select: {
         id: true,
         monto: true,
-        saldoPendiente: true,
         estado: true,
         cliente: {
           select: {
@@ -432,7 +431,6 @@ export class DashboardService {
         prestamo: {
           select: {
             id: true,
-            saldoPendiente: true,
             cliente: {
               select: {
                 id: true,
@@ -448,6 +446,28 @@ export class DashboardService {
       take: 10,
     });
 
+    const prestamoIds = [...new Set(cuotas.map((c) => c.prestamo.id))];
+
+    const saldos = prestamoIds.length
+      ? await this.prisma.cuota.groupBy({
+          by: ['prestamoId'],
+          where: { prestamoId: { in: prestamoIds }, pagada: false },
+          _sum: { capital: true, interes: true, mora: true },
+        })
+      : [];
+
+    const saldoPorPrestamo = new Map(
+      saldos.map((s) => [
+        s.prestamoId,
+        Math.round(
+          ((s._sum.capital ?? 0) +
+            (s._sum.interes ?? 0) +
+            (s._sum.mora ?? 0)) *
+            100,
+        ) / 100,
+      ]),
+    );
+
     return cuotas.map((c) => ({
       id: c.id,
       numero: c.numero,
@@ -462,7 +482,7 @@ export class DashboardService {
       ),
       prestamo: {
         id: c.prestamo.id,
-        saldoPendiente: c.prestamo.saldoPendiente,
+        saldoPendiente: saldoPorPrestamo.get(c.prestamo.id) ?? 0,
         cliente: {
           id: c.prestamo.cliente.id,
           nombre: c.prestamo.cliente.nombre,

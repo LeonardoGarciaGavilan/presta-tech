@@ -358,6 +358,7 @@ model RutaCliente {
   rutaId       String
   clienteId    String
   fechaRuta    String?
+  eliminado    Boolean   @default(false)
   cliente      Cliente   @relation(fields: [clienteId], references: [id])
   ruta         Ruta      @relation(fields: [rutaId], references: [id], onDelete: Cascade)
 

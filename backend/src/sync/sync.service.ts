@@ -48,6 +48,7 @@ export interface CambiosResult {
   prestamos: PrestamoSync[];
   rutas: RutaSync[];
   rutaClientes: RutaCliente[];
+  rutasAjenas: string[];
   configuracion: any;
 }
 
@@ -92,19 +93,20 @@ export class SyncService {
 
     const updatedSince = desde ? { updatedAt: { gt: desde } } : undefined;
 
-    // Paridad con rutas.findAll: solo rutas activas y, para no-admins, solo las del usuario.
+    // Paridad con rutas.findAll: para no-admins, solo las rutas del usuario.
+    // Sin filtro `activa` para que las desactivaciones viajen en el delta/snapshot.
     const rutaWhere: Prisma.RutaWhereInput = {
       empresaId,
-      activa: true,
       ...(updatedSince ?? {}),
       ...(!isAdmin && usuarioId ? { usuarioId } : {}),
     };
 
     // RutaCliente no tiene empresaId: se filtra por la relación con las rutas de la empresa.
+    // Sin filtro `activa` para que la desactivación de una ruta también propague sus
+    // rutaClientes (que además dejan de viajar al filtrar la ruta padre).
     const rutaClienteWhere: Prisma.RutaClienteWhereInput = {
       ruta: {
         empresaId,
-        activa: true,
         ...(!isAdmin && usuarioId ? { usuarioId } : {}),
       },
       ...(updatedSince ?? {}),
@@ -124,10 +126,12 @@ export class SyncService {
         : {}),
     };
 
-    const [clientes, prestamosRaw, rutas, rutaClientes] = await Promise.all([
+    const [clientes, prestamosRaw, rutas, rutaClientes, rutasAjenasRaw] =
+      await Promise.all([
       permisos.clientes
         ? this.prisma.cliente.findMany({
-            where: { empresaId, activo: true, ...(updatedSince ?? {}) },
+            // Sin filtro `activo` para que las desactivaciones viajen en el delta.
+            where: { empresaId, ...(updatedSince ?? {}) },
             orderBy: { updatedAt: 'desc' },
           })
         : Promise.resolve([]),
@@ -143,6 +147,7 @@ export class SyncService {
             include: {
               usuario: { select: { id: true, nombre: true } },
               clientes: {
+                where: { eliminado: false },
                 select: {
                   id: true,
                   clienteId: true,
@@ -161,6 +166,20 @@ export class SyncService {
         ? this.prisma.rutaCliente.findMany({
             where: rutaClienteWhere,
             orderBy: { updatedAt: 'desc' },
+          })
+        : Promise.resolve([]),
+      // Rutas de OTROS usuarios de la empresa que cambiaron después del cursor.
+      // Para no-admins: si una ruta ajena fue desactivada o reasignada a otro
+      // usuario, el móvil debe retirarla de su cache local (no viaja en `rutas`
+      // porque el delta ya no la incluye para ese usuario).
+      !isAdmin && usuarioId && permisos.rutas
+        ? this.prisma.ruta.findMany({
+            where: {
+              empresaId,
+              usuarioId: { not: usuarioId },
+              ...(updatedSince ?? {}),
+            },
+            select: { id: true },
           })
         : Promise.resolve([]),
     ]);
@@ -182,6 +201,7 @@ export class SyncService {
       prestamos,
       rutas,
       rutaClientes,
+      rutasAjenas: rutasAjenasRaw.map((r) => r.id),
       configuracion,
     };
   }

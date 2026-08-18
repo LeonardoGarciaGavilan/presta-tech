@@ -10,7 +10,6 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
-import { UpdatePrestamoDto } from './dto/update-prestamo.dto';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
 import { EstadoPrestamo, FrecuenciaPago, MetodoPago } from '@prisma/client';
 import { AlertsGateway } from '../alerts/alerts.gateway';
@@ -296,11 +295,11 @@ export class PrestamosService {
   ): Promise<number> {
     if (cuota.mora > 0) return cuota.mora;
 
-    let config: any = null;
+    let config: { diasGracia: number; moraPorcentajeMensual: number } | null = null;
     const cacheKey = `config:${empresaId}`;
 
     if (this.cacheManager) {
-      config = await this.cacheManager.get(cacheKey);
+      config = (await this.cacheManager.get(cacheKey)) ?? null;
     }
 
     if (!config) {
@@ -363,20 +362,20 @@ export class PrestamosService {
   // ─── FUNCIÓN HELPER PARA CALCULAR DESDE OBJETO ───────────────────────────────
   // Calcula saldo y mora desde el objeto prestamo (que ya tiene cuotas cargadas)
   // Útil para listados y respuestas API
-  private calcularDesdeObjeto(prestamo: any): {
+  private calcularDesdeObjeto(prestamo: { cuotas?: { pagada: boolean; capital: number; interes: number; mora: number }[] }): {
     saldoPendiente: number;
     moraAcumulada: number;
   } {
     const cuotasPendientes =
-      prestamo.cuotas?.filter((c: any) => !c.pagada) ?? [];
+      prestamo.cuotas?.filter((c) => !c.pagada) ?? [];
 
     const saldo = cuotasPendientes.reduce(
-      (sum: number, c: any) => sum + c.capital + c.interes + (c.mora || 0),
+      (sum, c) => sum + c.capital + c.interes + (c.mora || 0),
       0,
     );
 
     const mora = cuotasPendientes.reduce(
-      (sum: number, c: any) => sum + (c.mora || 0),
+      (sum, c) => sum + (c.mora || 0),
       0,
     );
 
@@ -384,14 +383,6 @@ export class PrestamosService {
       saldoPendiente: Math.round(saldo * 100) / 100,
       moraAcumulada: Math.round(mora * 100) / 100,
     };
-  }
-
-  private async assertPrestamoExists(id: string, empresaId: string) {
-    const prestamo = await this.prisma.prestamo.findFirst({
-      where: { id, empresaId },
-    });
-    if (!prestamo) throw new NotFoundException(`Préstamo ${id} no encontrado`);
-    return prestamo;
   }
 
   private async crearAlerta(params: {
@@ -1122,11 +1113,6 @@ export class PrestamosService {
     };
   }
 
-  async update(id: string, dto: UpdatePrestamoDto, empresaId: string) {
-    await this.assertPrestamoExists(id, empresaId);
-    return this.prisma.prestamo.update({ where: { id }, data: dto });
-  }
-
   async cancelar(id: string, empresaId: string, usuarioId?: string) {
     const prestamo = await TenantUtils.findByIdOrThrow(
       this.prisma,
@@ -1211,10 +1197,10 @@ export class PrestamosService {
     const cacheKey = `config:${empresaId}`;
 
     // 1. Obtener configuración (con cache)
-    let config: any = null;
+    let config: { diasGracia: number; moraPorcentajeMensual: number } | null = null;
     try {
       if (this.cacheManager) {
-        config = await this.cacheManager.get(cacheKey);
+        config = (await this.cacheManager.get(cacheKey)) ?? null;
       }
     } catch (e) {
       console.warn('Cache config error:', e?.message);
@@ -1420,14 +1406,6 @@ export class PrestamosService {
         }),
       ]);
 
-    const saldoTotal = await this.prisma.prestamo.aggregate({
-      where: {
-        empresaId,
-        estado: { in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO] },
-      },
-      _sum: { saldoPendiente: true },
-    });
-
     // Calcular saldo REAL desde cuotas
     const prestamosActivos = await this.prisma.prestamo.findMany({
       where: {
@@ -1551,7 +1529,7 @@ export class PrestamosService {
       cuotasOriginales: prestamo.numeroCuotas,
       cuotasPagadasAntes: prestamo.cuotas.filter((c) => c.pagada).length,
       cuotasPendientesAntes: cuotasPendientes.length,
-      saldoAntes: prestamo.saldoPendiente,
+      saldoAntes: this.calcularDesdeObjeto(prestamo).saldoPendiente,
       tasaAntes: prestamo.tasaInteres,
       frecuenciaAntes: prestamo.frecuenciaPago,
       nuevasCuotas: dto.nuevasCuotas,
@@ -1733,7 +1711,7 @@ export class PrestamosService {
 
   async marcarAlertaLeida(alertaId: string, empresaId: string) {
     const result = await (this.prisma as any).alerta.update({
-      where: { id: alertaId },
+      where: { id: alertaId, empresaId },
       data: { leida: true },
     });
     if (this.cacheManager)

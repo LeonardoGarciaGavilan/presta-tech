@@ -794,20 +794,7 @@ export class CapitalService {
         usuario: { select: { id: true, nombre: true } },
         clientes: {
           include: {
-            cliente: {
-              include: {
-                prestamos: {
-                  where: {
-                    estado: { in: ['ACTIVO', 'ATRASADO'] },
-                  },
-                  select: {
-                    id: true,
-                    monto: true,
-                    saldoPendiente: true,
-                  },
-                },
-              },
-            },
+            cliente: true,
           },
         },
       },
