@@ -1,9 +1,11 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-import { upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
-import { upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
+import { upsertClientes } from '@/db/clientes-db';
+import { upsertPrestamos } from '@/db/prestamos-db';
 import { upsertRutas, upsertRutaClientes, getRutas } from '@/db/rutas-db';
 import { setConfiguracion, getConfiguracion } from '@/db/config-db';
+import { getCajaActivaCache } from '@/db/caja-db';
+import { getClientesOffline, getPrestamosOffline } from '@/services/offline-data';
 import { obtener as obtenerPrestamo } from '@/api/prestamos.api';
 import type { Cliente, PaginatedClientesResponse } from '@/types/cliente.types';
 import type { Prestamo, PaginatedPrestamosResponse } from '@/types/prestamo.types';
@@ -48,6 +50,7 @@ export function syncRutasToDb(rutas: Ruta[]): void {
       fechaRuta: rc.fechaRuta ?? null,
       rutaId: r.id,
       clienteId: rc.clienteId,
+      eliminado: rc.eliminado ?? false,
     })),
   );
   if (allRc.length > 0) {
@@ -60,12 +63,12 @@ export function syncConfigToDb(config: ConfiguracionResponse): void {
 }
 
 export function hydrateFromDb(queryClient: QueryClient): void {
-  const cachedClientes = getAllCachedClientes();
-  if (cachedClientes.length > 0) {
-    queryClient.setQueryData(
-      ['clientes', { page: 1, limit: cachedClientes.length }],
-      { data: cachedClientes, total: cachedClientes.length, pagina: 1, porPagina: cachedClientes.length, totalPaginas: 1 },
-    );
+  // Siembra las claves exactas que usan los listados infinitos offline
+  // (['clientes', search, verInactivos] / ['prestamos', search, estado]) para
+  // que en arranque en frío sin conexión se vea la lista completa al instante.
+  const clientes = getClientesOffline('', false);
+  if (clientes.data.length > 0) {
+    queryClient.setQueryData(['clientes', '', false], clientes);
   }
 
   const cachedRutas = getRutas();
@@ -78,11 +81,14 @@ export function hydrateFromDb(queryClient: QueryClient): void {
     queryClient.setQueryData(['configuracion'], cachedConfig);
   }
 
-  const cachedPrestamos = getAllCachedPrestamos();
-  if (cachedPrestamos.length > 0) {
-    queryClient.setQueryData(
-      ['prestamos', { page: 1, limit: 200 }],
-      { data: cachedPrestamos, total: cachedPrestamos.length, pagina: 1, porPagina: 200, totalPaginas: 1 },
-    );
+  const prestamos = getPrestamosOffline('', '');
+  if (prestamos.data.length > 0) {
+    queryClient.setQueryData(['prestamos', '', ''], prestamos);
+  }
+
+  // C2: la caja activa persiste en SQLite para sobrevivir al arranque en frío.
+  const cajaActivaCache = getCajaActivaCache();
+  if (cajaActivaCache) {
+    queryClient.setQueryData(['caja', 'activa'], cajaActivaCache);
   }
 }

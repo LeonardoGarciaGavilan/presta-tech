@@ -83,6 +83,11 @@ export default function ConfiguracionScreen() {
     montoMinimoPrestamo: config?.montoMinimoPrestamo ?? 500,
     montoMaximoPrestamo: config?.montoMaximoPrestamo ?? null,
     montoMaximoPago: config?.montoMaximoPago ?? null,
+    cuotasRestantesParaRenovar: config?.cuotasRestantesParaRenovar ?? 0,
+    maxRefinanciamientosPorPrestamo:
+      config?.maxRefinanciamientosPorPrestamo ?? 0,
+    maxPrestamosActivosPorCliente:
+      config?.maxPrestamosActivosPorCliente ?? null,
   }), [config]);
 
   const {
@@ -106,6 +111,10 @@ export default function ConfiguracionScreen() {
         montoMinimoPrestamo: data.montoMinimoPrestamo,
         montoMaximoPrestamo: data.montoMaximoPrestamo ?? null,
         montoMaximoPago: data.montoMaximoPago ?? null,
+        cuotasRestantesParaRenovar: data.cuotasRestantesParaRenovar ?? 0,
+        maxRefinanciamientosPorPrestamo: data.maxRefinanciamientosPorPrestamo ?? 0,
+        maxPrestamosActivosPorCliente:
+          data.maxPrestamosActivosPorCliente ?? 0,
       });
       showToast('Configuración guardada correctamente', 'success');
     } catch {
@@ -345,6 +354,67 @@ export default function ConfiguracionScreen() {
                 editable={puedeEditar}
                 error={errors.montoMaximoPago?.message}
                 hint="Límite por transacción de pago"
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="maxPrestamosActivosPorCliente"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <AppInput
+                label="Máximo de préstamos activos por cliente"
+                placeholder="Sin límite"
+                value={value?.toString() ?? ''}
+                onChangeText={(v) =>
+                  onChange(v !== '' ? parseInt(v, 10) : null)
+                }
+                onBlur={onBlur}
+                keyboardType="number-pad"
+                editable={puedeEditar}
+                error={errors.maxPrestamosActivosPorCliente?.message}
+                hint="Cuenta préstamos ACTIVOS y ATRASADOS. Vacío o 0 = sin límite"
+              />
+            )}
+          />
+        </SectionCard>
+
+        <SectionCard
+          icon="🔄"
+          title="Reglas de refinanciamiento"
+          description="Controla cuándo se puede renovar un préstamo"
+          colors={colors}
+        >
+          <Controller
+            control={control}
+            name="cuotasRestantesParaRenovar"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <AppInput
+                label="Cuotas restantes para permitir renovación"
+                placeholder="0"
+                value={value?.toString() ?? '0'}
+                onChangeText={(v) => onChange(v !== '' ? parseInt(v, 10) : 0)}
+                onBlur={onBlur}
+                keyboardType="number-pad"
+                editable={puedeEditar}
+                error={errors.cuotasRestantesParaRenovar?.message}
+                hint="Solo se puede renovar cuando faltan X cuotas o menos. 0 = sin restricción"
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="maxRefinanciamientosPorPrestamo"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <AppInput
+                label="Máximo de refinanciamientos por préstamo"
+                placeholder="0"
+                value={value?.toString() ?? '0'}
+                onChangeText={(v) => onChange(v !== '' ? parseInt(v, 10) : 0)}
+                onBlur={onBlur}
+                keyboardType="number-pad"
+                editable={puedeEditar}
+                error={errors.maxRefinanciamientosPorPrestamo?.message}
+                hint="Límite de veces que un préstamo puede refinanciarse. 0 = sin límite"
               />
             )}
           />

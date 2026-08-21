@@ -1,6 +1,7 @@
 import { eq, like, or, sql, inArray } from 'drizzle-orm';
 import { db } from './index';
 import { prestamos, cuotas, clientes } from './schema';
+import { upsertPagos } from './pagos-db';
 import type { Prestamo, Cuota } from '@/types/prestamo.types';
 
 function rowToPrestamo(
@@ -128,7 +129,9 @@ export function upsertPrestamos(list: Prestamo[]): void {
           ...cuota,
           id: cuota.id ?? `${p.id}_cuota_${cuota.numero}`,
           prestamoId: p.id,
-          createdAt: cuota.fechaVencimiento,
+          // 2.4: createdAt es la fecha real de creación (como el servidor,
+          // que usa now() al crear la cuota), no la fecha de vencimiento.
+          createdAt: cuota.createdAt ?? new Date().toISOString(),
         } as Cuota;
         db.insert(cuotas)
           .values(cuotaToRow(fullCuota))
@@ -137,6 +140,30 @@ export function upsertPrestamos(list: Prestamo[]): void {
             set: cuotaToRow(fullCuota),
           })
           .run();
+      }
+    }
+
+    // 2.2: los pagos del servidor que vienen anidados en el préstamo se
+    // hidratan en la tabla local `pagos` (antes se descartaban y el historial
+    // offline perdía los pagos creados en otros dispositivos).
+    if (p.pagos && p.pagos.length > 0) {
+      for (const pago of p.pagos) {
+        upsertPagos([
+          {
+            id: pago.id,
+            montoTotal: pago.montoTotal,
+            capital: pago.capital,
+            interes: pago.interes,
+            mora: pago.mora ?? 0,
+            metodo: pago.metodo,
+            referencia: pago.referencia ?? null,
+            observacion: pago.observacion ?? null,
+            createdAt: pago.createdAt,
+            usuarioId: (pago as { usuarioId?: string }).usuarioId ?? pago.usuario?.id ?? '',
+            prestamoId: p.id,
+            cajaId: (pago as { cajaId?: string | null }).cajaId ?? null,
+          },
+        ]);
       }
     }
   }
@@ -351,19 +378,46 @@ export function aplicarPagoLocal(
     for (const cuota of cuotasRestantes) {
       if (abonoRestante <= 0) break;
       const c = map.get(cuota.id)!;
-      const reduccion = Math.min(abonoRestante, c.capital);
-      const nuevoCapital = Math.round((c.capital - reduccion) * 100) / 100;
-      if (nuevoCapital <= 0) {
+
+      let restante = abonoRestante;
+      let pagoMora = 0;
+      let pagoInteres = 0;
+      let pagoCapital = 0;
+
+      if (c.mora > 0) {
+        pagoMora = Math.min(restante, c.mora);
+        restante = Math.round((restante - pagoMora) * 100) / 100;
+      }
+      if (restante > 0) {
+        pagoInteres = Math.min(restante, c.interes);
+        restante = Math.round((restante - pagoInteres) * 100) / 100;
+      }
+      if (restante > 0) {
+        pagoCapital = Math.min(restante, c.capital);
+        restante = Math.round((restante - pagoCapital) * 100) / 100;
+      }
+
+      const nuevaMora = Math.max(0, Math.round((c.mora - pagoMora) * 100) / 100);
+      const nuevoInteres = Math.max(0, Math.round((c.interes - pagoInteres) * 100) / 100);
+      const nuevoCapital = Math.max(0, Math.round((c.capital - pagoCapital) * 100) / 100);
+      const nuevoMonto = Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+
+      if (nuevoMonto <= 0) {
         c.capital = 0;
-        c.monto = c.interes;
+        c.interes = 0;
+        c.mora = 0;
+        c.monto = 0;
         c.pagada = true;
         c.fechaPago = fecha;
       } else {
         c.capital = nuevoCapital;
-        c.monto = Math.round((nuevoCapital + c.interes) * 100) / 100;
+        c.interes = nuevoInteres;
+        c.mora = nuevaMora;
+        c.monto = nuevoMonto;
       }
       map.set(cuota.id, c);
-      abonoRestante = Math.round((abonoRestante - reduccion) * 100) / 100;
+      abonoRestante =
+        Math.round((abonoRestante - pagoMora - pagoInteres - pagoCapital) * 100) / 100;
     }
   }
 

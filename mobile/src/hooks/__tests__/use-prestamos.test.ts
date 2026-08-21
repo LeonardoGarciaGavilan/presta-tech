@@ -5,6 +5,10 @@ import React from 'react';
 const mockListar = jest.fn();
 const mockCrear = jest.fn();
 const mockCambiarEstado = jest.fn();
+const mockActualizar = jest.fn();
+const mockCancelar = jest.fn();
+const mockDesembolsar = jest.fn();
+const mockRefinanciar = jest.fn();
 const mockGetAllCachedPrestamos = jest.fn();
 const mockGetPrestamoById = jest.fn();
 const mockGetClienteNombre = jest.fn();
@@ -17,10 +21,10 @@ jest.mock('@/api/prestamos.api', () => ({
   crear: (...args: any[]) => mockCrear(...args),
   cambiarEstado: (...args: any[]) => mockCambiarEstado(...args),
   obtener: jest.fn(),
-  actualizar: jest.fn(),
-  cancelar: jest.fn(),
-  desembolsar: jest.fn(),
-  refinanciar: jest.fn(),
+  actualizar: (...args: any[]) => mockActualizar(...args),
+  cancelar: (...args: any[]) => mockCancelar(...args),
+  desembolsar: (...args: any[]) => mockDesembolsar(...args),
+  refinanciar: (...args: any[]) => mockRefinanciar(...args),
   calcularTabla: jest.fn(),
   getResumen: jest.fn(),
   getSolicitudes: jest.fn(),
@@ -51,7 +55,15 @@ jest.mock('@/store/auth.store', () => ({
   },
 }));
 
-import { usePrestamos, useCrearPrestamo, useCambiarEstadoPrestamo } from '@/hooks/use-prestamos';
+import {
+  usePrestamos,
+  useCrearPrestamo,
+  useCambiarEstadoPrestamo,
+  useActualizarPrestamo,
+  useCancelarPrestamo,
+  useDesembolsarPrestamo,
+  useRefinanciarPrestamo,
+} from '@/hooks/use-prestamos';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { useAuthStore } from '@/store/auth.store';
@@ -211,5 +223,157 @@ describe('useCambiarEstadoPrestamo', () => {
 
     const cached = queryClient.getQueryData(['prestamos', '1']);
     expect(cached).toEqual(prevData);
+  });
+});
+
+describe('Guards esOffline en onSuccess (1.4)', () => {
+  const cachePrestamo = {
+    id: '1',
+    estado: 'ACTIVO',
+    monto: 10000,
+    cuotas: [{ id: 'c1', numero: 1 }],
+  };
+
+  function wrapperConCache() {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(['prestamos', '1'], cachePrestamo);
+    const Wrapper = function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    };
+    return { queryClient, Wrapper };
+  }
+
+  function offlineNetwork() {
+    (useNetworkContext as jest.Mock).mockReturnValue({
+      network: { isOnline: false },
+      addToOfflineQueue: mockAddToOfflineQueue,
+    });
+    mockAddToOfflineQueue.mockResolvedValue({ tempId: 'temp_123' });
+  }
+
+  it('useActualizarPrestamo: respuesta offline no pisa el cache con datos parciales', async () => {
+    offlineNetwork();
+    const { queryClient, Wrapper } = wrapperConCache();
+
+    const { result } = await renderHook(() => useActualizarPrestamo(), { wrapper: Wrapper });
+    result.current.mutate({ id: '1', data: { monto: 9999 } });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockActualizar).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(['prestamos', '1'])).toEqual({
+      ...cachePrestamo,
+      monto: 9999,
+    });
+  });
+
+  it('useCancelarPrestamo: respuesta offline no pisa el cache con datos parciales', async () => {
+    offlineNetwork();
+    const { queryClient, Wrapper } = wrapperConCache();
+
+    const { result } = await renderHook(() => useCancelarPrestamo(), { wrapper: Wrapper });
+    result.current.mutate('1');
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockCancelar).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(['prestamos', '1'])).toEqual({
+      ...cachePrestamo,
+      estado: 'CANCELADO',
+    });
+  });
+
+  it('useDesembolsarPrestamo: respuesta offline no pisa el cache con datos parciales', async () => {
+    offlineNetwork();
+    const { queryClient, Wrapper } = wrapperConCache();
+
+    const { result } = await renderHook(() => useDesembolsarPrestamo(), { wrapper: Wrapper });
+    result.current.mutate('1');
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockDesembolsar).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(['prestamos', '1'])).toEqual({
+      ...cachePrestamo,
+      estado: 'ACTIVO',
+    });
+  });
+
+  it('useRefinanciarPrestamo: offline aplica update optimista completo (cuotas nuevas, tasa, flags) y persiste en SQLite', async () => {
+    offlineNetwork();
+    const prestamoCache = {
+      ...cachePrestamo,
+      tasaInteres: 5,
+      numeroCuotas: 3,
+      frecuenciaPago: 'MENSUAL',
+      refinanciado: false,
+      vecesRefinanciado: 0,
+      moraAcumulada: 10,
+      cuotas: [
+        { id: 'c1', numero: 1, pagada: true, capital: 100, interes: 20, mora: 0 },
+        { id: 'c2', numero: 2, pagada: false, capital: 100, interes: 20, mora: 10 },
+        { id: 'c3', numero: 3, pagada: false, capital: 100, interes: 20, mora: 0 },
+      ],
+    };
+    mockGetPrestamoById.mockReturnValue(prestamoCache);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(['prestamos', '1'], prestamoCache);
+    const Wrapper = function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    };
+
+    const { result } = await renderHook(() => useRefinanciarPrestamo(), { wrapper: Wrapper });
+    result.current.mutate({ id: '1', data: { nuevasCuotas: 4, nuevaTasa: 6 } });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockRefinanciar).not.toHaveBeenCalled();
+    expect(result.current.data?.estado).toBe('ACTIVO');
+    expect(result.current.data?.esOffline).toBe(true);
+
+    const cached: any = queryClient.getQueryData(['prestamos', '1']);
+    // Saldo refinanciado = capital+mora pendientes (interés excluido): 110 + 100 = 210
+    expect(mockAddToOfflineQueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: '/prestamos/1/refinanciar',
+        method: 'PATCH',
+        tempDisplay: expect.objectContaining({ saldoRefinanciado: 210 }),
+      }),
+    );
+    // Campos completos replicados del backend, no solo estado
+    expect(cached.estado).toBe('ACTIVO');
+    expect(cached.tasaInteres).toBe(6);
+    expect(cached.numeroCuotas).toBe(5); // última pagada (1) + 4 nuevas
+    expect(cached.refinanciado).toBe(true);
+    expect(cached.vecesRefinanciado).toBe(1);
+    expect(cached.moraAcumulada).toBe(0);
+    // Cuotas: la pagada se conserva; las 4 nuevas numeradas 2..5 sin mora
+    expect(cached.cuotas).toHaveLength(5);
+    expect(cached.cuotas.filter((c: any) => !c.pagada).map((c: any) => c.numero)).toEqual([2, 3, 4, 5]);
+    expect(cached.cuotas.every((c: any) => c.pagada || c.mora === 0)).toBe(true);
+    // Persistido en SQLite para lectura offline posterior
+    expect(mockUpsertPrestamos).toHaveBeenCalledTimes(1);
+    expect(mockUpsertPrestamos.mock.calls[0][0][0].id).toBe('1');
+  });
+
+  it('useRefinanciarPrestamo: offline sin cache cae back a solo estado ACTIVO', async () => {
+    offlineNetwork();
+    mockGetPrestamoById.mockReturnValue(undefined);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const Wrapper = function Wrapper({ children }: { children: React.ReactNode }) {
+      return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    };
+
+    const { result } = await renderHook(() => useRefinanciarPrestamo(), { wrapper: Wrapper });
+    result.current.mutate({ id: '1', data: { nuevasCuotas: 6, nuevaTasa: 6 } });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockRefinanciar).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(['prestamos', '1'])).toEqual({
+      estado: 'ACTIVO',
+    });
+    expect(mockUpsertPrestamos).not.toHaveBeenCalled();
   });
 });

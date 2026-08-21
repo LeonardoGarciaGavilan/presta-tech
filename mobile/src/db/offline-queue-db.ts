@@ -4,8 +4,9 @@ import { offlineQueue } from './schema';
 import type { OfflineQueueItem, OfflineMethod } from '@/types/offline.types';
 import { OFFLINE_MAX_AGE_MS } from '@/types/offline.types';
 import { deletePago } from '@/db/pagos-db';
-import { deletePrestamo } from '@/db/prestamos-db';
+import { deletePrestamo, upsertPrestamos } from '@/db/prestamos-db';
 import { deleteCliente } from '@/db/clientes-db';
+import type { Prestamo } from '@/types/prestamo.types';
 
 function rowToItem(row: typeof offlineQueue.$inferSelect): OfflineQueueItem {
   return {
@@ -22,6 +23,7 @@ function rowToItem(row: typeof offlineQueue.$inferSelect): OfflineQueueItem {
     lastError: row.lastError ?? undefined,
     idempotencyKey: row.idempotencyKey ?? undefined,
     retryable: row.retryable ?? true,
+    snapshot: row.snapshot ? JSON.parse(row.snapshot) : undefined,
   };
 }
 
@@ -40,15 +42,18 @@ function itemToRow(item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount
     lastError: item.lastError ?? null,
     idempotencyKey: item.idempotencyKey ?? null,
     retryable: item.retryable ?? true,
+    snapshot: item.snapshot !== undefined ? JSON.stringify(item.snapshot) : null,
   };
+}
+
+export function generateIdempotencyKey(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${timestamp}${random}`;
 }
 
 function generateId(): string {
   return `offline_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-}
-
-function generateIdempotencyKey(): string {
-  return `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
 // Los pagos NO se deduplican por payload: dos cobros legítimos idénticos
@@ -85,7 +90,7 @@ export function getQueue(): OfflineQueueItem[] {
 }
 
 export function addToQueue(
-  item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey'>,
+  item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status'>,
 ): OfflineQueueItem {
   const existing = findDuplicate(item.endpoint, item.method, item.data);
   if (existing) {
@@ -98,7 +103,7 @@ export function addToQueue(
   const newItem = {
     ...item,
     id: generateId(),
-    idempotencyKey: generateIdempotencyKey(),
+    idempotencyKey: item.idempotencyKey ?? generateIdempotencyKey(),
     createdAt: Date.now(),
     retryCount: 0,
     status: 'pending' as const,
@@ -214,6 +219,19 @@ export function markStaleAsFailed(): number {
       ),
     )
     .run();
+
+  // C3: las operaciones que ya no podrán sincronizarse nunca se aplicarán en el
+  // servidor, así que se revierte su mutación local (saldo/cuotas) y se limpian
+  // los registros sintéticos `*_temp_*` asociados de inmediato para que el
+  // estado offline no refleje operaciones abandonadas ni filas fantasma.
+  const restorable = getFailedItems().filter(
+    (i) => i.lastError === 'Expirado por antigüedad (más de 7 días sin sincronizar)',
+  );
+  for (const item of restorable) {
+    restoreSnapshot(item);
+    limpiarSinteticos(item);
+  }
+
   return result.changes;
 }
 
@@ -224,6 +242,37 @@ export function recoverSyncingItems(): number {
     .where(eq(offlineQueue.status, 'syncing'))
     .run();
   return result.changes;
+}
+
+/**
+ * C3: revierte la mutación local aplicada al encolar la operación (p. ej. el
+ * saldo/cuotas de un préstamo tras un pago offline) usando el snapshot que se
+ * guardó ANTES de mutar. Idempotente: restaurar dos veces el mismo snapshot
+ * deja el mismo resultado. No-op si el item no tiene snapshot.
+ */
+export function restoreSnapshot(item: OfflineQueueItem): void {
+  const snapshot = item.snapshot as { prestamo?: Prestamo } | null | undefined;
+  if (!snapshot?.prestamo) return;
+  upsertPrestamos([snapshot.prestamo]);
+}
+
+// Elimina las entidades sintéticas `*_temp_*` creadas localmente al encolar una
+// creación offline (cliente/préstamo/pago). Si la operación jamás se aplicará
+// en el servidor (fallo permanente o expiración por antigüedad), no deben
+// quedar filas "fantasma" con ids temporales.
+function limpiarSinteticos(item: OfflineQueueItem): void {
+  if (!item.tempId) return;
+  const endpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
+  if (endpoint === '/clientes' && item.method === 'POST') {
+    deleteCliente(item.tempId);
+  } else if (endpoint === '/prestamos' && item.method === 'POST') {
+    deletePrestamo(item.tempId);
+  } else if (
+    (endpoint === '/pagos' || /^\/pagos\/saldar\//.test(endpoint)) &&
+    item.method === 'POST'
+  ) {
+    deletePago(item.tempId);
+  }
 }
 
 export function findDuplicate(
@@ -287,7 +336,8 @@ export function getQueueItemsReferencingTempId(tempId: string): OfflineQueueItem
 /**
  * Elimina SOLO los items fallidos indicados (nunca operaciones pendientes).
  * Limpia además los registros temporales asociados (pagos/préstamos/clientes
- * sintéticos) para no dejar datos "fantasma" en la BD local.
+ * sintéticos) y revierte la mutación local (C3) para no dejar datos "fantasma"
+ * ni saldos desincronizados de la realidad.
  * Devuelve la cantidad de items realmente eliminados.
  */
 export function clearFailedItems(ids: string[]): number {
@@ -297,15 +347,10 @@ export function clearFailedItems(ids: string[]): number {
   const failed = getFailedItems().filter((i) => idSet.has(i.id));
 
   for (const item of failed) {
-    if (!item.tempId) continue;
-    const endpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
-    if (endpoint === '/clientes' && item.method === 'POST') {
-      deleteCliente(item.tempId);
-    } else if (endpoint === '/prestamos' && item.method === 'POST') {
-      deletePrestamo(item.tempId);
-    } else if (endpoint === '/pagos' && item.method === 'POST') {
-      deletePago(item.tempId);
-    }
+    // C3: si la operación mutó entidades locales (p. ej. un pago redujo el
+    // saldo) y nunca se aplicará en el servidor, revertir esa mutación.
+    restoreSnapshot(item);
+    limpiarSinteticos(item);
   }
 
   const finalIds = failed.map((i) => i.id);

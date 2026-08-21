@@ -1,4 +1,4 @@
-import { eq, like, or, sql, inArray } from 'drizzle-orm';
+import { eq, like, or, sql, inArray, and } from 'drizzle-orm';
 import { db } from './index';
 import { clientes, rutaClientes, rutas } from './schema';
 import type { Cliente } from '@/types/cliente.types';
@@ -86,7 +86,7 @@ export function getClienteById(id: string): Cliente | null {
     })
     .from(rutaClientes)
     .innerJoin(rutas, eq(rutas.id, rutaClientes.rutaId))
-    .where(eq(rutaClientes.clienteId, id))
+    .where(and(eq(rutaClientes.clienteId, id), eq(rutaClientes.eliminado, false)))
     .all();
 
   if (rcs.length > 0) {

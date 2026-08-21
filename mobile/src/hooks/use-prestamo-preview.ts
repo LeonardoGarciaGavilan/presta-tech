@@ -1,69 +1,78 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCalcularTabla } from '@/hooks/use-prestamos';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { formatCurrency } from '@/utils/formatters';
+import {
+  DIAS_FRECUENCIA,
+  calcularAmortizacionLocal,
+  siguienteFecha,
+} from '@/utils/amortizacion';
 import type { CuotaPreview, FrecuenciaPago, TablaAmortizacion } from '@/types/prestamo.types';
 
-const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
-  DIARIO: 1,
-  SEMANAL: 7,
-  QUINCENAL: 15,
-  MENSUAL: 30,
-};
+// Re-export para compatibilidad con consumidores existentes (tests incluidos).
+export { siguienteFecha };
 
-function calcularAmortizacionLocal(
+// 2.8: replica de prestamos.service.ts:91-107 (siguienteFecha) — movida a
+// @/utils/amortizacion junto con la calculadora clásica offline.
+
+// 2.8: replica exacta de prestamos.service.ts:109-230 (calcularAmortizacionRapida)
+export function calcularAmortizacionRapidaLocal(
   monto: number,
-  tasaInteres: number,
   numeroCuotas: number,
+  montoTotal: number,
   frecuenciaPago: FrecuenciaPago,
   fechaInicio?: string,
 ): TablaAmortizacion {
-  const tasaMensual = tasaInteres / 100;
-  const diasPeriodo = DIAS_FRECUENCIA[frecuenciaPago];
-  const tasaPeriodo = tasaMensual * (diasPeriodo / 30);
-
-  let cuotaFija: number;
-  if (tasaPeriodo === 0) {
-    cuotaFija = monto / numeroCuotas;
-  } else {
-    const factor = Math.pow(1 + tasaPeriodo, numeroCuotas);
-    cuotaFija = (monto * tasaPeriodo * factor) / (factor - 1);
-  }
+  const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
+  const cuotaFija = Math.round(montoTotal / numeroCuotas);
+  const ultimaCuota = Math.round(montoTotal - cuotaFija * (numeroCuotas - 1));
+  const gananciaPorCuota =
+    numeroCuotas > 0
+      ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
+      : 0;
 
   const startDate = fechaInicio ? new Date(fechaInicio) : new Date();
-  const cuotas: CuotaPreview[] = [];
   let saldo = monto;
   let totalIntereses = 0;
+  const cuotas: CuotaPreview[] = [];
 
   for (let i = 1; i <= numeroCuotas; i++) {
-    const interes = Math.round(saldo * tasaPeriodo * 100) / 100;
-    const capital = i === numeroCuotas ? saldo : Math.round((cuotaFija - interes) * 100) / 100;
-    const montoCuota = Math.round((capital + interes) * 100) / 100;
-    saldo = Math.round((saldo - capital) * 100) / 100;
-
-    const fecha = new Date(startDate);
-    fecha.setDate(fecha.getDate() + diasPeriodo * i);
+    const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
+    const interes =
+      i === numeroCuotas
+        ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+        : gananciaPorCuota;
+    const capital = Math.max(
+      0,
+      Math.round((montoCuota - interes) * 100) / 100,
+    );
 
     cuotas.push({
       numero: i,
-      monto: montoCuota,
+      monto: Math.round(montoCuota),
       capital,
       interes,
-      fechaVencimiento: fecha.toISOString().split('T')[0],
-      saldoRestante: Math.max(0, saldo),
+      fechaVencimiento: siguienteFecha(startDate, frecuenciaPago, i)
+        .toISOString()
+        .split('T')[0],
+      saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
     });
 
     totalIntereses += interes;
+    saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
   }
 
   return {
-    montoTotal: Math.round((monto + totalIntereses) * 100) / 100,
-    totalIntereses: Math.round(totalIntereses * 100) / 100,
+    montoTotal: Math.round(montoTotal * 100) / 100,
+    totalIntereses: Math.round(gananciaTotal * 100) / 100,
     cuotaInicial: cuotas[0]?.monto ?? 0,
-    tasaPeriodo,
+    tasaPeriodo: 0,
     cuotas,
   };
 }
+
+// Modo clásico: cálculo local con tasa de interés (para offline) — movido a
+// @/utils/amortizacion con paridad exacta al backend (redondeos incluidos).
 
 interface UsePrestamoPreviewParams {
   modoRapido: boolean;
@@ -97,142 +106,63 @@ export function usePrestamoPreview({
   duracion,
 }: UsePrestamoPreviewParams): UsePrestamoPreviewReturn {
   const { mutateAsync: calcularMutation } = useCalcularTabla();
-  const [preview, setPreview] = useState<TablaAmortizacion | null>(null);
+  const [apiPreview, setApiPreview] = useState<TablaAmortizacion | null>(null);
   const [warnings, setWarnings] = useState<Record<string, string>>({});
   const [isCalculando, setIsCalculando] = useState(false);
   const solverRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Preview calculation
-  useEffect(() => {
-    if (modoRapido) {
-      const montoVal = parseFloat(monto);
-      const duracionVal = parseInt(duracion, 10);
-      if (montoVal > 0 && duracionVal > 0) {
-        if (modoCalculo === 'PAGO') {
-          const pagoVal = parseFloat(pagoPorPeriodo);
-          if (pagoVal > 0) {
-            const totalCobrar = pagoVal * duracionVal;
-            setIsCalculando(true);
+  // 2.8: modo rápido = cálculo 100% local, idéntico al backend (sin API)
+  const rapidoPreview = useMemo<TablaAmortizacion | null>(() => {
+    if (!modoRapido) return null;
+    const montoVal = parseFloat(monto);
+    const duracionVal = parseInt(duracion, 10);
+    if (!(montoVal > 0 && duracionVal > 0)) return null;
 
-            const network = getNetworkStatus();
-            if (!network.isOnline) {
-              const res = calcularAmortizacionLocal(montoVal, 0, duracionVal, frecuenciaPago, fechaInicio);
-              setPreview({
-                ...res,
-                montoTotal: totalCobrar,
-                totalIntereses: totalCobrar - montoVal,
-                cuotaInicial: Math.round(pagoVal),
-              });
-              setIsCalculando(false);
-            } else {
-              calcularMutation({
-                monto: montoVal,
-                tasaInteres: 0,
-                numeroCuotas: duracionVal,
-                frecuenciaPago,
-                fechaInicio,
-              })
-                .then((res) => {
-                  setPreview({
-                    ...res,
-                    montoTotal: totalCobrar,
-                    totalIntereses: totalCobrar - montoVal,
-                    cuotaInicial: Math.round(pagoVal),
-                  });
-                })
-                .catch(() => setPreview(null))
-                .finally(() => setIsCalculando(false));
-            }
-          } else {
-            setPreview(null);
-          }
-        } else {
-          const gananciaVal = parseFloat(gananciaDeseada);
-          if (gananciaVal >= 0) {
-            const totalCobrar = montoVal + gananciaVal;
-            if (totalCobrar > montoVal) {
-              const cuotaIdeal = totalCobrar / duracionVal;
-              setIsCalculando(true);
-
-              const network = getNetworkStatus();
-              if (!network.isOnline) {
-                const res = calcularAmortizacionLocal(montoVal, 0, duracionVal, frecuenciaPago, fechaInicio);
-                setPreview({
-                  ...res,
-                  montoTotal: totalCobrar,
-                  totalIntereses: gananciaVal,
-                  cuotaInicial: Math.round(cuotaIdeal),
-                });
-                setIsCalculando(false);
-              } else {
-                calcularMutation({
-                  monto: montoVal,
-                  tasaInteres: 0,
-                  numeroCuotas: duracionVal,
-                  frecuenciaPago,
-                  fechaInicio,
-                })
-                  .then((res) => {
-                    setPreview({
-                      ...res,
-                      montoTotal: totalCobrar,
-                      totalIntereses: gananciaVal,
-                      cuotaInicial: Math.round(cuotaIdeal),
-                    });
-                  })
-                  .catch(() => setPreview(null))
-                  .finally(() => setIsCalculando(false));
-              }
-            } else {
-              setPreview(null);
-            }
-          } else {
-            setPreview(null);
-          }
-        }
-      } else {
-        setPreview(null);
-      }
+    if (modoCalculo === 'PAGO') {
+      const pagoVal = parseFloat(pagoPorPeriodo);
+      if (!(pagoVal > 0)) return null;
+      const totalCobrar = pagoVal * duracionVal;
+      return calcularAmortizacionRapidaLocal(montoVal, duracionVal, totalCobrar, frecuenciaPago, fechaInicio);
     } else {
-      const montoVal = parseFloat(monto);
-      const tasaVal = parseFloat(tasaInteres);
-      const cuotasVal = parseInt(numeroCuotas);
-      if (montoVal > 0 && tasaVal > 0 && cuotasVal > 0) {
-        setIsCalculando(true);
-
-        const network = getNetworkStatus();
-        if (!network.isOnline) {
-          setPreview(calcularAmortizacionLocal(montoVal, tasaVal, cuotasVal, frecuenciaPago, fechaInicio));
-          setIsCalculando(false);
-        } else {
-          calcularMutation({
-            monto: montoVal,
-            tasaInteres: tasaVal,
-            numeroCuotas: cuotasVal,
-            frecuenciaPago,
-            fechaInicio,
-          })
-            .then(setPreview)
-            .catch(() => setPreview(null))
-            .finally(() => setIsCalculando(false));
-        }
-      } else {
-        setPreview(null);
-      }
+      const gananciaVal = parseFloat(gananciaDeseada);
+      if (!(gananciaVal >= 0)) return null;
+      const totalCobrar = montoVal + gananciaVal;
+      if (!(totalCobrar > montoVal)) return null;
+      return calcularAmortizacionRapidaLocal(montoVal, duracionVal, totalCobrar, frecuenciaPago, fechaInicio);
     }
-  }, [
-    modoRapido,
-    modoCalculo,
-    monto,
-    tasaInteres,
-    numeroCuotas,
-    frecuenciaPago,
-    fechaInicio,
-    pagoPorPeriodo,
-    gananciaDeseada,
-    duracion,
-    calcularMutation,
-  ]);
+  }, [modoRapido, modoCalculo, monto, duracion, pagoPorPeriodo, gananciaDeseada, frecuenciaPago, fechaInicio]);
+
+  // Modo clásico: preview via API (online) o local (offline)
+  useEffect(() => {
+    if (modoRapido) return;
+    const montoVal = parseFloat(monto);
+    const tasaVal = parseFloat(tasaInteres);
+    const cuotasVal = parseInt(numeroCuotas);
+    if (!(montoVal > 0 && tasaVal > 0 && cuotasVal > 0)) {
+      setApiPreview(null);
+      return;
+    }
+    setIsCalculando(true);
+
+    const network = getNetworkStatus();
+    if (!network.isOnline) {
+      setApiPreview(calcularAmortizacionLocal(montoVal, tasaVal, cuotasVal, frecuenciaPago, fechaInicio));
+      setIsCalculando(false);
+    } else {
+      calcularMutation({
+        monto: montoVal,
+        tasaInteres: tasaVal,
+        numeroCuotas: cuotasVal,
+        frecuenciaPago,
+        fechaInicio,
+      })
+        .then(setApiPreview)
+        .catch(() => setApiPreview(null))
+        .finally(() => setIsCalculando(false));
+    }
+  }, [modoRapido, monto, tasaInteres, numeroCuotas, frecuenciaPago, fechaInicio, calcularMutation]);
+
+  const preview = modoRapido ? rapidoPreview : apiPreview;
 
   // Auto-derive tasa & warnings in modo rapido
   useEffect(() => {
@@ -246,10 +176,11 @@ export function usePrestamoPreview({
     const duracionVal = parseInt(duracion, 10);
 
     let pagoVal: number;
+    let totalCobrar: number;
     if (modoCalculo === 'GANANCIA') {
       const gananciaVal = parseFloat(gananciaDeseada);
       if (montoVal > 0 && gananciaVal >= 0 && duracionVal > 0) {
-        const totalCobrar = montoVal + gananciaVal;
+        totalCobrar = montoVal + gananciaVal;
         if (totalCobrar <= montoVal) {
           setWarnings((p) => ({
             ...p,
@@ -268,6 +199,7 @@ export function usePrestamoPreview({
       }
     } else {
       pagoVal = parseFloat(pagoPorPeriodo);
+      totalCobrar = pagoVal * duracionVal;
     }
 
     if (montoVal > 0 && pagoVal > 0 && duracionVal > 0) {
@@ -283,6 +215,28 @@ export function usePrestamoPreview({
         setWarnings((p) => {
           const n = { ...p };
           delete n.pagoBajo;
+          return n;
+        });
+
+        // 2.8: warning si la última cuota difiere significativamente de la cuota fija
+        if (totalCobrar > montoVal && duracionVal > 1) {
+          const cuotaFija = Math.round(totalCobrar / duracionVal);
+          const ultimaCuota = totalCobrar - cuotaFija * (duracionVal - 1);
+          if (cuotaFija > 0) {
+            const diff = Math.abs(ultimaCuota - cuotaFija) / cuotaFija;
+            if (diff > 0.2) {
+              setWarnings((p) => ({
+                ...p,
+                cuotaDesbalanceada:
+                  'La última cuota difiere significativamente de las demás. Considera ajustar el total.',
+              }));
+              return;
+            }
+          }
+        }
+        setWarnings((p) => {
+          const n = { ...p };
+          delete n.cuotaDesbalanceada;
           return n;
         });
       }, 300);

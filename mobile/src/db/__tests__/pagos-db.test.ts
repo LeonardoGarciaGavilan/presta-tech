@@ -17,8 +17,10 @@ jest.mock('@/db/index', () => {
             get: () => getStore(table)[0] ?? null,
             all: () => getStore(table),
             limit: (n: number) => ({ all: () => getStore(table).slice(0, n) }),
+            orderBy: () => ({ all: () => getStore(table) }),
           }),
           all: () => getStore(table),
+          orderBy: () => ({ all: () => getStore(table) }),
         }),
       }),
       insert: (table: any) => ({
@@ -47,7 +49,7 @@ jest.mock('@/db/index', () => {
   };
 });
 
-import { insertPago, getPagosByPrestamoId, upsertPagos, clearPagos } from '@/db/pagos-db';
+import { insertPago, getPagosByPrestamoId, upsertPagos, clearPagos, getAllPagos } from '@/db/pagos-db';
 
 const mockPago = {
   id: 'pago_1',
@@ -112,6 +114,22 @@ describe('upsertPagos', () => {
   it('does nothing for empty list', () => {
     upsertPagos([]);
     expect(getPagosByPrestamoId('prestamo_1')).toEqual([]);
+  });
+});
+
+describe('getAllPagos (C6)', () => {
+  it('returns empty array when no pagos', () => {
+    expect(getAllPagos()).toEqual([]);
+  });
+
+  it('returns all pagos across prestamos', () => {
+    insertPago(mockPago);
+    insertPago({ ...mockPago, id: 'pago_2', prestamoId: 'prestamo_2' });
+    const pagos = getAllPagos();
+    expect(pagos).toHaveLength(2);
+    expect(pagos.map((p) => p.prestamoId)).toEqual(
+      expect.arrayContaining(['prestamo_1', 'prestamo_2']),
+    );
   });
 });
 

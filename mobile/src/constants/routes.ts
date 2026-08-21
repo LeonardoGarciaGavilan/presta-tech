@@ -13,7 +13,7 @@ export const Routes = {
     PRESTAMOS_NUEVO: '/prestamos/nuevo',
     PRESTAMOS_DETALLE: (id: string) => `/prestamos/${id}` as const,
     PAGOS: '/pagos',
-    PAGOS_PRESTAMO: (id: string) => `/pagos/${id}` as const,
+    PAGOS_PRESTAMO: (id: string) => `/pagos/prestamo/${id}` as const,
     RUTAS: '/rutas',
     RUTAS_DETALLE: (id: string) => `/rutas/${id}` as const,
     PERFIL: '/perfil',

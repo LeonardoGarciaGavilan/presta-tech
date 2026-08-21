@@ -59,7 +59,12 @@ function ensureInitialized() {
 
 function statusFromState(state: NetInfoState): NetworkStatus {
   return {
-    isOnline: state.isConnected ?? false,
+    // 2.6: falso online — solo marcamos online cuando NetInfo verificó
+    // explícitamente que hay internet (isInternetReachable === true). Si no
+    // pudo verificar (null) asumimos OFFLINE: una mutación (pago/cobro) sin
+    // evidencia real saldría por red, fallaría y no se encolaría: riesgo de
+    // pérdida de dinero.
+    isOnline: (state.isConnected ?? false) && state.isInternetReachable === true,
     isInternetReachable: state.isInternetReachable,
     connectionType: state.type,
     isWifi: state.type === 'wifi',
@@ -101,25 +106,6 @@ export function useNetworkStatus(): NetworkStatus {
   }, []);
 
   return status;
-}
-
-export function waitForOnline(timeoutMs = 30000): Promise<boolean> {
-  if (globalStatus.isOnline) return Promise.resolve(true);
-
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      unsubscribe();
-      resolve(false);
-    }, timeoutMs);
-
-    const unsubscribe = subscribeToNetwork((status) => {
-      if (status.isOnline) {
-        clearTimeout(timer);
-        unsubscribe();
-        resolve(true);
-      }
-    });
-  });
 }
 
 export function onOnline(callback: () => void): () => void {

@@ -22,7 +22,7 @@ export default function PagosScreen() {
   const [selectedPagoId, setSelectedPagoId] = useState<string | null>(null);
 
   const { data: resumen, isLoading: loadingResumen } = useResumenPagos();
-  const { data: pagos, isLoading: loadingPagos, refetch } = useTodosPagos();
+  const { data: pagos, isLoading: loadingPagos, isError: isErrorPagos, refetch } = useTodosPagos();
 
   const { data: pagoDetalle, isLoading: loadingDetalle } = usePago(selectedPagoId || '');
 
@@ -99,6 +99,15 @@ export default function PagosScreen() {
         }}
       />
 
+      {isErrorPagos && !loadingPagos ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Error al cargar pagos"
+          subtitle="No pudimos obtener el historial de pagos. Revisa tu conexión."
+          actionLabel="Reintentar"
+          onAction={() => refetch()}
+        />
+      ) : (
       <FlatList
         data={filteredPagos}
         keyExtractor={(item) => item.id}
@@ -153,6 +162,7 @@ export default function PagosScreen() {
         }
         renderItem={renderPagoCard}
       />
+      )}
 
       {/* Pago Detail Modal */}
       <Modal

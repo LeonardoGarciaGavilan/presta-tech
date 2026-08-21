@@ -7,9 +7,10 @@ import { FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 interface PageHeaderProps {
   title: string;
   right?: React.ReactNode;
+  onBack?: () => void;
 }
 
-export function PageHeader({ title, right }: PageHeaderProps) {
+export function PageHeader({ title, right, onBack }: PageHeaderProps) {
   const { colors } = useTheme();
   return (
     <View
@@ -22,7 +23,7 @@ export function PageHeader({ title, right }: PageHeaderProps) {
       }}
     >
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={onBack ?? (() => router.back())}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessible
         accessibilityRole="button"

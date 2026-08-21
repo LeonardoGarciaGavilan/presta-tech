@@ -12,6 +12,9 @@ function rowToConfig(row: typeof configuracion.$inferSelect): ConfiguracionRespo
     montoMinimoPrestamo: row.montoMinimoPrestamo ?? 0,
     montoMaximoPrestamo: row.montoMaximoPrestamo,
     montoMaximoPago: row.montoMaximoPago,
+    cuotasRestantesParaRenovar: row.cuotasRestantesParaRenovar ?? 0,
+    maxRefinanciamientosPorPrestamo: row.maxRefinanciamientosPorPrestamo ?? 0,
+    maxPrestamosActivosPorCliente: row.maxPrestamosActivosPorCliente ?? 0,
     empresaId: row.empresaId,
     existe: row.existe ?? true,
   };
@@ -27,6 +30,9 @@ export function setConfiguracion(config: ConfiguracionResponse): void {
     montoMinimoPrestamo: config.montoMinimoPrestamo ?? 0,
     montoMaximoPrestamo: config.montoMaximoPrestamo,
     montoMaximoPago: config.montoMaximoPago,
+    cuotasRestantesParaRenovar: config.cuotasRestantesParaRenovar ?? 0,
+    maxRefinanciamientosPorPrestamo: config.maxRefinanciamientosPorPrestamo ?? 0,
+    maxPrestamosActivosPorCliente: config.maxPrestamosActivosPorCliente ?? 0,
     empresaId: config.empresaId,
     existe: config.existe,
   };

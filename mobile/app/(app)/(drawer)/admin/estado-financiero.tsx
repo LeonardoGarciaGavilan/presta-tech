@@ -70,6 +70,9 @@ export default function EstadoFinancieroScreen() {
   const retiroGananciasMutation = useCrearRetiroGanancias();
   const retiroCapitalMutation = useRetirarCapital();
 
+  const puedeInyectar = tienePermiso('finanzas:inyeccionCapital');
+  const puedeRetirar = tienePermiso('finanzas:retiroGanancias');
+
   const [showInyectar, setShowInyectar] = useState(false);
   const [inyectarForm, setInyectarForm] = useState({ monto: '', concepto: '' });
 
@@ -193,27 +196,33 @@ export default function EstadoFinancieroScreen() {
 
             {/* Action buttons */}
             <View style={styles.actionRow}>
-              <TouchableOpacity
-                onPress={() => setShowInyectar(true)}
-                style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-              >
-                <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
-                <Text style={styles.actionBtnText}>Inyectar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowRetirar('ganancias')}
-                style={[styles.actionBtn, { backgroundColor: colors.success }]}
-              >
-                <Ionicons name="arrow-down-circle-outline" size={scale(18)} color="#FFFFFF" />
-                <Text style={styles.actionBtnText}>Ganancias</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowRetirar('capital')}
-                style={[styles.actionBtn, { backgroundColor: colors.error }]}
-              >
-                <Ionicons name="remove-circle-outline" size={scale(18)} color="#FFFFFF" />
-                <Text style={styles.actionBtnText}>Capital</Text>
-              </TouchableOpacity>
+              {puedeInyectar && (
+                <TouchableOpacity
+                  onPress={() => setShowInyectar(true)}
+                  style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
+                  <Text style={styles.actionBtnText}>Inyectar</Text>
+                </TouchableOpacity>
+              )}
+              {puedeRetirar && (
+                <TouchableOpacity
+                  onPress={() => setShowRetirar('ganancias')}
+                  style={[styles.actionBtn, { backgroundColor: colors.success }]}
+                >
+                  <Ionicons name="arrow-down-circle-outline" size={scale(18)} color="#FFFFFF" />
+                  <Text style={styles.actionBtnText}>Ganancias</Text>
+                </TouchableOpacity>
+              )}
+              {puedeRetirar && (
+                <TouchableOpacity
+                  onPress={() => setShowRetirar('capital')}
+                  style={[styles.actionBtn, { backgroundColor: colors.error }]}
+                >
+                  <Ionicons name="remove-circle-outline" size={scale(18)} color="#FFFFFF" />
+                  <Text style={styles.actionBtnText}>Capital</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* KPI Grid 2x2 */}

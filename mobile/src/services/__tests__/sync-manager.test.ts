@@ -59,6 +59,7 @@ jest.mock('@/db/offline-queue-db', () => ({
   getQueueStats: jest.fn(),
   getQueue: jest.fn(() => []),
   getQueueItemsReferencingTempId: jest.fn(() => []),
+  restoreSnapshot: jest.fn(),
 }));
 
 jest.mock('@/hooks/use-network-status', () => ({
@@ -80,6 +81,10 @@ jest.mock('@/db/pagos-db', () => ({
   deletePago: jest.fn(),
 }));
 
+jest.mock('@/db/caja-db', () => ({
+  saveCajaActiva: jest.fn(),
+}));
+
 jest.mock('@/store/auth.store', () => ({
   useAuthStore: { getState: () => ({ user: { id: 'user_1' } }) },
 }));
@@ -87,13 +92,14 @@ jest.mock('@/store/auth.store', () => ({
 import client from '@/api/client';
 import { QueryClient } from '@tanstack/react-query';
 import {
-  getPendingItems, getFailedItems, updateQueueItem, removeFromQueue, findDuplicate,
+  getPendingItems, getFailedItems, updateQueueItem, removeFromQueue, findDuplicate, restoreSnapshot,
 } from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { upsertClientes, deleteCliente } from '@/db/clientes-db';
 import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
 import { upsertPagos, deletePago } from '@/db/pagos-db';
-import { syncNow, processItem, isSyncing, onSyncItemEvent } from '@/services/sync-manager';
+import { saveCajaActiva } from '@/db/caja-db';
+import { syncNow, processItem, onSyncItemEvent } from '@/services/sync-manager';
 import type { OfflineQueueItem } from '@/types/offline.types';
 
 const mockClient = client as unknown as jest.Mock;
@@ -108,6 +114,8 @@ const mockUpsertPagos = upsertPagos as jest.Mock;
 const mockDeleteCliente = deleteCliente as jest.Mock;
 const mockDeletePrestamo = deletePrestamo as jest.Mock;
 const mockDeletePago = deletePago as jest.Mock;
+const mockSaveCajaActiva = saveCajaActiva as jest.Mock;
+const mockRestoreSnapshot = restoreSnapshot as jest.Mock;
 
 function makeItem(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem {
   return {
@@ -250,7 +258,7 @@ describe('processItem', () => {
     expect(mockUpsertPagos).toHaveBeenCalledWith([{
       id: 'server_1',
       montoTotal: 3000,
-      capital: 2750,
+      capital: 2700,
       interes: 200,
       mora: 100,
       metodo: 'EFECTIVO',
@@ -262,6 +270,123 @@ describe('processItem', () => {
       createdAt: '2025-01-01T00:00:00.000Z',
     }]);
     expect(mockDeletePago).toHaveBeenCalledWith('temp_123');
+  });
+
+  it('aplica el saldo total en local al sincronizar POST /pagos/saldar/:id (2.1)', async () => {
+    mockClient.mockResolvedValue({
+      data: {
+        pago: {
+          id: 'server_saldo',
+          montoTotal: 10000,
+          capital: 9000,
+          interes: 900,
+          mora: 100,
+          metodo: 'EFECTIVO',
+          referencia: null,
+          observacion: 'Saldo total del préstamo',
+          createdAt: '2025-01-02T00:00:00.000Z',
+        },
+        prestamo: { id: 'prestamo_1', saldoPendiente: 0 },
+        cliente: { nombre: 'Juan', apellido: '', cedula: '' },
+        cuota: null,
+      },
+      status: 201,
+    });
+    await processItem(makeItem({
+      endpoint: '/pagos/saldar/prestamo_1',
+      method: 'POST',
+      data: { metodo: 'EFECTIVO', montoTotal: 10000 },
+    }));
+    expect(mockUpsertPagos).toHaveBeenCalledWith([{
+      id: 'server_saldo',
+      montoTotal: 10000,
+      capital: 9000,
+      interes: 900,
+      mora: 100,
+      metodo: 'EFECTIVO',
+      referencia: null,
+      observacion: 'Saldo total del préstamo',
+      prestamoId: 'prestamo_1',
+      usuarioId: 'user_1',
+      cajaId: null,
+      createdAt: '2025-01-02T00:00:00.000Z',
+    }]);
+  });
+
+  it('persiste la caja real en SQLite tras sincronizar POST /caja/abrir (C2)', async () => {
+    mockClient.mockResolvedValue({
+      data: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        estado: 'ABIERTA',
+        montoInicial: 5000,
+        fecha: '2026-08-14',
+        createdAt: '2026-08-14T10:00:00.000Z',
+        totalIngresos: 0,
+        totalEgresos: 0,
+      },
+      status: 201,
+    });
+    await processItem(makeItem({ endpoint: '/caja/abrir', method: 'POST', tempId: 'caja_temp_1' }));
+    expect(mockSaveCajaActiva).toHaveBeenCalledWith({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      estado: 'ABIERTA',
+      montoInicial: 5000,
+      fecha: '2026-08-14',
+      horaApertura: '2026-08-14T10:00:00.000Z',
+      totalIngresos: 0,
+      totalEgresos: 0,
+      cantidadMovimientos: 0,
+    });
+  });
+
+  it('borra la caja persistida tras sincronizar PATCH /caja/:id/cerrar (C2)', async () => {
+    mockClient.mockResolvedValue({
+      data: { cajaId: '550e8400-e29b-41d4-a716-446655440000', estado: 'CERRADA' },
+      status: 200,
+    });
+    await processItem(makeItem({
+      endpoint: '/caja/550e8400-e29b-41d4-a716-446655440000/cerrar',
+      method: 'PATCH',
+    }));
+    expect(mockSaveCajaActiva).toHaveBeenCalledWith(null);
+  });
+
+  it('borra la caja persistida cuando el cierre referencia un tempId (C2)', async () => {
+    mockClient.mockResolvedValue({
+      data: { cajaId: '550e8400-e29b-41d4-a716-446655440000', estado: 'CERRADA' },
+      status: 200,
+    });
+    await processItem(makeItem({
+      endpoint: '/caja/caja_temp_123/cerrar',
+      method: 'PATCH',
+    }));
+    expect(mockSaveCajaActiva).toHaveBeenCalledWith(null);
+  });
+
+  it('restaura el snapshot y limpia el pago sintético en fallo permanente (C3)', async () => {
+    mockClient.mockRejectedValue({ statusCode: 400, message: 'Bad Request' });
+    const item = makeItem({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: { prestamoId: 'prestamo_1', montoPagado: 3000, metodo: 'EFECTIVO' },
+      snapshot: { prestamo: { id: 'prestamo_1', saldoPendiente: 5000 } },
+    });
+    const result = await processItem(item);
+    expect(result).toBe(false);
+    expect(mockRestoreSnapshot).toHaveBeenCalledWith(item);
+    expect(mockDeletePago).toHaveBeenCalledWith('temp_123');
+  });
+
+  it('no restaura el snapshot en error reintentable (C3)', async () => {
+    mockClient.mockRejectedValue({ statusCode: 500, message: 'Server Error' });
+    const item = makeItem({
+      retryCount: 0,
+      snapshot: { prestamo: { id: 'prestamo_1', saldoPendiente: 5000 } },
+    });
+    const result = await processItem(item);
+    expect(result).toBe(false);
+    expect(mockRestoreSnapshot).not.toHaveBeenCalled();
+    expect(mockDeletePago).not.toHaveBeenCalled();
   });
 
   it('retries on network error if retryCount < max', async () => {

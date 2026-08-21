@@ -18,6 +18,11 @@ export interface ReportQueueClearPayload {
 /**
  * Respuesta de `GET /sync/cambios`: snapshot o delta de los datos del tenant.
  * `serverTime` se guarda como cursor para la siguiente descarga incremental.
+ *
+ * `rutasAjenas` (solo para no-admins) son ids de rutas de OTROS usuarios de la
+ * empresa que cambiaron desde el cursor. Si la ruta estaba en la cache local
+ * (p. ej. fue desactivada o reasignada a otro cobrador), el móvil debe
+ * retirarla de SQLite y del cache de react-query.
  */
 export interface CambiosSyncResponse {
   serverTime: string;
@@ -25,6 +30,7 @@ export interface CambiosSyncResponse {
   prestamos: Prestamo[];
   rutas: Ruta[];
   rutaClientes: RutaCliente[];
+  rutasAjenas: string[];
   configuracion: ConfiguracionResponse | null;
 }
 

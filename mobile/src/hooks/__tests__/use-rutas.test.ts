@@ -85,12 +85,12 @@ describe('useRutas', () => {
   it('returns cached rutas when offline', async () => {
     mockListarRutas.mockRejectedValue(new Error('Network Error'));
     (getNetworkStatus as jest.Mock).mockReturnValue({ isOnline: false });
-    mockGetRutas.mockReturnValue([{ id: 'ruta_1', nombre: 'Ruta Cache' }]);
+    mockGetRutas.mockReturnValue([{ id: 'ruta_1', nombre: 'Ruta Cache', activa: true }]);
 
     const { result } = await renderHook(() => useRutas(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual([{ id: 'ruta_1', nombre: 'Ruta Cache' }]);
+    expect(result.current.data).toEqual([{ id: 'ruta_1', nombre: 'Ruta Cache', activa: true }]);
     expect(mockGetRutas).toHaveBeenCalledTimes(1);
   });
 });

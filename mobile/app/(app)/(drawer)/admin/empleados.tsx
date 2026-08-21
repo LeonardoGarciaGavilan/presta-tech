@@ -119,6 +119,10 @@ export default function EmpleadosScreen() {
   const desactivarMutation = useDesactivarEmpleado();
   const reactivarMutation = useReactivarEmpleado();
 
+  const puedeGestionar = tienePermiso('empleados:gestionar');
+  const puedeAsistencia = tienePermiso('empleados:asistencia');
+  const puedePagarSalario = tienePermiso('empleados:pagosSalario');
+
   const [showForm, setShowForm] = useState(false);
   const [editingEmpleado, setEditingEmpleado] = useState<Empleado | null>(null);
   const [empForm, setEmpForm] = useState<EmpleadoForm>(EMPTY_EMP_FORM);
@@ -351,7 +355,7 @@ export default function EmpleadosScreen() {
 
   // ─── Render: Empleados tab ──────────────────────────────────
   const renderEmpleadoCard = useCallback(({ item }: { item: Empleado }) => (
-    <TouchableOpacity onPress={() => openEdit(item)} activeOpacity={0.7}
+    <TouchableOpacity onPress={puedeGestionar ? () => openEdit(item) : undefined} activeOpacity={0.7}
       style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
     >
       <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
@@ -375,11 +379,13 @@ export default function EmpleadosScreen() {
           </View>
         </View>
       </View>
-      <TouchableOpacity onPress={() => setToggleTarget(item)} hitSlop={8} style={styles.cardAction}>
-        <Ionicons name={item.activo ? 'close-circle-outline' : 'checkmark-circle-outline'} size={scale(20)} color={item.activo ? colors.error : colors.success} />
-      </TouchableOpacity>
+      {puedeGestionar && (
+        <TouchableOpacity onPress={() => setToggleTarget(item)} hitSlop={8} style={styles.cardAction}>
+          <Ionicons name={item.activo ? 'close-circle-outline' : 'checkmark-circle-outline'} size={scale(20)} color={item.activo ? colors.error : colors.success} />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
-  ), [colors]);
+  ), [colors, puedeGestionar]);
 
   function renderEmpleadosTab() {
     if (empLoading) return <Skeleton height={200} />;
@@ -391,10 +397,12 @@ export default function EmpleadosScreen() {
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <View>
-            <TouchableOpacity onPress={openCreate} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
-              <Ionicons name="person-add-outline" size={scale(18)} color="#FFFFFF" />
-              <Text style={styles.actionBtnText}>Nuevo empleado</Text>
-            </TouchableOpacity>
+            {puedeGestionar && (
+              <TouchableOpacity onPress={openCreate} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
+                <Ionicons name="person-add-outline" size={scale(18)} color="#FFFFFF" />
+                <Text style={styles.actionBtnText}>Nuevo empleado</Text>
+              </TouchableOpacity>
+            )}
             <View style={styles.statsGrid}>
               <View style={[styles.statCard, { backgroundColor: colors.primaryLight }]}>
                 <Text style={[styles.statValue, { color: colors.primary }]}>{resumen?.totalEmpleados ?? 0}</Text>
@@ -476,31 +484,33 @@ export default function EmpleadosScreen() {
           )}
           {!estado && <Text style={[styles.cardMeta, { color: colors.textTertiary, marginTop: scale(2) }]}>Sin registro</Text>}
         </View>
-        <View style={styles.asiQuick}>
-          <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'PRESENTE')} style={[styles.asiBtn, { backgroundColor: '#16A34A18' }]}>
-            <Ionicons name="checkmark" size={scale(18)} color="#16A34A" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'AUSENTE')} style={[styles.asiBtn, { backgroundColor: '#DC262618' }]}>
-            <Ionicons name="close" size={scale(18)} color="#DC2626" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'TARDANZA')} style={[styles.asiBtn, { backgroundColor: '#D9770618' }]}>
-            <Ionicons name="time-outline" size={scale(18)} color="#D97706" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {
-            setAsiDetalleTarget(emp.id);
-            setAsiDetalleForm({
-              estado: asi?.estado ?? 'PRESENTE',
-              entrada: asi?.entrada ?? '',
-              salida: asi?.salida ?? '',
-              observacion: asi?.observacion ?? '',
-            });
-          }} hitSlop={6}>
-            <Ionicons name="ellipsis-horizontal" size={scale(20)} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </View>
+        {puedeAsistencia && (
+          <View style={styles.asiQuick}>
+            <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'PRESENTE')} style={[styles.asiBtn, { backgroundColor: '#16A34A18' }]}>
+              <Ionicons name="checkmark" size={scale(18)} color="#16A34A" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'AUSENTE')} style={[styles.asiBtn, { backgroundColor: '#DC262618' }]}>
+              <Ionicons name="close" size={scale(18)} color="#DC2626" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleAsiQuick(emp.id, 'TARDANZA')} style={[styles.asiBtn, { backgroundColor: '#D9770618' }]}>
+              <Ionicons name="time-outline" size={scale(18)} color="#D97706" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              setAsiDetalleTarget(emp.id);
+              setAsiDetalleForm({
+                estado: asi?.estado ?? 'PRESENTE',
+                entrada: asi?.entrada ?? '',
+                salida: asi?.salida ?? '',
+                observacion: asi?.observacion ?? '',
+              });
+            }} hitSlop={6}>
+              <Ionicons name="ellipsis-horizontal" size={scale(20)} color={colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
-  }, [colors, handleAsiQuick]);
+  }, [colors, handleAsiQuick, puedeAsistencia]);
 
   function renderAsistenciaTab() {
     return (
@@ -582,7 +592,7 @@ export default function EmpleadosScreen() {
         contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            {empleados && empleados.length > 0 && (
+            {empleados && empleados.length > 0 && puedePagarSalario && (
               <TouchableOpacity onPress={openPagoForm} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
                 <Ionicons name="cash-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Registrar pago</Text>
@@ -632,7 +642,7 @@ export default function EmpleadosScreen() {
                 />
               </View>
             )}
-            {descEmpId ? (
+            {descEmpId && puedePagarSalario ? (
               <TouchableOpacity onPress={openDescForm} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
                 <Ionicons name="pricetag-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Nuevo descuento</Text>
@@ -661,7 +671,7 @@ export default function EmpleadosScreen() {
                 {new Date(item.fecha).toLocaleDateString('es-DO')} · {item.aplicado ? 'Aplicado' : 'Pendiente'}
               </Text>
             </View>
-            {!item.aplicado && (
+            {!item.aplicado && puedePagarSalario && (
               <TouchableOpacity onPress={() => setDeleteDescTarget(item.id)} hitSlop={8}>
                 <Ionicons name="trash-outline" size={scale(18)} color={colors.error} />
               </TouchableOpacity>

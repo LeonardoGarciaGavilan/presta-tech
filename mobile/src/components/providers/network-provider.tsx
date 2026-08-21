@@ -34,7 +34,7 @@ interface NetworkContextValue {
   lastSyncAt: number | null;
   syncProgress: SyncProgress | null;
   addToOfflineQueue: (
-    item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey'>,
+    item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status'>,
   ) => Promise<OfflineQueueItem>;
   triggerSync: () => Promise<void>;
   retryFailed: () => Promise<void>;
@@ -62,6 +62,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const bootSyncDoneRef = useRef(false);
   const isSyncingRef = useRef(false);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncPromiseRef = useRef<Promise<void> | null>(null);
   const triggerSyncRef = useRef<() => Promise<void>>(async () => {});
 
   const refreshStats = useCallback(async () => {
@@ -70,25 +71,36 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     setFailedCount(stats.failed);
   }, []);
 
+  // 1.5: deduplica el push. Si ya hay un sync en curso, devuelve la misma
+  // promesa en vez de lanzar un segundo `syncNow` concurrente (que `syncing`
+  // de sync-manager ya rechazaría, pero sin exponer el fin del push real).
   const triggerSync = useCallback(async () => {
-    if (isSyncingRef.current || !network.isOnline) return;
+    if (syncPromiseRef.current) return syncPromiseRef.current;
+    if (!network.isOnline) return;
+    if (isSyncingRef.current) return;
+
     isSyncingRef.current = true;
     setIsSyncing(true);
-    try {
-      await syncNow(queryClient);
-      setLastSyncAt(Date.now());
-    } finally {
-      isSyncingRef.current = false;
-      setIsSyncing(false);
-      await refreshStats();
-      const stats = await getQueueStats();
-      if (stats.pending > 0 && retryTimeoutRef.current === null) {
-        retryTimeoutRef.current = setTimeout(() => {
-          retryTimeoutRef.current = null;
-          triggerSyncRef.current();
-        }, 5000);
+    const promise = (async () => {
+      try {
+        await syncNow(queryClient);
+        setLastSyncAt(Date.now());
+      } finally {
+        isSyncingRef.current = false;
+        setIsSyncing(false);
+        await refreshStats();
+        syncPromiseRef.current = null;
+        const stats = await getQueueStats();
+        if (stats.pending > 0 && retryTimeoutRef.current === null) {
+          retryTimeoutRef.current = setTimeout(() => {
+            retryTimeoutRef.current = null;
+            triggerSyncRef.current();
+          }, 5000);
+        }
       }
-    }
+    })();
+    syncPromiseRef.current = promise;
+    return promise;
   }, [network.isOnline, queryClient, refreshStats]);
 
   triggerSyncRef.current = triggerSync;
@@ -109,7 +121,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
   const addToOfflineQueue = useCallback(
     async (
-      item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status' | 'idempotencyKey'>,
+      item: Omit<OfflineQueueItem, 'id' | 'createdAt' | 'retryCount' | 'status'>,
     ) => {
       const created = await addToQueueFn(item);
       await refreshStats();
@@ -172,13 +184,20 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onOnline(() => {
       refreshStats();
-      // Al reconectar: descarga incremental de datos (gate de 30 min en
-      // `shouldPrefetch`). El push de la cola offline se dispara aparte con
-      // `triggerSync` cuando hay items pendientes.
-      prefetchOnReconnect(queryClient);
+      // 1.5: al reconectar, orden pull/push. Si hay items pendientes se suben
+      // ANTES de descargar el delta: el snapshot del servidor aún no incluye
+      // las mutaciones locales recién encoladas, así que perseguir el pull
+      // mientras el push está en vuelo pisaría esos cambios en SQLite.
+      (async () => {
+        const stats = await getQueueStats();
+        if (stats.pending > 0) {
+          await triggerSync();
+        }
+        await prefetchOnReconnect(queryClient);
+      })();
     });
     return unsubscribe;
-  }, [refreshStats, queryClient]);
+  }, [refreshStats, queryClient, triggerSync]);
 
   useEffect(() => {
     return () => {

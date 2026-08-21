@@ -36,6 +36,12 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
   const { data: prestamo, isLoading, refetch } = usePrestamo(prestamoId);
   const { data: cajaActiva, isLoading: loadingCaja, refetch: refetchCaja } = useCajaActiva();
 
+  const afterPayment = useCallback(() => {
+    refetch();
+    refetchCaja();
+    queryClient.invalidateQueries({ queryKey: ['caja'] });
+  }, [refetch, refetchCaja, queryClient]);
+
   if (isLoading || loadingCaja) {
     return <LoadingScreen message="Cargando..." />;
   }
@@ -71,12 +77,6 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
     );
   }
 
-  const afterPayment = useCallback(() => {
-    refetch();
-    refetchCaja();
-    queryClient.invalidateQueries({ queryKey: ['caja'] });
-  }, [refetch, refetchCaja, queryClient]);
-
   return (
     <PaymentForm
       prestamo={prestamo}
@@ -90,6 +90,8 @@ function DirectPaymentMode({ prestamoId }: { prestamoId: string }) {
 function SearchPaymentMode() {
   const { colorScheme, colors } = useTheme();
   const queryClient = useQueryClient();
+
+  const { data: cajaActiva, isLoading: loadingCaja } = useCajaActiva();
 
   // Search state
   const [search, setSearch] = useState('');
@@ -194,6 +196,31 @@ function SearchPaymentMode() {
     },
     [colors],
   );
+
+  // Caja cerrada: misma validación que DirectPaymentMode y que el backend
+  // (assertCajaAbierta). Sin caja abierta no se puede llegar al formulario.
+  if (loadingCaja) {
+    return <LoadingScreen message="Cargando..." />;
+  }
+
+  if (!cajaActiva || cajaActiva.estado !== 'ABIERTA') {
+    return (
+      <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={styles.centerContainer}>
+          <Ionicons name="lock-closed-outline" size={scale(48)} color={colors.warning} />
+          <Text style={[styles.centerTitle, { color: colors.text }]}>Caja cerrada</Text>
+          <Text style={[styles.centerSubtitle, { color: colors.textTertiary }]}>
+            Debes abrir la caja antes de registrar un pago
+          </Text>
+          <AppButton
+            title="Ir a Caja"
+            onPress={() => router.back()}
+            icon="wallet-outline"
+          />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   // Payment form after selecting loan
   if (selectedPrestamo) {

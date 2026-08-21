@@ -21,6 +21,12 @@ export interface OfflineQueueItem {
    * Se usa para que `retryFailed` no reintente errores permanentes en bucle.
    */
   retryable?: boolean;
+  /**
+   * C3: estado pre-mutación de las entidades afectadas (p. ej.
+   * `{ prestamo: Prestamo }` antes de un pago offline). Se persiste en la cola
+   * para revertir la mutación local si la operación falla de forma permanente.
+   */
+  snapshot?: unknown;
 }
 
 export interface SyncState {

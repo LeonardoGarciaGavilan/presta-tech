@@ -12,6 +12,8 @@ import {
   findDuplicate,
   getQueueStats,
   getQueueItemsReferencingTempId,
+  getQueue,
+  restoreSnapshot,
 } from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { db } from '@/db';
@@ -20,6 +22,7 @@ import { eq } from 'drizzle-orm';
 import { upsertClientes, deleteCliente } from '@/db/clientes-db';
 import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
 import { upsertPagos, deletePago } from '@/db/pagos-db';
+import { saveCajaActiva } from '@/db/caja-db';
 import { reconciliarPrestamoLocal } from '@/services/data-sync';
 import type { Pago } from '@/types/prestamo.types';
 import { useAuthStore } from '@/store/auth.store';
@@ -169,6 +172,34 @@ function derivarPrestamoId(item: OfflineQueueItem): string | null {
   return null;
 }
 
+// ids de entidades con mutaciones locales aún no confirmadas en el servidor
+// (status pending/syncing). El pull (prefetch) las excluye de su upsert a
+// SQLite para no pisar datos locales recién encolados con un snapshot del
+// servidor que todavía no incluye esas operaciones.
+export function getEntitiesWithPendingMutations(): {
+  prestamos: Set<string>;
+  clientes: Set<string>;
+} {
+  const prestamos = new Set<string>();
+  const clientes = new Set<string>();
+
+  for (const item of getQueue()) {
+    if (item.status === 'failed') continue;
+
+    const prestamoId = derivarPrestamoId(item);
+    if (prestamoId) prestamos.add(prestamoId);
+
+    const clienteMatch = item.endpoint.match(/^\/clientes\/([^/]+)/);
+    if (clienteMatch) {
+      clientes.add(clienteMatch[1]);
+    } else if (item.endpoint === '/clientes' && item.tempId) {
+      clientes.add(item.tempId);
+    }
+  }
+
+  return { prestamos, clientes };
+}
+
 export async function processItem(
   item: OfflineQueueItem,
   queryClient?: QueryClient,
@@ -302,24 +333,53 @@ export async function processItem(
       } else if (endpoint === '/prestamos' && item.method === 'POST') {
         const data = Array.isArray(response.data) ? response.data : [response.data];
         upsertPrestamos(data);
-      } else if (endpoint === '/pagos' && item.method === 'POST') {
+      } else if (
+        (endpoint === '/pagos' || /^\/pagos\/saldar\//.test(endpoint)) &&
+        item.method === 'POST'
+      ) {
+        // 2.1: el saldo total (POST /pagos/saldar/:id) también devuelve un
+        // `pago`; se persiste en la tabla local igual que un pago normal para
+        // que aparezca en el historial sin conexión.
         const serverPago = ((response.data as any)?.pago ?? response.data) as any;
         const sp = Array.isArray(serverPago) ? serverPago[0] : serverPago;
         const pago: Pago = {
           id: sp.id,
           montoTotal: sp.montoTotal,
-          capital: sp.capital + (sp.abonoCapital ?? 0),
+          capital: sp.capital,
           interes: sp.interes,
           mora: sp.mora ?? 0,
           metodo: sp.metodo,
           referencia: sp.referencia ?? null,
           observacion: sp.observacion ?? null,
-          prestamoId: (item.data as any)?.prestamoId,
+          prestamoId: derivarPrestamoId(item) ?? (item.data as any)?.prestamoId,
           usuarioId: useAuthStore.getState().user?.id || '',
           cajaId: sp.cajaId ?? null,
           createdAt: sp.createdAt,
         };
         upsertPagos([pago]);
+      } else if (endpoint === '/caja/abrir' && item.method === 'POST') {
+        // C2: tras sincronizar la apertura offline, persistir la caja real en
+        // SQLite (reemplaza el tempId por el id del servidor). Sin esto, el
+        // arranque en frío offline sembraría una caja obsoleta.
+        const sp = Array.isArray(response.data) ? response.data[0] : response.data;
+        if (sp?.id) {
+          saveCajaActiva({
+            id: sp.id,
+            estado: sp.estado,
+            montoInicial: sp.montoInicial,
+            fecha: sp.fecha,
+            horaApertura: sp.createdAt,
+            totalIngresos: sp.totalIngresos ?? 0,
+            totalEgresos: sp.totalEgresos ?? 0,
+            cantidadMovimientos: 0,
+          });
+        }
+      } else if (item.endpoint.match(/^\/caja\/[^/]+\/cerrar$/) && item.method === 'PATCH') {
+        // C2: tras sincronizar el cierre offline, borrar la caja persistida
+        // para que el siguiente arranque en frío no autorice pagos contra una
+        // caja ya cerrada en el servidor. Se matchea sobre el endpoint crudo
+        // porque la normalización de arriba no toca ids con UUID.
+        saveCajaActiva(null);
       }
 
       if (item.tempId) {
@@ -354,6 +414,22 @@ export async function processItem(
       });
       emitItemEvent({ id: item.id, status: 'failed' });
       return false;
+    }
+
+    // C3: fallo permanente → la operación nunca se aplicará en el servidor.
+    // Revierte la mutación local (snapshot del préstamo/cuotas) y limpia las
+    // entidades sintéticas asociadas para que el estado offline no refleje
+    // operaciones fantasma (pago que redujo saldo pero el servidor rechazó).
+    restoreSnapshot(item);
+    if (item.tempId) {
+      const normEndpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
+      if (normEndpoint === '/clientes' && item.method === 'POST') {
+        deleteCliente(item.tempId);
+      } else if (normEndpoint === '/prestamos' && item.method === 'POST') {
+        deletePrestamo(item.tempId);
+      } else if (normEndpoint === '/pagos' && item.method === 'POST') {
+        deletePago(item.tempId);
+      }
     }
 
     await updateQueueItem(item.id, {

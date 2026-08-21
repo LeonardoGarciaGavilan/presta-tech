@@ -117,6 +117,9 @@ export default function UsuariosScreen() {
   const actualizarMutation = useActualizarUsuario();
   const resetMutation = useResetPassword();
 
+  const puedeGestionar = tienePermiso('usuarios:gestionar');
+  const puedeResetPassword = tienePermiso('usuarios:resetPassword');
+
   const [search, setSearch] = useState('');
   const [filtroRol, setFiltroRol] = useState<string>('Todos');
   const [filtroEstado, setFiltroEstado] = useState<string>('Todos');
@@ -280,52 +283,60 @@ export default function UsuariosScreen() {
             ) : null}
           </View>
           <View style={styles.userActions}>
-            <Pressable
-              onPress={() => router.push(`/admin/permisos/${item.id}`)}
-              hitSlop={8}
-              style={[styles.actionBtn, { backgroundColor: colors.infoLight }]}
-            >
-              <Ionicons name="shield-checkmark-outline" size={scale(18)} color={colors.info} />
-            </Pressable>
-            <Pressable
-              onPress={() => openEditar(item)}
-              hitSlop={8}
-              style={[styles.actionBtn, { backgroundColor: colors.primaryLight }]}
-            >
-              <Ionicons name="create-outline" size={scale(18)} color={colors.primary} />
-            </Pressable>
-            <Pressable
-              onPress={() => setResetTarget(item)}
-              hitSlop={8}
-              style={[styles.actionBtn, { backgroundColor: colors.warningLight }]}
-            >
-              <Ionicons name="key-outline" size={scale(18)} color={colors.warning} />
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                if (item.id === currentUser?.id) {
-                  showToast('No puedes desactivar tu propia cuenta', 'error');
-                  return;
-                }
-                setToggleTarget(item);
-              }}
-              hitSlop={8}
-              style={[
-                styles.actionBtn,
-                { backgroundColor: item.activo ? colors.errorLight : colors.successLight },
-              ]}
-            >
-              <Ionicons
-                name={item.activo ? 'close-outline' : 'checkmark-outline'}
-                size={scale(18)}
-                color={item.activo ? colors.error : colors.success}
-              />
-            </Pressable>
+            {puedeGestionar && (
+              <Pressable
+                onPress={() => router.push(`/admin/permisos/${item.id}`)}
+                hitSlop={8}
+                style={[styles.actionBtn, { backgroundColor: colors.infoLight }]}
+              >
+                <Ionicons name="shield-checkmark-outline" size={scale(18)} color={colors.info} />
+              </Pressable>
+            )}
+            {puedeGestionar && (
+              <Pressable
+                onPress={() => openEditar(item)}
+                hitSlop={8}
+                style={[styles.actionBtn, { backgroundColor: colors.primaryLight }]}
+              >
+                <Ionicons name="create-outline" size={scale(18)} color={colors.primary} />
+              </Pressable>
+            )}
+            {puedeResetPassword && (
+              <Pressable
+                onPress={() => setResetTarget(item)}
+                hitSlop={8}
+                style={[styles.actionBtn, { backgroundColor: colors.warningLight }]}
+              >
+                <Ionicons name="key-outline" size={scale(18)} color={colors.warning} />
+              </Pressable>
+            )}
+            {puedeGestionar && (
+              <Pressable
+                onPress={() => {
+                  if (item.id === currentUser?.id) {
+                    showToast('No puedes desactivar tu propia cuenta', 'error');
+                    return;
+                  }
+                  setToggleTarget(item);
+                }}
+                hitSlop={8}
+                style={[
+                  styles.actionBtn,
+                  { backgroundColor: item.activo ? colors.errorLight : colors.successLight },
+                ]}
+              >
+                <Ionicons
+                  name={item.activo ? 'close-outline' : 'checkmark-outline'}
+                  size={scale(18)}
+                  color={item.activo ? colors.error : colors.success}
+                />
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
     ),
-    [colors, currentUser, openEditar, showToast],
+    [colors, currentUser, openEditar, showToast, puedeGestionar, puedeResetPassword],
   );
 
   if (isLoading) {
@@ -392,12 +403,14 @@ export default function UsuariosScreen() {
             </View>
           </View>
 
-          <AppButton
-            title="Nuevo usuario"
-            onPress={() => setShowCrear(true)}
-            icon="add"
-            style={[Shadows.md, { marginTop: Spacing.sm }]}
-          />
+          {puedeGestionar && (
+            <AppButton
+              title="Nuevo usuario"
+              onPress={() => setShowCrear(true)}
+              icon="add"
+              style={[Shadows.md, { marginTop: Spacing.sm }]}
+            />
+          )}
         </View>
 
         {usuariosFiltrados.length === 0 ? (

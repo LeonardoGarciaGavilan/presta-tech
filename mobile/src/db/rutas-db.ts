@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from './index';
 import { rutas, rutaClientes, syncMeta } from './schema';
 import type { Ruta, RutaCliente, VistaDiaResponse } from '@/types/rutas.types';
@@ -25,6 +25,7 @@ function rowToRutaCliente(row: typeof rutaClientes.$inferSelect): RutaCliente {
     fechaRuta: row.fechaRuta ?? null,
     rutaId: row.rutaId,
     clienteId: row.clienteId,
+    eliminado: row.eliminado ?? false,
   };
 }
 
@@ -50,6 +51,7 @@ function rutaClienteToRow(rc: RutaCliente) {
     fechaRuta: rc.fechaRuta ?? null,
     rutaId: rc.rutaId,
     clienteId: rc.clienteId,
+    eliminado: rc.eliminado ?? false,
   };
 }
 
@@ -86,7 +88,7 @@ export function getRutaClientes(rutaId: string): RutaCliente[] {
   return db
     .select()
     .from(rutaClientes)
-    .where(eq(rutaClientes.rutaId, rutaId))
+    .where(and(eq(rutaClientes.rutaId, rutaId), eq(rutaClientes.eliminado, false)))
     .all()
     .map(rowToRutaCliente);
 }
@@ -124,7 +126,7 @@ export function getRutaClienteByClienteId(clienteId: string): RutaCliente | null
   const row = db
     .select()
     .from(rutaClientes)
-    .where(eq(rutaClientes.clienteId, clienteId))
+    .where(and(eq(rutaClientes.clienteId, clienteId), eq(rutaClientes.eliminado, false)))
     .get();
   return row ? rowToRutaCliente(row) : null;
 }
@@ -133,7 +135,7 @@ export function getRutaClienteById(rcId: string): RutaCliente | null {
   const row = db
     .select()
     .from(rutaClientes)
-    .where(eq(rutaClientes.id, rcId))
+    .where(and(eq(rutaClientes.id, rcId), eq(rutaClientes.eliminado, false)))
     .get();
   return row ? rowToRutaCliente(row) : null;
 }
@@ -141,4 +143,45 @@ export function getRutaClienteById(rcId: string): RutaCliente | null {
 export function clearRutas(): void {
   db.delete(rutas).run();
   db.delete(rutaClientes).run();
+}
+
+// C8: retira rutas (y sus rutaClientes) de la cache local. Se usa con las
+// `rutasAjenas` del delta: rutas de otros usuarios que fueron desactivadas o
+// reasignadas y que el no-admin ya no debe ver. Idempotente: si la ruta no
+// existe localmente es un no-op.
+export function deleteRutas(ids: string[]): void {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return;
+  const CHUNK = 400;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    db.delete(rutaClientes)
+      .where(inArray(rutaClientes.rutaId, chunk))
+      .run();
+    db.delete(rutas)
+      .where(inArray(rutas.id, chunk))
+      .run();
+  }
+}
+
+// C4-B1: borra las rutaClientes locales que NO estén en el snapshot servidor.
+// Se usa solo en el full reload, donde la lista es autoritativa. Los borrados
+// hard de rutaCliente no dejan rastro en el delta (la fila desaparece), así que
+// sin esta reconciliación quedarían huérfanas en SQLite para siempre.
+export function deleteRutaClientesExcept(keepIds: string[]): void {
+  const keep = new Set(keepIds);
+  const localIds = db
+    .select({ id: rutaClientes.id })
+    .from(rutaClientes)
+    .all();
+  const toDelete = localIds.filter((r) => !keep.has(r.id)).map((r) => r.id);
+  if (toDelete.length === 0) return;
+  // SQLite limita ~999 variables por query; se trocea para full reloads grandes.
+  const CHUNK = 400;
+  for (let i = 0; i < toDelete.length; i += CHUNK) {
+    const ids = toDelete.slice(i, i + CHUNK);
+    db.delete(rutaClientes)
+      .where(inArray(rutaClientes.id, ids))
+      .run();
+  }
 }

@@ -354,10 +354,7 @@ export default function DrawerLayout() {
         name="admin/permisos/[id]"
         options={{
           title: 'Permisos',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
+          headerShown: false,
           drawerItemStyle: { display: 'none' },
         }}
       />

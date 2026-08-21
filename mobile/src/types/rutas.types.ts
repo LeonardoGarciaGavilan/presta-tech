@@ -6,6 +6,7 @@ export interface RutaClienteResumen {
   visitadoHoy?: boolean;
   ultimaVisita?: string | null;
   fechaRuta?: string | null;
+  eliminado?: boolean;
 }
 
 export interface Ruta {
@@ -32,6 +33,7 @@ export interface RutaCliente {
   fechaRuta?: string | null;
   rutaId: string;
   clienteId: string;
+  eliminado?: boolean;
   cliente?: {
     id: string;
     nombre: string;

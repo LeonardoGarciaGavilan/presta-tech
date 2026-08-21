@@ -118,6 +118,10 @@ export default function GastosScreen() {
   const actualizarMutation = useActualizarGasto();
   const eliminarMutation = useEliminarGasto();
 
+  const puedeCrear = tienePermiso('gastos:crear');
+  const puedeEditar = tienePermiso('gastos:editar');
+  const puedeEliminar = tienePermiso('gastos:eliminar');
+
   const [showForm, setShowForm] = useState(false);
   const [editingGasto, setEditingGasto] = useState<Gasto | null>(null);
   const [form, setForm] = useState<GastoForm>(EMPTY_FORM);
@@ -222,7 +226,7 @@ export default function GastosScreen() {
       const meta = getCategoryMeta(item.categoria);
       return (
         <TouchableOpacity
-          onPress={() => openEdit(item)}
+          onPress={puedeEditar ? () => openEdit(item) : undefined}
           activeOpacity={0.7}
           style={[styles.gastoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
@@ -264,7 +268,7 @@ export default function GastosScreen() {
         </TouchableOpacity>
       );
     },
-    [colors],
+    [colors, puedeEditar],
   );
 
   if (isLoading) {
@@ -300,13 +304,15 @@ export default function GastosScreen() {
         ListHeaderComponent={
           <View>
             {/* Action button */}
-            <TouchableOpacity
-              onPress={openCreate}
-              style={[styles.newBtn, { backgroundColor: colors.primary }]}
-            >
-              <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
-              <Text style={styles.newBtnText}>Nuevo gasto</Text>
-            </TouchableOpacity>
+            {puedeCrear && (
+              <TouchableOpacity
+                onPress={openCreate}
+                style={[styles.newBtn, { backgroundColor: colors.primary }]}
+              >
+                <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
+                <Text style={styles.newBtnText}>Nuevo gasto</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Resumen KPIs */}
             <View style={styles.kpiRow}>
@@ -563,7 +569,7 @@ export default function GastosScreen() {
                   icon={isEditing ? 'create-outline' : 'save-outline'}
                 />
 
-                {isEditing && (
+                {isEditing && puedeEliminar && (
                   <AppButton
                     title="Eliminar gasto"
                     onPress={() => setDeleteTarget(editingGasto)}

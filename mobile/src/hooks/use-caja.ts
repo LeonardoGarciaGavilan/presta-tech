@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { obtenerCajaActiva,
   abrirCaja,
   cerrarCaja,
@@ -8,12 +9,31 @@ import { obtenerCajaActiva,
   obtenerCajas } from '@/api/caja.api';
 import type { AbrirCajaDto, CerrarCajaDto } from '@/types/caja.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
+import { getCajaActivaCache, saveCajaActiva } from '@/db/caja-db';
 
+// Clave fija (sin fecha) para que las pantallas compartan la misma entrada de
+// cache que siembra `hydrateFromDb` en arranque en frío offline y que escribe
+// `useAbrirCaja`/`useCerrarCaja`. El `fecha` sigue viajando al servidor en el
+// queryFn, pero no forma parte del key (C1).
 export function useCajaActiva(fecha?: string) {
   return useQuery({
-    queryKey: ['caja', 'activa', fecha],
+    queryKey: ['caja', 'activa'],
     queryFn: () => obtenerCajaActiva(fecha),
   });
+}
+
+// C2: paridad con el guard del backend (abrirCaja rechaza si ya existe una caja
+// ese día). Offline solo podemos saber si el usuario ya tiene una caja abierta
+// (cache react-query + SQLite); no validamos la "cerrada" porque el cache solo
+// guarda la activa.
+function assertNoCajaAbiertaOffline(queryClient: QueryClient): void {
+  const enCache = queryClient
+    .getQueriesData({ queryKey: ['caja', 'activa'] })
+    .some(([, data]) => (data as { estado?: string } | null | undefined)?.estado === 'ABIERTA');
+  const enDb = getCajaActivaCache();
+  if (enCache || (enDb && enDb.estado === 'ABIERTA')) {
+    throw new Error('Ya tienes una caja abierta para este día');
+  }
 }
 
 export function useAbrirCaja() {
@@ -22,6 +42,7 @@ export function useAbrirCaja() {
   return useMutation({
     mutationFn: async (dto: AbrirCajaDto) => {
       if (!network.isOnline) {
+        assertNoCajaAbiertaOffline(queryClient);
         const tempId = `caja_temp_${Date.now()}`;
         await addToOfflineQueue({
           endpoint: '/caja/abrir',
@@ -60,6 +81,7 @@ export function useAbrirCaja() {
           { queryKey: ['caja', 'activa'] },
           cajaData,
         );
+        saveCajaActiva(cajaData);
         return {
           id: tempId,
           montoInicial: dto.montoInicial,
@@ -90,14 +112,15 @@ export function useCerrarCaja() {
   return useMutation({
     mutationFn: async ({ id, dto }: { id: string; dto: CerrarCajaDto }) => {
       if (!network.isOnline) {
-        if (id.startsWith('caja_temp_')) {
-          throw new Error('CAJA_TEMP_OFFLINE');
-        }
+        // C2: cerrar una caja offline (aunque sea una caja abierta offline con
+        // tempId) se encola; sync-manager reescribe la cadena tempId → id real
+        // cuando se procesa el ABRIR. El endpoint y los queryKeys contienen el
+        // tempId para que `getQueueItemsReferencingTempId` los actualice.
         await addToOfflineQueue({
           endpoint: `/caja/${id}/cerrar`,
           method: 'PATCH',
           data: dto,
-          queryKeys: [['caja', 'activa'], ['caja', 'historial'], ['caja', 'lista'], ['caja', 'resumen'], ['prestamos']],
+          queryKeys: [['caja', 'activa'], ['caja', 'historial'], ['caja', 'lista'], ['caja', 'resumen'], ['prestamos'], ['caja', id]],
           tempId: `cerrar_temp_${Date.now()}`,
           tempDisplay: {
             cajaId: id,
@@ -109,6 +132,7 @@ export function useCerrarCaja() {
           { queryKey: ['caja', 'activa'] },
           null,
         );
+        saveCajaActiva(null);
         return {
           cajaId: id,
           esperado: 0,

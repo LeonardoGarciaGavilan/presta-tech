@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Keyboard, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { usePermisos } from '@/permisos/use-permisos';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { usePrestamoEstados, useAccionesFlow } from '@/hooks/use-prestamo-estados';
+import { getNetworkStatus, useNetworkStatus } from '@/hooks/use-network-status';
+import { getPrestamosOffline } from '@/services/offline-data';
 import { formatCurrency } from '@/utils/formatters';
 import { useCambiarEstadoPrestamo,
   useDesembolsarPrestamo,
@@ -40,13 +42,19 @@ const ESTADOS_FILTRO: { label: string; value: EstadoPrestamo | '' }[] = [
 function usePrestamosInfinite(search: string, estado: EstadoPrestamo | '') {
   return useInfiniteQuery({
     queryKey: ['prestamos', search, estado],
-    queryFn: ({ pageParam = 1 }) =>
-      listar({
-        page: pageParam,
-        limit: PAGE_SIZE,
-        search: search || undefined,
-        estado: estado || undefined,
-      }),
+    queryFn: async ({ pageParam = 1 }) => {
+      try {
+        return await listar({
+          page: pageParam,
+          limit: PAGE_SIZE,
+          search: search || undefined,
+          estado: estado || undefined,
+        });
+      } catch (error) {
+        if (getNetworkStatus().isOnline) throw error;
+        return getPrestamosOffline(search, estado);
+      }
+    },
     getNextPageParam: (lastPage) => {
       if (lastPage.pagina < lastPage.totalPaginas) {
         return lastPage.pagina + 1;
@@ -65,6 +73,7 @@ export default function PrestamosListScreen() {
   const puedeRevisar = tienePermiso('prestamos:revisar');
   const puedeAprobar = tienePermiso('prestamos:aprobar');
   const puedeDesembolsarPermiso = tienePermiso('prestamos:desembolsar');
+  const puedeCrear = tienePermiso('prestamos:crear');
   const { showToast } = useToast();
 
   const [search, setSearch] = useState('');
@@ -83,6 +92,14 @@ export default function PrestamosListScreen() {
     fetchNextPage,
     refetch,
   } = usePrestamosInfinite(search, filtroEstado);
+
+  const { isOnline } = useNetworkStatus();
+
+  useEffect(() => {
+    if (!isOnline) {
+      refetch();
+    }
+  }, [isOnline, refetch]);
 
   const cambiarEstadoMutation = useCambiarEstadoPrestamo();
   const desembolsarMutation = useDesembolsarPrestamo();
@@ -114,17 +131,17 @@ export default function PrestamosListScreen() {
     const { prestamo, accion, estado } = accionModal;
     try {
       if (accion === 'DESEMBOLSAR') {
-        await desembolsarMutation.mutateAsync(prestamo.id);
-        showToast('Préstamo desembolsado correctamente', 'success');
+        const result = await desembolsarMutation.mutateAsync(prestamo.id);
+        showToast(result?.esOffline ? 'Desembolso encolado — se sincronizará cuando vuelva la conexión' : 'Préstamo desembolsado correctamente', result?.esOffline ? 'info' : 'success');
       } else if (accion === 'CANCELAR') {
-        await cancelarMutation.mutateAsync(prestamo.id);
-        showToast('Préstamo cancelado correctamente', 'success');
+        const result = await cancelarMutation.mutateAsync(prestamo.id);
+        showToast(result?.esOffline ? 'Cancelación encolada — se sincronizará cuando vuelva la conexión' : 'Préstamo cancelado correctamente', result?.esOffline ? 'info' : 'success');
       } else {
-        await cambiarEstadoMutation.mutateAsync({
+        const result = await cambiarEstadoMutation.mutateAsync({
           id: prestamo.id,
           data: { estado: estado as EstadoPrestamo, motivo },
         });
-        showToast(`Estado actualizado a ${estado}`, 'success');
+        showToast(result?.esOffline ? `Estado encolado a ${estado} — se sincronizará cuando vuelva la conexión` : `Estado actualizado a ${estado}`, result?.esOffline ? 'info' : 'success');
       }
       setAccionModal(null);
     } catch (err: any) {
@@ -364,8 +381,8 @@ export default function PrestamosListScreen() {
               icon="cash-outline"
               title="No hay préstamos"
               subtitle="Aún no se han registrado préstamos"
-              actionLabel="Solicitar préstamo"
-              onAction={() => router.push('/prestamos/nuevo')}
+              actionLabel={puedeCrear ? 'Solicitar préstamo' : undefined}
+              onAction={puedeCrear ? () => router.push('/prestamos/nuevo') : undefined}
             />
           )
         ) : (
@@ -421,14 +438,16 @@ export default function PrestamosListScreen() {
         />
       )}
 
-      <Pressable
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => router.push('/prestamos/nuevo')}
-        accessibilityRole="button"
-        accessibilityLabel="Solicitar préstamo"
-      >
-        <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
-      </Pressable>
+      {puedeCrear && (
+        <Pressable
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/prestamos/nuevo')}
+          accessibilityRole="button"
+          accessibilityLabel="Solicitar préstamo"
+        >
+          <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
+        </Pressable>
+      )}
 
       <ActionConfirmModal
         visible={!!accionModal}

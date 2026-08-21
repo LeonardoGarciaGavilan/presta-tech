@@ -12,7 +12,14 @@ import {
   syncRutasToDb,
   syncConfigToDb,
 } from '@/services/data-sync';
-import { getRutas, upsertVistaDiaCache, upsertRutaClientes } from '@/db/rutas-db';
+import {
+  getRutas,
+  upsertVistaDiaCache,
+  upsertRutaClientes,
+  deleteRutaClientesExcept,
+  deleteRutas,
+} from '@/db/rutas-db';
+import { getEntitiesWithPendingMutations } from '@/services/sync-manager';
 import {
   getLastSyncAt,
   setLastSyncAt,
@@ -30,8 +37,15 @@ async function safeFetch<T>(
   options?: { staleTime?: number; persistFn?: (data: T) => void },
 ): Promise<boolean> {
   try {
-    const existing = queryClient.getQueryData(queryKey);
-    if (existing) return true;
+    const state = queryClient.getQueryState(queryKey);
+    const isFresh =
+      state &&
+      state.status === 'success' &&
+      state.dataUpdatedAt > 0 &&
+      options?.staleTime !== undefined &&
+      Date.now() - state.dataUpdatedAt < options.staleTime;
+
+    if (isFresh) return true;
 
     const data = await fetchFn();
     queryClient.setQueryData(queryKey, data, {
@@ -92,15 +106,70 @@ export async function prefetchCritical(
 // Persiste en SQLite lo que devuelve GET /sync/cambios. Se ejecuta ANTES de
 // avanzar el cursor: si algo falla a media escritura, el cursor no avanza y la
 // siguiente pasada reintenta el mismo delta (upserts idempotentes).
-async function persistCambios(data: CambiosSyncResponse): Promise<void> {
-  if (data.clientes?.length) syncClientesToDb(data.clientes);
-  if (data.prestamos?.length) syncPrestamosToDb(data.prestamos);
+async function persistCambios(
+  data: CambiosSyncResponse,
+  opciones?: { reconciliarRutaClientes?: boolean; queryClient?: QueryClient },
+): Promise<void> {
+  // 1.5 race pull vs push: los préstamos/clientes con mutaciones locales aún
+  // pendientes (pending/syncing) se excluyen del upsert. El snapshot del
+  // servidor todavía no las incluye; sobrescribirlos en SQLite revertiría
+  // localmente una operación que el push aún no ha confirmado.
+  const pendientes = getEntitiesWithPendingMutations();
+  const prestamos = (data.prestamos ?? []).filter((p) => !pendientes.prestamos.has(p.id));
+  const clientes = (data.clientes ?? []).filter((c) => !pendientes.clientes.has(c.id));
+
+  if (clientes.length) syncClientesToDb(clientes);
+  if (prestamos.length) syncPrestamosToDb(prestamos);
   if (data.rutas?.length) syncRutasToDb(data.rutas);
   if (data.rutaClientes?.length) upsertRutaClientes(data.rutaClientes);
   if (data.configuracion) syncConfigToDb(data.configuracion);
+
+  // C8: rutas ajenas (no-admin). Rutas de otros usuarios desactivadas o
+  // reasignadas que cambiaron desde el cursor: se retiran de SQLite y del
+  // cache de react-query para que no reaparezcan en modo offline.
+  if (data.rutasAjenas?.length) {
+    deleteRutas(data.rutasAjenas);
+    const queryClient = opciones?.queryClient;
+    if (queryClient) {
+      const ajenas = new Set(data.rutasAjenas);
+      const cached = queryClient.getQueryData(['rutas']);
+      if (Array.isArray(cached)) {
+        const restantes = (cached as { id?: string }[]).filter(
+          (r) => r?.id && !ajenas.has(r.id),
+        );
+        queryClient.setQueryData(['rutas'], restantes);
+      }
+      queryClient.removeQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'rutas' &&
+          typeof q.queryKey[1] === 'string' &&
+          ajenas.has(q.queryKey[1]),
+      });
+    }
+  }
+
+  // C4-B1: solo en full reload el snapshot es autoritativo. Un rutaCliente
+  // borrado en el servidor (hard-delete) no tiene updatedAt que entre en el
+  // delta, por lo que sin reconciliación quedaría huérfano en SQLite.
+  if (opciones?.reconciliarRutaClientes) {
+    const keepIds = new Set<string>();
+    for (const rc of data.rutaClientes ?? []) {
+      if (rc?.id) keepIds.add(rc.id);
+    }
+    for (const ruta of data.rutas ?? []) {
+      for (const rc of ruta.clientes ?? []) {
+        if (rc?.id) keepIds.add(rc.id);
+      }
+    }
+    deleteRutaClientesExcept([...keepIds]);
+  }
 }
 
-async function fetchCambios(desde?: number): Promise<{
+async function fetchCambios(
+  desde?: number,
+  queryClient?: QueryClient,
+): Promise<{
   success: number;
   failed: number;
   entities: number;
@@ -111,7 +180,12 @@ async function fetchCambios(desde?: number): Promise<{
   try {
     const desdeIso = desde ? new Date(desde).toISOString() : undefined;
     const data = await getCambios(desdeIso);
-    await persistCambios(data);
+    // En full reload (sin cursor) el snapshot es autoritativo: reconciliar
+    // rutaClientes para limpiar los hard-deletes que el delta no ve.
+    await persistCambios(data, {
+      reconciliarRutaClientes: !desde,
+      queryClient,
+    });
 
     // serverTime es la fuente de verdad del cursor: evita que el reloj del
     // dispositivo cause re-descargas o pierda cambios.
@@ -136,21 +210,25 @@ async function fetchCambios(desde?: number): Promise<{
 }
 
 // Descarga incremental: solo lo que cambió desde el último cursor.
-export async function prefetchIncremental(): Promise<{
+export async function prefetchIncremental(
+  queryClient?: QueryClient,
+): Promise<{
   success: number;
   failed: number;
   entities: number;
 }> {
-  return fetchCambios(getSyncCursor() ?? undefined);
+  return fetchCambios(getSyncCursor() ?? undefined, queryClient);
 }
 
 // Descarga completa real (botón "Forzar recarga"): snapshot de todo el tenant.
-export async function forceReloadAll(): Promise<{
+export async function forceReloadAll(
+  queryClient?: QueryClient,
+): Promise<{
   success: number;
   failed: number;
   entities: number;
 }> {
-  return fetchCambios();
+  return fetchCambios(undefined, queryClient);
 }
 
 let prefetchInFlight = false;
@@ -219,7 +297,7 @@ export async function prefetchAll(
     success += critical.success;
     failed += critical.failed;
 
-    const incremental = await prefetchIncremental();
+    const incremental = await prefetchIncremental(queryClient);
     success += incremental.success;
     failed += incremental.failed;
 

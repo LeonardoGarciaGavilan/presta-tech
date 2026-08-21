@@ -19,10 +19,12 @@ import type {
   CambiarEstadoDto,
   RefinanciarPrestamoDto,
   PrestamosFilters,
+  OfflineResult,
 } from '@/types/prestamo.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { getPrestamoById, upsertPrestamos, getAllCachedPrestamos } from '@/db/prestamos-db';
 import { getClienteNombre, getClienteById } from '@/db/clientes-db';
+import { construirPrestamoRefinanciadoLocal } from '@/utils/amortizacion';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -177,16 +179,18 @@ export function useActualizarPrestamo() {
             clienteNombre: clienteNombreDePrestamo(id),
           },
         });
-        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+        queryClient.setQueryData(['prestamos', id], (old: Prestamo | undefined) => ({
           ...old,
           ...data,
         }));
-        return { id, ...data, esOffline: true } as any;
+        return { id, ...data, esOffline: true } as OfflineResult;
       }
       return actualizar(id, data);
     },
     onSuccess: (_data, { id }) => {
-      queryClient.setQueryData(['prestamos', id], _data);
+      if (_data && !(_data as OfflineResult).esOffline) {
+        queryClient.setQueryData(['prestamos', id], _data);
+      }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
     },
   });
@@ -209,16 +213,18 @@ export function useCancelarPrestamo() {
             clienteNombre: clienteNombreDePrestamo(id),
           },
         });
-        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+        queryClient.setQueryData(['prestamos', id], (old: Prestamo | undefined) => ({
           ...old,
           estado: 'CANCELADO',
         }));
-        return { id, estado: 'CANCELADO', esOffline: true } as any;
+        return { id, estado: 'CANCELADO', esOffline: true } as OfflineResult;
       }
       return cancelar(id);
     },
     onSuccess: (_data, id) => {
-      queryClient.setQueryData(['prestamos', id], _data);
+      if (_data && !(_data as OfflineResult).esOffline) {
+        queryClient.setQueryData(['prestamos', id], _data);
+      }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
     },
   });
@@ -249,21 +255,21 @@ export function useCambiarEstadoPrestamo() {
             clienteNombre: clienteNombreDePrestamo(id),
           },
         });
-        return { id, estado: data.estado, esOffline: true };
+        return { id, estado: data.estado, esOffline: true } as OfflineResult;
       }
       return cambiarEstado(id, data);
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ['prestamos', id] });
       const previous = queryClient.getQueryData(['prestamos', id]);
-      queryClient.setQueryData(['prestamos', id], (old: any) => {
+      queryClient.setQueryData(['prestamos', id], (old: Prestamo | undefined) => {
         if (!old) return old;
         return { ...old, estado: data.estado };
       });
       return { previous, id };
     },
     onSuccess: (_data, { id }) => {
-      if (_data && !_data.esOffline) {
+      if (_data && !(_data as OfflineResult).esOffline) {
         queryClient.setQueryData(['prestamos', id], _data);
       }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
@@ -294,16 +300,18 @@ export function useDesembolsarPrestamo() {
             clienteNombre: clienteNombreDePrestamo(id),
           },
         });
-        queryClient.setQueryData(['prestamos', id], (old: any) => ({
+        queryClient.setQueryData(['prestamos', id], (old: Prestamo | undefined) => ({
           ...old,
           estado: 'ACTIVO',
         }));
-        return { id, estado: 'ACTIVO', esOffline: true };
+        return { id, estado: 'ACTIVO', esOffline: true } as OfflineResult;
       }
       return desembolsar(id);
     },
     onSuccess: (_data, id) => {
-      queryClient.setQueryData(['prestamos', id], _data);
+      if (_data && !(_data as OfflineResult).esOffline) {
+        queryClient.setQueryData(['prestamos', id], _data);
+      }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
     },
   });
@@ -321,6 +329,28 @@ export function useRefinanciarPrestamo() {
       data: RefinanciarPrestamoDto;
     }) => {
       if (!network.isOnline) {
+        // Réplica local del refinanciamiento: actualización optimista completa
+        // (cuotas nuevas, tasa, saldo, flags) para que la UI refleje el cambio
+        // real hasta que el sync reconcilie con el servidor.
+        const cached =
+          queryClient.getQueryData<Prestamo>(['prestamos', id]) ??
+          getPrestamoById(id);
+        let saldoRefinanciado = 0;
+        if (cached) {
+          const { prestamo: actualizado, saldoRefinanciado: saldo } =
+            construirPrestamoRefinanciadoLocal(cached, data);
+          saldoRefinanciado = saldo;
+          queryClient.setQueryData(['prestamos', id], actualizado);
+          await upsertPrestamos([actualizado]);
+        } else {
+          queryClient.setQueryData(
+            ['prestamos', id],
+            (old: Prestamo | undefined) => ({
+              ...old,
+              estado: 'ACTIVO',
+            }),
+          );
+        }
         await addToOfflineQueue({
           endpoint: `/prestamos/${id}/refinanciar`,
           method: 'PATCH',
@@ -331,19 +361,18 @@ export function useRefinanciarPrestamo() {
             prestamoId: id,
             nuevasCuotas: data.nuevasCuotas,
             nuevaTasa: data.nuevaTasa,
+            saldoRefinanciado,
             clienteNombre: clienteNombreDePrestamo(id),
           },
         });
-        queryClient.setQueryData(['prestamos', id], (old: any) => ({
-          ...old,
-          estado: 'REFINANCIADO',
-        }));
-        return { id, estado: 'REFINANCIADO', esOffline: true } as any;
+        return { id, estado: 'ACTIVO', esOffline: true } as OfflineResult;
       }
       return refinanciar(id, data);
     },
     onSuccess: (_data, { id }) => {
-      queryClient.setQueryData(['prestamos', id], _data);
+      if (_data && !(_data as OfflineResult).esOffline) {
+        queryClient.setQueryData(['prestamos', id], _data);
+      }
       queryClient.invalidateQueries({ queryKey: ['prestamos'] });
     },
   });
@@ -370,13 +399,55 @@ export function useCalcularTabla() {
 export function useResumenPrestamos() {
   return useQuery({
     queryKey: ['prestamos', 'resumen'],
-    queryFn: () => getResumen(),
+    queryFn: async () => {
+      try {
+        return await getResumen();
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          const local = getAllCachedPrestamos();
+          const hoy = new Date().toISOString().split('T')[0];
+          const cantidad = { activos: 0, atrasados: 0, pagados: 0, cancelados: 0, solicitudes: 0 };
+          let saldoPendienteTotal = 0;
+          let montoTotalPrestado = 0;
+          let cuotasVencidasHoy = 0;
+          for (const p of local) {
+            switch (p.estado) {
+              case 'ACTIVO': cantidad.activos++; break;
+              case 'ATRASADO': cantidad.atrasados++; break;
+              case 'PAGADO': cantidad.pagados++; break;
+              case 'CANCELADO': cantidad.cancelados++; break;
+              case 'SOLICITADO': cantidad.solicitudes++; break;
+            }
+            montoTotalPrestado += p.monto;
+            if (p.cuotas) {
+              for (const c of p.cuotas) {
+                if (!c.pagada && c.fechaVencimiento <= hoy) cuotasVencidasHoy++;
+                if (!c.pagada) saldoPendienteTotal += c.monto;
+              }
+            }
+          }
+          return { cantidad, saldoPendienteTotal, montoTotalPrestado, cuotasVencidasHoy };
+        }
+        throw new Error('Error al cargar resumen');
+      }
+    },
   });
 }
 
 export function useSolicitudesPrestamos() {
   return useQuery({
     queryKey: ['prestamos', 'solicitudes'],
-    queryFn: () => getSolicitudes(),
+    queryFn: async () => {
+      try {
+        return await getSolicitudes();
+      } catch {
+        const network = getNetworkStatus();
+        if (!network.isOnline) {
+          return getAllCachedPrestamos().filter((p) => p.estado === 'SOLICITADO');
+        }
+        throw new Error('Error al cargar solicitudes');
+      }
+    },
   });
 }

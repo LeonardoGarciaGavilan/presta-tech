@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import * as finanzasApi from '@/api/finanzas.api';
+import { getNetworkStatus } from '@/hooks/use-network-status';
 import type { CreateInyeccionDto, CreateRetiroDto } from '@/types/finanzas.types';
+
+function assertOnline(): void {
+  if (!getNetworkStatus().isOnline) {
+    throw new Error('Operación no disponible sin conexión. Conéctate a internet para continuar.');
+  }
+}
 
 export function useDashboard() {
   return useQuery({
@@ -48,7 +55,10 @@ export function useGananciasDisponibles() {
 export function useCrearInyeccion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateInyeccionDto) => finanzasApi.crearInyeccion(data),
+    mutationFn: (data: CreateInyeccionDto) => {
+      assertOnline();
+      return finanzasApi.crearInyeccion(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finanzas'] });
     },
@@ -58,7 +68,10 @@ export function useCrearInyeccion() {
 export function useCrearRetiroGanancias() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateRetiroDto) => finanzasApi.crearRetiroGanancias(data),
+    mutationFn: (data: CreateRetiroDto) => {
+      assertOnline();
+      return finanzasApi.crearRetiroGanancias(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finanzas'] });
     },
@@ -68,7 +81,10 @@ export function useCrearRetiroGanancias() {
 export function useRetirarCapital() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateRetiroDto) => finanzasApi.retirarCapital(data),
+    mutationFn: (data: CreateRetiroDto) => {
+      assertOnline();
+      return finanzasApi.retirarCapital(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['finanzas'] });
     },

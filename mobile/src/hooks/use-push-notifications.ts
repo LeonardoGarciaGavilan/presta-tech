@@ -5,8 +5,8 @@ import * as Notifications from 'expo-notifications';
 import { useMutation } from '@tanstack/react-query';
 
 import { registerForPushNotificationsAsync } from '@/services/notifications.service';
-import { useAuthStore } from '@/store/auth.store';
 import { useToast } from '@/components/ui/toast';
+import { usePermisos } from '@/permisos/use-permisos';
 import client from '@/api/client';
 
 Notifications.setNotificationHandler({
@@ -22,8 +22,8 @@ Notifications.setNotificationHandler({
 export function usePushNotifications() {
   const router = useRouter();
   const { showToast } = useToast();
-  const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.rol === 'ADMIN' || user?.rol === 'SUPERADMIN';
+  const { tienePermiso } = usePermisos();
+  const puedeRecibirPush = tienePermiso('alertas:ver');
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
@@ -57,7 +57,7 @@ export function usePushNotifications() {
   }, []);
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!puedeRecibirPush) return;
 
     registerAndSaveToken();
 
@@ -100,5 +100,5 @@ export function usePushNotifications() {
         responseListener.current.remove();
       }
     };
-  }, [isAdmin, registerAndSaveToken]);
+  }, [puedeRecibirPush, registerAndSaveToken]);
 }

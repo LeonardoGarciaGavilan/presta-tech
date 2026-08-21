@@ -27,6 +27,7 @@ import type { OfflineQueueItem } from '@/types/offline.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import DesembolsoModal from '@/components/prestamos/desembolso-modal';
 import RefinanciarModal from '@/components/prestamos/refinanciar-modal';
+import HistorialRefinanciamiento from '@/components/prestamos/historial-refinanciamiento';
 
 const FLOW_ACCION_CONFIG = ACCIONES_FLOW_CONFIG;
 
@@ -279,9 +280,23 @@ export default function PrestamoDetalleScreen() {
             #{prestamo.id.slice(0, 8)}
           </Text>
         </View>
-        <View style={[styles.estadoBadge, { backgroundColor: estadoCfg.bg }]} accessibilityRole="text" accessibilityLabel={`Estado: ${estadoCfg.label}`}>
-          <Ionicons name={estadoCfg.icon as IoniconsName} size={scale(12)} color={estadoCfg.color} />
-          <Text style={[styles.estadoBadgeText, { color: estadoCfg.color }]}>{estadoCfg.label}</Text>
+        <View style={styles.headerBadges}>
+          {prestamo.refinanciado && (
+            <View
+              style={[styles.refinanciadoBadge, { backgroundColor: colors.infoLight ?? colors.borderLight }]}
+              accessibilityRole="text"
+              accessibilityLabel={`Refinanciado ${prestamo.vecesRefinanciado} veces`}
+            >
+              <Ionicons name="git-branch" size={scale(12)} color={colors.info} />
+              <Text style={[styles.refinanciadoBadgeText, { color: colors.info }]}>
+                Refinanciado{prestamo.vecesRefinanciado > 1 ? ` ×${prestamo.vecesRefinanciado}` : ''}
+              </Text>
+            </View>
+          )}
+          <View style={[styles.estadoBadge, { backgroundColor: estadoCfg.bg }]} accessibilityRole="text" accessibilityLabel={`Estado: ${estadoCfg.label}`}>
+            <Ionicons name={estadoCfg.icon as IoniconsName} size={scale(12)} color={estadoCfg.color} />
+            <Text style={[styles.estadoBadgeText, { color: estadoCfg.color }]}>{estadoCfg.label}</Text>
+          </View>
         </View>
       </View>
 
@@ -489,6 +504,9 @@ export default function PrestamoDetalleScreen() {
               </View>
             </View>
           </View>
+
+          {/* Historial de refinanciamientos */}
+          <HistorialRefinanciamiento historial={prestamo.historialRefinanciamiento} />
         </View>
 
         {/* Tabs: Cuotas / Pagos */}
@@ -709,7 +727,7 @@ export default function PrestamoDetalleScreen() {
       <RefinanciarModal
         visible={showRefinanciarModal}
         onClose={() => setShowRefinanciarModal(false)}
-        prestamoId={prestamo.id}
+        prestamo={prestamo}
         onSuccess={() => { showToast('Préstamo refinanciado exitosamente', 'success'); refetch(); }}
       />
 
@@ -752,6 +770,21 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   estadoBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
+  headerBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    flexShrink: 0,
+  },
+  refinanciadoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(3),
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+  },
+  refinanciadoBadgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   scrollContent: { padding: Spacing.md, paddingBottom: Spacing.xxl },
   actionRow: {
     flexDirection: 'row',

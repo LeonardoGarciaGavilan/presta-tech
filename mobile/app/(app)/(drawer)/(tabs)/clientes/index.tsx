@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Keyboard, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,21 +16,30 @@ import { useToast } from '@/components/ui/toast';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { useEliminarCliente, useReactivarCliente } from '@/hooks/use-clientes';
+import { getNetworkStatus, useNetworkStatus } from '@/hooks/use-network-status';
+import { getClientesOffline } from '@/services/offline-data';
+import { usePermisos } from '@/permisos/use-permisos';
 
 const PAGE_SIZE = 20;
 
 function useClientesInfinite(search: string, verInactivos: boolean) {
   return useInfiniteQuery({
     queryKey: ['clientes', search, verInactivos],
-    queryFn: ({ pageParam = 1 }) =>
-      listar(
-        {
-          page: pageParam,
-          limit: PAGE_SIZE,
-          search: search || undefined,
-        },
-        verInactivos,
-      ),
+    queryFn: async ({ pageParam = 1 }) => {
+      try {
+        return await listar(
+          {
+            page: pageParam,
+            limit: PAGE_SIZE,
+            search: search || undefined,
+          },
+          verInactivos,
+        );
+      } catch (error) {
+        if (getNetworkStatus().isOnline) throw error;
+        return getClientesOffline(search, verInactivos);
+      }
+    },
     getNextPageParam: (lastPage) => {
       if (lastPage.pagina < lastPage.totalPaginas) {
         return lastPage.pagina + 1;
@@ -52,6 +61,8 @@ export default function ClientesListScreen() {
   const listRef = useRef<FlatList<any>>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { tienePermiso } = usePermisos();
+  const puedeCrear = tienePermiso('clientes:crear');
   const { mutateAsync: eliminarMutation } = useEliminarCliente();
   const { mutateAsync: reactivarMutation } = useReactivarCliente();
 
@@ -65,6 +76,14 @@ export default function ClientesListScreen() {
     fetchNextPage,
     refetch,
   } = useClientesInfinite(search, verInactivos);
+
+  const { isOnline } = useNetworkStatus();
+
+  useEffect(() => {
+    if (!isOnline) {
+      refetch();
+    }
+  }, [isOnline, refetch]);
 
   const clientes = useMemo(() => {
     const all = data?.pages.flatMap((page) => page.data) ?? [];
@@ -233,9 +252,9 @@ export default function ClientesListScreen() {
                 : 'No hay clientes activos'
             }
             subtitle="Aún no se han registrado clientes"
-            actionLabel={!verInactivos ? 'Crear cliente' : undefined}
+            actionLabel={!verInactivos && puedeCrear ? 'Crear cliente' : undefined}
             onAction={
-              !verInactivos
+              !verInactivos && puedeCrear
                 ? () => router.push('/clientes/crear')
                 : undefined
             }
@@ -331,14 +350,16 @@ export default function ClientesListScreen() {
         />
       )}
 
-      <Pressable
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => router.push('/clientes/crear')}
-        accessibilityRole="button"
-        accessibilityLabel="Crear cliente"
-      >
-        <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
-      </Pressable>
+      {puedeCrear && (
+        <Pressable
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/clientes/crear')}
+          accessibilityRole="button"
+          accessibilityLabel="Crear cliente"
+        >
+          <Ionicons name="add" size={scale(28)} color="#FFFFFF" />
+        </Pressable>
+      )}
     </View>
   );
 }

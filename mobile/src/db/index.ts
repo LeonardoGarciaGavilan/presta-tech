@@ -4,7 +4,7 @@ import * as schema from './schema';
 
 const DATABASE_NAME = 'prestadb.db';
 
-const expo = openDatabaseSync(DATABASE_NAME, { enableChangeListener: true });
+const expo = openDatabaseSync(DATABASE_NAME);
 
 export const db = drizzle(expo, { schema });
 

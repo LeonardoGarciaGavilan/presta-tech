@@ -19,6 +19,24 @@ export const configuracionSchema = z.object({
   montoMinimoPrestamo: z.number().min(0, 'Mínimo 0').optional(),
   montoMaximoPrestamo: z.number().min(0, 'Mínimo 0').nullable().optional(),
   montoMaximoPago: z.number().min(0, 'Mínimo 0').nullable().optional(),
+  cuotasRestantesParaRenovar: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(0, 'Mínimo 0')
+    .max(100, 'Máximo 100'),
+  maxRefinanciamientosPorPrestamo: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(0, 'Mínimo 0')
+    .max(20, 'Máximo 20'),
+  /** Máximo de préstamos activos (ACTIVO/ATRASADO) por cliente. 0 = sin límite. */
+  maxPrestamosActivosPorCliente: z
+    .number()
+    .int('Debe ser un número entero')
+    .min(0, 'Mínimo 0')
+    .max(100, 'Máximo 100')
+    .nullable()
+    .optional(),
 });
 
 export type ConfiguracionFormData = output<typeof configuracionSchema>;

@@ -86,6 +86,20 @@ export interface PagosResumen {
   pagosMes: number;
 }
 
+export interface PagoConPrestamo extends Pago {
+  prestamo: {
+    id: string;
+    monto: number;
+    saldoPendiente: number;
+    cliente: {
+      id: string;
+      nombre: string;
+      apellido: string | null;
+      cedula: string;
+    };
+  };
+}
+
 export interface PagoResponse {
   pago: {
     id: string;
@@ -182,6 +196,8 @@ export interface Prestamo {
   cuotas: Cuota[];
   pagos: Pago[];
   alertas?: Alerta[];
+  /** Marcado por hooks offline para que las pantallas distingan datos encolados. */
+  esOffline?: boolean;
 }
 
 export interface PrestamoResumen {
@@ -264,4 +280,12 @@ export interface PaginatedPrestamosResponse {
   pagina: number;
   porPagina: number;
   totalPaginas: number;
+}
+
+/** Resultado de una mutación que puede haber sido encolada offline. */
+export interface OfflineResult {
+  esOffline: true;
+  tempId?: string;
+  id?: string;
+  [key: string]: unknown;
 }

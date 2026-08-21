@@ -109,7 +109,10 @@ export default function CajasActivasScreen() {
       setCloseTarget(null);
       setMontoCierre('');
       setObservaciones('');
-      if (result.diferencia === 0) {
+      const r = result as any;
+      if (r.esOffline) {
+        showToast('Cierre encolado — se sincronizará cuando vuelva la conexión', 'info');
+      } else if (result.diferencia === 0) {
         showToast('Caja cerrada — ¡Cuadrada!', 'success');
       } else {
         const tipo = result.diferencia > 0 ? 'sobrante' : 'faltante';

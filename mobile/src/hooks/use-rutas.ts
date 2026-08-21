@@ -22,7 +22,7 @@ export function useRutas() {
       } catch {
         const network = getNetworkStatus();
         if (!network.isOnline) {
-          const local = getRutas();
+          const local = getRutas().filter((r) => r.activa);
           if (local.length > 0) return local;
         }
         throw new Error('Error al cargar rutas');

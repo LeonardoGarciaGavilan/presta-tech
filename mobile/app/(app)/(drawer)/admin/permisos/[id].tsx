@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -36,6 +37,24 @@ const MODULO_LABELS: Record<string, string> = {
   AUDITORIA: 'Auditoría',
   ALERTAS: 'Alertas',
   SYNC: 'Sincronización',
+};
+
+const MODULO_ICONS: Record<string, IoniconsName> = {
+  DASHBOARD: 'grid-outline',
+  CLIENTES: 'people-outline',
+  PRESTAMOS: 'cash-outline',
+  PAGOS: 'card-outline',
+  CAJA: 'wallet-outline',
+  RUTAS: 'map-outline',
+  REPORTES: 'bar-chart-outline',
+  GASTOS: 'cart-outline',
+  FINANZAS: 'trending-up-outline',
+  EMPLEADOS: 'briefcase-outline',
+  USUARIOS: 'people-circle-outline',
+  CONFIGURACION: 'settings-outline',
+  AUDITORIA: 'document-text-outline',
+  ALERTAS: 'notifications-outline',
+  SYNC: 'sync-outline',
 };
 
 const PERMISO_LABELS: Record<string, string> = {
@@ -181,10 +200,11 @@ function PermisoRow({
 
 export default function PermisosScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { showToast } = useToast();
   const { isOnline } = useNetworkStatus();
-  const { moduloHabilitado } = usePermisosAcceso();
+  const { moduloHabilitado, tienePermiso } = usePermisosAcceso();
 
   const { data, isLoading, isError } = usePermisos(id);
   const mutation = useActualizarPermisos(id);
@@ -243,19 +263,22 @@ export default function PermisosScreen() {
     try {
       await mutation.mutateAsync({ permisos, permisosNegados });
       showToast('Permisos actualizados correctamente', 'success');
-      router.back();
+      router.navigate('/admin/usuarios');
     } catch {
       showToast('Error al guardar los permisos', 'error');
     }
   };
 
-  if (!moduloHabilitado('USUARIOS')) {
+  if (!moduloHabilitado('USUARIOS') || !tienePermiso('usuarios:gestionar')) {
     return <SinAcceso />;
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <PageHeader title="Permisos" />
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <PageHeader
+        title="Permisos"
+        onBack={() => router.navigate('/admin/usuarios')}
+      />
 
       {isLoading ? (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -339,39 +362,78 @@ export default function PermisosScreen() {
 
           {/* Matriz */}
           <View style={[styles.matrix, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {grupos.map(({ mod, label, permisos }) => (
-              <View key={mod} style={[styles.group, { borderBottomColor: colors.border }]}>
-                <View style={styles.groupHeader}>
-                  <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>
-                    {label.toUpperCase()}
-                  </Text>
-                  <Text style={[styles.groupCode, { color: colors.textTertiary }]}>{mod}</Text>
-                  <Text style={[styles.groupCount, { color: colors.textTertiary }]}>
-                    {permisos.filter((p) => efectivo(p)).length}/{permisos.length}
-                  </Text>
+            {grupos.map(({ mod, label, permisos }) => {
+              const efectivos = permisos.filter((p) => efectivo(p)).length;
+              const pill =
+                efectivos === permisos.length
+                  ? { bg: colors.successLight, color: colors.success }
+                  : efectivos > 0
+                    ? { bg: colors.warningLight, color: colors.warning }
+                    : { bg: colors.surface, color: colors.textTertiary };
+              return (
+                <View key={mod} style={[styles.group, { borderBottomColor: colors.border }]}>
+                  <View style={styles.groupHeader}>
+                    <View style={[styles.groupIcon, { backgroundColor: colors.primaryLight }]}>
+                      <Ionicons
+                        name={MODULO_ICONS[mod] ?? 'apps-outline'}
+                        size={scale(18)}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text
+                      accessibilityRole="header"
+                      style={[styles.groupTitle, { color: colors.text }]}
+                      numberOfLines={1}
+                    >
+                      {label}
+                    </Text>
+                    <View
+                      style={[
+                        styles.groupPill,
+                        { backgroundColor: pill.bg, borderColor: pill.color },
+                      ]}
+                    >
+                      <Text style={[styles.groupPillText, { color: pill.color }]}>
+                        {efectivos} de {permisos.length}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.progressTrack, { backgroundColor: colors.borderLight }]}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          backgroundColor: pill.color,
+                          width: `${permisos.length > 0 ? Math.round((efectivos / permisos.length) * 100) : 0}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  {permisos.map((p) => (
+                    <PermisoRow
+                      key={p}
+                      permiso={p}
+                      estado={estados[p] ?? 0}
+                      baseLoConcede={(data.base ?? []).includes(p)}
+                      editable={editable}
+                      onCambio={(v) => setEstados((prev) => ({ ...prev, [p]: v }))}
+                    />
+                  ))}
                 </View>
-                {permisos.map((p) => (
-                  <PermisoRow
-                    key={p}
-                    permiso={p}
-                    estado={estados[p] ?? 0}
-                    baseLoConcede={(data.base ?? []).includes(p)}
-                    editable={editable}
-                    onCambio={(v) => setEstados((prev) => ({ ...prev, [p]: v }))}
-                  />
-                ))}
-              </View>
-            ))}
+              );
+            })}
           </View>
 
-          <AppButton
-            title="Guardar permisos"
-            onPress={handleGuardar}
-            loading={mutation.isPending}
-            disabled={!isOnline}
-            icon="checkmark-outline"
-            style={{ marginTop: Spacing.sm }}
-          />
+          {tienePermiso('usuarios:gestionar') && (
+            <AppButton
+              title="Guardar permisos"
+              onPress={handleGuardar}
+              loading={mutation.isPending}
+              disabled={!isOnline}
+              icon="checkmark-outline"
+              style={{ marginTop: Spacing.sm }}
+            />
+          )}
           {!isOnline && (
             <Text style={[styles.disabledHint, { color: colors.textTertiary }]}>
               Conéctate a internet para poder guardar los cambios
@@ -496,20 +558,43 @@ const styles = StyleSheet.create({
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  groupIcon: {
+    width: scale(34),
+    height: scale(34),
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   groupTitle: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.bold,
-    letterSpacing: scale(1),
+    flex: 1,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
   },
-  groupCode: {
-    fontSize: FontSize.xs,
+  groupPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: scale(3),
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
-  groupCount: {
+  groupPillText: {
     fontSize: FontSize.xs,
-    marginLeft: 'auto',
+    fontWeight: FontWeight.semibold,
+  },
+  progressTrack: {
+    height: scale(3),
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+    marginBottom: Spacing.sm,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: BorderRadius.full,
   },
   row: {
     paddingVertical: Spacing.sm,

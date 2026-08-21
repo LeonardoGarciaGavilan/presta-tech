@@ -109,6 +109,7 @@ export const rutaClientes = sqliteTable('ruta_clientes', {
   fechaRuta: text('fecha_ruta'),
   rutaId: text('ruta_id').notNull(),
   clienteId: text('cliente_id').notNull(),
+  eliminado: integer('eliminado', { mode: 'boolean' }).default(false),
 });
 
 // ─── Configuración ────────────────────────────────────────────
@@ -121,6 +122,9 @@ export const configuracion = sqliteTable('configuracion', {
   montoMinimoPrestamo: real('monto_minimo_prestamo').default(0),
   montoMaximoPrestamo: real('monto_maximo_prestamo'),
   montoMaximoPago: real('monto_maximo_pago'),
+  cuotasRestantesParaRenovar: integer('cuotas_restantes_para_renovar').default(0),
+  maxRefinanciamientosPorPrestamo: integer('max_refinanciamientos_por_prestamo').default(0),
+  maxPrestamosActivosPorCliente: integer('max_prestamos_activos_por_cliente').default(0),
   empresaId: text('empresa_id').notNull(),
   existe: integer('existe', { mode: 'boolean' }).default(true),
 });
@@ -140,10 +144,23 @@ export const offlineQueue = sqliteTable('offline_queue', {
   lastError: text('last_error'),
   idempotencyKey: text('idempotency_key'),
   retryable: integer('retryable', { mode: 'boolean' }).default(true),
+  // C3: estado pre-mutación de las entidades afectadas por la operación encolada
+  // (p. ej. el préstamo y sus cuotas antes de un pago offline). Se usa para
+  // revertir la mutación local si la operación falla de forma permanente.
+  snapshot: text('snapshot'), // JSON string
 });
 
 // ─── Sync Metadata ────────────────────────────────────────────
 export const syncMeta = sqliteTable('sync_meta', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
+});
+
+// ─── Caja activa (C2) ─────────────────────────────────────────
+// Persiste la caja activa para que sobreviva al arranque en frío sin conexión.
+// Una sola fila (id fijo 'activa'); se borra al cerrar.
+export const cajaActiva = sqliteTable('caja_activa', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(), // JSON de la caja activa
+  updatedAt: text('updated_at').notNull(),
 });

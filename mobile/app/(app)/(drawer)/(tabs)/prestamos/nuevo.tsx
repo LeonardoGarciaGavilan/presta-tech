@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router } from 'expo-router';
@@ -14,11 +14,12 @@ import DatePickerField from '@/components/ui/date-picker-field';
 import SearchableSelect from '@/components/ui/searchable-select';
 import { useToast } from '@/components/ui/toast';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatCurrency, formatDate, getFechaRD } from '@/utils/formatters';
 import type { FrecuenciaPago } from '@/types/prestamo.types';
 import type { ApiError } from '@/types/api.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import { PermisoGate } from '@/components/permisos/permiso-gate';
+import { getPrestamosByClienteId } from '@/db/prestamos-db';
 
 const FRECUENCIA_OPTIONS: { label: string; value: FrecuenciaPago }[] = [
   { label: 'Diario', value: 'DIARIO' },
@@ -59,7 +60,7 @@ export default function NuevoPrestamoScreen() {
   const [tasaInteres, setTasaInteres] = useState('');
   const [numeroCuotas, setNumeroCuotas] = useState('');
   const [frecuenciaPago, setFrecuenciaPago] = useState<FrecuenciaPago>('SEMANAL');
-  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaInicio, setFechaInicio] = useState(getFechaRD());
 
   // Modo rápido fields
   const [pagoPorPeriodo, setPagoPorPeriodo] = useState('');
@@ -99,6 +100,23 @@ export default function NuevoPrestamoScreen() {
     clienteSearch.limpiar();
     garanteSearch.limpiar();
   }, [clienteSearch, garanteSearch]);
+
+  // Aviso best-effort: cliente que ya alcanzó el límite de préstamos activos
+  // (ACTIVO/ATRASADO) según datos locales cacheados. No bloquea: el servidor
+  // es la fuente de verdad al crear/desembolsar.
+  const avisoLimite = useMemo(() => {
+    const limite = configuracion?.maxPrestamosActivosPorCliente ?? 0;
+    const clienteId = clienteSearch.entity?.id;
+    if (limite <= 0 || !clienteId) return null;
+    try {
+      const activos = getPrestamosByClienteId(clienteId).filter(
+        (p) => p.estado === 'ACTIVO' || p.estado === 'ATRASADO',
+      ).length;
+      return activos >= limite ? { activos, limite } : null;
+    } catch {
+      return null;
+    }
+  }, [clienteSearch.entity?.id, configuracion?.maxPrestamosActivosPorCliente]);
 
   const seleccionarGarante = useCallback(
     (c: import('@/types/cliente.types').Cliente) => {
@@ -229,6 +247,22 @@ export default function NuevoPrestamoScreen() {
             buscando={clienteSearch.buscando}
             onFocus={() => clienteSearch.sugerencias.length > 0 && clienteSearch.setShowSugerencias(true)}
           />
+
+          {avisoLimite && (
+            <View
+              style={[
+                styles.avisoLimite,
+                { backgroundColor: colors.warningLight, borderColor: colors.warning },
+              ]}
+            >
+              <Ionicons name="warning-outline" size={scale(18)} color={colors.warning} />
+              <Text style={[styles.avisoLimiteText, { color: colors.text }]}>
+                Este cliente ya tiene {avisoLimite.activos} préstamo(s)
+                activo(s)/atrasado(s) y alcanzó el límite de {avisoLimite.limite}.
+                El servidor podría rechazar la solicitud.
+              </Text>
+            </View>
+          )}
 
           <SearchableSelect
             label="Garante (opcional)"
@@ -498,9 +532,9 @@ export default function NuevoPrestamoScreen() {
                 </View>
               )}
 
-              {warnings.tasaAlta && (
+              {warnings.cuotaDesbalanceada && (
                 <View style={[styles.warningBox, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
-                  <Text style={{ color: colors.warning, fontSize: FontSize.xs }}>{warnings.tasaAlta}</Text>
+                  <Text style={{ color: colors.warning, fontSize: FontSize.xs }}>{warnings.cuotaDesbalanceada}</Text>
                 </View>
               )}
             </View>
@@ -542,6 +576,19 @@ function ResumenItem({ title, value, highlight = false }: { title: string; value
 }
 
 const styles = StyleSheet.create({
+  avisoLimite: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  avisoLimiteText: {
+    flex: 1,
+    fontSize: FontSize.xs,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

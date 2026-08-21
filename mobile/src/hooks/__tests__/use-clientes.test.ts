@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import type { CreateClienteRequest } from '@/types/cliente.types';
 
 const mockListar = jest.fn();
 const mockCrear = jest.fn();
@@ -106,7 +107,7 @@ describe('useClientes', () => {
 });
 
 describe('useCrearCliente', () => {
-  const dto = { nombre: 'Juan', apellido: 'Pérez', cedula: '001-0000001-1', celular: null, email: null, provincia: null, municipio: null, sector: null, direccion: null, ocupacion: null, empresaLaboral: null, ingresos: 0, telefono: '', latitud: null, longitud: null, tipo: 'NORMAL' as const };
+  const dto: CreateClienteRequest = { nombre: 'Juan', apellido: 'Pérez', cedula: '001-0000001-1', telefono: '', ingresos: 0 };
 
   it('creates cliente via API when online', async () => {
     mockCrear.mockResolvedValue({ id: '1', ...dto });

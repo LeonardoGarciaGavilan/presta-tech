@@ -72,6 +72,7 @@ export interface CreateClienteRequest {
   ocupacion?: string;
   empresaLaboral?: string;
   ingresos?: number;
+  observaciones?: string;
   latitud?: number;
   longitud?: number;
   coordsAproximadas?: boolean;

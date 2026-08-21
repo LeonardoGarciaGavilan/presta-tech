@@ -49,8 +49,13 @@ export function getPagosByPrestamoId(prestamoId: string): Pago[] {
     .select()
     .from(pagos)
     .where(eq(pagos.prestamoId, prestamoId))
+    .orderBy(pagos.createdAt)
     .all()
     .map(rowToPago);
+}
+
+export function getAllPagos(): Pago[] {
+  return db.select().from(pagos).orderBy(pagos.createdAt).all().map(rowToPago);
 }
 
 export function upsertPagos(list: Pago[]): void {
