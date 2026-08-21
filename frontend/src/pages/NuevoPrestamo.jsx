@@ -60,7 +60,10 @@ export default function NuevoPrestamo() {
   const [config, setConfig] = useState({
     montoMinimoPrestamo: 500,
     montoMaximoPrestamo: null,
+    maxPrestamosActivosPorCliente: 0,
   });
+  // Aviso preventivo: cliente que ya alcanzó su límite de préstamos activos
+  const [avisoLimite, setAvisoLimite] = useState(null);
 
   const [searchText, setSearchText] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
@@ -116,6 +119,7 @@ export default function NuevoPrestamo() {
         setConfig({
           montoMinimoPrestamo: res.data.montoMinimoPrestamo ?? 500,
           montoMaximoPrestamo: res.data.montoMaximoPrestamo ?? null,
+          maxPrestamosActivosPorCliente: res.data.maxPrestamosActivosPorCliente ?? 0,
         });
       } catch { /* silencioso */ }
     })();
@@ -306,12 +310,35 @@ export default function NuevoPrestamo() {
     setSugerencias([]);
     setShowSugerencias(false);
     if (errors.clienteId) setErrors((p) => ({ ...p, clienteId: null }));
+
+    // Aviso preventivo de límite de préstamos activos (ACTIVO/ATRASADO).
+    // No bloquea: el backend es la fuente de verdad al crear/desembolsar.
+    const limite = config.maxPrestamosActivosPorCliente;
+    if (limite > 0) {
+      api
+        .get(`/prestamos/cliente/${cliente.id}`)
+        .then((res) => {
+          const lista = Array.isArray(res.data) ? res.data : [];
+          const activos = lista.filter(
+            (pr) => pr.estado === "ACTIVO" || pr.estado === "ATRASADO",
+          ).length;
+          if (activos >= limite) {
+            setAvisoLimite({ activos, limite });
+          } else {
+            setAvisoLimite(null);
+          }
+        })
+        .catch(() => setAvisoLimite(null));
+    } else {
+      setAvisoLimite(null);
+    }
   };
 
   const limpiarCliente = () => {
     setClienteSeleccionado(null);
     setForm((p) => ({ ...p, clienteId: "" }));
     setSearchText("");
+    setAvisoLimite(null);
     setTimeout(() => searchRef.current?.focus(), 50);
   };
 
@@ -486,6 +513,16 @@ export default function NuevoPrestamo() {
             {/* Cliente */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Cliente</h2>
+              {avisoLimite && (
+                <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-2.5 text-sm text-amber-700">
+                  <span className="text-base leading-none mt-0.5">⚠️</span>
+                  <p>
+                    Este cliente ya tiene <strong>{avisoLimite.activos}</strong> préstamo(s)
+                    activo(s)/atrasado(s) y alcanzó el límite configurado
+                    de <strong>{avisoLimite.limite}</strong>. El sistema podría rechazar la solicitud.
+                  </p>
+                </div>
+              )}
               {clienteSeleccionado ? (
                 <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
                   <div>

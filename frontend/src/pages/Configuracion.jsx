@@ -81,6 +81,7 @@ export default function Configuracion() {
     montoMinimoPrestamo:   "",
     montoMaximoPrestamo:   "",
     montoMaximoPago:       "",
+    maxPrestamosActivosPorCliente: "",
   });
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
@@ -101,6 +102,7 @@ export default function Configuracion() {
           montoMinimoPrestamo:   res.data.montoMinimoPrestamo   ?? "",
           montoMaximoPrestamo:  res.data.montoMaximoPrestamo  ?? "",
           montoMaximoPago:      res.data.montoMaximoPago      ?? "",
+          maxPrestamosActivosPorCliente: res.data.maxPrestamosActivosPorCliente ?? "",
         });
         setHasConfig(res.data.existe ?? false);
       } catch { /* silencioso */ }
@@ -126,6 +128,7 @@ export default function Configuracion() {
         montoMinimoPrestamo:   form.montoMinimoPrestamo   ? parseFloat(form.montoMinimoPrestamo) : null,
         montoMaximoPrestamo:  form.montoMaximoPrestamo  ? parseFloat(form.montoMaximoPrestamo)  : null,
         montoMaximoPago:      form.montoMaximoPago      ? parseFloat(form.montoMaximoPago)      : null,
+        maxPrestamosActivosPorCliente: form.maxPrestamosActivosPorCliente ? parseInt(form.maxPrestamosActivosPorCliente, 10) : 0,
       });
       setHasConfig(true);
       showToast("Configuración guardada correctamente");
@@ -266,6 +269,14 @@ export default function Configuracion() {
                   placeholder="Sin límite" step="1" min="0" suffix="RD$" disabled={!puedeEditar}
                 />
                 <p className="text-xs text-gray-400 mt-1">Límite por transacción de pago (dejar vacío para no establecer límite)</p>
+              </div>
+              <div className="xs:col-span-2">
+                <label className={labelCls}>Máximo de préstamos activos por cliente</label>
+                <SuffixInput
+                  name="maxPrestamosActivosPorCliente" value={form.maxPrestamosActivosPorCliente} onChange={handleChange}
+                  placeholder="Sin límite" step="1" min="0" max="100" suffix="préstamos" disabled={!puedeEditar}
+                />
+                <p className="text-xs text-gray-400 mt-1">Cuenta préstamos ACTIVOS y ATRASADOS del cliente. Dejar vacío o 0 = sin límite</p>
               </div>
             </div>
           </SectionCard>
