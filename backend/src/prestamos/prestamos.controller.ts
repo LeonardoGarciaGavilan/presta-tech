@@ -33,7 +33,13 @@ import { FrecuenciaPago } from '@prisma/client';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
 
 @Controller('prestamos')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('PRESTAMOS')
 export class PrestamosController {
   constructor(

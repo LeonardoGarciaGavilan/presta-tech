@@ -12,7 +12,13 @@ import { Tenant } from '../common/decorators/tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('configuracion')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('CONFIGURACION')
 export class ConfiguracionController {
   constructor(private readonly configuracionService: ConfiguracionService) {}

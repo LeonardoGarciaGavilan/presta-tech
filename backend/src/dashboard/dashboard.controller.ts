@@ -11,7 +11,13 @@ import { DashboardService } from './dashboard.service';
 import { DashboardMobileService } from './dashboard-mobile.service';
 
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('DASHBOARD')
 export class DashboardController {
   constructor(

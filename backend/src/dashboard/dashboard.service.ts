@@ -460,9 +460,7 @@ export class DashboardService {
       saldos.map((s) => [
         s.prestamoId,
         Math.round(
-          ((s._sum.capital ?? 0) +
-            (s._sum.interes ?? 0) +
-            (s._sum.mora ?? 0)) *
+          ((s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0)) *
             100,
         ) / 100,
       ]),

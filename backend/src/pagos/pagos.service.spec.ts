@@ -520,9 +520,13 @@ describe('PagosService — C7 (concurrencia y replay)', () => {
         },
         usuario: { nombre: 'Sistema' },
       });
-    const $transaction = jest.fn().mockRejectedValue(
-      new BadRequestException('La cuota especificada no existe o ya fue pagada'),
-    );
+    const $transaction = jest
+      .fn()
+      .mockRejectedValue(
+        new BadRequestException(
+          'La cuota especificada no existe o ya fue pagada',
+        ),
+      );
     const prestamo = {
       findFirst: jest.fn().mockResolvedValue({
         id: 'p1',
@@ -532,11 +536,22 @@ describe('PagosService — C7 (concurrencia y replay)', () => {
         frecuenciaPago: 'MENSUAL',
         tasaInteres: 5,
         cuotas: [
-          { id: 'c1', monto: 120, capital: 100, interes: 20, mora: 0, pagada: false },
+          {
+            id: 'c1',
+            monto: 120,
+            capital: 100,
+            interes: 20,
+            mora: 0,
+            pagada: false,
+          },
         ],
       }),
     };
-    const { service } = buildService({ pago: { findFirst }, $transaction, prestamo });
+    const { service } = buildService({
+      pago: { findFirst },
+      $transaction,
+      prestamo,
+    });
 
     const result = await service.registrarPago(
       {
@@ -556,7 +571,7 @@ describe('PagosService — C7 (concurrencia y replay)', () => {
     const { tx } = buildTx({
       cuotasPendientes: [cuotaPendiente],
     });
-    (tx.cajaSesion.findFirst as jest.Mock).mockResolvedValue(null);
+    tx.cajaSesion.findFirst.mockResolvedValue(null);
     const $transaction = jest
       .fn()
       .mockImplementation(

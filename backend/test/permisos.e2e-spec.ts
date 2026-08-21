@@ -245,7 +245,6 @@ describe('Permisos (e2e)', () => {
       await prisma.usuario.deleteMany({ where: { id: { in: userIds } } });
       await prisma.empresa.deleteMany({ where: { id: empresaId } });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn('[permisos.e2e] cleanup parcial:', (err as Error).message);
     }
 
@@ -273,19 +272,31 @@ describe('Permisos (e2e)', () => {
   });
 
   describe('ADMIN (base = todos los permisos)', () => {
-    it('GET /clientes → 200', () => get(tokenAdmin, `${PREFIX}/clientes`).expect(200));
-    it('GET /prestamos → 200', () => get(tokenAdmin, `${PREFIX}/prestamos`).expect(200));
+    it('GET /clientes → 200', () =>
+      get(tokenAdmin, `${PREFIX}/clientes`).expect(200));
+    it('GET /prestamos → 200', () =>
+      get(tokenAdmin, `${PREFIX}/prestamos`).expect(200));
     it('GET /caja → 200', () => get(tokenAdmin, `${PREFIX}/caja`).expect(200));
-    it('GET /rutas → 200', () => get(tokenAdmin, `${PREFIX}/rutas`).expect(200));
-    it('GET /gastos → 200', () => get(tokenAdmin, `${PREFIX}/gastos`).expect(200));
-    it('GET /usuarios → 200', () => get(tokenAdmin, `${PREFIX}/usuarios`).expect(200));
-    it('GET /configuracion → 200', () => get(tokenAdmin, `${PREFIX}/configuracion`).expect(200));
-    it('GET /dashboard → 200', () => get(tokenAdmin, `${PREFIX}/dashboard`).expect(200));
-    it('GET /finanzas/resumen → 200', () => get(tokenAdmin, `${PREFIX}/finanzas/resumen`).expect(200));
-    it('GET /empleados → 200', () => get(tokenAdmin, `${PREFIX}/empleados`).expect(200));
-    it('GET /auditoria → 200', () => get(tokenAdmin, `${PREFIX}/auditoria`).expect(200));
-    it('GET /sync/cambios → 200', () => get(tokenAdmin, `${PREFIX}/sync/cambios`).expect(200));
-    it('GET /reportes/estado-general → 200', () => get(tokenAdmin, `${PREFIX}/reportes/estado-general`).expect(200));
+    it('GET /rutas → 200', () =>
+      get(tokenAdmin, `${PREFIX}/rutas`).expect(200));
+    it('GET /gastos → 200', () =>
+      get(tokenAdmin, `${PREFIX}/gastos`).expect(200));
+    it('GET /usuarios → 200', () =>
+      get(tokenAdmin, `${PREFIX}/usuarios`).expect(200));
+    it('GET /configuracion → 200', () =>
+      get(tokenAdmin, `${PREFIX}/configuracion`).expect(200));
+    it('GET /dashboard → 200', () =>
+      get(tokenAdmin, `${PREFIX}/dashboard`).expect(200));
+    it('GET /finanzas/resumen → 200', () =>
+      get(tokenAdmin, `${PREFIX}/finanzas/resumen`).expect(200));
+    it('GET /empleados → 200', () =>
+      get(tokenAdmin, `${PREFIX}/empleados`).expect(200));
+    it('GET /auditoria → 200', () =>
+      get(tokenAdmin, `${PREFIX}/auditoria`).expect(200));
+    it('GET /sync/cambios → 200', () =>
+      get(tokenAdmin, `${PREFIX}/sync/cambios`).expect(200));
+    it('GET /reportes/estado-general → 200', () =>
+      get(tokenAdmin, `${PREFIX}/reportes/estado-general`).expect(200));
 
     it('POST /clientes → 201 (crea cliente)', async () => {
       const res = await post(tokenAdmin, `${PREFIX}/clientes`, {
@@ -320,12 +331,18 @@ describe('Permisos (e2e)', () => {
   });
 
   describe('EMPLEADO base', () => {
-    it('GET /clientes → 200', () => get(tokenEmpleado, `${PREFIX}/clientes`).expect(200));
-    it('GET /prestamos → 200', () => get(tokenEmpleado, `${PREFIX}/prestamos`).expect(200));
-    it('GET /caja → 200', () => get(tokenEmpleado, `${PREFIX}/caja`).expect(200));
-    it('GET /rutas → 200', () => get(tokenEmpleado, `${PREFIX}/rutas`).expect(200));
-    it('GET /configuracion → 200', () => get(tokenEmpleado, `${PREFIX}/configuracion`).expect(200));
-    it('GET /dashboard/mobile → 200', () => get(tokenEmpleado, `${PREFIX}/dashboard/mobile`).expect(200));
+    it('GET /clientes → 200', () =>
+      get(tokenEmpleado, `${PREFIX}/clientes`).expect(200));
+    it('GET /prestamos → 200', () =>
+      get(tokenEmpleado, `${PREFIX}/prestamos`).expect(200));
+    it('GET /caja → 200', () =>
+      get(tokenEmpleado, `${PREFIX}/caja`).expect(200));
+    it('GET /rutas → 200', () =>
+      get(tokenEmpleado, `${PREFIX}/rutas`).expect(200));
+    it('GET /configuracion → 200', () =>
+      get(tokenEmpleado, `${PREFIX}/configuracion`).expect(200));
+    it('GET /dashboard/mobile → 200', () =>
+      get(tokenEmpleado, `${PREFIX}/dashboard/mobile`).expect(200));
     it('POST /clientes → 201 (clientes:crear)', async () => {
       const res = await post(tokenEmpleado, `${PREFIX}/clientes`, {
         nombre: 'Perm E2E Cliente Emp',
@@ -351,13 +368,19 @@ describe('Permisos (e2e)', () => {
     it('PUT /configuracion → 403 (falta configuracion:editar)', () =>
       expectPermisoDenegado(put(tokenEmpleado, `${PREFIX}/configuracion`)));
     it('GET /prestamos/solicitudes → 403 (falta prestamos:revisar)', () =>
-      expectPermisoDenegado(get(tokenEmpleado, `${PREFIX}/prestamos/solicitudes`)));
+      expectPermisoDenegado(
+        get(tokenEmpleado, `${PREFIX}/prestamos/solicitudes`),
+      ));
     it('PATCH /prestamos/:id/cancelar → 403 (falta prestamos:cancelar)', () =>
-      expectPermisoDenegado(patch(tokenEmpleado, `${PREFIX}/prestamos/${UUID}/cancelar`)));
+      expectPermisoDenegado(
+        patch(tokenEmpleado, `${PREFIX}/prestamos/${UUID}/cancelar`),
+      ));
     it('DELETE /clientes/:id → 403 (falta clientes:desactivar)', () =>
       expectPermisoDenegado(del(tokenEmpleado, `${PREFIX}/clientes/${UUID}`)));
     it('PATCH /caja/:id/cerrar → 403 (falta caja:ajuste)', () =>
-      expectPermisoDenegado(patch(tokenEmpleado, `${PREFIX}/caja/${UUID}/cerrar`)));
+      expectPermisoDenegado(
+        patch(tokenEmpleado, `${PREFIX}/caja/${UUID}/cerrar`),
+      ));
     it('POST /rutas → 403 (falta rutas:crear)', () =>
       expectPermisoDenegado(post(tokenEmpleado, `${PREFIX}/rutas`)));
     it('POST /empleados → 403 (falta empleados:gestionar)', () =>
@@ -408,16 +431,24 @@ describe('Permisos (e2e)', () => {
     });
 
     it('deshabilitar módulo CLIENTES (Super Admin) → 403 MODULO_DESACTIVADO', async () => {
-      await put(tokenSuper, `${PREFIX}/superadmin/empresas/${empresaId}/limites`, {
-        modulosDeshabilitados: ['CLIENTES'],
-      }).expect(200);
+      await put(
+        tokenSuper,
+        `${PREFIX}/superadmin/empresas/${empresaId}/limites`,
+        {
+          modulosDeshabilitados: ['CLIENTES'],
+        },
+      ).expect(200);
 
-      await get(tokenAdmin, `${PREFIX}/clientes`).expect(403).expect((res) => {
-        expect(res.body.code).toBe('MODULO_DESACTIVADO');
-      });
-      await get(tokenEmpleado, `${PREFIX}/clientes`).expect(403).expect((res) => {
-        expect(res.body.code).toBe('MODULO_DESACTIVADO');
-      });
+      await get(tokenAdmin, `${PREFIX}/clientes`)
+        .expect(403)
+        .expect((res) => {
+          expect(res.body.code).toBe('MODULO_DESACTIVADO');
+        });
+      await get(tokenEmpleado, `${PREFIX}/clientes`)
+        .expect(403)
+        .expect((res) => {
+          expect(res.body.code).toBe('MODULO_DESACTIVADO');
+        });
     });
 
     it('authVersion incrementado tras deshabilitar módulo', async () => {
@@ -426,9 +457,13 @@ describe('Permisos (e2e)', () => {
     });
 
     it('reactivar módulo → 200 de nuevo y authVersion +1 más', async () => {
-      await put(tokenSuper, `${PREFIX}/superadmin/empresas/${empresaId}/limites`, {
-        modulosDeshabilitados: [],
-      }).expect(200);
+      await put(
+        tokenSuper,
+        `${PREFIX}/superadmin/empresas/${empresaId}/limites`,
+        {
+          modulosDeshabilitados: [],
+        },
+      ).expect(200);
 
       await get(tokenAdmin, `${PREFIX}/clientes`).expect(200);
       const res = await get(tokenAdmin, `${PREFIX}/auth/me`).expect(200);

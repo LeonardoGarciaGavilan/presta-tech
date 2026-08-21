@@ -37,7 +37,13 @@ interface AuthUser {
 }
 
 @Controller('sync')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('SYNC')
 export class SyncController {
   constructor(

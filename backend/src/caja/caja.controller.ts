@@ -23,7 +23,13 @@ import { Idempotent } from '../common/decorators/idempotent.decorator';
 import { getFechaRD } from '../common/utils/fecha.utils';
 
 @Controller('caja')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('CAJA')
 export class CajaController {
   constructor(private readonly cajaService: CajaService) {}

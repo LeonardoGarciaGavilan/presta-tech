@@ -229,17 +229,20 @@ model Pago {
 }
 
 model Configuracion {
-  id                    String   @id @default(uuid())
-  tasaInteresBase       Float
-  moraPorcentajeMensual Float
-  diasGracia            Int      @default(0)
-  permitirAbonoCapital  Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  empresaId             String   @unique
-  montoMaximoPago       Float?
-  montoMaximoPrestamo   Float?
-  montoMinimoPrestamo   Float    @default(500)
-  empresa               Empresa  @relation(fields: [empresaId], references: [id])
+  id                            String   @id @default(uuid())
+  tasaInteresBase               Float
+  moraPorcentajeMensual         Float
+  diasGracia                    Int      @default(0)
+  permitirAbonoCapital          Boolean  @default(true)
+  createdAt                     DateTime @default(now())
+  empresaId                     String   @unique
+  montoMaximoPago               Float?
+  montoMaximoPrestamo           Float?
+  montoMinimoPrestamo           Float    @default(500)
+  cuotasRestantesParaRenovar    Int      @default(0)
+  maxRefinanciamientosPorPrestamo Int    @default(0)
+  maxPrestamosActivosPorCliente Int      @default(0)
+  empresa                       Empresa  @relation(fields: [empresaId], references: [id])
 }
 
 model Auditoria {

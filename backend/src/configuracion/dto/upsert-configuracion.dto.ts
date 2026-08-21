@@ -37,4 +37,26 @@ export class UpsertConfiguracionDto {
   @IsOptional()
   @IsNumber()
   montoMaximoPago?: number;
+
+  /** Renovar solo cuando faltan X cuotas o menos. 0 = sin restricción. */
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  cuotasRestantesParaRenovar?: number;
+
+  /** Máximo de refinanciamientos por préstamo. 0 = sin límite. */
+  @IsInt()
+  @Min(0)
+  @Max(20)
+  maxRefinanciamientosPorPrestamo?: number;
+
+  /**
+   * Máximo de préstamos simultáneos por cliente contando solo ACTIVO y ATRASADO.
+   * 0 = sin límite.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  maxPrestamosActivosPorCliente?: number;
 }

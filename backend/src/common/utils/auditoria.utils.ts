@@ -86,6 +86,8 @@ export function generarDescripcionCambios(
     'montoMinimoPrestamo',
     'montoMaximoPrestamo',
     'montoMaximoPago',
+    'cuotasRestantesParaRenovar',
+    'maxRefinanciamientosPorPrestamo',
   ];
 
   for (const campo of camposRelevantes) {

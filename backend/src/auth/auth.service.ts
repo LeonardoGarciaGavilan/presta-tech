@@ -244,7 +244,8 @@ export class AuthService {
       },
     });
 
-    const { permisos, modulosDeshabilitados } = await this.adjuntarAccesos(user);
+    const { permisos, modulosDeshabilitados } =
+      await this.adjuntarAccesos(user);
 
     const usuarioResponse = {
       id: user.id,
@@ -540,7 +541,8 @@ export class AuthService {
       throw new UnauthorizedException('Cuenta desactivada');
     }
 
-    const { permisos, modulosDeshabilitados } = await this.adjuntarAccesos(user);
+    const { permisos, modulosDeshabilitados } =
+      await this.adjuntarAccesos(user);
 
     return {
       id: user.id,

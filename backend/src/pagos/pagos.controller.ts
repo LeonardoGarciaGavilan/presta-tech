@@ -23,7 +23,13 @@ import { Idempotent } from '../common/decorators/idempotent.decorator';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('pagos')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('PAGOS')
 export class PagosController {
   constructor(private readonly pagosService: PagosService) {}

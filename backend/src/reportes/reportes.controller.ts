@@ -10,7 +10,13 @@ import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('reportes')
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Modulo('REPORTES')
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}

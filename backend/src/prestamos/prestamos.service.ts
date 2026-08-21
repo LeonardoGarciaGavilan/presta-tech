@@ -11,7 +11,12 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
-import { EstadoPrestamo, FrecuenciaPago, MetodoPago } from '@prisma/client';
+import {
+  EstadoPrestamo,
+  FrecuenciaPago,
+  MetodoPago,
+  Prisma,
+} from '@prisma/client';
 import { AlertsGateway } from '../alerts/alerts.gateway';
 import { PushNotificationsService } from '../notificaciones/push-notifications.service';
 import {
@@ -295,7 +300,8 @@ export class PrestamosService {
   ): Promise<number> {
     if (cuota.mora > 0) return cuota.mora;
 
-    let config: { diasGracia: number; moraPorcentajeMensual: number } | null = null;
+    let config: { diasGracia: number; moraPorcentajeMensual: number } | null =
+      null;
     const cacheKey = `config:${empresaId}`;
 
     if (this.cacheManager) {
@@ -362,22 +368,25 @@ export class PrestamosService {
   // ─── FUNCIÓN HELPER PARA CALCULAR DESDE OBJETO ───────────────────────────────
   // Calcula saldo y mora desde el objeto prestamo (que ya tiene cuotas cargadas)
   // Útil para listados y respuestas API
-  private calcularDesdeObjeto(prestamo: { cuotas?: { pagada: boolean; capital: number; interes: number; mora: number }[] }): {
+  private calcularDesdeObjeto(prestamo: {
+    cuotas?: {
+      pagada: boolean;
+      capital: number;
+      interes: number;
+      mora: number;
+    }[];
+  }): {
     saldoPendiente: number;
     moraAcumulada: number;
   } {
-    const cuotasPendientes =
-      prestamo.cuotas?.filter((c) => !c.pagada) ?? [];
+    const cuotasPendientes = prestamo.cuotas?.filter((c) => !c.pagada) ?? [];
 
     const saldo = cuotasPendientes.reduce(
       (sum, c) => sum + c.capital + c.interes + (c.mora || 0),
       0,
     );
 
-    const mora = cuotasPendientes.reduce(
-      (sum, c) => sum + (c.mora || 0),
-      0,
-    );
+    const mora = cuotasPendientes.reduce((sum, c) => sum + (c.mora || 0), 0);
 
     return {
       saldoPendiente: Math.round(saldo * 100) / 100,
@@ -483,6 +492,40 @@ export class PrestamosService {
     CANCELADO: [],
   };
 
+  /**
+   * Límite parametrizable de préstamos simultáneos por cliente.
+   * Solo cuentan ACTIVO y ATRASADO (PAGADO/RECHAZADO/CANCELADO y solicitudes
+   * pendientes no consumen cupo). 0 o sin configuración = sin límite.
+   * Acepta un cliente transaccional (tx) para validar dentro de $transaction.
+   */
+  private async validarLimitePrestamosActivos(
+    db: Prisma.TransactionClient,
+    clienteId: string,
+    empresaId: string,
+  ) {
+    const config = await db.configuracion.findUnique({
+      where: { empresaId },
+    });
+    const max = config?.maxPrestamosActivosPorCliente ?? 0;
+    if (max <= 0) return;
+
+    const count = await db.prestamo.count({
+      where: {
+        clienteId,
+        empresaId,
+        estado: {
+          in: [EstadoPrestamo.ACTIVO, EstadoPrestamo.ATRASADO],
+        },
+      },
+    });
+
+    if (count >= max) {
+      throw new BadRequestException(
+        `El cliente ya tiene ${count} préstamo(s) activo(s)/atrasado(s) y alcanzó el límite configurado de ${max}.`,
+      );
+    }
+  }
+
   async create(dto: CreatePrestamoDto, empresaId: string, usuarioId: string) {
     const cliente = await this.prisma.cliente.findFirst({
       where: { id: dto.clienteId, empresaId, activo: true },
@@ -525,6 +568,13 @@ export class PrestamosService {
       dto.monto,
       config.montoMaximoPrestamo,
       'préstamo',
+    );
+
+    // 4. Validar límite de préstamos activos por cliente (ACTIVO/ATRASADO)
+    await this.validarLimitePrestamosActivos(
+      this.prisma,
+      dto.clienteId,
+      empresaId,
     );
 
     // ── Cuotas del plan (QuotaService): total de préstamos + monto por préstamo ──
@@ -826,6 +876,15 @@ export class PrestamosService {
           `El préstamo ya no está en estado APROBADO. Estado actual: ${prestamoActual.estado}`,
         );
       }
+
+      // ─── 2b. Revalidar límite de préstamos activos por cliente ────────
+      // Cierra el hueco de solicitudes creadas antes de configurar/bajar el
+      // límite: el préstamo en curso está APROBADO, así que no se cuenta a
+      // sí mismo (solo cuentan ACTIVO/ATRASADO).
+      const { clienteId: clienteIdActual } = prestamoActual as {
+        clienteId: string;
+      };
+      await this.validarLimitePrestamosActivos(tx, clienteIdActual, empresaId);
 
       // ─── 3. Calcular efectivo disponible usando cajaId ────────────────
       const [pagosEfectivo, desembolsosCaja] = await Promise.all([
@@ -1197,7 +1256,8 @@ export class PrestamosService {
     const cacheKey = `config:${empresaId}`;
 
     // 1. Obtener configuración (con cache)
-    let config: { diasGracia: number; moraPorcentajeMensual: number } | null = null;
+    let config: { diasGracia: number; moraPorcentajeMensual: number } | null =
+      null;
     try {
       if (this.cacheManager) {
         config = (await this.cacheManager.get(cacheKey)) ?? null;
@@ -1475,6 +1535,45 @@ export class PrestamosService {
         'Este préstamo no tiene cuotas pendientes para refinanciar',
       );
 
+    // Reglas parametrizables por empresa (0 = desactivada)
+    const configCacheKey = `config:${empresaId}`;
+    let config: {
+      cuotasRestantesParaRenovar?: number;
+      maxRefinanciamientosPorPrestamo?: number;
+    } | null = null;
+    try {
+      if (this.cacheManager) {
+        config = (await this.cacheManager.get(configCacheKey)) ?? null;
+      }
+    } catch (e) {
+      console.warn('Cache config error:', e?.message);
+    }
+    if (!config) {
+      config = await this.prisma.configuracion.findUnique({
+        where: { empresaId },
+      });
+    }
+
+    const maxCuotasRestantes = config?.cuotasRestantesParaRenovar ?? 0;
+    if (
+      maxCuotasRestantes > 0 &&
+      cuotasPendientes.length > maxCuotasRestantes
+    ) {
+      throw new BadRequestException(
+        `Solo se puede renovar cuando faltan ${maxCuotasRestantes} cuota(s) o menos. Este préstamo tiene ${cuotasPendientes.length} pendientes.`,
+      );
+    }
+
+    const maxRefinanciamientos = config?.maxRefinanciamientosPorPrestamo ?? 0;
+    if (
+      maxRefinanciamientos > 0 &&
+      (prestamo.vecesRefinanciado ?? 0) >= maxRefinanciamientos
+    ) {
+      throw new BadRequestException(
+        `Este préstamo alcanzó el límite de ${maxRefinanciamientos} refinanciamiento(s).`,
+      );
+    }
+
     const capitalPendiente = cuotasPendientes.reduce(
       (sum, c) => sum + c.capital,
       0,
@@ -1522,6 +1621,21 @@ export class PrestamosService {
       cambios.push('CAMBIO_CUOTAS');
     if (dto.nuevaFechaPago) cambios.push('CAMBIO_FECHA_PAGO');
 
+    // Snapshot completo de las cuotas que serán eliminadas: preserva la
+    // amortización original para auditoría sin mantener filas activas en DB.
+    const interesPerdido =
+      Math.round(
+        cuotasPendientes.reduce((sum, c) => sum + (c.interes || 0), 0) * 100,
+      ) / 100;
+    const cuotasEliminadasSnapshot = cuotasPendientes.map((c) => ({
+      numero: c.numero,
+      monto: c.monto,
+      capital: c.capital,
+      interes: c.interes,
+      mora: c.mora || 0,
+      fechaVencimiento: c.fechaVencimiento,
+    }));
+
     const nuevoRegistro = {
       fecha: new Date().toISOString(),
       usuarioId,
@@ -1529,6 +1643,8 @@ export class PrestamosService {
       cuotasOriginales: prestamo.numeroCuotas,
       cuotasPagadasAntes: prestamo.cuotas.filter((c) => c.pagada).length,
       cuotasPendientesAntes: cuotasPendientes.length,
+      interesPerdido,
+      cuotasEliminadas: cuotasEliminadasSnapshot,
       saldoAntes: this.calcularDesdeObjeto(prestamo).saldoPendiente,
       tasaAntes: prestamo.tasaInteres,
       frecuenciaAntes: prestamo.frecuenciaPago,

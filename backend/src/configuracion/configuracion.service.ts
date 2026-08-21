@@ -42,6 +42,11 @@ export class ConfiguracionService {
           montoMinimoPrestamo: config.montoMinimoPrestamo ?? 500,
           montoMaximoPrestamo: config.montoMaximoPrestamo ?? null,
           montoMaximoPago: config.montoMaximoPago ?? null,
+          cuotasRestantesParaRenovar: config.cuotasRestantesParaRenovar ?? 0,
+          maxRefinanciamientosPorPrestamo:
+            config.maxRefinanciamientosPorPrestamo ?? 0,
+          maxPrestamosActivosPorCliente:
+            config.maxPrestamosActivosPorCliente ?? 0,
         }
       : {
           tasaInteresBase: 0,
@@ -51,6 +56,9 @@ export class ConfiguracionService {
           montoMinimoPrestamo: 500,
           montoMaximoPrestamo: null,
           montoMaximoPago: null,
+          cuotasRestantesParaRenovar: 0,
+          maxRefinanciamientosPorPrestamo: 0,
+          maxPrestamosActivosPorCliente: 0,
           empresaId,
           existe: false,
         };
@@ -84,6 +92,12 @@ export class ConfiguracionService {
           montoMinimoPrestamo: configAnterior.montoMinimoPrestamo,
           montoMaximoPrestamo: configAnterior.montoMaximoPrestamo,
           montoMaximoPago: configAnterior.montoMaximoPago,
+          cuotasRestantesParaRenovar:
+            configAnterior.cuotasRestantesParaRenovar ?? 0,
+          maxRefinanciamientosPorPrestamo:
+            configAnterior.maxRefinanciamientosPorPrestamo ?? 0,
+          maxPrestamosActivosPorCliente:
+            configAnterior.maxPrestamosActivosPorCliente ?? 0,
         }
       : null;
 
@@ -95,6 +109,12 @@ export class ConfiguracionService {
       montoMinimoPrestamo: dto.montoMinimoPrestamo ?? 500,
       montoMaximoPrestamo: dto.montoMaximoPrestamo,
       montoMaximoPago: dto.montoMaximoPago,
+      // Sin `?? 0`: si el cliente no envía los campos (cliente antiguo),
+      // Prisma los omite en UPDATE y usa el default 0 en CREATE. Así un
+      // save desde una UI vieja no resetea las reglas ya configuradas.
+      cuotasRestantesParaRenovar: dto.cuotasRestantesParaRenovar,
+      maxRefinanciamientosPorPrestamo: dto.maxRefinanciamientosPorPrestamo,
+      maxPrestamosActivosPorCliente: dto.maxPrestamosActivosPorCliente,
     };
 
     const descripcion = esCreacion

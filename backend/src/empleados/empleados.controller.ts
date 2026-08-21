@@ -38,10 +38,7 @@ export class EmpleadosController {
   // ─── CRUD Empleados ───────────────────────────────────────────────────────
   @Get()
   @RequierePermiso('empleados:ver')
-  findAll(
-    @Tenant() empresaId: string,
-    @Query('inactivos') inactivos?: string,
-  ) {
+  findAll(@Tenant() empresaId: string, @Query('inactivos') inactivos?: string) {
     return this.empleadosService.findAll(empresaId, inactivos !== 'true');
   }
 
@@ -54,7 +51,11 @@ export class EmpleadosController {
 
   @Patch(':id')
   @RequierePermiso('empleados:gestionar')
-  update(@Param('id') id: string, @Body() dto: any, @Tenant() empresaId: string) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: any,
+    @Tenant() empresaId: string,
+  ) {
     return this.empleadosService.update(id, dto, empresaId);
   }
 

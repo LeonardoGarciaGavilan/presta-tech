@@ -537,9 +537,8 @@ export class PagosService {
                 Math.round((cuota.capital - pagoCapital) * 100) / 100,
               );
               const nuevoMonto =
-                Math.round(
-                  (nuevoCapital + nuevoInteres + nuevaMora) * 100,
-                ) / 100;
+                Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) /
+                100;
 
               if (nuevoMonto <= 0) {
                 await tx.cuota.update({
@@ -1048,9 +1047,7 @@ export class PagosService {
       saldos.map((s) => [
         s.prestamoId,
         Math.round(
-          ((s._sum.capital ?? 0) +
-            (s._sum.interes ?? 0) +
-            (s._sum.mora ?? 0)) *
+          ((s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0)) *
             100,
         ) / 100,
       ]),

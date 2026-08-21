@@ -136,7 +136,13 @@ describe('AuthService (lockout de login — F6)', () => {
       permisosService as unknown as PermisosService,
       loginLockoutService as unknown as LoginLockoutService,
     );
-    return { service, prisma, jwtService, permisosService, loginLockoutService };
+    return {
+      service,
+      prisma,
+      jwtService,
+      permisosService,
+      loginLockoutService,
+    };
   }
 
   it('bloquea el login cuando el email+IP está bloqueado', async () => {
@@ -172,8 +178,13 @@ describe('AuthService (lockout de login — F6)', () => {
   });
 
   it('resetea el contador tras un login exitoso', async () => {
-    const { service, prisma, jwtService, permisosService, loginLockoutService } =
-      buildService();
+    const {
+      service,
+      prisma,
+      jwtService,
+      permisosService,
+      loginLockoutService,
+    } = buildService();
     const bcrypt = require('bcrypt');
     const hash = bcrypt.hashSync('Clave#2024', 10);
     prisma.usuario.findUnique.mockResolvedValue({

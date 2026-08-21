@@ -128,61 +128,61 @@ export class SyncService {
 
     const [clientes, prestamosRaw, rutas, rutaClientes, rutasAjenasRaw] =
       await Promise.all([
-      permisos.clientes
-        ? this.prisma.cliente.findMany({
-            // Sin filtro `activo` para que las desactivaciones viajen en el delta.
-            where: { empresaId, ...(updatedSince ?? {}) },
-            orderBy: { updatedAt: 'desc' },
-          })
-        : Promise.resolve([]),
-      permisos.prestamos
-        ? this.prisma.prestamo.findMany({
-            where: { empresaId, ...(updatedSince ?? {}) },
-            include: prestamoInclude,
-          })
-        : Promise.resolve([]),
-      permisos.rutas
-        ? this.prisma.ruta.findMany({
-            where: rutaWhere,
-            include: {
-              usuario: { select: { id: true, nombre: true } },
-              clientes: {
-                where: { eliminado: false },
-                select: {
-                  id: true,
-                  clienteId: true,
-                  orden: true,
-                  observacion: true,
-                  visitadoHoy: true,
-                  ultimaVisita: true,
-                  fechaRuta: true,
+        permisos.clientes
+          ? this.prisma.cliente.findMany({
+              // Sin filtro `activo` para que las desactivaciones viajen en el delta.
+              where: { empresaId, ...(updatedSince ?? {}) },
+              orderBy: { updatedAt: 'desc' },
+            })
+          : Promise.resolve([]),
+        permisos.prestamos
+          ? this.prisma.prestamo.findMany({
+              where: { empresaId, ...(updatedSince ?? {}) },
+              include: prestamoInclude,
+            })
+          : Promise.resolve([]),
+        permisos.rutas
+          ? this.prisma.ruta.findMany({
+              where: rutaWhere,
+              include: {
+                usuario: { select: { id: true, nombre: true } },
+                clientes: {
+                  where: { eliminado: false },
+                  select: {
+                    id: true,
+                    clienteId: true,
+                    orden: true,
+                    observacion: true,
+                    visitadoHoy: true,
+                    ultimaVisita: true,
+                    fechaRuta: true,
+                  },
                 },
               },
-            },
-            orderBy: { createdAt: 'desc' },
-          })
-        : Promise.resolve([]),
-      permisos.rutas
-        ? this.prisma.rutaCliente.findMany({
-            where: rutaClienteWhere,
-            orderBy: { updatedAt: 'desc' },
-          })
-        : Promise.resolve([]),
-      // Rutas de OTROS usuarios de la empresa que cambiaron después del cursor.
-      // Para no-admins: si una ruta ajena fue desactivada o reasignada a otro
-      // usuario, el móvil debe retirarla de su cache local (no viaja en `rutas`
-      // porque el delta ya no la incluye para ese usuario).
-      !isAdmin && usuarioId && permisos.rutas
-        ? this.prisma.ruta.findMany({
-            where: {
-              empresaId,
-              usuarioId: { not: usuarioId },
-              ...(updatedSince ?? {}),
-            },
-            select: { id: true },
-          })
-        : Promise.resolve([]),
-    ]);
+              orderBy: { createdAt: 'desc' },
+            })
+          : Promise.resolve([]),
+        permisos.rutas
+          ? this.prisma.rutaCliente.findMany({
+              where: rutaClienteWhere,
+              orderBy: { updatedAt: 'desc' },
+            })
+          : Promise.resolve([]),
+        // Rutas de OTROS usuarios de la empresa que cambiaron después del cursor.
+        // Para no-admins: si una ruta ajena fue desactivada o reasignada a otro
+        // usuario, el móvil debe retirarla de su cache local (no viaja en `rutas`
+        // porque el delta ya no la incluye para ese usuario).
+        !isAdmin && usuarioId && permisos.rutas
+          ? this.prisma.ruta.findMany({
+              where: {
+                empresaId,
+                usuarioId: { not: usuarioId },
+                ...(updatedSince ?? {}),
+              },
+              select: { id: true },
+            })
+          : Promise.resolve([]),
+      ]);
 
     const configuracion = permisos.configuracion
       ? await this.getConfiguracion(empresaId)

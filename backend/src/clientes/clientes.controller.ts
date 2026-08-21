@@ -29,7 +29,13 @@ import { Tenant } from '../common/decorators/tenant.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
 import { Throttle } from '@nestjs/throttler';
 
-@UseGuards(JwtAuthGuard, RolesGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
+@UseGuards(
+  JwtAuthGuard,
+  RolesGuard,
+  ModulosGuard,
+  PermisosGuard,
+  SuperAdminGuard,
+)
 @Controller('clientes')
 @Modulo('CLIENTES')
 export class ClientesController {
