@@ -107,7 +107,6 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     { name: 'admin/gastos', label: 'Gastos', icon: 'cart-outline' as const },
     { name: 'admin/usuarios', label: 'Usuarios', icon: 'people-outline' as const },
     { name: 'admin/reportes', label: 'Reportes', icon: 'bar-chart-outline' as const },
-    { name: 'admin/configuracion', label: 'Configuración', icon: 'settings-outline' as const },
   ].filter(
     (item) => {
       const permiso = PERMISO_POR_PANTALLA[item.name];
@@ -362,16 +361,6 @@ export default function DrawerLayout() {
         name="admin/reportes"
         options={{
           title: 'Reportes',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/configuracion"
-        options={{
-          title: 'Configuración',
           headerShown: true,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,

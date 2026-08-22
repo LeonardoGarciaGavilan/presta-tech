@@ -164,6 +164,23 @@ export default function ConfiguracionScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+        {/* Header */}
+        <View style={{ marginBottom: Spacing.md }}>
+          <Text
+            style={{
+              fontSize: FontSize.xxl,
+              fontWeight: FontWeight.bold,
+              color: colors.text,
+            }}
+            accessibilityRole="header"
+          >
+            Configuración
+          </Text>
+          <Text style={{ fontSize: FontSize.sm, color: colors.textTertiary }}>
+            Parámetros operativos del sistema
+          </Text>
+        </View>
+
         {!puedeEditar && (
           <View
             style={[

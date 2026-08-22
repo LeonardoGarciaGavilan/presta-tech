@@ -15,6 +15,16 @@ export default function TabLayout() {
   const { pendingCount } = useNetworkContext();
   const { moduloHabilitado, tienePermiso } = usePermisos();
 
+  // Visibilidad de tabs. Los Screens se registran SIEMPRE (Expo Router los
+  // auto-registra desde el filesystem); href: null es lo que oculta el tab
+  // de la barra manteniendo la ruta navegable.
+  const puedeCaja = moduloHabilitado('CAJA') && tienePermiso('caja:ver');
+  const puedePrestamos = moduloHabilitado('PRESTAMOS') && tienePermiso('prestamos:ver');
+  const puedeRutas = moduloHabilitado('RUTAS') && tienePermiso('rutas:ver');
+  const puedeClientes = moduloHabilitado('CLIENTES') && tienePermiso('clientes:ver');
+  const puedeConfigurar =
+    moduloHabilitado('CONFIGURACION') && tienePermiso('configuracion:editar');
+
   return (
     <Tabs
       screenOptions={{
@@ -50,77 +60,83 @@ export default function TabLayout() {
           ),
         }}
       />
-      {moduloHabilitado('CAJA') && tienePermiso('caja:ver') && (
-        <Tabs.Screen
-          name="caja"
-          listeners={({ navigation }) => ({
-            blur: () => {
-              const state = navigation.getState();
-              const cajaRoute = state.routes.find((r: any) => r.name === 'caja');
-              if (cajaRoute?.state?.key) {
-                navigation.dispatch({
-                  ...CommonActions.reset({
-                    index: 0,
-                    routes: [{ name: 'index' }],
-                  }),
-                  target: cajaRoute.state.key,
-                });
-              }
-            },
-          })}
-          options={{
-            title: 'Caja',
-            tabBarLabel: 'Caja',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="wallet-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
-      {moduloHabilitado('PRESTAMOS') && tienePermiso('prestamos:ver') && (
-        <Tabs.Screen
-          name="prestamos"
-          options={{
-            title: 'Préstamos',
-            tabBarLabel: 'Préstamos',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="cash-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
-      {moduloHabilitado('RUTAS') && tienePermiso('rutas:ver') && (
-        <Tabs.Screen
-          name="rutas"
-          options={{
-            title: 'Rutas',
-            tabBarLabel: 'Rutas',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="map-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
-      {moduloHabilitado('CLIENTES') && tienePermiso('clientes:ver') && (
-        <Tabs.Screen
-          name="clientes"
-          options={{
-            title: 'Clientes',
-            tabBarLabel: 'Clientes',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="people-outline" size={size} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="caja"
+        listeners={({ navigation }) => ({
+          blur: () => {
+            const state = navigation.getState();
+            const cajaRoute = state.routes.find((r: any) => r.name === 'caja');
+            if (cajaRoute?.state?.key) {
+              navigation.dispatch({
+                ...CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'index' }],
+                }),
+                target: cajaRoute.state.key,
+              });
+            }
+          },
+        })}
+        options={{
+          title: 'Caja',
+          tabBarLabel: 'Caja',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+          ...(puedeCaja ? {} : { href: null }),
+        }}
+      />
+      <Tabs.Screen
+        name="prestamos"
+        options={{
+          title: 'Préstamos',
+          tabBarLabel: 'Préstamos',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cash-outline" size={size} color={color} />
+          ),
+          ...(puedePrestamos ? {} : { href: null }),
+        }}
+      />
+      <Tabs.Screen
+        name="rutas"
+        options={{
+          title: 'Rutas',
+          tabBarLabel: 'Rutas',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="map-outline" size={size} color={color} />
+          ),
+          ...(puedeRutas ? {} : { href: null }),
+        }}
+      />
+      <Tabs.Screen
+        name="clientes"
+        options={{
+          title: 'Clientes',
+          tabBarLabel: 'Clientes',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+          ...(puedeClientes ? {} : { href: null }),
+        }}
+      />
+      {/* Perfil ya no es tab — se accede vía avatar en CompanyHeader.
+          href: null lo oculta del tab bar pero mantiene la ruta navegable. */}
       <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
-          tabBarLabel: 'Perfil',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="configuracion"
+        options={{
+          title: 'Configuración',
+          tabBarLabel: 'Configuración',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
+          ...(puedeConfigurar ? {} : { href: null }),
         }}
       />
     </Tabs>

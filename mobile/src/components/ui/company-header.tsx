@@ -11,12 +11,15 @@ import { ThemeSelectorModal } from '@/components/ui/theme-selector-modal';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import { PERMISO_POR_PANTALLA } from '@/permisos/permisos';
+import { Routes } from '@/constants/routes';
 
 export function CompanyHeader() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const insets = useSafeAreaInsets();
   const { colors, themeMode } = useTheme();
   const companyName = useAuthStore((s) => s.user?.empresa);
+  const userNombre = useAuthStore((s) => s.user?.nombre);
+  const userEmail = useAuthStore((s) => s.user?.email);
   const { tienePermiso } = usePermisos();
   const pantallasAdmin = [
     'admin/alertas',
@@ -27,7 +30,6 @@ export function CompanyHeader() {
     'admin/gastos',
     'admin/usuarios',
     'admin/reportes',
-    'admin/configuracion',
   ];
   const tieneAccesoAdmin = pantallasAdmin.some((screen) => {
     const permiso = PERMISO_POR_PANTALLA[screen];
@@ -130,6 +132,34 @@ export function CompanyHeader() {
           style={{ marginLeft: Spacing.sm }}
         >
           <Ionicons name={themeIcon} size={scale(24)} color={colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push(Routes.TABS.PERFIL)}
+          activeOpacity={0.6}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Mi perfil"
+          accessibilityHint="Abre tu pantalla de perfil"
+          style={{
+            marginLeft: Spacing.sm,
+            width: scale(34),
+            height: scale(34),
+            borderRadius: scale(17),
+            backgroundColor: colors.primary,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Text
+            style={{
+              color: '#FFFFFF',
+              fontSize: FontSize.md,
+              fontWeight: FontWeight.bold,
+            }}
+          >
+            {(userNombre || userEmail || 'U')[0].toUpperCase()}
+          </Text>
         </TouchableOpacity>
       </View>
 

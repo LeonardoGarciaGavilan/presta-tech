@@ -17,7 +17,6 @@ export const Routes = {
     RUTAS: '/rutas',
     RUTAS_DETALLE: (id: string) => `/rutas/${id}` as const,
     PERFIL: '/perfil',
-    CONFIGURACION: '/perfil/configuracion',
   },
   ADMIN: {
     ALERTAS: '/admin/alertas',
@@ -27,7 +26,6 @@ export const Routes = {
     GASTOS: '/admin/gastos',
     USUARIOS: '/admin/usuarios',
     REPORTES: '/admin/reportes',
-    CONFIGURACION: '/admin/configuracion',
   },
   ROOT: '/',
   INDEX: '/',

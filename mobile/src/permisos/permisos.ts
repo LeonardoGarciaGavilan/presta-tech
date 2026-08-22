@@ -74,7 +74,7 @@ export const MODULO_POR_PANTALLA: Record<string, Modulo | null> = {
   'admin/usuarios': 'USUARIOS',
   'admin/permisos/[id]': 'USUARIOS',
   'admin/reportes': 'REPORTES',
-  'admin/configuracion': 'CONFIGURACION',
+  '(tabs)/configuracion': 'CONFIGURACION',
 };
 
 // Permiso requerido para ver cada pantalla (espejo de frontend rutaPermisos.js).
@@ -96,6 +96,6 @@ export const PERMISO_POR_PANTALLA: Record<string, string | null> = {
   'admin/usuarios': 'usuarios:ver',
   'admin/permisos/[id]': 'usuarios:gestionar',
   'admin/reportes': 'reportes:exportar',
-  'admin/configuracion': 'configuracion:editar',
+  '(tabs)/configuracion': 'configuracion:editar',
   sincronizacion: null,
 };
