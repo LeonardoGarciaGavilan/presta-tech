@@ -1,26 +1,42 @@
-import { useCallback, useMemo } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useMemo } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Ionicons } from "@expo/vector-icons";
 
-import { Colors,
+import {
+  Colors,
   FontSize,
   FontWeight,
   Spacing,
   BorderRadius,
-  Shadows, scale} from '@/constants/theme';
-import { useConfiguracion,
-  useGuardarConfiguracion } from '@/hooks/use-configuracion';
-import { configuracionSchema, type ConfiguracionFormData } from '@/schemas/configuracion.schema';
-import { AppInput } from '@/components/ui/app-input';
-import { AppButton } from '@/components/ui/app-button';
-import { SkeletonCard } from '@/components/ui/skeleton';
-import { useToast } from '@/components/ui/toast';
-import { useTheme } from '@/components/ui/theme-provider';
-import { usePermisos } from '@/permisos/use-permisos';
-import SinAcceso from '@/components/permisos/sin-acceso';
-import { SectionCard } from '@/components/ui/section-card';
+  Shadows,
+  scale,
+} from "@/constants/theme";
+import {
+  useConfiguracion,
+  useGuardarConfiguracion,
+} from "@/hooks/use-configuracion";
+import {
+  configuracionSchema,
+  type ConfiguracionFormData,
+} from "@/schemas/configuracion.schema";
+import { AppInput } from "@/components/ui/app-input";
+import { AppButton } from "@/components/ui/app-button";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
+import { useTheme } from "@/components/ui/theme-provider";
+import { usePermisos } from "@/permisos/use-permisos";
+import SinAcceso from "@/components/permisos/sin-acceso";
+import { SectionCard } from "@/components/ui/section-card";
 
 function ToggleSwitch({
   value,
@@ -50,7 +66,7 @@ function ToggleSwitch({
           styles.toggleDot,
           {
             backgroundColor: value ? colors.success : colors.textTertiary,
-            alignSelf: value ? 'flex-end' : 'flex-start',
+            alignSelf: value ? "flex-end" : "flex-start",
           },
         ]}
       />
@@ -60,7 +76,7 @@ function ToggleSwitch({
           { color: value ? colors.success : colors.textTertiary },
         ]}
       >
-        {value ? 'Permitido' : 'No permitido'}
+        {value ? "Permitido" : "No permitido"}
       </Text>
     </TouchableOpacity>
   );
@@ -70,29 +86,41 @@ export default function ConfiguracionScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
   const { moduloHabilitado, tienePermiso } = usePermisos();
-  const puedeEditar = tienePermiso('configuracion:editar');
+  const puedeEditar = tienePermiso("configuracion:editar");
 
   const { data: config, isLoading, isError } = useConfiguracion();
   const guardarMutation = useGuardarConfiguracion();
 
-  const defaultValues = useMemo(() => ({
-    tasaInteresBase: config?.tasaInteresBase ?? 0,
-    moraPorcentajeMensual: config?.moraPorcentajeMensual ?? 0,
-    diasGracia: config?.diasGracia ?? 5,
-    permitirAbonoCapital: config?.permitirAbonoCapital ?? true,
-    montoMinimoPrestamo: config?.montoMinimoPrestamo ?? 500,
-    montoMaximoPrestamo: config?.montoMaximoPrestamo ?? null,
-    montoMaximoPago: config?.montoMaximoPago ?? null,
-    cuotasRestantesParaRenovar: config?.cuotasRestantesParaRenovar ?? 0,
-    maxRefinanciamientosPorPrestamo:
-      config?.maxRefinanciamientosPorPrestamo ?? 0,
-    maxPrestamosActivosPorCliente:
-      config?.maxPrestamosActivosPorCliente ?? null,
-  }), [config]);
+  const defaultValues = useMemo(
+    () => ({
+      tasaInteresBase: config?.tasaInteresBase ?? 0,
+      moraPorcentajeMensual: config?.moraPorcentajeMensual ?? 0,
+      diasGracia: config?.diasGracia ?? 5,
+      permitirAbonoCapital: config?.permitirAbonoCapital ?? true,
+      montoMinimoPrestamo: config?.montoMinimoPrestamo ?? 500,
+      montoMaximoPrestamo: config?.montoMaximoPrestamo ?? null,
+      montoMaximoPago: config?.montoMaximoPago ?? null,
+      cuotasRestantesParaRenovar: config?.cuotasRestantesParaRenovar ?? 0,
+      maxRefinanciamientosPorPrestamo:
+        config?.maxRefinanciamientosPorPrestamo ?? 0,
+      maxPrestamosActivosPorCliente:
+        config?.maxPrestamosActivosPorCliente ?? null,
+      permitirRenovacion: config?.permitirRenovacion ?? false,
+      maxCuotasRestantesParaRenovacion:
+        config?.maxCuotasRestantesParaRenovacion ?? 0,
+      incluirInteresEnRenovacion: config?.incluirInteresEnRenovacion ?? true,
+      porcentajeMaximoSaldoAplicado:
+        config?.porcentajeMaximoSaldoAplicado ?? 100,
+      maxRenovacionesConsecutivas: config?.maxRenovacionesConsecutivas ?? 0,
+    }),
+    [config],
+  );
 
   const {
     control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isDirty },
     reset,
   } = useForm<ConfiguracionFormData>({
@@ -101,26 +129,40 @@ export default function ConfiguracionScreen() {
     values: defaultValues,
   });
 
-  const onSubmit = useCallback(async (data: ConfiguracionFormData) => {
-    try {
-      await guardarMutation.mutateAsync({
-        tasaInteresBase: data.tasaInteresBase,
-        moraPorcentajeMensual: data.moraPorcentajeMensual,
-        diasGracia: data.diasGracia,
-        permitirAbonoCapital: data.permitirAbonoCapital,
-        montoMinimoPrestamo: data.montoMinimoPrestamo,
-        montoMaximoPrestamo: data.montoMaximoPrestamo ?? null,
-        montoMaximoPago: data.montoMaximoPago ?? null,
-        cuotasRestantesParaRenovar: data.cuotasRestantesParaRenovar ?? 0,
-        maxRefinanciamientosPorPrestamo: data.maxRefinanciamientosPorPrestamo ?? 0,
-        maxPrestamosActivosPorCliente:
-          data.maxPrestamosActivosPorCliente ?? 0,
-      });
-      showToast('Configuración guardada correctamente', 'success');
-    } catch {
-      showToast('Error al guardar la configuración', 'error');
-    }
-  }, [guardarMutation, showToast]);
+  const permitirRenovacionValue = watch("permitirRenovacion") ?? false;
+  const incluirInteresValue = watch("incluirInteresEnRenovacion") ?? true;
+
+  const onSubmit = useCallback(
+    async (data: ConfiguracionFormData) => {
+      try {
+        await guardarMutation.mutateAsync({
+          tasaInteresBase: data.tasaInteresBase,
+          moraPorcentajeMensual: data.moraPorcentajeMensual,
+          diasGracia: data.diasGracia,
+          permitirAbonoCapital: data.permitirAbonoCapital,
+          montoMinimoPrestamo: data.montoMinimoPrestamo,
+          montoMaximoPrestamo: data.montoMaximoPrestamo ?? null,
+          montoMaximoPago: data.montoMaximoPago ?? null,
+          cuotasRestantesParaRenovar: data.cuotasRestantesParaRenovar ?? 0,
+          maxRefinanciamientosPorPrestamo:
+            data.maxRefinanciamientosPorPrestamo ?? 0,
+          maxPrestamosActivosPorCliente:
+            data.maxPrestamosActivosPorCliente ?? 0,
+          permitirRenovacion: data.permitirRenovacion ?? false,
+          maxCuotasRestantesParaRenovacion:
+            data.maxCuotasRestantesParaRenovacion ?? 0,
+          incluirInteresEnRenovacion: data.incluirInteresEnRenovacion ?? true,
+          porcentajeMaximoSaldoAplicado:
+            data.porcentajeMaximoSaldoAplicado ?? 100,
+          maxRenovacionesConsecutivas: data.maxRenovacionesConsecutivas ?? 0,
+        });
+        showToast("Configuración guardada correctamente", "success");
+      } catch {
+        showToast("Error al guardar la configuración", "error");
+      }
+    },
+    [guardarMutation, showToast],
+  );
 
   if (isLoading) {
     return (
@@ -138,7 +180,11 @@ export default function ConfiguracionScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.centerContent}>
-          <Ionicons name="alert-circle-outline" size={scale(48)} color={colors.error} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={scale(48)}
+            color={colors.error}
+          />
           <Text style={[styles.errorTitle, { color: colors.text }]}>
             Error al cargar configuración
           </Text>
@@ -150,20 +196,20 @@ export default function ConfiguracionScreen() {
     );
   }
 
-  if (!moduloHabilitado('CONFIGURACION') || !puedeEditar) {
+  if (!moduloHabilitado("CONFIGURACION") || !puedeEditar) {
     return <SinAcceso />;
   }
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={{ marginBottom: Spacing.md }}>
           <Text
@@ -223,7 +269,7 @@ export default function ConfiguracionScreen() {
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryValue}>
-                {defaultValues.permitirAbonoCapital ? 'Sí' : 'No'}
+                {defaultValues.permitirAbonoCapital ? "Sí" : "No"}
               </Text>
               <Text style={styles.summaryLabel}>Abono capital</Text>
             </View>
@@ -243,7 +289,7 @@ export default function ConfiguracionScreen() {
               <AppInput
                 label="Tasa de interés base"
                 placeholder="0.00"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) => onChange(v ? parseFloat(v) : 0)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
@@ -260,7 +306,7 @@ export default function ConfiguracionScreen() {
               <AppInput
                 label="Porcentaje de mora mensual"
                 placeholder="0.00"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) => onChange(v ? parseFloat(v) : 0)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
@@ -285,7 +331,7 @@ export default function ConfiguracionScreen() {
               <AppInput
                 label="Días de gracia"
                 placeholder="0"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) => onChange(v ? parseInt(v, 10) : 0)}
                 onBlur={onBlur}
                 keyboardType="number-pad"
@@ -300,7 +346,9 @@ export default function ConfiguracionScreen() {
             name="permitirAbonoCapital"
             render={({ field: { onChange, value } }) => (
               <View style={styles.fieldContainer}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.fieldLabel, { color: colors.textSecondary }]}
+                >
                   Abono a capital
                 </Text>
                 <ToggleSwitch
@@ -328,7 +376,7 @@ export default function ConfiguracionScreen() {
                 label="Monto mínimo de préstamo"
                 placeholder="500"
                 prefix="RD$"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) => onChange(v ? parseFloat(v) : undefined)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
@@ -346,7 +394,7 @@ export default function ConfiguracionScreen() {
                 label="Monto máximo de préstamo"
                 placeholder="Sin límite"
                 prefix="RD$"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) => onChange(v ? parseFloat(v) : null)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
@@ -364,7 +412,7 @@ export default function ConfiguracionScreen() {
                 label="Monto máximo por pago"
                 placeholder="Sin límite"
                 prefix="RD$"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) => onChange(v ? parseFloat(v) : null)}
                 onBlur={onBlur}
                 keyboardType="decimal-pad"
@@ -381,9 +429,9 @@ export default function ConfiguracionScreen() {
               <AppInput
                 label="Máximo de préstamos activos por cliente"
                 placeholder="Sin límite"
-                value={value?.toString() ?? ''}
+                value={value?.toString() ?? ""}
                 onChangeText={(v) =>
-                  onChange(v !== '' ? parseInt(v, 10) : null)
+                  onChange(v !== "" ? parseInt(v, 10) : null)
                 }
                 onBlur={onBlur}
                 keyboardType="number-pad"
@@ -408,8 +456,8 @@ export default function ConfiguracionScreen() {
               <AppInput
                 label="Cuotas restantes para permitir renovación"
                 placeholder="0"
-                value={value?.toString() ?? '0'}
-                onChangeText={(v) => onChange(v !== '' ? parseInt(v, 10) : 0)}
+                value={value?.toString() ?? "0"}
+                onChangeText={(v) => onChange(v !== "" ? parseInt(v, 10) : 0)}
                 onBlur={onBlur}
                 keyboardType="number-pad"
                 editable={puedeEditar}
@@ -425,13 +473,95 @@ export default function ConfiguracionScreen() {
               <AppInput
                 label="Máximo de refinanciamientos por préstamo"
                 placeholder="0"
-                value={value?.toString() ?? '0'}
-                onChangeText={(v) => onChange(v !== '' ? parseInt(v, 10) : 0)}
+                value={value?.toString() ?? "0"}
+                onChangeText={(v) => onChange(v !== "" ? parseInt(v, 10) : 0)}
                 onBlur={onBlur}
                 keyboardType="number-pad"
                 editable={puedeEditar}
                 error={errors.maxRefinanciamientosPorPrestamo?.message}
                 hint="Límite de veces que un préstamo puede refinanciarse. 0 = sin límite"
+              />
+            )}
+          />
+        </SectionCard>
+
+        <SectionCard
+          icon="♻️"
+          title="Renovación de préstamos"
+          description="Liquida el saldo anterior y desembolsa un préstamo nuevo"
+          colors={colors}
+        >
+          <ToggleSwitch
+            value={permitirRenovacionValue}
+            onValueChange={(v) =>
+              setValue("permitirRenovacion", v, { shouldDirty: true })
+            }
+            disabled={!puedeEditar}
+            colors={colors}
+          />
+          <Text style={[styles.toggleHint, { color: colors.textTertiary }]}>
+            Habilita la acción de Renovar en préstamos ACTIVOS o ATRASADOS
+          </Text>
+          <ToggleSwitch
+            value={incluirInteresValue}
+            onValueChange={(v) =>
+              setValue("incluirInteresEnRenovacion", v, { shouldDirty: true })
+            }
+            disabled={!puedeEditar}
+            colors={colors}
+          />
+          <Text style={[styles.toggleHint, { color: colors.textTertiary }]}>
+            Cobrar también el interés futuro de las cuotas pendientes al
+            liquidar
+          </Text>
+          <Controller
+            control={control}
+            name="maxCuotasRestantesParaRenovacion"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <AppInput
+                label="Cuotas restantes para permitir renovación"
+                placeholder="0"
+                value={value?.toString() ?? "0"}
+                onChangeText={(v) => onChange(v !== "" ? parseInt(v, 10) : 0)}
+                onBlur={onBlur}
+                keyboardType="number-pad"
+                editable={puedeEditar}
+                error={errors.maxCuotasRestantesParaRenovacion?.message}
+                hint="Solo se puede renovar cuando faltan X cuotas o menos. 0 = sin restricción"
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="porcentajeMaximoSaldoAplicado"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <AppInput
+                label="Porcentaje máximo del saldo anterior aplicado"
+                placeholder="100"
+                value={value?.toString() ?? "100"}
+                onChangeText={(v) => onChange(v !== "" ? parseInt(v, 10) : 100)}
+                onBlur={onBlur}
+                keyboardType="number-pad"
+                editable={puedeEditar}
+                error={errors.porcentajeMaximoSaldoAplicado?.message}
+                hint="Tope del saldo aplicado sobre el monto nuevo. 100 = sin tope"
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="maxRenovacionesConsecutivas"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <AppInput
+                label="Máximo de renovaciones consecutivas"
+                placeholder="0"
+                value={value?.toString() ?? "0"}
+                onChangeText={(v) => onChange(v !== "" ? parseInt(v, 10) : 0)}
+                onBlur={onBlur}
+                keyboardType="number-pad"
+                editable={puedeEditar}
+                error={errors.maxRenovacionesConsecutivas?.message}
+                hint="Cuántas veces en cadena se puede renovar el mismo préstamo. 0 = sin límite"
               />
             )}
           />
@@ -463,8 +593,8 @@ const styles = StyleSheet.create({
   },
   centerContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: Spacing.lg,
   },
   errorTitle: {
@@ -474,12 +604,12 @@ const styles = StyleSheet.create({
   },
   errorDesc: {
     fontSize: FontSize.sm,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: Spacing.xs,
   },
   readOnlyBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.sm,
     padding: Spacing.sm,
     borderRadius: BorderRadius.md,
@@ -499,27 +629,27 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
-    color: 'rgba(255,255,255,0.8)',
-    textTransform: 'uppercase',
+    color: "rgba(255,255,255,0.8)",
+    textTransform: "uppercase",
     letterSpacing: scale(1),
     marginBottom: Spacing.md,
   },
   summaryGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   summaryItem: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
   },
   summaryValue: {
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   summaryLabel: {
     fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.7)',
+    color: "rgba(255,255,255,0.7)",
     marginTop: scale(2),
   },
   fieldContainer: {
@@ -531,13 +661,18 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     height: scale(48),
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
+  },
+  toggleHint: {
+    fontSize: FontSize.xs,
+    marginTop: -Spacing.xs + 2,
+    marginBottom: Spacing.sm,
   },
   toggleDot: {
     width: scale(16),

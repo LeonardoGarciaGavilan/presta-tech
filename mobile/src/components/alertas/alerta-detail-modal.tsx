@@ -10,6 +10,7 @@ import { useTheme } from '@/components/ui/theme-provider';
 const ALERTA_COLORS: Record<TipoAlerta, string> = {
   SOLICITUD: '#0EA5E9',
   REFINANCIAMIENTO: '#8B5CF6',
+  RENOVACION: '#14B8A6',
   CAMBIO_FRECUENCIA: '#F59E0B',
   CAMBIO_TASA: '#3B82F6',
   CAMBIO_CUOTAS: '#10B981',
@@ -21,6 +22,7 @@ const ALERTA_COLORS: Record<TipoAlerta, string> = {
 const ALERTA_ICONS: Record<TipoAlerta, keyof typeof Ionicons.glyphMap> = {
   SOLICITUD: 'document-text-outline',
   REFINANCIAMIENTO: 'git-network-outline',
+  RENOVACION: 'refresh-circle-outline',
   CAMBIO_FRECUENCIA: 'swap-horizontal-outline',
   CAMBIO_TASA: 'options-outline',
   CAMBIO_CUOTAS: 'grid-outline',
@@ -32,6 +34,7 @@ const ALERTA_ICONS: Record<TipoAlerta, keyof typeof Ionicons.glyphMap> = {
 const TIPO_LABELS: Record<TipoAlerta, string> = {
   SOLICITUD: 'Solicitud de prestamo',
   REFINANCIAMIENTO: 'Refinanciamiento',
+  RENOVACION: 'Renovacion de prestamo',
   CAMBIO_FRECUENCIA: 'Cambio de frecuencia',
   CAMBIO_TASA: 'Cambio de tasa',
   CAMBIO_CUOTAS: 'Cambio de cuotas',

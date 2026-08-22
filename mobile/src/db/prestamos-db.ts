@@ -42,6 +42,10 @@ function rowToPrestamo(
     empresaId: row.empresaId,
     createdAt: row.createdAt,
     historialRefinanciamiento: row.historialRefinanciamiento ? JSON.parse(row.historialRefinanciamiento) : null,
+    origen: (row.origen as Prestamo['origen']) ?? 'NORMAL',
+    renovacionDeId: row.renovacionDeId ?? null,
+    cadenaRenovaciones: row.cadenaRenovaciones ?? 0,
+    historialRenovacion: row.historialRenovacion ? JSON.parse(row.historialRenovacion) : null,
     cliente: cliente
       ? { id: cliente.id, nombre: cliente.nombre, apellido: cliente.apellido, cedula: cliente.cedula, telefono: cliente.telefono, celular: cliente.celular }
       : { id: row.clienteId, nombre: '', cedula: '', apellido: null, telefono: null, celular: null },
@@ -92,6 +96,10 @@ function prestamoToRow(p: Prestamo) {
     garanteId: p.garanteId,
     empresaId: p.empresaId,
     historialRefinanciamiento: p.historialRefinanciamiento ? JSON.stringify(p.historialRefinanciamiento) : null,
+    origen: p.origen ?? 'NORMAL',
+    renovacionDeId: p.renovacionDeId ?? null,
+    cadenaRenovaciones: p.cadenaRenovaciones ?? 0,
+    historialRenovacion: p.historialRenovacion ? JSON.stringify(p.historialRenovacion) : null,
     createdAt: p.createdAt,
   };
 }

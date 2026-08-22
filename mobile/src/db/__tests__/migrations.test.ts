@@ -9,6 +9,7 @@ interface FakeDb {
     offline_queue: string[];
     ruta_clientes: string[];
     configuracion: string[];
+    prestamos: string[];
   };
   calls: string[];
 }
@@ -17,6 +18,33 @@ function createFakeDb(options: { userVersion?: number } = {}): FakeDb {
   const { userVersion = 0 } = options;
   const calls: string[] = [];
   const columns: FakeDb['columns'] = {
+    prestamos: [
+      'id',
+      'monto',
+      'tasa_interes',
+      'numero_cuotas',
+      'monto_total',
+      'saldo_pendiente',
+      'cuota_mensual',
+      'frecuencia_pago',
+      'fecha_inicio',
+      'fecha_vencimiento',
+      'mora_acumulada',
+      'estado',
+      'refinanciado',
+      'veces_refinanciado',
+      'motivo_rechazo',
+      'solicitado_por',
+      'aprobado_por',
+      'fecha_aprobacion',
+      'fecha_desembolso',
+      'modo_rapido',
+      'cliente_id',
+      'garante_id',
+      'empresa_id',
+      'historial_refinanciamiento',
+      'created_at',
+    ],
     offline_queue: [
       'id',
       'endpoint',
@@ -83,6 +111,54 @@ function createFakeDb(options: { userVersion?: number } = {}): FakeDb {
       )
     ) {
       columns.configuracion.push('max_prestamos_activos_por_cliente');
+    } else if (sql.includes('ALTER TABLE prestamos ADD COLUMN origen')) {
+      columns.prestamos.push('origen');
+    } else if (
+      sql.includes('ALTER TABLE prestamos ADD COLUMN renovacion_de_id')
+    ) {
+      columns.prestamos.push('renovacion_de_id');
+    } else if (
+      sql.includes(
+        'ALTER TABLE prestamos ADD COLUMN cadena_renovaciones',
+      )
+    ) {
+      columns.prestamos.push('cadena_renovaciones');
+    } else if (
+      sql.includes(
+        'ALTER TABLE prestamos ADD COLUMN historial_renovacion',
+      )
+    ) {
+      columns.prestamos.push('historial_renovacion');
+    } else if (
+      sql.includes(
+        'ALTER TABLE configuracion ADD COLUMN permitir_renovacion',
+      )
+    ) {
+      columns.configuracion.push('permitir_renovacion');
+    } else if (
+      sql.includes(
+        'ALTER TABLE configuracion ADD COLUMN max_cuotas_restantes_para_renovacion',
+      )
+    ) {
+      columns.configuracion.push('max_cuotas_restantes_para_renovacion');
+    } else if (
+      sql.includes(
+        'ALTER TABLE configuracion ADD COLUMN incluir_interes_en_renovacion',
+      )
+    ) {
+      columns.configuracion.push('incluir_interes_en_renovacion');
+    } else if (
+      sql.includes(
+        'ALTER TABLE configuracion ADD COLUMN porcentaje_maximo_saldo_aplicado',
+      )
+    ) {
+      columns.configuracion.push('porcentaje_maximo_saldo_aplicado');
+    } else if (
+      sql.includes(
+        'ALTER TABLE configuracion ADD COLUMN max_renovaciones_consecutivas',
+      )
+    ) {
+      columns.configuracion.push('max_renovaciones_consecutivas');
     }
     return [] as unknown as any[];
   });
@@ -93,6 +169,9 @@ function createFakeDb(options: { userVersion?: number } = {}): FakeDb {
     }
     if (sql.includes('PRAGMA table_info(ruta_clientes)')) {
       return columns.ruta_clientes.map((name) => ({ name }));
+    }
+    if (sql.includes('PRAGMA table_info(prestamos)')) {
+      return columns.prestamos.map((name) => ({ name }));
     }
     if (sql.includes('PRAGMA table_info(configuracion)')) {
       return columns.configuracion.map((name) => ({ name }));
@@ -145,6 +224,16 @@ describe('initializeDatabase', () => {
     expect(db.columns.configuracion).toContain('cuotas_restantes_para_renovar');
     expect(db.columns.configuracion).toContain('max_refinanciamientos_por_prestamo');
     expect(db.columns.configuracion).toContain('max_prestamos_activos_por_cliente');
+    // v8: columnas de renovación en prestamos y reglas en configuracion
+    expect(db.columns.prestamos).toContain('origen');
+    expect(db.columns.prestamos).toContain('renovacion_de_id');
+    expect(db.columns.prestamos).toContain('cadena_renovaciones');
+    expect(db.columns.prestamos).toContain('historial_renovacion');
+    expect(db.columns.configuracion).toContain('permitir_renovacion');
+    expect(db.columns.configuracion).toContain('max_cuotas_restantes_para_renovacion');
+    expect(db.columns.configuracion).toContain('incluir_interes_en_renovacion');
+    expect(db.columns.configuracion).toContain('porcentaje_maximo_saldo_aplicado');
+    expect(db.columns.configuracion).toContain('max_renovaciones_consecutivas');
     expect(db.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
   });
 
@@ -238,6 +327,36 @@ describe('initializeDatabase', () => {
     );
   });
 
+  it('v7 → v8: agrega columnas de renovación en prestamos y reglas en configuracion', async () => {
+    const db = createFakeDb({ userVersion: 7 });
+    await initializeDatabase(db as any);
+
+    const sqls = db.calls.join('\n');
+    expect(sqls).toContain("ALTER TABLE prestamos ADD COLUMN origen TEXT DEFAULT 'NORMAL';");
+    expect(sqls).toContain('ALTER TABLE prestamos ADD COLUMN renovacion_de_id TEXT;');
+    expect(sqls).toContain(
+      'ALTER TABLE prestamos ADD COLUMN cadena_renovaciones INTEGER DEFAULT 0;',
+    );
+    expect(sqls).toContain(
+      'ALTER TABLE prestamos ADD COLUMN historial_renovacion TEXT;',
+    );
+    expect(sqls).toContain(
+      'ALTER TABLE configuracion ADD COLUMN permitir_renovacion INTEGER DEFAULT 0;',
+    );
+    expect(sqls).toContain(
+      'ALTER TABLE configuracion ADD COLUMN max_cuotas_restantes_para_renovacion INTEGER DEFAULT 0;',
+    );
+    expect(sqls).toContain(
+      'ALTER TABLE configuracion ADD COLUMN incluir_interes_en_renovacion INTEGER DEFAULT 1;',
+    );
+    expect(sqls).toContain(
+      'ALTER TABLE configuracion ADD COLUMN porcentaje_maximo_saldo_aplicado INTEGER DEFAULT 100;',
+    );
+    expect(sqls).toContain(
+      'ALTER TABLE configuracion ADD COLUMN max_renovaciones_consecutivas INTEGER DEFAULT 0;',
+    );
+  });
+
   it(`v${SCHEMA_VERSION}: no hace nada (early return)`, async () => {
     const db = createFakeDb({ userVersion: SCHEMA_VERSION });
     await initializeDatabase(db as any);
@@ -254,6 +373,20 @@ describe('initializeDatabase', () => {
     db.columns.configuracion.push('cuotas_restantes_para_renovar');
     db.columns.configuracion.push('max_refinanciamientos_por_prestamo');
     db.columns.configuracion.push('max_prestamos_activos_por_cliente');
+    db.columns.offline_queue.push('retryable', 'snapshot');
+    db.columns.prestamos.push(
+      'origen',
+      'renovacion_de_id',
+      'cadena_renovaciones',
+      'historial_renovacion',
+    );
+    db.columns.configuracion.push(
+      'permitir_renovacion',
+      'max_cuotas_restantes_para_renovacion',
+      'incluir_interes_en_renovacion',
+      'porcentaje_maximo_saldo_aplicado',
+      'max_renovaciones_consecutivas',
+    );
     await initializeDatabase(db as any);
 
     expect(db.calls.join('\n')).not.toContain('ALTER TABLE');
@@ -272,7 +405,7 @@ describe('initializeDatabase', () => {
     warnSpy.mockRestore();
   });
 
-  it('exporta SCHEMA_VERSION = 7', () => {
-    expect(SCHEMA_VERSION).toBe(7);
+  it('exporta SCHEMA_VERSION = 8', () => {
+    expect(SCHEMA_VERSION).toBe(8);
   });
 });

@@ -6,7 +6,8 @@ export type EstadoPrestamo =
   | 'ACTIVO'
   | 'ATRASADO'
   | 'PAGADO'
-  | 'CANCELADO';
+  | 'CANCELADO'
+  | 'RENOVADO';
 
 export type FrecuenciaPago =
   | 'DIARIO'
@@ -23,6 +24,7 @@ export type MetodoPago =
 export type TipoAlerta =
   | 'SOLICITUD'
   | 'REFINANCIAMIENTO'
+  | 'RENOVACION'
   | 'CAMBIO_FRECUENCIA'
   | 'CAMBIO_TASA'
   | 'CAMBIO_CUOTAS'
@@ -165,6 +167,11 @@ export interface ClienteResumen {
   celular: string | null;
 }
 
+export type TipoOrigenPrestamo =
+  | 'NORMAL'
+  | 'REFINANCIAMIENTO'
+  | 'RENOVACION';
+
 export interface Prestamo {
   id: string;
   monto: number;
@@ -181,6 +188,14 @@ export interface Prestamo {
   refinanciado: boolean;
   vecesRefinanciado: number;
   historialRefinanciamiento: any | null;
+  /** Origen del préstamo: normal, refinanciado o nacido de una renovación. */
+  origen?: TipoOrigenPrestamo;
+  /** Si origen=RENOVACION, id del préstamo anterior que fue liquidado. */
+  renovacionDeId?: string | null;
+  /** Cantidad de renovaciones encadenadas que preceden a este préstamo. */
+  cadenaRenovaciones?: number;
+  /** Snapshot de la liquidación aplicada al renovar (saldo, cuotas viejas). */
+  historialRenovacion?: any | null;
   motivoRechazo: string | null;
   solicitadoPor: string | null;
   aprobadoPor: string | null;
@@ -207,6 +222,7 @@ export interface PrestamoResumen {
     pagados: number;
     cancelados: number;
     solicitudes: number;
+    renovados: number;
   };
   saldoPendienteTotal: number;
   montoTotalPrestado: number;
@@ -240,6 +256,35 @@ export interface RefinanciarPrestamoDto {
   nuevaFrecuencia?: FrecuenciaPago;
   nuevaFechaPago?: string;
   motivo?: string;
+}
+
+/** DTO para renovar un préstamo: liquida el viejo y crea uno nuevo ACTIVO. */
+export interface RenovarPrestamoDto {
+  /** Monto del préstamo nuevo (debe ser mayor al saldo anterior aplicado). */
+  montoNuevo: number;
+  tasaInteres: number;
+  numeroCuotas: number;
+  frecuenciaPago?: FrecuenciaPago;
+  fechaInicio?: string;
+  motivo?: string;
+}
+
+/** Liquidación desglosada del préstamo que se renueva. */
+export interface LiquidacionRenovacion {
+  capital: number;
+  interes: number;
+  mora: number;
+  total: number;
+}
+
+/** Respuesta del backend al renovar: préstamo viejo RENOVADO + nuevo ACTIVO. */
+export interface RespuestaRenovacion {
+  prestamoAnterior: Prestamo;
+  prestamoNuevo: Prestamo;
+  liquidacion: LiquidacionRenovacion;
+  /** Efectivo físico entregado = montoNuevo - saldoAplicado (> 0). */
+  desembolsoNeto: number;
+  advertencias?: string[];
 }
 
 export interface CalcularTablaDto {

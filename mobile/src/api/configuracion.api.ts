@@ -18,6 +18,16 @@ export interface ConfiguracionResponse {
    * 0 = sin límite.
    */
   maxPrestamosActivosPorCliente?: number;
+  /** Switch maestro de renovación de préstamos. Default false. */
+  permitirRenovacion?: boolean;
+  /** Renovación permitida solo con X cuotas pendientes o menos. 0 = sin restricción. */
+  maxCuotasRestantesParaRenovacion?: number;
+  /** Si false, el interés futuro de cuotas pendientes NO se cobra al renovar. Default true. */
+  incluirInteresEnRenovacion?: boolean;
+  /** Máximo porcentaje del monto nuevo que puede cubrir el saldo aplicado (1-100). */
+  porcentajeMaximoSaldoAplicado?: number;
+  /** Máximo de renovaciones encadenadas por préstamo. 0 = sin límite. */
+  maxRenovacionesConsecutivas?: number;
   empresaId: string;
   existe: boolean;
 }
@@ -34,6 +44,11 @@ export interface UpsertConfiguracionRequest {
   maxRefinanciamientosPorPrestamo?: number;
   /** Máximo de préstamos activos (ACTIVO/ATRASADO) por cliente. 0 = sin límite. */
   maxPrestamosActivosPorCliente?: number;
+  permitirRenovacion?: boolean;
+  maxCuotasRestantesParaRenovacion?: number;
+  incluirInteresEnRenovacion?: boolean;
+  porcentajeMaximoSaldoAplicado?: number;
+  maxRenovacionesConsecutivas?: number;
 }
 
 export async function obtenerConfiguracion(): Promise<ConfiguracionResponse> {

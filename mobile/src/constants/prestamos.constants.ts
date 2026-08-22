@@ -7,6 +7,7 @@ export const ESTADO_CONFIG: Record<string, { label: string; color: string; bg: s
   ATRASADO: { label: 'Atrasado', color: '#DC2626', bg: '#FEE2E2', text: '#DC2626', border: '#FECACA', icon: 'alert-circle' },
   PAGADO: { label: 'Pagado', color: '#64748B', bg: '#F1F5F9', text: '#64748B', border: '#E2E8F0', icon: 'checkmark-done-circle' },
   CANCELADO: { label: 'Cancelado', color: '#7E22CE', bg: '#F3E8FF', text: '#7E22CE', border: '#E9D5FF', icon: 'ban-outline' },
+  RENOVADO: { label: 'Renovado', color: '#0F766E', bg: '#CCFBF1', text: '#0F766E', border: '#99F6E4', icon: 'refresh-circle' },
 };
 
 export const ACCIONES_FLOW_CONFIG: Record<string, { titulo: string; desc: string; icon: string; color: string; pedirMotivo: boolean }> = {

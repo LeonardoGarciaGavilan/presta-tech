@@ -54,6 +54,11 @@ export const prestamos = sqliteTable('prestamos', {
   garanteId: text('garante_id'),
   empresaId: text('empresa_id').notNull(),
   historialRefinanciamiento: text('historial_refinanciamiento'),
+  // Renovación de préstamos (v8)
+  origen: text('origen').default('NORMAL'),
+  renovacionDeId: text('renovacion_de_id'),
+  cadenaRenovaciones: integer('cadena_renovaciones').default(0),
+  historialRenovacion: text('historial_renovacion'),
   createdAt: text('created_at').notNull(),
 });
 
@@ -125,6 +130,12 @@ export const configuracion = sqliteTable('configuracion', {
   cuotasRestantesParaRenovar: integer('cuotas_restantes_para_renovar').default(0),
   maxRefinanciamientosPorPrestamo: integer('max_refinanciamientos_por_prestamo').default(0),
   maxPrestamosActivosPorCliente: integer('max_prestamos_activos_por_cliente').default(0),
+  // Reglas de renovación de préstamos (v8); 0 = sin restricción
+  permitirRenovacion: integer('permitir_renovacion', { mode: 'boolean' }).default(false),
+  maxCuotasRestantesParaRenovacion: integer('max_cuotas_restantes_para_renovacion').default(0),
+  incluirInteresEnRenovacion: integer('incluir_interes_en_renovacion', { mode: 'boolean' }).default(true),
+  porcentajeMaximoSaldoAplicado: integer('porcentaje_maximo_saldo_aplicado').default(100),
+  maxRenovacionesConsecutivas: integer('max_renovaciones_consecutivas').default(0),
   empresaId: text('empresa_id').notNull(),
   existe: integer('existe', { mode: 'boolean' }).default(true),
 });

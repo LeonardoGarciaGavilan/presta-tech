@@ -4,6 +4,8 @@ import type {
   CreatePrestamoRequest,
   CambiarEstadoDto,
   RefinanciarPrestamoDto,
+  RenovarPrestamoDto,
+  RespuestaRenovacion,
   PrestamosFilters,
   PaginatedPrestamosResponse,
   PrestamoResumen,
@@ -68,6 +70,22 @@ export async function refinanciar(
 ): Promise<Prestamo> {
   const response = await client.patch<Prestamo>(
     `${ENDPOINT}/${id}/refinanciar`,
+    data,
+  );
+  return response.data;
+}
+
+/**
+ * Renovación (solo online): liquida el préstamo viejo aplicando su saldo
+ * como parte del pago y desembolsa el neto con un préstamo nuevo ACTIVO.
+ * El backend exige caja abierta; no se encola offline.
+ */
+export async function renovar(
+  id: string,
+  data: RenovarPrestamoDto,
+): Promise<RespuestaRenovacion> {
+  const response = await client.post<RespuestaRenovacion>(
+    `${ENDPOINT}/${id}/renovar`,
     data,
   );
   return response.data;

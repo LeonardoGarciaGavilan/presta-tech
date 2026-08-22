@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 // Inicializa el esquema de la base y aplica las migraciones incrementales de
 // forma tolerante: cada ALTER solo se intenta si la columna no existe y, si
@@ -73,6 +73,10 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
         garante_id TEXT,
         empresa_id TEXT NOT NULL,
         historial_refinanciamiento TEXT,
+        origen TEXT DEFAULT 'NORMAL',
+        renovacion_de_id TEXT,
+        cadena_renovaciones INTEGER DEFAULT 0,
+        historial_renovacion TEXT,
         created_at TEXT NOT NULL
       );
     `);
@@ -149,6 +153,11 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
         cuotas_restantes_para_renovar INTEGER DEFAULT 0,
         max_refinanciamientos_por_prestamo INTEGER DEFAULT 0,
         max_prestamos_activos_por_cliente INTEGER DEFAULT 0,
+        permitir_renovacion INTEGER DEFAULT 0,
+        max_cuotas_restantes_para_renovacion INTEGER DEFAULT 0,
+        incluir_interes_en_renovacion INTEGER DEFAULT 1,
+        porcentaje_maximo_saldo_aplicado INTEGER DEFAULT 100,
+        max_renovaciones_consecutivas INTEGER DEFAULT 0,
         empresa_id TEXT NOT NULL,
         existe INTEGER DEFAULT 1
       );
@@ -304,6 +313,95 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
       } catch (error) {
         console.warn(
           '[DB] No se pudo migrar la columna max_prestamos_activos_por_cliente; se tratará como sin límite.',
+          error,
+        );
+      }
+    }
+
+    // Migración v7 → v8: renovación de préstamos. Nuevas columnas en
+    // prestamos (origen/vínculo/snapshot) y reglas parametrizables en
+    // configuracion (0 = sin restricción). Patrón tolerante: si la columna ya
+    // existe no se toca; si el ALTER falla, la app trata la ausencia como
+    // valores por defecto (renovación desactivada, sin límites).
+    if (currentVersion < 8) {
+      try {
+        const colsPrestamos = await txn.getAllAsync<{ name: string }>(
+          'PRAGMA table_info(prestamos)',
+        );
+        if (colsPrestamos.length > 0) {
+          if (!colsPrestamos.some((c) => c.name === 'origen')) {
+            await txn.execAsync(
+              "ALTER TABLE prestamos ADD COLUMN origen TEXT DEFAULT 'NORMAL';",
+            );
+          }
+          if (!colsPrestamos.some((c) => c.name === 'renovacion_de_id')) {
+            await txn.execAsync(
+              'ALTER TABLE prestamos ADD COLUMN renovacion_de_id TEXT;',
+            );
+          }
+          if (!colsPrestamos.some((c) => c.name === 'cadena_renovaciones')) {
+            await txn.execAsync(
+              'ALTER TABLE prestamos ADD COLUMN cadena_renovaciones INTEGER DEFAULT 0;',
+            );
+          }
+          if (!colsPrestamos.some((c) => c.name === 'historial_renovacion')) {
+            await txn.execAsync(
+              'ALTER TABLE prestamos ADD COLUMN historial_renovacion TEXT;',
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(
+          '[DB] No se pudieron migrar las columnas de renovación en prestamos.',
+          error,
+        );
+      }
+      try {
+        const colsConfig = await txn.getAllAsync<{ name: string }>(
+          'PRAGMA table_info(configuracion)',
+        );
+        if (colsConfig.length > 0) {
+          if (!colsConfig.some((c) => c.name === 'permitir_renovacion')) {
+            await txn.execAsync(
+              'ALTER TABLE configuracion ADD COLUMN permitir_renovacion INTEGER DEFAULT 0;',
+            );
+          }
+          if (
+            !colsConfig.some(
+              (c) => c.name === 'max_cuotas_restantes_para_renovacion',
+            )
+          ) {
+            await txn.execAsync(
+              'ALTER TABLE configuracion ADD COLUMN max_cuotas_restantes_para_renovacion INTEGER DEFAULT 0;',
+            );
+          }
+          if (
+            !colsConfig.some((c) => c.name === 'incluir_interes_en_renovacion')
+          ) {
+            await txn.execAsync(
+              'ALTER TABLE configuracion ADD COLUMN incluir_interes_en_renovacion INTEGER DEFAULT 1;',
+            );
+          }
+          if (
+            !colsConfig.some(
+              (c) => c.name === 'porcentaje_maximo_saldo_aplicado',
+            )
+          ) {
+            await txn.execAsync(
+              'ALTER TABLE configuracion ADD COLUMN porcentaje_maximo_saldo_aplicado INTEGER DEFAULT 100;',
+            );
+          }
+          if (
+            !colsConfig.some((c) => c.name === 'max_renovaciones_consecutivas')
+          ) {
+            await txn.execAsync(
+              'ALTER TABLE configuracion ADD COLUMN max_renovaciones_consecutivas INTEGER DEFAULT 0;',
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(
+          '[DB] No se pudieron migrar las columnas de reglas de renovación; se tratarán como desactivadas.',
           error,
         );
       }
