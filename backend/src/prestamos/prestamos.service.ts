@@ -11,6 +11,7 @@ import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
+import { RenovarPrestamoDto } from './dto/renovar-prestamo.dto';
 import {
   EstadoPrestamo,
   FrecuenciaPago,
@@ -67,6 +68,7 @@ const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
 export type TipoAlerta =
   | 'SOLICITUD'
   | 'REFINANCIAMIENTO'
+  | 'RENOVACION'
   | 'CAMBIO_FRECUENCIA'
   | 'CAMBIO_TASA'
   | 'CAMBIO_CUOTAS'
@@ -489,6 +491,7 @@ export class PrestamosService {
     ACTIVO: ['CANCELADO'],
     ATRASADO: ['CANCELADO'],
     PAGADO: [],
+    RENOVADO: [],
     CANCELADO: [],
   };
 
@@ -1800,6 +1803,467 @@ export class PrestamosService {
     });
 
     return this.findOne(prestamoActualizado.id, empresaId);
+  }
+
+  // ─── RENOVACIÓN ───────────────────────────────────────────────────────────
+
+  /**
+   * Renovación de préstamo: liquida el préstamo ACTIVO/ATRASADO aplicando su
+   * saldo pendiente al nuevo préstamo y desembolsa la diferencia al cliente.
+   *
+   * Doble pata contable dentro de UNA transacción:
+   *   Ingreso: Pago de liquidación (capital + interés opcional + mora)
+   *   Egreso : Desembolso completo del préstamo nuevo
+   * Impacto neto en caja = -(montoNuevo - saldoAplicado) = -(desembolsoNeto),
+   * que coincide con el efectivo físicamente entregado.
+   */
+  async renovar(
+    id: string,
+    dto: RenovarPrestamoDto,
+    empresaId: string,
+    usuarioId: string,
+  ) {
+    const prestamo = await this.prisma.prestamo.findFirst({
+      where: { id, empresaId },
+      include: {
+        cuotas: { orderBy: { numero: 'asc' } },
+        cliente: { select: { nombre: true, apellido: true } },
+      },
+    });
+
+    if (!prestamo) throw new NotFoundException(`Préstamo ${id} no encontrado`);
+
+    if (!['ACTIVO', 'ATRASADO'].includes(prestamo.estado)) {
+      throw new BadRequestException(
+        `Solo se pueden renovar préstamos ACTIVOS o ATRASADOS. Estado actual: ${prestamo.estado}`,
+      );
+    }
+
+    const cuotasPendientes = prestamo.cuotas.filter((c) => !c.pagada);
+    if (cuotasPendientes.length === 0)
+      throw new BadRequestException(
+        'Este préstamo no tiene cuotas pendientes para renovar',
+      );
+
+    // Reglas parametrizables por empresa (patrón de lectura igual a refinanciar)
+    const configCacheKey = `config:${empresaId}`;
+    let config: {
+      permitirRenovacion?: boolean;
+      maxCuotasRestantesParaRenovacion?: number;
+      incluirInteresEnRenovacion?: boolean;
+      porcentajeMaximoSaldoAplicado?: number;
+      maxRenovacionesConsecutivas?: number;
+    } | null = null;
+    try {
+      if (this.cacheManager) {
+        config = (await this.cacheManager.get(configCacheKey)) ?? null;
+      }
+    } catch (e) {
+      console.warn('Cache config error:', e instanceof Error ? e.message : e);
+    }
+    if (!config) {
+      config = await this.prisma.configuracion.findUnique({
+        where: { empresaId },
+      });
+    }
+
+    if (!(config?.permitirRenovacion === true)) {
+      throw new BadRequestException(
+        'La renovación de préstamos no está habilitada para tu empresa.',
+      );
+    }
+
+    const maxCuotasRestantes = config.maxCuotasRestantesParaRenovacion ?? 0;
+    if (
+      maxCuotasRestantes > 0 &&
+      cuotasPendientes.length > maxCuotasRestantes
+    ) {
+      throw new BadRequestException(
+        `Solo se puede renovar cuando faltan ${maxCuotasRestantes} cuota(s) o menos. Este préstamo tiene ${cuotasPendientes.length} pendientes.`,
+      );
+    }
+
+    const maxCadena = config.maxRenovacionesConsecutivas ?? 0;
+    if (maxCadena > 0 && (prestamo.cadenaRenovaciones ?? 0) >= maxCadena) {
+      throw new BadRequestException(
+        `Este préstamo alcanzó el límite de ${maxCadena} renovación(es) consecutiva(s).`,
+      );
+    }
+
+    // ─── Liquidación desglosada ─────────────────────────────────────────────
+    // Capital y mora son deuda real; el interés futuro es parametrizable
+    // (incluirInteresEnRenovacion, default true = cobrar todo).
+    const incluirInteres = config.incluirInteresEnRenovacion !== false;
+    const capitalAplicado =
+      Math.round(cuotasPendientes.reduce((s, c) => s + c.capital, 0) * 100) /
+      100;
+    const interesAplicado = incluirInteres
+      ? Math.round(
+          cuotasPendientes.reduce((s, c) => s + (c.interes || 0), 0) * 100,
+        ) / 100
+      : 0;
+    const moraAplicada =
+      Math.round(
+        cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0) * 100,
+      ) / 100;
+    const saldoAplicado =
+      Math.round((capitalAplicado + interesAplicado + moraAplicada) * 100) /
+      100;
+
+    // ─── Validaciones del nuevo préstamo ────────────────────────────────────
+    const montoNuevo = Math.round(dto.montoNuevo * 100) / 100;
+    if (montoNuevo <= saldoAplicado) {
+      throw new BadRequestException(
+        `El monto nuevo (RD$${montoNuevo.toLocaleString()}) debe ser mayor al saldo anterior aplicado (RD$${saldoAplicado.toLocaleString()}).`,
+      );
+    }
+
+    const pctSaldoAplicado = config.porcentajeMaximoSaldoAplicado ?? 100;
+    if (
+      pctSaldoAplicado < 100 &&
+      saldoAplicado > montoNuevo * (pctSaldoAplicado / 100)
+    ) {
+      throw new BadRequestException(
+        `El saldo anterior aplicado (RD$${saldoAplicado.toLocaleString()}) excede el máximo permitido de ${pctSaldoAplicado}% sobre el monto nuevo.`,
+      );
+    }
+
+    const desembolsoNeto = Math.round((montoNuevo - saldoAplicado) * 100) / 100;
+
+    const frecuenciaFinal: FrecuenciaPago =
+      dto.frecuenciaPago ?? prestamo.frecuenciaPago;
+    const fechaInicioNueva = dto.fechaInicio
+      ? startOfDay(new Date(dto.fechaInicio))
+      : startOfDay(new Date());
+
+    const amortizacion = this.calcularAmortizacion(
+      montoNuevo,
+      dto.tasaInteres / 100,
+      dto.numeroCuotas,
+      frecuenciaFinal,
+      fechaInicioNueva,
+    );
+    const nuevaFechaVencimiento = this.siguienteFecha(
+      fechaInicioNueva,
+      frecuenciaFinal,
+      dto.numeroCuotas,
+    );
+
+    // Cuotas del plan (advertencias informativas, igual que create)
+    const [cuotaPrestamos, cuotaMonto] = await Promise.all([
+      this.quotaService.verificar(empresaId, 'prestamos'),
+      this.quotaService.verificar(empresaId, 'montoPrestamo', {
+        monto: montoNuevo,
+      }),
+    ]);
+    const advertencias = [cuotaPrestamos, cuotaMonto].filter(
+      (c) => c.advertencia,
+    );
+
+    const clienteNombre =
+      `${prestamo.cliente?.nombre ?? ''} ${prestamo.cliente?.apellido ?? ''}`.trim();
+
+    // Snapshot completo para auditoría (se guarda en el historial del viejo)
+    const registroRenovacion = {
+      fecha: new Date().toISOString(),
+      usuarioId,
+      motivo: dto.motivo ?? null,
+      prestamoAnteriorId: id,
+      cuotasPendientesAntes: cuotasPendientes.length,
+      cuotasLiquidadas: cuotasPendientes.map((c) => ({
+        numero: c.numero,
+        monto: c.monto,
+        capital: c.capital,
+        interes: c.interes,
+        mora: c.mora || 0,
+        fechaVencimiento: c.fechaVencimiento,
+      })),
+      capitalAplicado,
+      interesAplicado,
+      moraAplicada,
+      saldoAplicado,
+      montoNuevo,
+      tasaInteres: dto.tasaInteres,
+      nuevasCuotas: dto.numeroCuotas,
+      frecuenciaPago: frecuenciaFinal,
+      desembolsoNeto,
+      nuevaCuota: amortizacion.cuotaInicial,
+      nuevoMontoTotal: amortizacion.montoTotal,
+    };
+
+    // NOTA: validarLimitePrestamosActivos NO aplica aquí — dentro de esta
+    // transacción el préstamo anterior deja de estar activo antes de crear
+    // el nuevo, por lo que nunca consume cupo simultáneo.
+
+    let prestamoNuevoId = '';
+
+    await this.prisma.$transaction(async (tx) => {
+      // Lock serializa pagos/renovaciones concurrentes sobre el mismo préstamo
+      await tx.$queryRaw`SELECT id FROM "Prestamo" WHERE id = ${id} FOR UPDATE`;
+
+      // Revalidar bajo lock (fuente de verdad)
+      const locked = await tx.prestamo.findFirst({
+        where: { id, empresaId },
+        include: { cuotas: { where: { pagada: false } } },
+      });
+      if (
+        !locked ||
+        !['ACTIVO', 'ATRASADO'].includes(locked.estado) ||
+        locked.cuotas.length === 0
+      ) {
+        throw new BadRequestException(
+          'El préstamo ya no es renovable (fue modificado o liquidado).',
+        );
+      }
+
+      // Caja abierta bajo lock
+      const cajaAbierta = await tx.cajaSesion.findFirst({
+        where: { empresaId, estado: 'ABIERTA', usuarioId },
+      });
+      if (!cajaAbierta) {
+        throw new BadRequestException(
+          'No tienes una caja abierta hoy. Debes abrir tu caja antes de renovar un préstamo.',
+        );
+      }
+      const cajaBloqueada = await tx.cajaSesion.findUnique({
+        where: { id: cajaAbierta.id },
+      });
+      if (!cajaBloqueada || cajaBloqueada.estado !== 'ABIERTA') {
+        throw new BadRequestException(
+          'Tu caja ya no está disponible. Abre una caja nueva.',
+        );
+      }
+
+      // Fondos: con doble pata, la liquidación ingresa ANTES del desembolso,
+      // así que la exigencia real es efectivoDisponible + saldoAplicado >= montoNuevo
+      const [pagosEfectivo, desembolsosCaja] = await Promise.all([
+        tx.pago.aggregate({
+          where: { cajaId: cajaBloqueada.id, metodo: MetodoPago.EFECTIVO },
+          _sum: { montoTotal: true },
+        }),
+        tx.desembolsoCaja.aggregate({
+          where: { cajaId: cajaBloqueada.id },
+          _sum: { monto: true },
+        }),
+      ]);
+      const efectivoEnCaja =
+        Math.round(
+          (cajaBloqueada.montoInicial +
+            (pagosEfectivo._sum.montoTotal || 0) -
+            (desembolsosCaja._sum.monto || 0)) *
+            100,
+        ) / 100;
+
+      if (efectivoEnCaja + saldoAplicado < montoNuevo) {
+        throw new BadRequestException(
+          `Fondos insuficientes en caja. Disponible: RD$${efectivoEnCaja.toLocaleString()}, Saldo aplicado: RD$${saldoAplicado.toLocaleString()}, Monto nuevo: RD$${montoNuevo.toLocaleString()}`,
+        );
+      }
+
+      // ── PATA INGRESO: liquidación del préstamo anterior ──────────────────
+      const pagoLiquidacion = await tx.pago.create({
+        data: {
+          prestamoId: id,
+          usuarioId,
+          montoTotal: saldoAplicado,
+          capital: capitalAplicado,
+          interes: interesAplicado,
+          mora: moraAplicada,
+          metodo: MetodoPago.EFECTIVO,
+          observacion: 'Aplicación de saldo por renovación',
+          cajaId: cajaBloqueada.id,
+        },
+      });
+
+      await tx.cuota.updateMany({
+        where: { prestamoId: id, pagada: false },
+        data: { pagada: true, fechaPago: new Date() },
+      });
+
+      const historialPrevio =
+        (locked.historialRenovacion as Prisma.InputJsonValue[]) ?? [];
+      await tx.prestamo.update({
+        where: { id },
+        data: {
+          estado: EstadoPrestamo.RENOVADO,
+          moraAcumulada: 0,
+          historialRenovacion: [...historialPrevio, registroRenovacion],
+        },
+      });
+
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'PAGO_RECIBIDO',
+          monto: saldoAplicado,
+          capital: capitalAplicado,
+          interes: interesAplicado,
+          mora: moraAplicada,
+          referenciaTipo: 'PAGO',
+          referenciaId: pagoLiquidacion.id,
+          cajaId: cajaBloqueada.id,
+          empresaId,
+          usuarioId,
+          descripcion: `Aplicación de saldo por renovación — ${clienteNombre} — Capital: RD$${capitalAplicado.toLocaleString()}, Interés: RD$${interesAplicado.toLocaleString()}, Mora: RD$${moraAplicada.toLocaleString()}`,
+        },
+      });
+
+      await tx.cajaSesion.update({
+        where: { id: cajaBloqueada.id },
+        data: { totalIngresos: { increment: saldoAplicado } },
+      });
+
+      // ── PATA EGRESO: préstamo nuevo ACTIVO + desembolso completo ────────
+      const prestamoNuevo = await tx.prestamo.create({
+        data: {
+          monto: montoNuevo,
+          tasaInteres: dto.tasaInteres,
+          numeroCuotas: dto.numeroCuotas,
+          frecuenciaPago: frecuenciaFinal,
+          montoTotal: amortizacion.montoTotal,
+          cuotaMensual: amortizacion.cuotaInicial,
+          fechaInicio: fechaInicioNueva,
+          fechaVencimiento: nuevaFechaVencimiento,
+          estado: EstadoPrestamo.ACTIVO,
+          origen: 'RENOVACION' as never,
+          renovacionDeId: id,
+          cadenaRenovaciones: (locked.cadenaRenovaciones ?? 0) + 1,
+          historialRenovacion: [registroRenovacion],
+          solicitadoPor: usuarioId,
+          aprobadoPor: usuarioId,
+          fechaAprobacion: new Date(),
+          fechaDesembolso: new Date(),
+          empresaId,
+          clienteId: prestamo.clienteId,
+          garanteId: prestamo.garanteId ?? null,
+        },
+      });
+      prestamoNuevoId = prestamoNuevo.id;
+
+      await tx.cuota.createMany({
+        data: amortizacion.cuotas.map((c) => ({
+          prestamoId: prestamoNuevo.id,
+          numero: c.numero,
+          monto: c.monto,
+          capital: c.capital,
+          interes: c.interes,
+          mora: 0,
+          fechaVencimiento: c.fechaVencimiento,
+          pagada: false,
+        })),
+      });
+
+      const desembolso = await tx.desembolsoCaja.create({
+        data: {
+          monto: montoNuevo,
+          concepto: `Desembolso renovación — ${clienteNombre}`,
+          cajaId: cajaBloqueada.id,
+          prestamoId: prestamoNuevo.id,
+          empresaId,
+          usuarioId,
+        },
+      });
+
+      await tx.cajaSesion.update({
+        where: { id: cajaBloqueada.id },
+        data: { totalEgresos: { increment: montoNuevo } },
+      });
+
+      await tx.movimientoFinanciero.create({
+        data: {
+          tipo: 'DESEMBOLSO',
+          monto: montoNuevo,
+          capital: montoNuevo,
+          interes: 0,
+          mora: 0,
+          referenciaTipo: 'DESEMBOLSO',
+          referenciaId: desembolso.id,
+          cajaId: cajaBloqueada.id,
+          empresaId,
+          usuarioId,
+          descripcion: `Desembolso renovación ${prestamoNuevo.id.slice(0, 8)} — ${clienteNombre} — Neto entregado: RD$${desembolsoNeto.toLocaleString()}`,
+        },
+      });
+    });
+
+    // ─── Post-transacción: alerta + auditoría + cache ──────────────────────
+    let usuarioNombre = 'Sistema';
+    if (usuarioId && usuarioId !== 'sistema') {
+      const usr = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId },
+        select: { nombre: true },
+      });
+      if (usr?.nombre) usuarioNombre = usr.nombre;
+    }
+
+    await this.crearAlerta({
+      empresaId,
+      prestamoId: id,
+      clienteNombre,
+      tipo: 'RENOVACION',
+      descripcion: `Préstamo de ${clienteNombre} fue renovado. Saldo aplicado: RD$${saldoAplicado.toLocaleString()} → Nuevo préstamo de RD$${montoNuevo.toLocaleString()} en ${dto.numeroCuotas} cuotas de RD$${amortizacion.cuotaInicial.toLocaleString()}. Entregado: RD$${desembolsoNeto.toLocaleString()}`,
+      detalle: {
+        prestamoAnteriorId: id,
+        prestamoNuevoId,
+        saldoAplicado,
+        capitalAplicado,
+        interesAplicado,
+        moraAplicada,
+        montoNuevo,
+        desembolsoNeto,
+        nuevasCuotas: dto.numeroCuotas,
+        nuevaCuota: amortizacion.cuotaInicial,
+        motivo: dto.motivo ?? null,
+      },
+      usuarioId,
+      usuarioNombre,
+    });
+
+    await this.invalidarCache(empresaId);
+
+    await registrarAuditoria(this.prisma, {
+      empresaId,
+      usuarioId,
+      tipo: 'PRESTAMO',
+      accion: 'RENOVAR',
+      descripcion: `Préstamo renovado. Cliente: ${clienteNombre}. Saldo aplicado: RD$${saldoAplicado.toLocaleString()}. Monto nuevo: RD$${montoNuevo.toLocaleString()}. Desembolso neto: RD$${desembolsoNeto.toLocaleString()}.`,
+      monto: montoNuevo,
+      referenciaId: id,
+      referenciaTipo: 'Prestamo',
+      datosAnteriores: {
+        prestamoAnteriorId: id,
+        estado: prestamo.estado,
+        cuotasPendientes: cuotasPendientes.length,
+        saldoAplicado,
+      },
+      datosNuevos: {
+        prestamoNuevoId,
+        estado: EstadoPrestamo.ACTIVO,
+        origen: 'RENOVACION',
+        montoNuevo,
+        numeroCuotas: dto.numeroCuotas,
+        tasaInteres: dto.tasaInteres,
+        frecuenciaPago: frecuenciaFinal,
+        desembolsoNeto,
+      },
+    });
+
+    const [prestamoAnterior, prestamoNuevo] = await Promise.all([
+      this.findOne(id, empresaId),
+      this.findOne(prestamoNuevoId, empresaId),
+    ]);
+
+    return {
+      prestamoAnterior,
+      prestamoNuevo,
+      liquidacion: {
+        capital: capitalAplicado,
+        interes: interesAplicado,
+        mora: moraAplicada,
+        total: saldoAplicado,
+      },
+      desembolsoNeto,
+      advertencias,
+    };
   }
 
   // ─── ALERTAS ──────────────────────────────────────────────────────────────

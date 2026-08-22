@@ -47,6 +47,13 @@ export class ConfiguracionService {
             config.maxRefinanciamientosPorPrestamo ?? 0,
           maxPrestamosActivosPorCliente:
             config.maxPrestamosActivosPorCliente ?? 0,
+          permitirRenovacion: config.permitirRenovacion ?? false,
+          maxCuotasRestantesParaRenovacion:
+            config.maxCuotasRestantesParaRenovacion ?? 0,
+          incluirInteresEnRenovacion: config.incluirInteresEnRenovacion ?? true,
+          porcentajeMaximoSaldoAplicado:
+            config.porcentajeMaximoSaldoAplicado ?? 100,
+          maxRenovacionesConsecutivas: config.maxRenovacionesConsecutivas ?? 0,
         }
       : {
           tasaInteresBase: 0,
@@ -59,6 +66,11 @@ export class ConfiguracionService {
           cuotasRestantesParaRenovar: 0,
           maxRefinanciamientosPorPrestamo: 0,
           maxPrestamosActivosPorCliente: 0,
+          permitirRenovacion: false,
+          maxCuotasRestantesParaRenovacion: 0,
+          incluirInteresEnRenovacion: true,
+          porcentajeMaximoSaldoAplicado: 100,
+          maxRenovacionesConsecutivas: 0,
           empresaId,
           existe: false,
         };
@@ -98,6 +110,15 @@ export class ConfiguracionService {
             configAnterior.maxRefinanciamientosPorPrestamo ?? 0,
           maxPrestamosActivosPorCliente:
             configAnterior.maxPrestamosActivosPorCliente ?? 0,
+          permitirRenovacion: configAnterior.permitirRenovacion ?? false,
+          maxCuotasRestantesParaRenovacion:
+            configAnterior.maxCuotasRestantesParaRenovacion ?? 0,
+          incluirInteresEnRenovacion:
+            configAnterior.incluirInteresEnRenovacion ?? true,
+          porcentajeMaximoSaldoAplicado:
+            configAnterior.porcentajeMaximoSaldoAplicado ?? 100,
+          maxRenovacionesConsecutivas:
+            configAnterior.maxRenovacionesConsecutivas ?? 0,
         }
       : null;
 
@@ -115,6 +136,11 @@ export class ConfiguracionService {
       cuotasRestantesParaRenovar: dto.cuotasRestantesParaRenovar,
       maxRefinanciamientosPorPrestamo: dto.maxRefinanciamientosPorPrestamo,
       maxPrestamosActivosPorCliente: dto.maxPrestamosActivosPorCliente,
+      permitirRenovacion: dto.permitirRenovacion,
+      maxCuotasRestantesParaRenovacion: dto.maxCuotasRestantesParaRenovacion,
+      incluirInteresEnRenovacion: dto.incluirInteresEnRenovacion,
+      porcentajeMaximoSaldoAplicado: dto.porcentajeMaximoSaldoAplicado,
+      maxRenovacionesConsecutivas: dto.maxRenovacionesConsecutivas,
     };
 
     const descripcion = esCreacion

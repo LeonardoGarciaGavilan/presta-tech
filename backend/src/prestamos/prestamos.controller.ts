@@ -31,6 +31,7 @@ import { Idempotent } from '../common/decorators/idempotent.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { FrecuenciaPago } from '@prisma/client';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
+import { RenovarPrestamoDto } from './dto/renovar-prestamo.dto';
 
 @Controller('prestamos')
 @UseGuards(
@@ -260,6 +261,30 @@ export class PrestamosController {
     @CurrentUser() user: any,
   ) {
     return this.prestamosService.refinanciar(
+      id,
+      dto,
+      empresaId,
+      user.sub ?? user.userId,
+    );
+  }
+
+  /**
+   * Renovación: liquida el préstamo actual aplicando su saldo al nuevo
+   * y desembolsa la diferencia. Requiere permiso prestamos:renovar
+   * (por defecto solo ADMIN).
+   */
+  @Post(':id/renovar')
+  @Roles('ADMIN', 'EMPLEADO')
+  @RequierePermiso('prestamos:renovar')
+  @Idempotent()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  renovar(
+    @Param('id') id: string,
+    @Body() dto: RenovarPrestamoDto,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.prestamosService.renovar(
       id,
       dto,
       empresaId,

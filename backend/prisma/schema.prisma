@@ -153,6 +153,10 @@ model Prestamo {
   refinanciado              Boolean         @default(false)
   vecesRefinanciado         Int             @default(0)
   historialRefinanciamiento Json?
+  origen                    TipoOrigenPrestamo @default(NORMAL)
+  renovacionDeId            String?
+  cadenaRenovaciones        Int             @default(0)
+  historialRenovacion       Json?
   motivoRechazo             String?
   solicitadoPor             String?
   aprobadoPor               String?
@@ -171,6 +175,8 @@ model Prestamo {
   cliente                   Cliente         @relation(fields: [clienteId], references: [id])
   empresa                   Empresa         @relation(fields: [empresaId], references: [id])
   garante                   Cliente?        @relation("GarantePrestamos", fields: [garanteId], references: [id])
+  renovacionDe              Prestamo?       @relation("PrestamoRenovaciones", fields: [renovacionDeId], references: [id])
+  renovaciones              Prestamo[]      @relation("PrestamoRenovaciones")
 
   @@index([empresaId])
   @@index([empresaId, estado])
@@ -178,6 +184,8 @@ model Prestamo {
   @@index([garanteId])
   @@index([empresaId, createdAt])
   @@index([empresaId, updatedAt])
+  @@index([empresaId, origen])
+  @@index([renovacionDeId])
 }
 
 model Cuota {
@@ -242,6 +250,11 @@ model Configuracion {
   cuotasRestantesParaRenovar    Int      @default(0)
   maxRefinanciamientosPorPrestamo Int    @default(0)
   maxPrestamosActivosPorCliente Int      @default(0)
+  permitirRenovacion            Boolean  @default(false)
+  maxCuotasRestantesParaRenovacion Int   @default(0)
+  incluirInteresEnRenovacion    Boolean  @default(true)
+  porcentajeMaximoSaldoAplicado Int      @default(100)
+  maxRenovacionesConsecutivas   Int      @default(0)
   empresa                       Empresa  @relation(fields: [empresaId], references: [id])
 }
 
@@ -555,6 +568,13 @@ enum EstadoPrestamo {
   PAGADO
   ATRASADO
   CANCELADO
+  RENOVADO
+}
+
+enum TipoOrigenPrestamo {
+  NORMAL
+  REFINANCIAMIENTO
+  RENOVACION
 }
 
 enum FrecuenciaPago {
@@ -579,6 +599,7 @@ enum EstadoCaja {
 enum TipoAlerta {
   SOLICITUD
   REFINANCIAMIENTO
+  RENOVACION
   CAMBIO_FRECUENCIA
   CAMBIO_TASA
   CAMBIO_CUOTAS

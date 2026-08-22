@@ -111,7 +111,7 @@ describe('PrestamosService — saldoPendiente real desde cuotas (1.1)', () => {
     };
     const $transaction = jest
       .fn()
-      .mockImplementation(async (cb: (tx: unknown) => unknown) => cb(tx));
+      .mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
 
     const findFirst = jest
       .fn()
@@ -211,7 +211,7 @@ describe('PrestamosService — saldoPendiente real desde cuotas (1.1)', () => {
     };
     const $transaction = jest
       .fn()
-      .mockImplementation(async (cb: (tx: unknown) => unknown) => cb(tx));
+      .mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
 
     const findFirst = jest
       .fn()
@@ -311,7 +311,7 @@ describe('PrestamosService — reglas de refinanciamiento parametrizables', () =
     };
     const $transaction = jest
       .fn()
-      .mockImplementation(async (cb: (tx: unknown) => unknown) => cb(tx));
+      .mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
     return { tx, $transaction, getHistorial: () => historialGuardado };
   }
 
@@ -644,5 +644,481 @@ describe('PrestamosService — límite de préstamos activos por cliente', () =>
     expect(countCalls[0][0].where.estado).toEqual({
       in: ['ACTIVO', 'ATRASADO'],
     });
+  });
+});
+
+describe('PrestamosService — renovar (renovación de préstamos)', () => {
+  // Préstamo de referencia: 1000 en 12 cuotas, quedan 3 cuotas de RD$100
+  // (capital 90 + interés 10 c/u) → saldo aplicado 300, entrega esperada 700.
+  const ahora = new Date('2026-08-22T12:00:00.000Z');
+  const cuotaPendiente = (numero: number) => ({
+    numero,
+    pagada: false,
+    monto: 100,
+    capital: 90,
+    interes: 10,
+    mora: 0,
+    fechaVencimiento: ahora,
+  });
+  const prestamoBase = {
+    id: 'p1',
+    empresaId: 'emp1',
+    clienteId: 'c1',
+    garanteId: null as string | null,
+    monto: 1000,
+    tasaInteres: 5,
+    numeroCuotas: 12,
+    frecuenciaPago: 'MENSUAL',
+    saldoPendiente: 0,
+    estado: 'ACTIVO',
+    cuotaMensual: 100,
+    fechaInicio: ahora,
+    fechaVencimiento: ahora,
+    moraAcumulada: 0,
+    refinanciado: false,
+    vecesRefinanciado: 0,
+    cadenaRenovaciones: 0,
+    historialRenovacion: null,
+    historialRefinanciamiento: null,
+    createdAt: ahora,
+    cliente: { nombre: 'Juan', apellido: 'Pérez' },
+    cuotas: [
+      {
+        numero: 1,
+        pagada: true,
+        monto: 100,
+        capital: 90,
+        interes: 10,
+        mora: 0,
+      },
+      ...[10, 11, 12].map(cuotaPendiente),
+    ],
+  };
+  const configRenovacion = {
+    permitirRenovacion: true,
+    maxCuotasRestantesParaRenovacion: 0,
+    incluirInteresEnRenovacion: true,
+    porcentajeMaximoSaldoAplicado: 100,
+    maxRenovacionesConsecutivas: 0,
+  };
+
+  function buildRenovarMocks(
+    opts: {
+      config?: Record<string, unknown> | null;
+      inicial?: Record<string, unknown>;
+      locked?: Record<string, unknown> | null;
+      efectivoInicial?: number;
+      pagosEfectivo?: number;
+      desembolsos?: number;
+    } = {},
+  ) {
+    const {
+      config = configRenovacion,
+      inicial = prestamoBase,
+      locked = {
+        ...prestamoBase,
+        cuotas: prestamoBase.cuotas.filter((c) => !c.pagada),
+      },
+      efectivoInicial = 500,
+      pagosEfectivo = 300,
+      desembolsos = 0,
+    } = opts;
+    const caja = {
+      id: 'caja-1',
+      estado: 'ABIERTA',
+      montoInicial: efectivoInicial,
+    };
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      pago: {
+        create: jest.fn().mockResolvedValue({ id: 'pago-1' }),
+        aggregate: jest
+          .fn()
+          .mockResolvedValue({ _sum: { montoTotal: pagosEfectivo } }),
+      },
+      cuota: { updateMany: jest.fn(), createMany: jest.fn() },
+      prestamo: {
+        findFirst: jest.fn().mockResolvedValue(locked),
+        update: jest.fn().mockResolvedValue({ id: 'p1' }),
+        create: jest.fn().mockResolvedValue({ id: 'p2' }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      cajaSesion: {
+        findFirst: jest.fn().mockResolvedValue(caja),
+        findUnique: jest.fn().mockResolvedValue(caja),
+        update: jest.fn(),
+      },
+      desembolsoCaja: {
+        aggregate: jest
+          .fn()
+          .mockResolvedValue({ _sum: { monto: desembolsos } }),
+        create: jest.fn().mockResolvedValue({ id: 'des-1' }),
+      },
+      movimientoFinanciero: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const $transaction = jest
+      .fn()
+      .mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
+
+    const prestamoAnterior = {
+      ...prestamoBase,
+      estado: 'RENOVADO',
+      cliente: {
+        ...prestamoBase.cliente,
+        id: 'c1',
+        cedula: '001',
+        telefono: '',
+        celular: '',
+      },
+      cuotas: prestamoBase.cuotas.map((c) => ({ ...c, pagada: true })),
+      pagos: [],
+      garante: null,
+    };
+    const prestamoNuevo = {
+      ...prestamoBase,
+      id: 'p2',
+      monto: 1000,
+      estado: 'ACTIVO',
+      origen: 'RENOVACION',
+      renovacionDeId: 'p1',
+      cadenaRenovaciones: 1,
+      cliente: {
+        ...prestamoBase.cliente,
+        id: 'c1',
+        cedula: '001',
+        telefono: '',
+        celular: '',
+      },
+      cuotas: [],
+      pagos: [],
+      garante: null,
+    };
+    const findFirst = jest
+      .fn()
+      .mockResolvedValueOnce(inicial)
+      .mockResolvedValueOnce(prestamoAnterior)
+      .mockResolvedValueOnce(prestamoNuevo);
+
+    const { service, prisma } = buildService(
+      {
+        prestamo: {
+          findFirst,
+          count: jest.fn().mockResolvedValue(0),
+          update: jest.fn(),
+        },
+        configuracion: { findUnique: jest.fn().mockResolvedValue(config) },
+        cajaSesion: { findFirst: jest.fn() },
+        pago: { aggregate: jest.fn() },
+        desembolsoCaja: { aggregate: jest.fn(), create: jest.fn() },
+        movimientoFinanciero: { create: jest.fn() },
+        $transaction,
+      },
+      { verificar: jest.fn().mockResolvedValue({ advertencia: false }) },
+    );
+    return { service, prisma, tx };
+  }
+
+  const dtoBase = {
+    montoNuevo: 1000,
+    tasaInteres: 5,
+    numeroCuotas: 12,
+  };
+
+  it('happy path: aplica 300 al saldo anterior y desembolsa neto 700', async () => {
+    const { service, tx } = buildRenovarMocks();
+
+    const res = await service.renovar('p1', dtoBase, 'emp1', 'u1');
+
+    expect(res.desembolsoNeto).toBe(700);
+    expect(res.liquidacion).toEqual({
+      capital: 270,
+      interes: 30,
+      mora: 0,
+      total: 300,
+    });
+
+    // Pata ingreso: Pago con desglose exacto + observación trazable
+    const pagoData = (
+      tx.pago.create.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0].data;
+    expect(pagoData).toMatchObject({
+      prestamoId: 'p1',
+      montoTotal: 300,
+      capital: 270,
+      interes: 30,
+      mora: 0,
+      observacion: 'Aplicación de saldo por renovación',
+    });
+
+    // Cuotas viejas marcadas pagadas y préstamo anterior RENOVADO con snapshot
+    const updateManyData = (
+      tx.cuota.updateMany.mock.calls as unknown as Array<
+        [{ where: Record<string, unknown>; data: Record<string, unknown> }]
+      >
+    )[0][0];
+    expect(updateManyData.where).toEqual({ prestamoId: 'p1', pagada: false });
+    expect(updateManyData.data.pagada).toBe(true);
+    expect(updateManyData.data.fechaPago).toBeInstanceOf(Date);
+    const updateCall = (
+      tx.prestamo.update.mock.calls as unknown as Array<
+        [
+          {
+            data: {
+              estado: string;
+              historialRenovacion: Array<{
+                saldoAplicado: number;
+                cuotasLiquidadas: unknown[];
+              }>;
+            };
+          },
+        ]
+      >
+    )[0][0];
+    expect(updateCall.data.estado).toBe('RENOVADO');
+    const registro = updateCall.data.historialRenovacion[0];
+    expect(registro.saldoAplicado).toBe(300);
+    expect(registro.cuotasLiquidadas).toHaveLength(3);
+
+    // Pata egreso: préstamo nuevo vinculado + desembolso completo
+    const createData = (
+      tx.prestamo.create.mock.calls as unknown as Array<
+        [
+          {
+            data: {
+              estado: string;
+              origen: string;
+              renovacionDeId: string;
+              cadenaRenovaciones: number;
+            };
+          },
+        ]
+      >
+    )[0][0];
+    expect(createData.data.estado).toBe('ACTIVO');
+    expect(createData.data.origen).toBe('RENOVACION');
+    expect(createData.data.renovacionDeId).toBe('p1');
+    expect(createData.data.cadenaRenovaciones).toBe(1);
+    const desembolsoData = (
+      tx.desembolsoCaja.create.mock.calls as unknown as Array<
+        [{ data: Record<string, unknown> }]
+      >
+    )[0][0].data;
+    expect(desembolsoData).toMatchObject({ monto: 1000, prestamoId: 'p2' });
+    expect(tx.cuota.createMany).toHaveBeenCalledTimes(1);
+
+    // Movimientos financieros: ingreso liquidación + egreso desembolso
+    const tipos = (
+      tx.movimientoFinanciero.create.mock.calls as unknown as Array<
+        [{ data: { tipo: string } }]
+      >
+    ).map((c) => c[0].data.tipo);
+    expect(tipos).toEqual(['PAGO_RECIBIDO', 'DESEMBOLSO']);
+
+    // Caja: totalIngresos += 300 y totalEgresos += 1000 (neto −700 físico)
+    const cajaUpdates = (
+      tx.cajaSesion.update.mock.calls as unknown as Array<
+        [{ where: { id: string }; data: Record<string, unknown> }]
+      >
+    ).map((c) => c[0].data);
+    expect(cajaUpdates).toContainEqual({
+      totalIngresos: { increment: 300 },
+    });
+    expect(cajaUpdates).toContainEqual({
+      totalEgresos: { increment: 1000 },
+    });
+  });
+
+  it('validación de fondos corregida: neto 700 OK con efectivo 800; rechaza si el neto excede lo disponible', async () => {
+    // Caja física: inicial 500 + pagos 300 − desembolsos 0 = 800 → neto 700 cabe
+    const ok = buildRenovarMocks({ efectivoInicial: 500, pagosEfectivo: 300 });
+    await expect(
+      ok.service.renovar('p1', dtoBase, 'emp1', 'u1'),
+    ).resolves.toBeTruthy();
+
+    // Caja física: inicial 500 + pagos 0 = 500 < neto 700 → rechaza
+    const fail = buildRenovarMocks({ efectivoInicial: 500, pagosEfectivo: 0 });
+    await expect(
+      fail.service.renovar('p1', dtoBase, 'emp1', 'u1'),
+    ).rejects.toThrow(/Fondos insuficientes/);
+  });
+
+  it('switch maestro apagado → rechaza', async () => {
+    const { service } = buildRenovarMocks({
+      config: { ...configRenovacion, permitirRenovacion: false },
+    });
+    await expect(service.renovar('p1', dtoBase, 'emp1', 'u1')).rejects.toThrow(
+      /no está habilitada/,
+    );
+  });
+
+  it('excede cuotas restantes permitidas → rechaza', async () => {
+    const { service } = buildRenovarMocks({
+      config: { ...configRenovacion, maxCuotasRestantesParaRenovacion: 2 },
+    });
+    await expect(service.renovar('p1', dtoBase, 'emp1', 'u1')).rejects.toThrow(
+      /faltan 2 cuota/,
+    );
+  });
+
+  it('límite de renovaciones consecutivas alcanzado → rechaza', async () => {
+    const { service } = buildRenovarMocks({
+      config: { ...configRenovacion, maxRenovacionesConsecutivas: 1 },
+      inicial: { ...prestamoBase, cadenaRenovaciones: 1 },
+      locked: {
+        ...prestamoBase,
+        cadenaRenovaciones: 1,
+        cuotas: prestamoBase.cuotas.filter((c) => !c.pagada),
+      },
+    });
+    await expect(service.renovar('p1', dtoBase, 'emp1', 'u1')).rejects.toThrow(
+      /alcanzó el límite de 1 renovación/,
+    );
+  });
+
+  it('incluirInteresEnRenovacion=false excluye el interés del cálculo (entrega 730)', async () => {
+    const { service } = buildRenovarMocks({
+      config: { ...configRenovacion, incluirInteresEnRenovacion: false },
+    });
+    const res = await service.renovar('p1', dtoBase, 'emp1', 'u1');
+    expect(res.liquidacion.interes).toBe(0);
+    expect(res.liquidacion.total).toBe(270);
+    expect(res.desembolsoNeto).toBe(730);
+  });
+
+  it('porcentajeMaximoSaldoAplicado bloqueante: 50% de 500 es 250 pero saldo aplicado es 300 → rechaza', async () => {
+    const { service } = buildRenovarMocks({
+      config: { ...configRenovacion, porcentajeMaximoSaldoAplicado: 50 },
+    });
+    await expect(
+      service.renovar('p1', { ...dtoBase, montoNuevo: 500 }, 'emp1', 'u1'),
+    ).rejects.toThrow(/máximo permitido de 50%/);
+  });
+
+  it('montoNuevo ≤ saldo aplicado (entrega neta 0) → rechaza', async () => {
+    // Mocks frescos por llamada: el estado del préstamo cambia en cada escenario
+    const igual = buildRenovarMocks();
+    await expect(
+      igual.service.renovar(
+        'p1',
+        { ...dtoBase, montoNuevo: 300 },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow(/debe ser mayor al saldo anterior aplicado/);
+
+    const menor = buildRenovarMocks();
+    await expect(
+      menor.service.renovar(
+        'p1',
+        { ...dtoBase, montoNuevo: 250 },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow(/debe ser mayor al saldo anterior aplicado/);
+  });
+
+  it('doble toque: bajo lock el préstamo ya no está activo → rechaza sin crear nada', async () => {
+    const { service, tx } = buildRenovarMocks({
+      locked: { ...prestamoBase, estado: 'RENOVADO' },
+    });
+    await expect(service.renovar('p1', dtoBase, 'emp1', 'u1')).rejects.toThrow(
+      /ya no es renovable/,
+    );
+    expect(tx.pago.create).not.toHaveBeenCalled();
+    expect(tx.prestamo.create).not.toHaveBeenCalled();
+  });
+
+  it('préstamo con mora la incluye siempre en la liquidación', async () => {
+    const conMora = {
+      ...prestamoBase,
+      cuotas: [
+        {
+          numero: 1,
+          pagada: true,
+          monto: 100,
+          capital: 90,
+          interes: 10,
+          mora: 0,
+        },
+        {
+          numero: 10,
+          pagada: false,
+          monto: 110,
+          capital: 90,
+          interes: 10,
+          mora: 10,
+        },
+        {
+          numero: 11,
+          pagada: false,
+          monto: 100,
+          capital: 90,
+          interes: 10,
+          mora: 0,
+        },
+        {
+          numero: 12,
+          pagada: false,
+          monto: 100,
+          capital: 90,
+          interes: 10,
+          mora: 0,
+        },
+      ],
+    };
+    const cajaMora = { id: 'caja-1', estado: 'ABIERTA', montoInicial: 900 };
+    const txMora = {
+      $queryRaw: jest.fn(),
+      pago: {
+        create: jest.fn().mockResolvedValue({ id: 'pago-m' }),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { montoTotal: 0 } }),
+      },
+      cuota: { updateMany: jest.fn(), createMany: jest.fn() },
+      prestamo: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValueOnce(conMora)
+          .mockResolvedValue({
+            ...conMora,
+            estado: 'RENOVADO',
+            pagos: [],
+            garante: null,
+          }),
+        update: jest.fn(),
+        create: jest.fn().mockResolvedValue({ id: 'p2' }),
+      },
+      cajaSesion: {
+        findFirst: jest.fn().mockResolvedValue(cajaMora),
+        findUnique: jest.fn().mockResolvedValue(cajaMora),
+        update: jest.fn(),
+      },
+      desembolsoCaja: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { monto: 0 } }),
+        create: jest.fn().mockResolvedValue({ id: 'des-m' }),
+      },
+      movimientoFinanciero: { create: jest.fn() },
+    };
+    const { service: svcMora } = buildService(
+      {
+        prestamo: {
+          findFirst: jest.fn().mockResolvedValue(conMora),
+          count: jest.fn(),
+          update: jest.fn(),
+        },
+        configuracion: {
+          findUnique: jest.fn().mockResolvedValue(configRenovacion),
+        },
+        $transaction: jest
+          .fn()
+          .mockImplementation((cb: (tx: unknown) => unknown) => cb(txMora)),
+      },
+      { verificar: jest.fn().mockResolvedValue({ advertencia: false }) },
+    );
+    const res = await svcMora.renovar('p1', dtoBase, 'emp1', 'u1');
+    expect(res.liquidacion.mora).toBe(10);
+    expect(res.liquidacion.total).toBe(310);
+    expect(res.desembolsoNeto).toBe(690);
   });
 });

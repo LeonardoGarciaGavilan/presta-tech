@@ -39,6 +39,7 @@ export const PERMISOS = [
   'prestamos:aprobar',
   'prestamos:desembolsar',
   'prestamos:refinanciar',
+  'prestamos:renovar',
   'prestamos:cancelar',
 
   'pagos:ver',

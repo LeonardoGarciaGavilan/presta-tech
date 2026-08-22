@@ -335,6 +335,7 @@ export class ReportesService {
       activos: estadoCounts['ACTIVO'] ?? 0,
       atrasados: estadoCounts['ATRASADO'] ?? 0,
       pagados: estadoCounts['PAGADO'] ?? 0,
+      renovados: estadoCounts['RENOVADO'] ?? 0,
       cancelados: estadoCounts['CANCELADO'] ?? 0,
       totalCartera,
       totalDesembolsado: totalesMonto._sum.monto ?? 0,

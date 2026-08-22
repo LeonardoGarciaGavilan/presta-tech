@@ -59,4 +59,41 @@ export class UpsertConfiguracionDto {
   @Min(0)
   @Max(100)
   maxPrestamosActivosPorCliente?: number;
+
+  /** Switch maestro de renovación de préstamos. Default: desactivada. */
+  @IsOptional()
+  @IsBoolean()
+  permitirRenovacion?: boolean;
+
+  /** Renovación solo cuando faltan X cuotas o menos. 0 = sin restricción. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  maxCuotasRestantesParaRenovacion?: number;
+
+  /**
+   * true = liquidar cuotas restantes completas (capital + interés + mora).
+   * false = solo capital + mora (perdona interés futuro), como refinanciamiento.
+   */
+  @IsOptional()
+  @IsBoolean()
+  incluirInteresEnRenovacion?: boolean;
+
+  /**
+   * % máximo del monto nuevo que puede destinarse al saldo anterior.
+   * 100 = sin restricción práctica.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  porcentajeMaximoSaldoAplicado?: number;
+
+  /** Máximo de renovaciones encadenadas. 0 = sin límite. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(20)
+  maxRenovacionesConsecutivas?: number;
 }

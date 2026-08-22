@@ -208,6 +208,7 @@ export class DashboardService {
       activos: 0,
       atrasados: 0,
       pagados: 0,
+      renovados: 0,
       cancelados: 0,
       solicitados: 0,
     };
@@ -216,6 +217,7 @@ export class DashboardService {
       ACTIVO: 'activos',
       ATRASADO: 'atrasados',
       PAGADO: 'pagados',
+      RENOVADO: 'renovados',
       CANCELADO: 'cancelados',
       SOLICITADO: 'solicitados',
       EN_REVISION: 'solicitados',
