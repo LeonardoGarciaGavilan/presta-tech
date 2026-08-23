@@ -5,6 +5,7 @@ import {
   IsString,
   IsEnum,
   IsDateString,
+  IsBoolean,
   Min,
   Max,
 } from 'class-validator';
@@ -16,8 +17,9 @@ export class RenovarPrestamoDto {
   @Min(1)
   montoNuevo: number;
 
+  /** Tasa de interés en % según la frecuencia. En modo rápido se envía 0. */
   @IsNumber()
-  @Min(0.1)
+  @Min(0)
   @Max(100)
   tasaInteres: number;
 
@@ -33,6 +35,17 @@ export class RenovarPrestamoDto {
   @IsOptional()
   @IsDateString()
   fechaInicio?: string;
+
+  /** Modo rápido: cuota fija plana calculada desde montoTotal (igual que crear préstamo rápido). */
+  @IsOptional()
+  @IsBoolean()
+  modoRapido?: boolean;
+
+  /** Total a cobrar en modo rápido. Obligatorio si modoRapido=true. */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  montoTotal?: number;
 
   @IsOptional()
   @IsString()

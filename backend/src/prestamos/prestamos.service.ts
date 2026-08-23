@@ -1936,13 +1936,34 @@ export class PrestamosService {
       ? startOfDay(new Date(dto.fechaInicio))
       : startOfDay(new Date());
 
-    const amortizacion = this.calcularAmortizacion(
-      montoNuevo,
-      dto.tasaInteres / 100,
-      dto.numeroCuotas,
-      frecuenciaFinal,
-      fechaInicioNueva,
-    );
+    let amortizacion: ResumenAmortizacion;
+    if (dto.modoRapido === true) {
+      if (
+        dto.montoTotal == null ||
+        typeof dto.montoTotal !== 'number' ||
+        !isFinite(dto.montoTotal) ||
+        dto.montoTotal <= 0
+      ) {
+        throw new BadRequestException(
+          'montoTotal inválido o ausente para modo rápido.',
+        );
+      }
+      amortizacion = this.calcularAmortizacionRapida(
+        montoNuevo,
+        dto.numeroCuotas,
+        dto.montoTotal,
+        frecuenciaFinal,
+        fechaInicioNueva,
+      );
+    } else {
+      amortizacion = this.calcularAmortizacion(
+        montoNuevo,
+        dto.tasaInteres / 100,
+        dto.numeroCuotas,
+        frecuenciaFinal,
+        fechaInicioNueva,
+      );
+    }
     const nuevaFechaVencimiento = this.siguienteFecha(
       fechaInicioNueva,
       frecuenciaFinal,
@@ -2120,6 +2141,7 @@ export class PrestamosService {
           numeroCuotas: dto.numeroCuotas,
           frecuenciaPago: frecuenciaFinal,
           montoTotal: amortizacion.montoTotal,
+          modoRapido: dto.modoRapido === true,
           cuotaMensual: amortizacion.cuotaInicial,
           fechaInicio: fechaInicioNueva,
           fechaVencimiento: nuevaFechaVencimiento,

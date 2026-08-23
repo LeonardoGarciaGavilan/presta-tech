@@ -1121,4 +1121,63 @@ describe('PrestamosService — renovar (renovación de préstamos)', () => {
     expect(res.liquidacion.total).toBe(310);
     expect(res.desembolsoNeto).toBe(690);
   });
+
+  it('modo rápido: genera cuotas planas idénticas a crear rápido y guarda modoRapido/montoTotal (tasa 0 permitida)', async () => {
+    const { service, tx } = buildRenovarMocks();
+    const dtoRapido = {
+      ...dtoBase,
+      tasaInteres: 0,
+      numeroCuotas: 10,
+      modoRapido: true,
+      montoTotal: 1200,
+    };
+
+    const res = await service.renovar('p1', dtoRapido, 'emp1', 'u1');
+
+    // Liquidación intacta (independiente del modo): saldo 300, entrega 700
+    expect(res.desembolsoNeto).toBe(700);
+
+    // Préstamo nuevo: cuotas planas de RD$120 (1200/10), última ajustada
+    const createData = tx.prestamo.create.mock.calls[0][0].data;
+    expect(createData.modoRapido).toBe(true);
+    expect(createData.tasaInteres).toBe(0);
+    expect(createData.montoTotal).toBe(1200);
+    const cuotas = tx.cuota.createMany.mock.calls[0][0].data;
+    expect(cuotas).toHaveLength(10);
+    for (const c of cuotas) {
+      expect(c.monto).toBe(120);
+    }
+    expect(cuotas.reduce((s: number, c: { capital: number }) => s + c.capital, 0)).toBeCloseTo(1000, 2);
+
+    // Snapshot de auditoría refleja el plan rápido
+    expect(createData.historialRenovacion[0].nuevaCuota).toBe(120);
+    expect(createData.historialRenovacion[0].nuevoMontoTotal).toBe(1200);
+  });
+
+  it('modo rápido sin montoTotal → rechaza con BadRequest', async () => {
+    const { service } = buildRenovarMocks();
+    const dtoSinTotal = {
+      ...dtoBase,
+      tasaInteres: 0,
+      numeroCuotas: 10,
+      modoRapido: true,
+    };
+    await expect(service.renovar('p1', dtoSinTotal, 'emp1', 'u1')).rejects.toThrow(
+      'montoTotal inválido o ausente para modo rápido.',
+    );
+  });
+
+  it('modo rápido con montoTotal <= montoNuevo → rechaza (total a cobrar debe superar el monto)', async () => {
+    const { service } = buildRenovarMocks();
+    const dtoInsuficiente = {
+      ...dtoBase,
+      tasaInteres: 0,
+      numeroCuotas: 10,
+      modoRapido: true,
+      montoTotal: 900,
+    };
+    await expect(
+      service.renovar('p1', dtoInsuficiente, 'emp1', 'u1'),
+    ).rejects.toThrow('El total a cobrar debe ser mayor al monto prestado.');
+  });
 });
