@@ -19,6 +19,7 @@ import {
   useCambiarEstadoPrestamo,
 } from "@/hooks/use-prestamos";
 import { usePagosPendientesPrestamo } from "@/hooks/use-offline-queue";
+import { useConfiguracion } from "@/hooks/use-configuracion";
 import { AppButton } from "@/components/ui/app-button";
 import ActionConfirmModal from "@/components/ui/action-confirm-modal";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -238,6 +239,7 @@ export default function PrestamoDetalleScreen() {
   const user = useAuthStore((state) => state.user);
   const userId = user?.id;
   const { tienePermiso } = usePermisos();
+  const { data: configuracion } = useConfiguracion();
   const puedeRevisar = tienePermiso("prestamos:revisar");
   const puedeAprobar = tienePermiso("prestamos:aprobar");
   const { showToast } = useToast();
@@ -293,13 +295,21 @@ export default function PrestamoDetalleScreen() {
     prestamo &&
     !["PAGADO", "CANCELADO"].includes(prestamo.estado) &&
     tienePermiso("prestamos:cancelar");
+  // El switch maestro de refinanciamiento oculta el botón (decisión
+  // empresa-wide); las reglas paramétricas se explican dentro del modal.
+  // Sin config cacheada no se oculta: el servidor es la fuente de verdad.
   const puedeRefinanciar =
     prestamo &&
     ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&
+    configuracion?.permitirRefinanciamiento !== false &&
     tienePermiso("prestamos:refinanciar");
+  // El switch maestro de renovación oculta el botón (decisión empresa-wide);
+  // las reglas paramétricas se explican dentro del modal. Sin config cacheada
+  // no se oculta: el servidor es la fuente de verdad.
   const puedeRenovar =
     prestamo &&
     ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&
+    configuracion?.permitirRenovacion !== false &&
     tienePermiso("prestamos:renovar");
   const puedePagar =
     prestamo &&
@@ -470,18 +480,19 @@ export default function PrestamoDetalleScreen() {
           )}
           {prestamo.origen === "RENOVACION" && (
             <View
-              style={[styles.refinanciadoBadge, { backgroundColor: "#CCFBF1" }]}
+              style={[
+                styles.refinanciadoBadge,
+                { backgroundColor: colors.tealLight },
+              ]}
               accessibilityRole="text"
               accessibilityLabel="Nació de una renovación"
             >
               <Ionicons
                 name="refresh-circle"
                 size={scale(12)}
-                color="#0F766E"
+                color={colors.teal}
               />
-              <Text
-                style={[styles.refinanciadoBadgeText, { color: "#0F766E" }]}
-              >
+              <Text style={[styles.refinanciadoBadgeText, { color: colors.teal }]}>
                 Renovación
                 {(prestamo.cadenaRenovaciones ?? 0) > 1
                   ? ` ×${prestamo.cadenaRenovaciones}`
@@ -665,7 +676,7 @@ export default function PrestamoDetalleScreen() {
           {puedeRenovar && (
             <Pressable
               onPress={() => setShowRenovarModal(true)}
-              style={[styles.actionButton, { backgroundColor: "#0F766E" }]}
+              style={[styles.actionButton, { backgroundColor: colors.teal }]}
               accessibilityRole="button"
               accessibilityLabel="Renovar préstamo"
             >

@@ -1,12 +1,12 @@
 import type {
   Cuota,
+  CuotaPreview,
   FrecuenciaPago,
   Prestamo,
   RefinanciarPrestamoDto,
   RenovarPrestamoDto,
   TablaAmortizacion,
 } from "@/types/prestamo.types";
-import type { CuotaPreview } from "@/types/prestamo.types";
 
 export const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
   DIARIO: 1,
@@ -115,6 +115,65 @@ export function calcularAmortizacionLocal(
   };
 }
 
+// Réplica exacta de PrestamosService.calcularAmortizacionRapida (modo rápido):
+// cuota fija plana derivada del total a cobrar, última cuota ajustada.
+// Movida desde @/hooks/use-prestamo-preview (se re-exporta desde allí para
+// compatibilidad con consumidores existentes).
+export function calcularAmortizacionRapidaLocal(
+  monto: number,
+  numeroCuotas: number,
+  montoTotal: number,
+  frecuenciaPago: FrecuenciaPago,
+  fechaInicio?: string,
+): TablaAmortizacion {
+  const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
+  const cuotaFija = Math.round(montoTotal / numeroCuotas);
+  const ultimaCuota = Math.round(montoTotal - cuotaFija * (numeroCuotas - 1));
+  const gananciaPorCuota =
+    numeroCuotas > 0
+      ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
+      : 0;
+
+  const startDate = fechaInicio ? new Date(fechaInicio) : new Date();
+  let saldo = monto;
+  let totalIntereses = 0;
+  const cuotas: CuotaPreview[] = [];
+
+  for (let i = 1; i <= numeroCuotas; i++) {
+    const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
+    const interes =
+      i === numeroCuotas
+        ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+        : gananciaPorCuota;
+    const capital = Math.max(
+      0,
+      Math.round((montoCuota - interes) * 100) / 100,
+    );
+
+    cuotas.push({
+      numero: i,
+      monto: Math.round(montoCuota),
+      capital,
+      interes,
+      fechaVencimiento: siguienteFecha(startDate, frecuenciaPago, i)
+        .toISOString()
+        .split('T')[0],
+      saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
+    });
+
+    totalIntereses += interes;
+    saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+  }
+
+  return {
+    montoTotal: Math.round(montoTotal * 100) / 100,
+    totalIntereses: Math.round(gananciaTotal * 100) / 100,
+    cuotaInicial: cuotas[0]?.monto ?? 0,
+    tasaPeriodo: 0,
+    cuotas,
+  };
+}
+
 // Réplica del cálculo de fechaBase en refinanciar(): la fecha enviada es la
 // PRÓXIMA cuota, así que la base retrocede un período usando DIAS_FRECUENCIA
 // (addDays negativo, no resta de meses).
@@ -152,13 +211,26 @@ export function construirPrestamoRefinanciadoLocal(
     ? restarUnPeriodo(parseFechaISO(dto.nuevaFechaPago), frecuenciaFinal)
     : ahora;
 
-  const tabla = calcularAmortizacionLocal(
-    saldoRefinanciado,
-    dto.nuevaTasa,
-    dto.nuevasCuotas,
-    frecuenciaFinal,
-    fechaBase.toISOString(),
-  );
+  // Modo rápido: cuotas planas desde montoTotal sobre el saldo refinanciado
+  // (misma matemática que el backend). Modo normal: amortización con tasa.
+  const esModoRapido = dto.modoRapido === true;
+  const tasaFinal = esModoRapido ? 0 : (dto.nuevaTasa ?? 0);
+
+  const tabla = esModoRapido
+    ? calcularAmortizacionRapidaLocal(
+        saldoRefinanciado,
+        dto.nuevasCuotas,
+        dto.montoTotal ?? 0,
+        frecuenciaFinal,
+        fechaBase.toISOString(),
+      )
+    : calcularAmortizacionLocal(
+        saldoRefinanciado,
+        tasaFinal,
+        dto.nuevasCuotas,
+        frecuenciaFinal,
+        fechaBase.toISOString(),
+      );
 
   const ultimoNumeroPagado = cuotasActuales
     .filter((c) => c.pagada)
@@ -183,7 +255,7 @@ export function construirPrestamoRefinanciadoLocal(
     saldoRefinanciado,
     prestamo: {
       ...prestamo,
-      tasaInteres: dto.nuevaTasa,
+      tasaInteres: tasaFinal,
       frecuenciaPago: frecuenciaFinal,
       numeroCuotas: ultimoNumeroPagado + dto.nuevasCuotas,
       cuotaMensual: tabla.cuotaInicial,
@@ -196,6 +268,7 @@ export function construirPrestamoRefinanciadoLocal(
       estado: "ACTIVO",
       moraAcumulada: 0,
       refinanciado: true,
+      modoRapido: esModoRapido,
       vecesRefinanciado: (prestamo.vecesRefinanciado ?? 0) + 1,
       cuotas: [...cuotasActuales.filter((c) => c.pagada), ...nuevasCuotas],
       esOffline: true,

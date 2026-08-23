@@ -17,7 +17,8 @@ export interface RegistroRenovacion {
   motivo?: string | null;
   prestamoAnteriorId?: string;
   cuotasPendientesAntes?: number;
-  cuotasLiquidadas?: Record<string, any>[];  capitalAplicado?: number;
+  cuotasLiquidadas?: Record<string, any>[];
+  capitalAplicado?: number;
   interesAplicado?: number;
   moraAplicada?: number;
   saldoAplicado?: number;
@@ -62,7 +63,7 @@ const HistorialRenovacionBase = ({ historial }: HistorialRenovacionProps) => {
         <Ionicons
           name="refresh-circle-outline"
           size={scale(16)}
-          color="#0F766E"
+          color={colors.teal}
         />
         <Text style={[styles.title, { color: colors.text }]}>
           Historial de renovaciones ({historial.length})
@@ -100,8 +101,17 @@ const HistorialRenovacionBase = ({ historial }: HistorialRenovacionProps) => {
             <Text style={[styles.linea, { color: colors.textSecondary }]}>
               Nuevo préstamo: {formatCurrency(r.montoNuevo ?? 0)} en{" "}
               {r.nuevasCuotas ?? "—"} cuota(s)
+              {(r.tasaInteres ?? 1) === 0 ? " · Modo rápido" : ""}
               {" · "}neto entregado {formatCurrency(r.desembolsoNeto ?? 0)}
             </Text>
+            {(r.tasaInteres ?? 1) === 0 && r.nuevoMontoTotal != null && (
+              <Text style={[styles.linea, { color: colors.textSecondary }]}>
+                Total a cobrar:{" "}
+                <Text style={{ fontWeight: FontWeight.bold }}>
+                  {formatCurrency(r.nuevoMontoTotal)}
+                </Text>
+              </Text>
+            )}
             {!!r.cuotasLiquidadas?.length && (
               <Text style={[styles.linea, { color: colors.textTertiary }]}>
                 {r.cuotasLiquidadas.length} cuota(s) liquidada(s) del préstamo

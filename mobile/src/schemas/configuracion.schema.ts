@@ -23,6 +23,7 @@ export const configuracionSchema = z.object({
     .int("Debe ser un número entero")
     .min(0, "Mínimo 0")
     .max(20, "Máximo 20"),
+  permitirRefinanciamiento: z.boolean(),
   /** Máximo de préstamos activos (ACTIVO/ATRASADO) por cliente. 0 = sin límite. */
   maxPrestamosActivosPorCliente: z
     .number()

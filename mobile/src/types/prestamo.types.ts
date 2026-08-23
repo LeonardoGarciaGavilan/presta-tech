@@ -252,9 +252,14 @@ export interface CambiarEstadoDto {
 
 export interface RefinanciarPrestamoDto {
   nuevasCuotas: number;
-  nuevaTasa: number;
+  /** Tasa de interés en %. Obligatoria en modo normal (0.1-100). En modo rápido se envía 0 u se omite. */
+  nuevaTasa?: number;
   nuevaFrecuencia?: FrecuenciaPago;
   nuevaFechaPago?: string;
+  /** Modo rápido: cuota fija plana desde montoTotal sobre el saldo refinanciado (igual que crear/renovar rápido). */
+  modoRapido?: boolean;
+  /** Total a cobrar en modo rápido. Obligatorio si modoRapido=true; debe superar el saldo refinanciado. */
+  montoTotal?: number;
   motivo?: string;
 }
 
@@ -262,10 +267,16 @@ export interface RefinanciarPrestamoDto {
 export interface RenovarPrestamoDto {
   /** Monto del préstamo nuevo (debe ser mayor al saldo anterior aplicado). */
   montoNuevo: number;
+  /** En modo rápido se envía 0. */
   tasaInteres: number;
+  /** En modo rápido = duración. */
   numeroCuotas: number;
   frecuenciaPago?: FrecuenciaPago;
   fechaInicio?: string;
+  /** Modo rápido: cuota fija plana desde montoTotal (igual que crear rápido). */
+  modoRapido?: boolean;
+  /** Total a cobrar en modo rápido. Obligatorio si modoRapido=true. */
+  montoTotal?: number;
   motivo?: string;
 }
 

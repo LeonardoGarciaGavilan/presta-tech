@@ -13,6 +13,8 @@ export interface ConfiguracionResponse {
   cuotasRestantesParaRenovar?: number;
   /** Máximo de refinanciamientos por préstamo. 0 = sin límite. */
   maxRefinanciamientosPorPrestamo?: number;
+  /** Switch maestro de refinanciamiento de préstamos. Default true. */
+  permitirRefinanciamiento?: boolean;
   /**
    * Máximo de préstamos simultáneos por cliente contando solo ACTIVO y ATRASADO.
    * 0 = sin límite.
@@ -42,6 +44,7 @@ export interface UpsertConfiguracionRequest {
   montoMaximoPago?: number | null;
   cuotasRestantesParaRenovar?: number;
   maxRefinanciamientosPorPrestamo?: number;
+  permitirRefinanciamiento?: boolean;
   /** Máximo de préstamos activos (ACTIVO/ATRASADO) por cliente. 0 = sin límite. */
   maxPrestamosActivosPorCliente?: number;
   permitirRenovacion?: boolean;

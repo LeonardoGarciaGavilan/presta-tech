@@ -18,6 +18,7 @@ const ESTADO_MAP: Record<string, { label: string; icon: string; colorKey: keyof 
   APROBADO: { label: 'Aprobado', icon: 'checkmark-circle-outline', colorKey: 'success', bgKey: 'successLight', borderKey: 'success' },
   RECHAZADO: { label: 'Rechazado', icon: 'close-circle-outline', colorKey: 'error', bgKey: 'errorLight', borderKey: 'error' },
   ACTIVO: { label: 'Activo', icon: 'checkmark-circle', colorKey: 'success', bgKey: 'successLight', borderKey: 'success' },
+  RENOVADO: { label: 'Renovado', icon: 'refresh-circle', colorKey: 'teal', bgKey: 'tealLight', borderKey: 'teal' },
   ATRASADO: { label: 'Atrasado', icon: 'alert-circle', colorKey: 'error', bgKey: 'errorLight', borderKey: 'error' },
   PAGADO: { label: 'Pagado', icon: 'checkmark-done-circle', colorKey: 'textTertiary', bgKey: 'surface', borderKey: 'border' },
   CANCELADO: { label: 'Cancelado', icon: 'ban-outline', colorKey: 'info', bgKey: 'infoLight', borderKey: 'info' },

@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 // Inicializa el esquema de la base y aplica las migraciones incrementales de
 // forma tolerante: cada ALTER solo se intenta si la columna no existe y, si
@@ -152,6 +152,7 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
         monto_maximo_pago REAL,
         cuotas_restantes_para_renovar INTEGER DEFAULT 0,
         max_refinanciamientos_por_prestamo INTEGER DEFAULT 0,
+        permitir_refinanciamiento INTEGER DEFAULT 1,
         max_prestamos_activos_por_cliente INTEGER DEFAULT 0,
         permitir_renovacion INTEGER DEFAULT 0,
         max_cuotas_restantes_para_renovacion INTEGER DEFAULT 0,
@@ -402,6 +403,31 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
       } catch (error) {
         console.warn(
           '[DB] No se pudieron migrar las columnas de reglas de renovación; se tratarán como desactivadas.',
+          error,
+        );
+      }
+    }
+
+    // Migración v8 → v9: switch maestro de refinanciamiento en configuracion
+    // (default activado: el refinanciamiento ya existe en producción; el
+    // switch solo oculta/bloquea cuando un admin lo apaga). Patrón tolerante:
+    // si la columna ya existe no se toca; si el ALTER falla, la app trata la
+    // ausencia como activado.
+    if (currentVersion < 9) {
+      try {
+        const colsConfig = await txn.getAllAsync<{ name: string }>(
+          'PRAGMA table_info(configuracion)',
+        );
+        if (colsConfig.length > 0) {
+          if (!colsConfig.some((c) => c.name === 'permitir_refinanciamiento')) {
+            await txn.execAsync(
+              'ALTER TABLE configuracion ADD COLUMN permitir_refinanciamiento INTEGER DEFAULT 1;',
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(
+          '[DB] No se pudo migrar la columna permitir_refinanciamiento; se tratará como activado.',
           error,
         );
       }

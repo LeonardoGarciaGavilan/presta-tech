@@ -30,6 +30,7 @@ const PAGE_SIZE = 20;
 const ESTADOS_FILTRO: { label: string; value: EstadoPrestamo | '' }[] = [
   { label: 'Todos', value: '' },
   { label: 'Activo', value: 'ACTIVO' },
+  { label: 'Renovado', value: 'RENOVADO' },
   { label: 'Atrasado', value: 'ATRASADO' },
   { label: 'Pagado', value: 'PAGADO' },
   { label: 'Cancelado', value: 'CANCELADO' },

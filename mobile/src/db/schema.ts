@@ -129,6 +129,8 @@ export const configuracion = sqliteTable('configuracion', {
   montoMaximoPago: real('monto_maximo_pago'),
   cuotasRestantesParaRenovar: integer('cuotas_restantes_para_renovar').default(0),
   maxRefinanciamientosPorPrestamo: integer('max_refinanciamientos_por_prestamo').default(0),
+  // Switch maestro de refinanciamiento (v9); default activado
+  permitirRefinanciamiento: integer('permitir_refinanciamiento', { mode: 'boolean' }).default(true),
   maxPrestamosActivosPorCliente: integer('max_prestamos_activos_por_cliente').default(0),
   // Reglas de renovación de préstamos (v8); 0 = sin restricción
   permitirRenovacion: integer('permitir_renovacion', { mode: 'boolean' }).default(false),

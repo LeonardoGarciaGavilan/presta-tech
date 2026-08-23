@@ -1,10 +1,14 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { BorderRadius, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
 import type { Colors } from '@/constants/theme';
 
 interface SectionCardProps {
-  icon: string;
+  /** Emoji de respaldo; requerido solo si no se provee iconName. */
+  icon?: string;
+  /** Icono Ionicons opcional; si se provee reemplaza al emoji. */
+  iconName?: keyof typeof Ionicons.glyphMap;
   title: string;
   description?: string;
   children: React.ReactNode;
@@ -13,6 +17,7 @@ interface SectionCardProps {
 
 export function SectionCard({
   icon,
+  iconName,
   title,
   description,
   children,
@@ -37,7 +42,11 @@ export function SectionCard({
             { backgroundColor: colors.primaryLight },
           ]}
         >
-          <Text style={styles.sectionEmoji}>{icon}</Text>
+          {iconName ? (
+            <Ionicons name={iconName} size={scale(19)} color={colors.primary} />
+          ) : (
+            <Text style={styles.sectionEmoji}>{icon}</Text>
+          )}
         </View>
         <View style={styles.sectionHeaderText}>
           <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>

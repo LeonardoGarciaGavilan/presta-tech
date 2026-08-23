@@ -111,6 +111,12 @@ function createFakeDb(options: { userVersion?: number } = {}): FakeDb {
       )
     ) {
       columns.configuracion.push('max_prestamos_activos_por_cliente');
+    } else if (
+      sql.includes(
+        'ALTER TABLE configuracion ADD COLUMN permitir_refinanciamiento',
+      )
+    ) {
+      columns.configuracion.push('permitir_refinanciamiento');
     } else if (sql.includes('ALTER TABLE prestamos ADD COLUMN origen')) {
       columns.prestamos.push('origen');
     } else if (
@@ -357,6 +363,18 @@ describe('initializeDatabase', () => {
     );
   });
 
+  it('v8 → v9: agrega el switch maestro de refinanciamiento en configuracion', async () => {
+    const db = createFakeDb({ userVersion: 8 });
+    await initializeDatabase(db as any);
+
+    const sqls = db.calls.join('\n');
+    expect(sqls).toContain(
+      'ALTER TABLE configuracion ADD COLUMN permitir_refinanciamiento INTEGER DEFAULT 1;',
+    );
+    // La columna nueva entra por table_info, no por el CREATE TABLE.
+    expect(db.columns.configuracion).toContain('permitir_refinanciamiento');
+  });
+
   it(`v${SCHEMA_VERSION}: no hace nada (early return)`, async () => {
     const db = createFakeDb({ userVersion: SCHEMA_VERSION });
     await initializeDatabase(db as any);
@@ -386,6 +404,7 @@ describe('initializeDatabase', () => {
       'incluir_interes_en_renovacion',
       'porcentaje_maximo_saldo_aplicado',
       'max_renovaciones_consecutivas',
+      'permitir_refinanciamiento',
     );
     await initializeDatabase(db as any);
 
@@ -405,7 +424,7 @@ describe('initializeDatabase', () => {
     warnSpy.mockRestore();
   });
 
-  it('exporta SCHEMA_VERSION = 8', () => {
-    expect(SCHEMA_VERSION).toBe(8);
+  it('exporta SCHEMA_VERSION = 9', () => {
+    expect(SCHEMA_VERSION).toBe(9);
   });
 });

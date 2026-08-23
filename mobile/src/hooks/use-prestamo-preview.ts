@@ -3,73 +3,20 @@ import { useCalcularTabla } from '@/hooks/use-prestamos';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { formatCurrency } from '@/utils/formatters';
 import {
-  DIAS_FRECUENCIA,
   calcularAmortizacionLocal,
+  calcularAmortizacionRapidaLocal,
   siguienteFecha,
 } from '@/utils/amortizacion';
-import type { CuotaPreview, FrecuenciaPago, TablaAmortizacion } from '@/types/prestamo.types';
+import type { FrecuenciaPago, TablaAmortizacion } from '@/types/prestamo.types';
 
 // Re-export para compatibilidad con consumidores existentes (tests incluidos).
-export { siguienteFecha };
+export { siguienteFecha, calcularAmortizacionRapidaLocal };
 
 // 2.8: replica de prestamos.service.ts:91-107 (siguienteFecha) — movida a
 // @/utils/amortizacion junto con la calculadora clásica offline.
 
-// 2.8: replica exacta de prestamos.service.ts:109-230 (calcularAmortizacionRapida)
-export function calcularAmortizacionRapidaLocal(
-  monto: number,
-  numeroCuotas: number,
-  montoTotal: number,
-  frecuenciaPago: FrecuenciaPago,
-  fechaInicio?: string,
-): TablaAmortizacion {
-  const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
-  const cuotaFija = Math.round(montoTotal / numeroCuotas);
-  const ultimaCuota = Math.round(montoTotal - cuotaFija * (numeroCuotas - 1));
-  const gananciaPorCuota =
-    numeroCuotas > 0
-      ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
-      : 0;
-
-  const startDate = fechaInicio ? new Date(fechaInicio) : new Date();
-  let saldo = monto;
-  let totalIntereses = 0;
-  const cuotas: CuotaPreview[] = [];
-
-  for (let i = 1; i <= numeroCuotas; i++) {
-    const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
-    const interes =
-      i === numeroCuotas
-        ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
-        : gananciaPorCuota;
-    const capital = Math.max(
-      0,
-      Math.round((montoCuota - interes) * 100) / 100,
-    );
-
-    cuotas.push({
-      numero: i,
-      monto: Math.round(montoCuota),
-      capital,
-      interes,
-      fechaVencimiento: siguienteFecha(startDate, frecuenciaPago, i)
-        .toISOString()
-        .split('T')[0],
-      saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
-    });
-
-    totalIntereses += interes;
-    saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
-  }
-
-  return {
-    montoTotal: Math.round(montoTotal * 100) / 100,
-    totalIntereses: Math.round(gananciaTotal * 100) / 100,
-    cuotaInicial: cuotas[0]?.monto ?? 0,
-    tasaPeriodo: 0,
-    cuotas,
-  };
-}
+// Modo rápido (cuotas planas desde montoTotal) también vive ahora en
+// @/utils/amortizacion; re-exportado arriba para no romper imports.
 
 // Modo clásico: cálculo local con tasa de interés (para offline) — movido a
 // @/utils/amortizacion con paridad exacta al backend (redondeos incluidos).
