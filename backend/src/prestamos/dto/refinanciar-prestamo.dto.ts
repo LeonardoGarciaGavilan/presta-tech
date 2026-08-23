@@ -1,5 +1,6 @@
 // src/prestamos/dto/refinanciar-prestamo.dto.ts
 import {
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
@@ -15,10 +16,15 @@ export class RefinanciarPrestamoDto {
   @Min(1)
   nuevasCuotas: number;
 
+  /**
+   * Tasa de interés en % según la frecuencia. Obligatoria en modo normal
+   * (0.1-100). En modo rápido se envía 0 u se omite.
+   */
+  @IsOptional()
   @IsNumber()
-  @Min(0.1)
+  @Min(0)
   @Max(100)
-  nuevaTasa: number;
+  nuevaTasa?: number;
 
   @IsOptional()
   @IsEnum(FrecuenciaPago)
@@ -32,6 +38,23 @@ export class RefinanciarPrestamoDto {
   @IsOptional()
   @IsDateString()
   nuevaFechaPago?: string;
+
+  /**
+   * Modo rápido: cuota fija plana calculada desde montoTotal sobre el saldo
+   * refinanciado (igual que crear/renovar préstamo rápido).
+   */
+  @IsOptional()
+  @IsBoolean()
+  modoRapido?: boolean;
+
+  /**
+   * Total a cobrar en modo rápido. Obligatorio si modoRapido=true; debe
+   * superar el saldo refinanciado (capital + mora pendientes).
+   */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  montoTotal?: number;
 
   @IsOptional()
   @IsString()

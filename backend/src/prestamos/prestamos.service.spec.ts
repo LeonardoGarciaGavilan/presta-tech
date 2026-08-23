@@ -319,7 +319,7 @@ describe('PrestamosService — reglas de refinanciamiento parametrizables', () =
     prestamo: ReturnType<typeof buildPrestamo>,
     config: unknown,
   ) {
-    const { $transaction, getHistorial } = buildRefinanciarMocks();
+    const { tx, $transaction, getHistorial } = buildRefinanciarMocks();
     const findFirst = jest
       .fn()
       .mockResolvedValueOnce(prestamo)
@@ -335,7 +335,7 @@ describe('PrestamosService — reglas de refinanciamiento parametrizables', () =
       configuracion: { findUnique: jest.fn().mockResolvedValue(config) },
       $transaction,
     });
-    return { service, getHistorial };
+    return { service, getHistorial, tx };
   }
 
   it('bloquea cuando cuotasRestantesParaRenovar > cuotas pendientes', async () => {
@@ -415,6 +415,110 @@ describe('PrestamosService — reglas de refinanciamiento parametrizables', () =
       'u1',
     );
     expect(getHistorial()).toHaveLength(1);
+  });
+
+  it('switch maestro apagado → rechaza', async () => {
+    const { service } = buildServiceConConfig(buildPrestamo(4), {
+      permitirRefinanciamiento: false,
+      cuotasRestantesParaRenovar: 0,
+      maxRefinanciamientosPorPrestamo: 0,
+    });
+
+    await expect(
+      service.refinanciar(
+        'p1',
+        { nuevaTasa: 6, nuevasCuotas: 3 },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow(/no está habilitado/);
+  });
+
+  it('sin el campo permitirRefinanciamiento en config (cliente/cache antiguo) → permite', async () => {
+    const { service, getHistorial } = buildServiceConConfig(
+      buildPrestamo(2),
+      { cuotasRestantesParaRenovar: 0, maxRefinanciamientosPorPrestamo: 0 },
+    );
+
+    await service.refinanciar(
+      'p1',
+      { nuevaTasa: 6, nuevasCuotas: 3 },
+      'emp1',
+      'u1',
+    );
+    expect(getHistorial()).toHaveLength(1);
+  });
+
+  it('modo rápido: genera cuotas planas idénticas a crear rápido y guarda modoRapido/montoTotal (tasa 0 permitida)', async () => {
+    // buildPrestamo(4): 4 cuotas pendientes × capital 100 → saldo refinanciado 400
+    const { service, getHistorial, tx } = buildServiceConConfig(
+      buildPrestamo(4),
+      null,
+    );
+
+    await service.refinanciar(
+      'p1',
+      { nuevasCuotas: 10, modoRapido: true, montoTotal: 1200 },
+      'emp1',
+      'u1',
+    );
+
+    const updateData = tx.prestamo.update.mock.calls[0][0].data;
+    expect(updateData.modoRapido).toBe(true);
+    expect(updateData.tasaInteres).toBe(0);
+    expect(updateData.montoTotal).toBe(1200);
+
+    // Cuotas planas de RD$120 (1200/10), última ajustada
+    const cuotas = tx.cuota.createMany.mock.calls[0][0].data;
+    expect(cuotas).toHaveLength(10);
+    for (const c of cuotas) {
+      expect(c.monto).toBe(120);
+    }
+
+    const historial = getHistorial() as any[];
+    expect(historial).toHaveLength(1);
+    expect(historial[0].modoRapido).toBe(true);
+    expect(historial[0].nuevaTasa).toBe(0);
+    expect(historial[0].nuevoMontoTotal).toBe(1200);
+  });
+
+  it('modo rápido sin montoTotal → rechaza con BadRequest', async () => {
+    const { service } = buildServiceConConfig(buildPrestamo(4), null);
+
+    await expect(
+      service.refinanciar(
+        'p1',
+        { nuevasCuotas: 10, modoRapido: true },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow('montoTotal inválido o ausente para modo rápido.');
+  });
+
+  it('modo rápido con montoTotal <= saldo refinanciado → rechaza', async () => {
+    const { service } = buildServiceConConfig(buildPrestamo(4), null);
+
+    await expect(
+      service.refinanciar(
+        'p1',
+        { nuevasCuotas: 10, modoRapido: true, montoTotal: 400 },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow('El total a cobrar debe ser mayor al saldo refinanciado.');
+  });
+
+  it('modo rápido con nuevaTasa > 0 → rechaza (la tasa no aplica en modo rápido)', async () => {
+    const { service } = buildServiceConConfig(buildPrestamo(4), null);
+
+    await expect(
+      service.refinanciar(
+        'p1',
+        { nuevaTasa: 5, nuevasCuotas: 10, modoRapido: true, montoTotal: 1200 },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow('nuevaTasa no aplica en modo rápido');
   });
 });
 
@@ -1147,7 +1251,9 @@ describe('PrestamosService — renovar (renovación de préstamos)', () => {
     for (const c of cuotas) {
       expect(c.monto).toBe(120);
     }
-    expect(cuotas.reduce((s: number, c: { capital: number }) => s + c.capital, 0)).toBeCloseTo(1000, 2);
+    expect(
+      cuotas.reduce((s: number, c: { capital: number }) => s + c.capital, 0),
+    ).toBeCloseTo(1000, 2);
 
     // Snapshot de auditoría refleja el plan rápido
     expect(createData.historialRenovacion[0].nuevaCuota).toBe(120);
@@ -1162,9 +1268,9 @@ describe('PrestamosService — renovar (renovación de préstamos)', () => {
       numeroCuotas: 10,
       modoRapido: true,
     };
-    await expect(service.renovar('p1', dtoSinTotal, 'emp1', 'u1')).rejects.toThrow(
-      'montoTotal inválido o ausente para modo rápido.',
-    );
+    await expect(
+      service.renovar('p1', dtoSinTotal, 'emp1', 'u1'),
+    ).rejects.toThrow('montoTotal inválido o ausente para modo rápido.');
   });
 
   it('modo rápido con montoTotal <= montoNuevo → rechaza (total a cobrar debe superar el monto)', async () => {

@@ -1543,6 +1543,7 @@ export class PrestamosService {
     let config: {
       cuotasRestantesParaRenovar?: number;
       maxRefinanciamientosPorPrestamo?: number;
+      permitirRefinanciamiento?: boolean;
     } | null = null;
     try {
       if (this.cacheManager) {
@@ -1555,6 +1556,12 @@ export class PrestamosService {
       config = await this.prisma.configuracion.findUnique({
         where: { empresaId },
       });
+    }
+
+    if (!(config?.permitirRefinanciamiento ?? true)) {
+      throw new BadRequestException(
+        'El refinanciamiento de préstamos no está habilitado para tu empresa.',
+      );
     }
 
     const maxCuotasRestantes = config?.cuotasRestantesParaRenovar ?? 0;
@@ -1601,13 +1608,61 @@ export class PrestamosService {
       fechaBase = new Date();
     }
 
-    const nuevaAmortizacion = this.calcularAmortizacion(
-      saldoRefinanciar,
-      dto.nuevaTasa / 100,
-      dto.nuevasCuotas,
-      frecuenciaFinal,
-      fechaBase,
-    );
+    // Modo rápido: cuotas planas desde montoTotal sobre el saldo refinanciado
+    // (misma matemática que crear/renovar rápido). Modo normal: tasa obligatoria.
+    const esModoRapido = dto.modoRapido === true;
+    let tasaFinal: number;
+    let nuevaAmortizacion: ResumenAmortizacion;
+    if (esModoRapido) {
+      if ((dto.nuevaTasa ?? 0) > 0) {
+        throw new BadRequestException(
+          'nuevaTasa no aplica en modo rápido: la ganancia se define por el total a cobrar.',
+        );
+      }
+      if (
+        dto.montoTotal == null ||
+        typeof dto.montoTotal !== 'number' ||
+        !isFinite(dto.montoTotal) ||
+        dto.montoTotal <= 0
+      ) {
+        throw new BadRequestException(
+          'montoTotal inválido o ausente para modo rápido.',
+        );
+      }
+      if (dto.montoTotal <= saldoRefinanciar) {
+        throw new BadRequestException(
+          'El total a cobrar debe ser mayor al saldo refinanciado.',
+        );
+      }
+      tasaFinal = 0;
+      nuevaAmortizacion = this.calcularAmortizacionRapida(
+        saldoRefinanciar,
+        dto.nuevasCuotas,
+        dto.montoTotal,
+        frecuenciaFinal,
+        fechaBase,
+      );
+    } else {
+      if (
+        dto.nuevaTasa == null ||
+        typeof dto.nuevaTasa !== 'number' ||
+        !isFinite(dto.nuevaTasa) ||
+        dto.nuevaTasa < 0.1 ||
+        dto.nuevaTasa > 100
+      ) {
+        throw new BadRequestException(
+          'La nueva tasa de interés es obligatoria y debe estar entre 0.1% y 100%.',
+        );
+      }
+      tasaFinal = dto.nuevaTasa;
+      nuevaAmortizacion = this.calcularAmortizacion(
+        saldoRefinanciar,
+        tasaFinal / 100,
+        dto.nuevasCuotas,
+        frecuenciaFinal,
+        fechaBase,
+      );
+    }
 
     const nuevaFechaVencimiento = this.siguienteFecha(
       fechaBase,
@@ -1619,7 +1674,7 @@ export class PrestamosService {
     const cambios: TipoAlerta[] = ['REFINANCIAMIENTO'];
     if (dto.nuevaFrecuencia && dto.nuevaFrecuencia !== prestamo.frecuenciaPago)
       cambios.push('CAMBIO_FRECUENCIA');
-    if (dto.nuevaTasa !== prestamo.tasaInteres) cambios.push('CAMBIO_TASA');
+    if (tasaFinal !== prestamo.tasaInteres) cambios.push('CAMBIO_TASA');
     if (dto.nuevasCuotas !== cuotasPendientes.length)
       cambios.push('CAMBIO_CUOTAS');
     if (dto.nuevaFechaPago) cambios.push('CAMBIO_FECHA_PAGO');
@@ -1652,7 +1707,8 @@ export class PrestamosService {
       tasaAntes: prestamo.tasaInteres,
       frecuenciaAntes: prestamo.frecuenciaPago,
       nuevasCuotas: dto.nuevasCuotas,
-      nuevaTasa: dto.nuevaTasa,
+      nuevaTasa: tasaFinal,
+      modoRapido: esModoRapido,
       nuevaFrecuencia: frecuenciaFinal,
       nuevaFechaPago: dto.nuevaFechaPago ?? null,
       saldoRefinanciado: saldoRefinanciar,
@@ -1684,10 +1740,12 @@ export class PrestamosService {
       return tx.prestamo.update({
         where: { id },
         data: {
-          tasaInteres: dto.nuevaTasa,
+          tasaInteres: tasaFinal,
           frecuenciaPago: frecuenciaFinal,
           numeroCuotas: ultimoNumeroPagado + dto.nuevasCuotas,
           cuotaMensual: nuevaAmortizacion.cuotaInicial,
+          montoTotal: nuevaAmortizacion.montoTotal,
+          modoRapido: esModoRapido,
           fechaVencimiento: nuevaFechaVencimiento,
           estado: EstadoPrestamo.ACTIVO,
           moraAcumulada: 0,
@@ -1744,11 +1802,11 @@ export class PrestamosService {
           };
           break;
         case 'CAMBIO_TASA':
-          descripcion = `Tasa de interés modificada: ${prestamo.tasaInteres}% → ${dto.nuevaTasa}%`;
+          descripcion = `Tasa de interés modificada: ${prestamo.tasaInteres}% → ${tasaFinal}%`;
           detalle = {
             ...detalle,
             tasaAnterior: prestamo.tasaInteres,
-            tasaNueva: dto.nuevaTasa,
+            tasaNueva: tasaFinal,
           };
           break;
         case 'CAMBIO_CUOTAS':
@@ -1796,7 +1854,7 @@ export class PrestamosService {
       },
       datosNuevos: {
         estado: prestamoActualizado.estado,
-        tasaInteres: dto.nuevaTasa,
+        tasaInteres: tasaFinal,
         nuevasCuotas: dto.nuevasCuotas,
         frecuenciaPago: frecuenciaFinal,
       },

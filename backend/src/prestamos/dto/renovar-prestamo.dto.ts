@@ -25,6 +25,7 @@ export class RenovarPrestamoDto {
 
   @IsNumber()
   @Min(1)
+  @Max(3650)
   numeroCuotas: number;
 
   @IsOptional()

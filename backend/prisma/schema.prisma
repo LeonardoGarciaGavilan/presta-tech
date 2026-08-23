@@ -251,6 +251,7 @@ model Configuracion {
   maxRefinanciamientosPorPrestamo Int    @default(0)
   maxPrestamosActivosPorCliente Int      @default(0)
   permitirRenovacion            Boolean  @default(false)
+  permitirRefinanciamiento      Boolean  @default(true)
   maxCuotasRestantesParaRenovacion Int   @default(0)
   incluirInteresEnRenovacion    Boolean  @default(true)
   porcentajeMaximoSaldoAplicado Int      @default(100)

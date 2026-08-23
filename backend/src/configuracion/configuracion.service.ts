@@ -45,6 +45,7 @@ export class ConfiguracionService {
           cuotasRestantesParaRenovar: config.cuotasRestantesParaRenovar ?? 0,
           maxRefinanciamientosPorPrestamo:
             config.maxRefinanciamientosPorPrestamo ?? 0,
+          permitirRefinanciamiento: config.permitirRefinanciamiento ?? true,
           maxPrestamosActivosPorCliente:
             config.maxPrestamosActivosPorCliente ?? 0,
           permitirRenovacion: config.permitirRenovacion ?? false,
@@ -65,6 +66,7 @@ export class ConfiguracionService {
           montoMaximoPago: null,
           cuotasRestantesParaRenovar: 0,
           maxRefinanciamientosPorPrestamo: 0,
+          permitirRefinanciamiento: true,
           maxPrestamosActivosPorCliente: 0,
           permitirRenovacion: false,
           maxCuotasRestantesParaRenovacion: 0,
@@ -108,6 +110,8 @@ export class ConfiguracionService {
             configAnterior.cuotasRestantesParaRenovar ?? 0,
           maxRefinanciamientosPorPrestamo:
             configAnterior.maxRefinanciamientosPorPrestamo ?? 0,
+          permitirRefinanciamiento:
+            configAnterior.permitirRefinanciamiento ?? true,
           maxPrestamosActivosPorCliente:
             configAnterior.maxPrestamosActivosPorCliente ?? 0,
           permitirRenovacion: configAnterior.permitirRenovacion ?? false,
@@ -135,6 +139,7 @@ export class ConfiguracionService {
       // save desde una UI vieja no resetea las reglas ya configuradas.
       cuotasRestantesParaRenovar: dto.cuotasRestantesParaRenovar,
       maxRefinanciamientosPorPrestamo: dto.maxRefinanciamientosPorPrestamo,
+      permitirRefinanciamiento: dto.permitirRefinanciamiento,
       maxPrestamosActivosPorCliente: dto.maxPrestamosActivosPorCliente,
       permitirRenovacion: dto.permitirRenovacion,
       maxCuotasRestantesParaRenovacion: dto.maxCuotasRestantesParaRenovacion,

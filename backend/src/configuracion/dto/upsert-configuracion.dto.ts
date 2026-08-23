@@ -50,6 +50,11 @@ export class UpsertConfiguracionDto {
   @Max(20)
   maxRefinanciamientosPorPrestamo?: number;
 
+  /** Switch maestro de refinanciamiento de préstamos. Default: activado. */
+  @IsOptional()
+  @IsBoolean()
+  permitirRefinanciamiento?: boolean;
+
   /**
    * Máximo de préstamos simultáneos por cliente contando solo ACTIVO y ATRASADO.
    * 0 = sin límite.
