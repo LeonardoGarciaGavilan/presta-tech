@@ -13,6 +13,7 @@ interface ActionConfirmModalProps {
   icon: string;
   colorAccion: string;
   pedirMotivo: boolean;
+  motivoLabel?: string;
   prestamo?: { monto: number; numeroCuotas?: number; frecuenciaPago?: string } | null;
   cliente?: { nombre: string; apellido?: string | null } | null;
   loading?: boolean;
@@ -27,6 +28,7 @@ export default function ActionConfirmModal({
   icon,
   colorAccion,
   pedirMotivo,
+  motivoLabel = 'Motivo del rechazo',
   prestamo,
   cliente,
   loading,
@@ -95,7 +97,7 @@ export default function ActionConfirmModal({
               {pedirMotivo && (
                 <>
                   <Text style={[styles.motivoLabel, { color: colors.text }]}>
-                    Motivo del rechazo <Text style={{ color: colors.error }}>*</Text>
+                    {motivoLabel} <Text style={{ color: colors.error }}>*</Text>
                   </Text>
                   <TextInput
                     value={motivo}

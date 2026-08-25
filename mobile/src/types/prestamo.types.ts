@@ -197,6 +197,8 @@ export interface Prestamo {
   /** Snapshot de la liquidación aplicada al renovar (saldo, cuotas viejas). */
   historialRenovacion?: any | null;
   motivoRechazo: string | null;
+  /** Motivo guardado al cancelar (solo estados CANCELADO). */
+  motivoCancelacion?: string | null;
   solicitadoPor: string | null;
   aprobadoPor: string | null;
   fechaAprobacion: string | null;

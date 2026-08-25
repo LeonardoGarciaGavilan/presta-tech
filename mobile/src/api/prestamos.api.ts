@@ -41,8 +41,10 @@ export async function actualizar(
   return response.data;
 }
 
-export async function cancelar(id: string): Promise<Prestamo> {
-  const response = await client.patch<Prestamo>(`${ENDPOINT}/${id}/cancelar`);
+export async function cancelar(id: string, motivo: string): Promise<Prestamo> {
+  const response = await client.patch<Prestamo>(`${ENDPOINT}/${id}/cancelar`, {
+    motivo,
+  });
   return response.data;
 }
 

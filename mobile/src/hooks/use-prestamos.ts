@@ -220,16 +220,17 @@ export function useCancelarPrestamo() {
   const queryClient = useQueryClient();
   const { network, addToOfflineQueue } = useNetworkContext();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, motivo }: { id: string; motivo: string }) => {
       if (!network.isOnline) {
         await addToOfflineQueue({
           endpoint: `/prestamos/${id}/cancelar`,
           method: "PATCH",
-          data: {},
+          data: { motivo },
           queryKeys: [["prestamos", id], ["prestamos"]],
           tempId: `cancelar_prestamo_temp_${Date.now()}`,
           tempDisplay: {
             prestamoId: id,
+            motivo,
             clienteNombre: clienteNombreDePrestamo(id),
           },
         });
@@ -242,9 +243,9 @@ export function useCancelarPrestamo() {
         );
         return { id, estado: "CANCELADO", esOffline: true } as OfflineResult;
       }
-      return cancelar(id);
+      return cancelar(id, motivo);
     },
-    onSuccess: (_data, id) => {
+    onSuccess: (_data, { id }) => {
       if (_data && !(_data as OfflineResult).esOffline) {
         queryClient.setQueryData(["prestamos", id], _data);
       }

@@ -22,7 +22,6 @@ import { usePagosPendientesPrestamo } from "@/hooks/use-offline-queue";
 import { useConfiguracion } from "@/hooks/use-configuracion";
 import { AppButton } from "@/components/ui/app-button";
 import ActionConfirmModal from "@/components/ui/action-confirm-modal";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
 import EmptyState from "@/components/ui/empty-state";
 import LoadingScreen from "@/components/ui/loading-screen";
 import { SkeletonCard, SkeletonKPIGrid } from "@/components/ui/skeleton";
@@ -291,9 +290,13 @@ export default function PrestamoDetalleScreen() {
     cuotas.length > 0
       ? Math.round((cuotasPagadas.length / cuotas.length) * 100)
       : 0;
+  // Whitelist alineada con TRANSICIONES del backend: solo se puede cancelar
+  // un préstamos con dinero ya desembolsado (ACTIVO/ATRASADO). Para descartar
+  // solicitudes pre-desembolso existe Rechazar; PAGADO/RECHAZADO/RENOVADO/
+  // CANCELADO son terminales y no muestran acciones.
   const puedeCancelar =
     prestamo &&
-    !["PAGADO", "CANCELADO"].includes(prestamo.estado) &&
+    ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&
     tienePermiso("prestamos:cancelar");
   // El switch maestro de refinanciamiento oculta el botón (decisión
   // empresa-wide); las reglas paramétricas se explican dentro del modal.
@@ -344,18 +347,21 @@ export default function PrestamoDetalleScreen() {
     },
   ];
 
-  const handleCancelar = useCallback(async () => {
-    if (!prestamo) return;
-    try {
-      await cancelarMutation(prestamo.id);
-      setShowCancelarConfirm(false);
-      showToast("Préstamo cancelado exitosamente", "success");
-      refetch();
-    } catch (err) {
-      const { message } = err as ApiError;
-      showToast(message || "Error al cancelar el préstamo", "error");
-    }
-  }, [prestamo, cancelarMutation, showToast, refetch]);
+  const handleCancelar = useCallback(
+    async (motivo?: string) => {
+      if (!prestamo) return;
+      try {
+        await cancelarMutation({ id: prestamo.id, motivo: motivo ?? "" });
+        setShowCancelarConfirm(false);
+        showToast("Préstamo cancelado exitosamente", "success");
+        refetch();
+      } catch (err) {
+        const { message } = err as ApiError;
+        showToast(message || "Error al cancelar el préstamo", "error");
+      }
+    },
+    [prestamo, cancelarMutation, showToast, refetch],
+  );
 
   const handleDesembolsar = useCallback(async () => {
     if (!prestamo) return;
@@ -432,6 +438,7 @@ export default function PrestamoDetalleScreen() {
   const cliente = prestamo.cliente;
   const estadoCfg = ESTADO_CONFIG[prestamo.estado] || ESTADO_CONFIG.ACTIVO;
   const flowCfg = flowAccion ? FLOW_ACCION_CONFIG[flowAccion.accion] : null;
+  const cancelarCfg = FLOW_ACCION_CONFIG["CANCELADO"];
 
   return (
     <ScreenContainer
@@ -1337,13 +1344,29 @@ export default function PrestamoDetalleScreen() {
         frecuenciaPago={prestamo.frecuenciaPago}
       />
 
-      {/* Confirmar Cancelación */}
-      <ConfirmDialog
+      {/* Confirmar Cancelación (con motivo obligatorio) */}
+      <ActionConfirmModal
         visible={showCancelarConfirm}
-        title="Cancelar Préstamo"
-        message="¿Estás seguro de cancelar este préstamo? Esta acción no se puede deshacer."
-        confirmLabel="Cancelar préstamo"
-        destructive
+        titulo={cancelarCfg.titulo}
+        desc={cancelarCfg.desc}
+        icon={cancelarCfg.icon}
+        colorAccion={colors.error}
+        pedirMotivo={true}
+        motivoLabel="Motivo de la cancelación"
+        prestamo={
+          prestamo
+            ? {
+                monto: prestamo.monto,
+                numeroCuotas: prestamo.numeroCuotas,
+                frecuenciaPago: prestamo.frecuenciaPago,
+              }
+            : null
+        }
+        cliente={
+          cliente
+            ? { nombre: cliente.nombre, apellido: cliente.apellido }
+            : null
+        }
         loading={isCancelando}
         onConfirm={handleCancelar}
         onCancel={() => setShowCancelarConfirm(false)}

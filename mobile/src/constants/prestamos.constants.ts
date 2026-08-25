@@ -14,4 +14,5 @@ export const ACCIONES_FLOW_CONFIG: Record<string, { titulo: string; desc: string
   EN_REVISION: { titulo: 'Poner en Revisión', desc: 'El préstamo pasará a estado EN REVISIÓN.', icon: 'search-outline', color: '#6D28D9', pedirMotivo: false },
   APROBADO: { titulo: 'Aprobar Préstamo', desc: 'El préstamo quedará APROBADO y pendiente de desembolso.', icon: 'checkmark-circle-outline', color: '#047857', pedirMotivo: false },
   RECHAZADO: { titulo: 'Rechazar Préstamo', desc: 'El préstamo será RECHAZADO. Esta acción no se puede deshacer.', icon: 'close-circle-outline', color: '#B91C1C', pedirMotivo: true },
+  CANCELADO: { titulo: 'Cancelar Préstamo', desc: 'El préstamo quedará CANCELADO y dejará de cobrarse. Debes indicar el motivo. Esta acción no se puede deshacer.', icon: 'ban-outline', color: '#B91C1C', pedirMotivo: true },
 };

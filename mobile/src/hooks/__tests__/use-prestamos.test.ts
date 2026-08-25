@@ -268,15 +268,22 @@ describe('Guards esOffline en onSuccess (1.4)', () => {
     });
   });
 
-  it('useCancelarPrestamo: respuesta offline no pisa el cache con datos parciales', async () => {
+  it('useCancelarPrestamo: respuesta offline no pisa el cache con datos parciales y encola el motivo', async () => {
     offlineNetwork();
     const { queryClient, Wrapper } = wrapperConCache();
 
     const { result } = await renderHook(() => useCancelarPrestamo(), { wrapper: Wrapper });
-    result.current.mutate('1');
+    result.current.mutate({ id: '1', motivo: 'Cliente se mudó' });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(mockCancelar).not.toHaveBeenCalled();
+    expect(mockAddToOfflineQueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpoint: '/prestamos/1/cancelar',
+        method: 'PATCH',
+        data: { motivo: 'Cliente se mudó' },
+      }),
+    );
     expect(queryClient.getQueryData(['prestamos', '1'])).toEqual({
       ...cachePrestamo,
       estado: 'CANCELADO',
