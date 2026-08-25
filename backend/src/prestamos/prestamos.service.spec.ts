@@ -1287,3 +1287,122 @@ describe('PrestamosService — renovar (renovación de préstamos)', () => {
     ).rejects.toThrow('El total a cobrar debe ser mayor al monto prestado.');
   });
 });
+
+describe('PrestamosService — cancelar (máquina de estados + motivo obligatorio)', () => {
+  function buildCancelarMocks(estado: string) {
+    const prestamo = {
+      id: 'p1',
+      empresaId: 'emp1',
+      monto: 5000,
+      estado,
+    };
+    const actualizado = {
+      ...prestamo,
+      estado: 'CANCELADO',
+      cliente: { nombre: 'Ana', apellido: 'R' },
+    };
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      prestamo: {
+        findFirst: jest.fn().mockResolvedValue(prestamo),
+        update: jest.fn().mockResolvedValue(actualizado),
+      },
+    };
+    const $transaction = jest
+      .fn()
+      .mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
+    const { service, prisma } = buildService({
+      prestamo: { findFirst: jest.fn().mockResolvedValue(prestamo) },
+      $transaction,
+    });
+    return { service, prisma, tx };
+  }
+
+  it('rechaza si no se envía motivo (obligatorio)', async () => {
+    const { service, tx } = buildCancelarMocks('ACTIVO');
+
+    await expect(
+      service.cancelar('p1', 'emp1', 'u1'),
+    ).rejects.toThrow('El motivo de la cancelación es obligatorio');
+    expect(tx.prestamo.update).not.toHaveBeenCalled();
+  });
+
+  it('rechaza si el motivo viene solo en espacios en blanco', async () => {
+    const { service, tx } = buildCancelarMocks('ACTIVO');
+
+    await expect(
+      service.cancelar('p1', 'emp1', 'u1', '   '),
+    ).rejects.toThrow('El motivo de la cancelación es obligatorio');
+    expect(tx.prestamo.update).not.toHaveBeenCalled();
+  });
+
+  it('ACTIVO → CANCELADO: permitido, guarda motivoCancelacion recortado y usa lock FOR UPDATE', async () => {
+    const { service, tx } = buildCancelarMocks('ACTIVO');
+
+    const res = await service.cancelar('p1', 'emp1', 'u1', '  Cliente se mudó  ');
+
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(res.estado).toBe('CANCELADO');
+    expect(tx.prestamo.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          estado: 'CANCELADO',
+          motivoCancelacion: 'Cliente se mudó',
+        }),
+      }),
+    );
+  });
+
+  it('ATRASADO → CANCELADO: permitido', async () => {
+    const { service, tx } = buildCancelarMocks('ATRASADO');
+
+    const res = await service.cancelar('p1', 'emp1', 'u1', 'Incobrable');
+
+    expect(res.estado).toBe('CANCELADO');
+    expect(tx.prestamo.update).toHaveBeenCalled();
+  });
+
+  it.each([
+    'SOLICITADO',
+    'EN_REVISION',
+    'APROBADO',
+    'RECHAZADO',
+    'PAGADO',
+    'RENOVADO',
+    'CANCELADO',
+  ])('%s → CANCELADO: rechazado por máquina de estados sin tocar BD', async (estado) => {
+    const { service, tx } = buildCancelarMocks(estado);
+
+    await expect(
+      service.cancelar('p1', 'emp1', 'u1', 'motivo válido'),
+    ).rejects.toThrow(
+      `No se puede cancelar un préstamo en estado ${estado}`,
+    );
+    expect(tx.prestamo.update).not.toHaveBeenCalled();
+  });
+
+  it('race condition: lectura inicial ACTIVO pero bajo lock ya está PAGADO → rechaza sin actualizar', async () => {
+    const inicial = { id: 'p1', empresaId: 'emp1', monto: 1000, estado: 'ACTIVO' };
+    const bajoLock = { ...inicial, estado: 'PAGADO' };
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      prestamo: {
+        findFirst: jest.fn().mockResolvedValue(bajoLock),
+        update: jest.fn(),
+      },
+    };
+    const $transaction = jest
+      .fn()
+      .mockImplementation((cb: (tx: unknown) => unknown) => cb(tx));
+    const { service } = buildService({
+      prestamo: { findFirst: jest.fn().mockResolvedValue(inicial) },
+      $transaction,
+    });
+
+    await expect(
+      service.cancelar('p1', 'emp1', 'u1', 'motivo válido'),
+    ).rejects.toThrow(/No se puede cancelar un préstamo en estado PAGADO/);
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.prestamo.update).not.toHaveBeenCalled();
+  });
+});

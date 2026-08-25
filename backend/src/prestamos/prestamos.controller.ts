@@ -196,11 +196,17 @@ export class PrestamosController {
   @Idempotent()
   cancelar(
     @Param('id') id: string,
+    @Body() body: { motivo?: string },
     @Tenant() empresaId: string,
     @CurrentUser() user: any,
   ) {
     const usuarioId = user.sub ?? user.userId ?? user.id;
-    return this.prestamosService.cancelar(id, empresaId, usuarioId);
+    if (!body?.motivo?.trim()) {
+      throw new BadRequestException(
+        'El motivo de la cancelación es obligatorio',
+      );
+    }
+    return this.prestamosService.cancelar(id, empresaId, usuarioId, body.motivo);
   }
 
   @Patch(':id/estado')

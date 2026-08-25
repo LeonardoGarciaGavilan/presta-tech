@@ -1175,7 +1175,19 @@ export class PrestamosService {
     };
   }
 
-  async cancelar(id: string, empresaId: string, usuarioId?: string) {
+  async cancelar(
+    id: string,
+    empresaId: string,
+    usuarioId?: string,
+    motivo?: string,
+  ) {
+    const motivoLimpio = motivo?.trim();
+    if (!motivoLimpio) {
+      throw new BadRequestException(
+        'El motivo de la cancelación es obligatorio',
+      );
+    }
+
     const prestamo = await TenantUtils.findByIdOrThrow(
       this.prisma,
       'prestamo',
@@ -1184,39 +1196,61 @@ export class PrestamosService {
       'Préstamo',
     );
 
-    if (prestamo.estado === EstadoPrestamo.PAGADO)
-      throw new BadRequestException(
-        'No se puede cancelar un préstamo ya pagado',
-      );
-    if (prestamo.estado === EstadoPrestamo.CANCELADO)
-      throw new BadRequestException('El préstamo ya está cancelado');
+    const updated = await this.prisma.$transaction(async (tx) => {
+      // Lock serializa cancelaciones/pagos/renovaciones concurrentes
+      await tx.$queryRaw`SELECT id FROM "Prestamo" WHERE id = ${id} FOR UPDATE`;
 
-    const updated = await this.prisma.prestamo.update({
-      where: { id },
-      data: { estado: EstadoPrestamo.CANCELADO },
-      include: {
-        cliente: {
-          select: {
-            id: true,
-            nombre: true,
-            apellido: true,
-            cedula: true,
-            telefono: true,
-            celular: true,
+      // Revalidar bajo lock (fuente de verdad): la lectura pre-tx puede estar
+      // obsoleta (ej. llegó un pago que marcó PAGADO entre tanto).
+      const locked = await tx.prestamo.findFirst({
+        where: { id, empresaId },
+        include: { cliente: { select: { nombre: true, apellido: true } } },
+      });
+      if (!locked) throw new NotFoundException(`Préstamo ${id} no encontrado`);
+
+      // Única fuente de verdad: la misma máquina de estados que cambiarEstado()
+      const estadoActual = locked.estado as string;
+      const permitidos = this.TRANSICIONES[estadoActual] ?? [];
+      if (!permitidos.includes('CANCELADO')) {
+        throw new BadRequestException(
+          `No se puede cancelar un préstamo en estado ${estadoActual}. Transiciones permitidas: ${permitidos.join(', ') || 'ninguna'}`,
+        );
+      }
+
+      return tx.prestamo.update({
+        where: { id },
+        data: {
+          estado: EstadoPrestamo.CANCELADO,
+          motivoCancelacion: motivoLimpio,
+        },
+        include: {
+          cliente: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              cedula: true,
+              telefono: true,
+              celular: true,
+            },
           },
         },
-      },
+      });
     });
 
     const clienteNombre =
-      `${prestamo.cliente?.nombre ?? ''} ${prestamo.cliente?.apellido ?? ''}`.trim();
+      `${updated.cliente?.nombre ?? ''} ${updated.cliente?.apellido ?? ''}`.trim();
     await this.crearAlerta({
       empresaId,
       prestamoId: id,
       clienteNombre,
       tipo: 'CANCELACION',
       descripcion: `Préstamo de ${clienteNombre} fue cancelado`,
-      detalle: { estadoAnterior: prestamo.estado, monto: prestamo.monto },
+      detalle: {
+        estadoAnterior: prestamo.estado,
+        monto: prestamo.monto,
+        motivo: motivoLimpio,
+      },
       usuarioId: usuarioId ?? 'sistema',
     });
 
@@ -1230,7 +1264,7 @@ export class PrestamosService {
       referenciaId: id,
       referenciaTipo: 'Prestamo',
       datosAnteriores: { estado: prestamo.estado },
-      datosNuevos: { estado: 'CANCELADO' },
+      datosNuevos: { estado: 'CANCELADO', motivo: motivoLimpio },
     });
 
     // Invalidar cache después de cancelar

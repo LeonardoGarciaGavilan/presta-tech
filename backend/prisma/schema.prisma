@@ -158,6 +158,7 @@ model Prestamo {
   cadenaRenovaciones        Int             @default(0)
   historialRenovacion       Json?
   motivoRechazo             String?
+  motivoCancelacion         String?
   solicitadoPor             String?
   aprobadoPor               String?
   fechaAprobacion           DateTime?
