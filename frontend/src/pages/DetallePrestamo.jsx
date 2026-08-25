@@ -109,6 +109,62 @@ const ModalDesembolsar = ({ prestamo, efectivoCaja, confirmacionTexto, setConfir
   );
 };
 
+// ─── Modal cancelar préstamo ─────────────────────────────────────────────────
+const ModalCancelar = ({ prestamo, motivo, setMotivo, onConfirm, onClose, loading }) => {
+  const puedeConfirmar = !!motivo?.trim();
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="bg-gradient-to-r from-red-500 to-red-700 px-5 py-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg">🚫</div>
+            <div>
+              <h3 className="font-bold text-base">Cancelar Préstamo</h3>
+              <p className="text-xs opacity-80">{prestamo.cliente?.nombre} {prestamo.cliente?.apellido}</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-sm space-y-1.5">
+            <div className="flex justify-between"><span className="text-gray-500">Monto</span><span className="font-bold">{formatCurrency(prestamo.monto)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Cuotas pendientes</span><span className="font-semibold">{prestamo.cuotas?.filter(c => !c.pagada).length ?? "—"}</span></div>
+          </div>
+
+          <p className="text-sm text-gray-600">
+            El préstamo quedará <strong>CANCELADO</strong> y dejará de cobrarse. Esta acción <strong>no se puede deshacer</strong>.
+          </p>
+
+          {/* Motivo obligatorio */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Motivo de la cancelación <span className="text-red-500">*</span></label>
+            <textarea
+              value={motivo || ""}
+              onChange={e => setMotivo(e.target.value)}
+              placeholder="Indica el motivo..."
+              rows={3}
+              maxLength={500}
+              className="w-full border border-gray-200 bg-gray-50 px-3 py-2 rounded-lg text-sm transition focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white focus:border-transparent placeholder:text-gray-400 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} disabled={loading}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+              Volver
+            </button>
+            <button onClick={onConfirm} disabled={loading || !puedeConfirmar}
+              className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-sm active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2">
+              {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+              {loading ? "Cancelando…" : "Confirmar cancelación"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Badge estado cuota ───────────────────────────────────────────────────────
 const CuotaBadge = ({ pagada, vencida }) => {
   if (pagada)  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />Pagada</span>;
@@ -138,6 +194,8 @@ export default function DetallePrestamo() {
   const [filtroCuotas,       setFiltroCuotas]       = useState("todas");
   const [pagoParaReimprimir, setPagoParaReimprimir] = useState(null);
   const [refinanciarOpen,    setRefinanciarOpen]    = useState(false);
+  const [modalCancelar,      setModalCancelar]      = useState(false);
+  const [motivoCancelacion,  setMotivoCancelacion]  = useState("");
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
@@ -156,14 +214,16 @@ export default function DetallePrestamo() {
   useEffect(() => { fetchPrestamo(); }, [id]);
 
   const handleCancelar = async () => {
-    if (!window.confirm("¿Estás seguro de cancelar este préstamo? Esta acción no se puede deshacer.")) return;
+    if (!motivoCancelacion.trim()) return;
     setCancelando(true);
     try {
-      await api.patch(`/prestamos/${id}/cancelar`);
+      await api.patch(`/prestamos/${id}/cancelar`, { motivo: motivoCancelacion.trim() });
       showToast("Préstamo cancelado");
+      setModalCancelar(false);
+      setMotivoCancelacion("");
       fetchPrestamo();
-    } catch {
-      showToast("Error al cancelar el préstamo", "error");
+    } catch (err) {
+      showToast(err.response?.data?.message ?? "Error al cancelar el préstamo", "error");
     } finally {
       setCancelando(false);
     }
@@ -202,7 +262,11 @@ export default function DetallePrestamo() {
   const cuotasVencidas   = cuotasPendientes.filter((c) => new Date(c.fechaVencimiento) < new Date());
   const proximaCuota     = [...cuotasPendientes].sort((a, b) => new Date(a.fechaVencimiento) - new Date(b.fechaVencimiento))[0];
   const progresoPorc     = cuotas.length > 0 ? Math.round((cuotasPagadas.length / cuotas.length) * 100) : 0;
-  const puedeCancelar    = !["PAGADO", "CANCELADO"].includes(prestamo.estado) && puedeCancelarPermiso;
+  // Whitelist alineada con TRANSICIONES del backend: cancelar solo aplica a
+  // préstamos con dinero ya desembolsado. Para descartar solicitudes
+  // pre-desembolso se usa Rechazar; PAGADO/RECHAZADO/RENOVADO/CANCELADO son
+  // terminales y no muestran acciones.
+  const puedeCancelar = ["ACTIVO", "ATRASADO"].includes(prestamo.estado) && puedeCancelarPermiso;
   const puedeRefinanciar = ["ACTIVO", "ATRASADO"].includes(prestamo.estado) && puedeRefinanciarPermiso;
   // Puede desembolsar: quien tiene permiso O el usuario que solicitó el préstamo
   const puedeDesembolsar = prestamo.estado === "APROBADO" && (puedeDesembolsarPermiso || prestamo.solicitadoPor === userId);
@@ -242,6 +306,17 @@ export default function DetallePrestamo() {
           onConfirm={handleDesembolsar}
           onClose={() => { setModalDesembolso(false); setConfirmacionDesembolso(""); }}
           loading={desembolsando}
+        />
+      )}
+
+      {modalCancelar && prestamo && (
+        <ModalCancelar
+          prestamo={prestamo}
+          motivo={motivoCancelacion}
+          setMotivo={setMotivoCancelacion}
+          onConfirm={handleCancelar}
+          onClose={() => setModalCancelar(false)}
+          loading={cancelando}
         />
       )}
 
@@ -301,7 +376,7 @@ export default function DetallePrestamo() {
             )}
 
             {puedeCancelar && (
-              <button onClick={handleCancelar} disabled={cancelando}
+              <button onClick={() => { setMotivoCancelacion(""); setModalCancelar(true); }} disabled={cancelando}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
