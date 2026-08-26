@@ -328,6 +328,9 @@ const DetalleEmpresa = ({ empresaId, onVolver }) => {
         maxMontoPorPrestamo: l.maxMontoPorPrestamo ?? "",
         venceEn: l.venceEn ? String(l.venceEn).slice(0, 10) : "",
         modulosDeshabilitados: [...(l.modulosDeshabilitados ?? [])],
+        accionesPrestamoCancelacion: l.accionesPrestamoCancelacion ?? true,
+        accionesPrestamoRefinanciamiento: l.accionesPrestamoRefinanciamiento ?? true,
+        accionesPrestamoRenovacion: l.accionesPrestamoRenovacion ?? true,
       });
     } catch {
       setToast({ type: "error", message: "Error al cargar los límites" });
@@ -366,6 +369,9 @@ const DetalleEmpresa = ({ empresaId, onVolver }) => {
         maxMontoPorPrestamo: toNum(form.maxMontoPorPrestamo),
         venceEn: form.venceEn || null,
         modulosDeshabilitados: form.modulosDeshabilitados,
+        accionesPrestamoCancelacion: form.accionesPrestamoCancelacion,
+        accionesPrestamoRefinanciamiento: form.accionesPrestamoRefinanciamiento,
+        accionesPrestamoRenovacion: form.accionesPrestamoRenovacion,
       });
       setToast({ type: "success", message: "Límites actualizados correctamente" });
       cargar();
@@ -458,6 +464,37 @@ const DetalleEmpresa = ({ empresaId, onVolver }) => {
                 <span className="truncate">{m}</span>
                 <span className={`relative w-7 h-4 rounded-full transition-colors ${deshabilitado ? "bg-red-500/50" : "bg-emerald-500/50"}`}>
                   <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${deshabilitado ? "left-0.5" : "left-3.5"}`} />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Acciones de Préstamo ── */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Acciones de préstamo</p>
+        <p className="text-xs text-slate-500 mb-3">Controla si esta empresa puede usar cada acción. Si se desactiva, se oculta el botón y el backend rechaza la operación.</p>
+        <div className="space-y-2">
+          {[
+            { key: "accionesPrestamoCancelacion",    label: "Cancelar préstamo",    desc: "Permitir cancelar préstamos activos o atrasados" },
+            { key: "accionesPrestamoRefinanciamiento", label: "Refinanciar préstamo", desc: "Permitir recalcular cuotas sobre el mismo préstamo" },
+            { key: "accionesPrestamoRenovacion",     label: "Renovar préstamo",     desc: "Permitir cerrar y crear un nuevo préstamo con saldo pendiente" },
+          ].map(({ key, label, desc }) => {
+            const habilitado = form[key];
+            return (
+              <button key={key} onClick={() => set(key, !habilitado)}
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left transition-all active:scale-[0.99] ${
+                  habilitado
+                    ? "border-emerald-500/30 bg-emerald-500/10"
+                    : "border-red-500/30 bg-red-500/10"
+                }`}>
+                <div className="min-w-0">
+                  <p className={`text-sm font-bold ${habilitado ? "text-emerald-300" : "text-red-400"}`}>{label}</p>
+                  <p className="text-xs text-slate-500 truncate">{desc}</p>
+                </div>
+                <span className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${habilitado ? "bg-emerald-500/50" : "bg-red-500/50"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${habilitado ? "left-4.5" : "left-0.5"}`} />
                 </span>
               </button>
             );
