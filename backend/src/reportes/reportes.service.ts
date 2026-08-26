@@ -1,23 +1,14 @@
-//reporte.service.ts
+//reportes.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   calcularDesdeObjeto,
-  calcularSaldoDesdeCuotas,
 } from '../common/utils/prestamo.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class ReportesService {
   constructor(private readonly prisma: PrismaService) {}
-
-  private assertAdmin(user: any) {
-    if (user.rol !== 'ADMIN') {
-      throw new ForbiddenException(
-        'Solo el administrador puede generar reportes',
-      );
-    }
-  }
 
   // ─── 1. COBROS POR PERÍODO ────────────────────────────────────────────────
 
@@ -29,65 +20,48 @@ export class ReportesService {
     pagina = 1,
     porPagina = 100,
   ) {
-    this.assertAdmin(user);
-
     const desdeDate = getInicioDiaRD(desde);
     const hastaDate = getFinDiaRD(hasta);
 
-    console.log('DEBUG REPORTES RANGO:', {
-      desde: desdeDate.toISOString(),
-      hasta: hastaDate.toISOString(),
-    });
-
     const skip = (pagina - 1) * porPagina;
 
-    // Obtener pagos con paginación
-    const pagos = await this.prisma.pago.findMany({
-      where: {
-        prestamo: {
-          empresaId: user.empresaId,
-          cliente: provincia ? { provincia } : undefined,
-        },
-        createdAt: {
-          gte: desdeDate,
-          lte: hastaDate,
-        },
+    const where = {
+      prestamo: {
+        empresaId: user.empresaId,
+        cliente: provincia ? { provincia } : undefined,
       },
-      include: {
-        usuario: { select: { nombre: true } },
-        prestamo: {
-          select: {
-            monto: true,
-            cliente: {
-              select: {
-                nombre: true,
-                apellido: true,
-                cedula: true,
-                provincia: true,
-                municipio: true,
+      createdAt: {
+        gte: desdeDate,
+        lte: hastaDate,
+      },
+    };
+
+    const [pagos, totales, totalCount] = await Promise.all([
+      this.prisma.pago.findMany({
+        where,
+        include: {
+          usuario: { select: { nombre: true } },
+          prestamo: {
+            select: {
+              monto: true,
+              cliente: {
+                select: {
+                  nombre: true,
+                  apellido: true,
+                  cedula: true,
+                  provincia: true,
+                  municipio: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: porPagina,
-    });
-
-    // Calcular totales usando aggregate (más eficiente)
-    const [totales, totalCount] = await Promise.all([
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: porPagina,
+      }),
       this.prisma.pago.aggregate({
-        where: {
-          prestamo: {
-            empresaId: user.empresaId,
-            cliente: provincia ? { provincia } : undefined,
-          },
-          createdAt: {
-            gte: desdeDate,
-            lte: hastaDate,
-          },
-        },
+        where,
         _sum: {
           montoTotal: true,
           capital: true,
@@ -95,18 +69,7 @@ export class ReportesService {
           mora: true,
         },
       }),
-      this.prisma.pago.count({
-        where: {
-          prestamo: {
-            empresaId: user.empresaId,
-            cliente: provincia ? { provincia } : undefined,
-          },
-          createdAt: {
-            gte: desdeDate,
-            lte: hastaDate,
-          },
-        },
-      }),
+      this.prisma.pago.count({ where }),
     ]);
 
     return {
@@ -145,41 +108,40 @@ export class ReportesService {
     pagina = 1,
     porPagina = 100,
   ) {
-    this.assertAdmin(user);
     const skip = (pagina - 1) * porPagina;
 
-    const prestamos = await this.prisma.prestamo.findMany({
-      where: {
-        empresaId: user.empresaId,
-        estado: 'ATRASADO',
-        cliente: provincia ? { provincia } : undefined,
-      },
-      include: {
-        cliente: {
-          select: {
-            nombre: true,
-            apellido: true,
-            cedula: true,
-            telefono: true,
-            provincia: true,
-            municipio: true,
-          },
-        },
-        cuotas: { where: { pagada: false }, orderBy: { numero: 'asc' } },
-      },
-      orderBy: { moraAcumulada: 'desc' },
-      skip,
-      take: porPagina,
-    });
+    const where = {
+      empresaId: user.empresaId,
+      estado: 'ATRASADO' as const,
+      cliente: provincia ? { provincia } : undefined,
+    };
 
-    // Contar total para paginación
-    const totalPrestamos = await this.prisma.prestamo.count({
-      where: {
-        empresaId: user.empresaId,
-        estado: 'ATRASADO',
-        cliente: provincia ? { provincia } : undefined,
-      },
-    });
+    const [prestamos, totalPrestamos, totales] = await Promise.all([
+      this.prisma.prestamo.findMany({
+        where,
+        include: {
+          cliente: {
+            select: {
+              nombre: true,
+              apellido: true,
+              cedula: true,
+              telefono: true,
+              provincia: true,
+              municipio: true,
+            },
+          },
+          cuotas: { where: { pagada: false }, orderBy: { numero: 'asc' } },
+        },
+        orderBy: { moraAcumulada: 'desc' },
+        skip,
+        take: porPagina,
+      }),
+      this.prisma.prestamo.count({ where }),
+      this.prisma.prestamo.aggregate({
+        where,
+        _sum: { monto: true, moraAcumulada: true },
+      }),
+    ]);
 
     const hoy = new Date();
 
@@ -215,38 +177,13 @@ export class ReportesService {
       };
     });
 
-    // Calcular totales usando aggregate
-    const totales = await this.prisma.prestamo.aggregate({
-      where: {
-        empresaId: user.empresaId,
-        estado: 'ATRASADO',
-        cliente: provincia ? { provincia } : undefined,
-      },
-      _sum: { monto: true },
-    });
-
-    // Calcular mora total desde préstamos activos/atrasados
-    const prestamosConMora = await this.prisma.prestamo.findMany({
-      where: {
-        empresaId: user.empresaId,
-        estado: 'ATRASADO',
-        cliente: provincia ? { provincia } : undefined,
-      },
-      select: { moraAcumulada: true },
-    });
-
-    const totalMora =
-      Math.round(
-        prestamosConMora.reduce((s, p) => s + (p.moraAcumulada || 0), 0) * 100,
-      ) / 100;
-
     return {
       pagina,
       porPagina,
       totalRegistros: totalPrestamos,
       totalPaginas: Math.ceil(totalPrestamos / porPagina),
       totalSaldoVencido: totales._sum.monto ?? 0,
-      totalMora,
+      totalMora: Math.round((totales._sum.moraAcumulada ?? 0) * 100) / 100,
       prestamos: resultado,
     };
   }
@@ -259,57 +196,51 @@ export class ReportesService {
     pagina = 1,
     porPagina = 100,
   ) {
-    this.assertAdmin(user);
     const skip = (pagina - 1) * porPagina;
 
-    const prestamos = await this.prisma.prestamo.findMany({
-      where: {
-        empresaId: user.empresaId,
-        cliente: provincia ? { provincia } : undefined,
-      },
-      include: {
-        cliente: {
-          select: {
-            nombre: true,
-            apellido: true,
-            cedula: true,
-            provincia: true,
-            municipio: true,
+    const where = {
+      empresaId: user.empresaId,
+      cliente: provincia ? { provincia } : undefined,
+    };
+
+    const [prestamos, totalPrestamos, conteoEstados, totalesMonto, totalesCartera] =
+      await Promise.all([
+        this.prisma.prestamo.findMany({
+          where,
+          include: {
+            cliente: {
+              select: {
+                nombre: true,
+                apellido: true,
+                cedula: true,
+                provincia: true,
+                municipio: true,
+              },
+            },
+            _count: { select: { cuotas: { where: { pagada: false } } } },
           },
-        },
-        cuotas: { where: { pagada: false }, orderBy: { numero: 'asc' } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: porPagina,
-    });
-
-    // Contar total
-    const totalPrestamos = await this.prisma.prestamo.count({
-      where: {
-        empresaId: user.empresaId,
-        cliente: provincia ? { provincia } : undefined,
-      },
-    });
-
-    // Agregados para resumen
-    const [conteoEstados, totalesMonto] = await Promise.all([
-      this.prisma.prestamo.groupBy({
-        by: ['estado'],
-        where: {
-          empresaId: user.empresaId,
-          cliente: provincia ? { provincia } : undefined,
-        },
-        _count: true,
-      }),
-      this.prisma.prestamo.aggregate({
-        where: {
-          empresaId: user.empresaId,
-          cliente: provincia ? { provincia } : undefined,
-        },
-        _sum: { monto: true },
-      }),
-    ]);
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: porPagina,
+        }),
+        this.prisma.prestamo.count({ where }),
+        this.prisma.prestamo.groupBy({
+          by: ['estado'],
+          where,
+          _count: true,
+        }),
+        this.prisma.prestamo.aggregate({
+          where,
+          _sum: { monto: true },
+        }),
+        this.prisma.prestamo.aggregate({
+          where: {
+            ...where,
+            estado: { in: ['ACTIVO', 'ATRASADO'] },
+          },
+          _sum: { saldoPendiente: true },
+        }),
+      ]);
 
     const estadoCounts = conteoEstados.reduce(
       (acc, e) => {
@@ -319,25 +250,13 @@ export class ReportesService {
       {} as Record<string, number>,
     );
 
-    // Calcular totalCartera desde préstamos activos/atrasados
-    const prestamosActivos = prestamos.filter((p) =>
-      ['ACTIVO', 'ATRASADO'].includes(p.estado),
-    );
-    const totalCartera =
-      Math.round(
-        prestamosActivos.reduce((s, p) => {
-          const { saldoPendiente } = calcularDesdeObjeto(p);
-          return s + saldoPendiente;
-        }, 0) * 100,
-      ) / 100;
-
     const resumen = {
       activos: estadoCounts['ACTIVO'] ?? 0,
       atrasados: estadoCounts['ATRASADO'] ?? 0,
       pagados: estadoCounts['PAGADO'] ?? 0,
       renovados: estadoCounts['RENOVADO'] ?? 0,
       cancelados: estadoCounts['CANCELADO'] ?? 0,
-      totalCartera,
+      totalCartera: Math.round((totalesCartera._sum.saldoPendiente ?? 0) * 100) / 100,
       totalDesembolsado: totalesMonto._sum.monto ?? 0,
     };
 
@@ -359,8 +278,8 @@ export class ReportesService {
           tasaInteres: p.tasaInteres,
           frecuencia: p.frecuenciaPago,
           estado: p.estado,
-          cuotasPendientes: p.cuotas.length,
-          proximaFecha: p.cuotas[0]?.fechaVencimiento ?? null,
+          cuotasPendientes: p._count.cuotas,
+          proximaFecha: null,
           fechaInicio: p.fechaInicio,
         };
       }),
@@ -480,65 +399,74 @@ export class ReportesService {
     desde: string,
     hasta: string,
     usuarioId?: string,
+    pagina = 1,
+    porPagina = 100,
   ) {
-    this.assertAdmin(user);
-
     const desdeDate = getInicioDiaRD(desde);
     const hastaDate = getFinDiaRD(hasta);
+    const skip = (pagina - 1) * porPagina;
 
-    console.log('DEBUG REPORTE CAJAS RANGO:', {
-      desde: desdeDate.toISOString(),
-      hasta: hastaDate.toISOString(),
-    });
+    const cajasWhere = {
+      empresaId: user.empresaId,
+      createdAt: { gte: desdeDate, lte: hastaDate },
+      ...(usuarioId && { usuarioId }),
+    };
 
-    const cajas = await this.prisma.cajaSesion.findMany({
-      where: {
-        empresaId: user.empresaId,
-        createdAt: { gte: desdeDate, lte: hastaDate },
-        ...(usuarioId && { usuarioId }),
-      },
-      include: {
-        usuario: { select: { id: true, nombre: true } },
-      },
-      orderBy: [{ fecha: 'desc' }, { createdAt: 'desc' }],
-    });
+    const pagosWhere = {
+      prestamo: { empresaId: user.empresaId },
+      createdAt: { gte: desdeDate, lte: hastaDate },
+      ...(usuarioId && { usuarioId }),
+    };
 
-    const pagos = await this.prisma.pago.findMany({
-      where: {
-        prestamo: { empresaId: user.empresaId },
-        createdAt: { gte: desdeDate, lte: hastaDate },
-        ...(usuarioId && { usuarioId }),
-      },
-      include: {
-        usuario: { select: { id: true, nombre: true } },
-        prestamo: {
-          select: {
-            id: true,
-            cliente: { select: { nombre: true, apellido: true, cedula: true } },
+    const [cajas, pagos, totalCount] = await Promise.all([
+      this.prisma.cajaSesion.findMany({
+        where: cajasWhere,
+        include: {
+          usuario: { select: { id: true, nombre: true } },
+        },
+        orderBy: [{ fecha: 'desc' }, { createdAt: 'desc' }],
+      }),
+      this.prisma.pago.findMany({
+        where: pagosWhere,
+        include: {
+          usuario: { select: { id: true, nombre: true } },
+          prestamo: {
+            select: {
+              id: true,
+              cliente: { select: { nombre: true, apellido: true, cedula: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: porPagina,
+      }),
+      this.prisma.pago.count({ where: pagosWhere }),
+    ]);
+
+    const allPagos = await this.prisma.pago.findMany({
+      where: pagosWhere,
+      select: { montoTotal: true, capital: true, interes: true, mora: true, metodo: true, usuarioId: true },
     });
 
     const totalCobrado =
-      Math.round(pagos.reduce((s, p) => s + p.montoTotal, 0) * 100) / 100;
+      Math.round(allPagos.reduce((s, p) => s + p.montoTotal, 0) * 100) / 100;
     const totalCapital =
-      Math.round(pagos.reduce((s, p) => s + p.capital, 0) * 100) / 100;
+      Math.round(allPagos.reduce((s, p) => s + p.capital, 0) * 100) / 100;
     const totalInteres =
-      Math.round(pagos.reduce((s, p) => s + p.interes, 0) * 100) / 100;
+      Math.round(allPagos.reduce((s, p) => s + p.interes, 0) * 100) / 100;
     const totalMora =
-      Math.round(pagos.reduce((s, p) => s + p.mora, 0) * 100) / 100;
+      Math.round(allPagos.reduce((s, p) => s + p.mora, 0) * 100) / 100;
     const totalEfectivo =
       Math.round(
-        pagos
+        allPagos
           .filter((p) => p.metodo === 'EFECTIVO')
           .reduce((s, p) => s + p.montoTotal, 0) * 100,
       ) / 100;
 
     const pagosPorMetodo: Record<string, { cantidad: number; monto: number }> =
       {};
-    pagos.forEach((p) => {
+    allPagos.forEach((p) => {
       if (!pagosPorMetodo[p.metodo])
         pagosPorMetodo[p.metodo] = { cantidad: 0, monto: 0 };
       pagosPorMetodo[p.metodo].cantidad += 1;
@@ -593,12 +521,13 @@ export class ReportesService {
       }
     });
 
-    pagos.forEach((p) => {
+    allPagos.forEach((p) => {
       const uid = p.usuarioId;
       if (!porUsuario[uid]) {
+        const cajaUser = cajas.find((c) => c.usuarioId === uid);
         porUsuario[uid] = {
           usuarioId: uid,
-          nombre: p.usuario?.nombre ?? '—',
+          nombre: cajaUser?.usuario?.nombre ?? '—',
           cajasAbiertas: 0,
           cajasCerradas: 0,
           totalCobrado: 0,
@@ -643,8 +572,12 @@ export class ReportesService {
       else porDia[c.fecha].cajasCerradas++;
     });
 
-    pagos.forEach((p) => {
-      const fecha = p.createdAt.toISOString().slice(0, 10);
+    allPagos.forEach((p) => {
+      const fecha = new Date(
+        Date.now() - new Date().getTimezoneOffset() * 60000,
+      )
+        .toISOString()
+        .slice(0, 10);
       if (!porDia[fecha]) {
         porDia[fecha] = {
           fecha,
@@ -672,13 +605,17 @@ export class ReportesService {
     return {
       desde,
       hasta,
+      pagina,
+      porPagina,
+      totalRegistros: totalCount,
+      totalPaginas: Math.ceil(totalCount / porPagina),
       resumen: {
         totalCobrado,
         totalCapital,
         totalInteres,
         totalMora,
         totalEfectivo,
-        cantidadPagos: pagos.length,
+        cantidadPagos: allPagos.length,
         cantidadCajas: cajas.length,
         cajasCerradas,
         cajasAbiertas,
@@ -718,6 +655,338 @@ export class ReportesService {
       resumenPorDia: Object.values(porDia).sort((a, b) =>
         b.fecha.localeCompare(a.fecha),
       ),
+    };
+  }
+
+  // ─── 6. FLUJO DE CAJA ───────────────────────────────────────────────────────
+
+  async flujoDeCaja(
+    user: any,
+    desde: string,
+    hasta: string,
+    usuarioId?: string,
+  ) {
+    const desdeDate = getInicioDiaRD(desde);
+    const hastaDate = getFinDiaRD(hasta);
+
+    const whereBase: any = {
+      empresaId: user.empresaId,
+      fecha: { gte: desdeDate, lte: hastaDate },
+    };
+    if (usuarioId) whereBase.usuarioId = usuarioId;
+
+    const [movimientos, pagos, gastos, desembolsos, inyecciones, retiros] =
+      await Promise.all([
+        this.prisma.movimientoFinanciero.findMany({
+          where: whereBase,
+          select: { tipo: true, monto: true, capital: true, interes: true, mora: true, fecha: true },
+          orderBy: { fecha: 'asc' },
+        }),
+        this.prisma.pago.findMany({
+          where: {
+            prestamo: { empresaId: user.empresaId },
+            createdAt: { gte: desdeDate, lte: hastaDate },
+            ...(usuarioId && { usuarioId }),
+          },
+          select: { montoTotal: true, capital: true, interes: true, mora: true, metodo: true, createdAt: true },
+        }),
+        this.prisma.gasto.findMany({
+          where: { empresaId: user.empresaId, fecha: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          select: { monto: true, categoria: true, fecha: true },
+        }),
+        this.prisma.desembolsoCaja.findMany({
+          where: { empresaId: user.empresaId, createdAt: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          select: { monto: true, createdAt: true },
+        }),
+        this.prisma.inyeccionCapital.findMany({
+          where: { empresaId: user.empresaId, fecha: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          select: { monto: true, fecha: true },
+        }),
+        this.prisma.retiroGanancias.findMany({
+          where: { empresaId: user.empresaId, fecha: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          select: { monto: true, fecha: true },
+        }),
+      ]);
+
+    const toFechaStr = (d: Date | string): string => {
+      const date = new Date(d);
+      const offset = date.getTimezoneOffset();
+      const local = new Date(date.getTime() - offset * 60000);
+      return local.toISOString().slice(0, 10);
+    };
+
+    const entradasMap: Record<string, number> = {};
+    const salidasMap: Record<string, number> = {};
+
+    pagos.forEach((p) => {
+      const f = toFechaStr(p.createdAt);
+      entradasMap[f] = Math.round(((entradasMap[f] ?? 0) + p.montoTotal) * 100) / 100;
+    });
+
+    inyecciones.forEach((i) => {
+      const f = toFechaStr(i.fecha);
+      entradasMap[f] = Math.round(((entradasMap[f] ?? 0) + i.monto) * 100) / 100;
+    });
+
+    desembolsos.forEach((d) => {
+      const f = toFechaStr(d.createdAt);
+      salidasMap[f] = Math.round(((salidasMap[f] ?? 0) + d.monto) * 100) / 100;
+    });
+
+    gastos.forEach((g) => {
+      const f = toFechaStr(g.fecha);
+      salidasMap[f] = Math.round(((salidasMap[f] ?? 0) + g.monto) * 100) / 100;
+    });
+
+    retiros.forEach((r) => {
+      const f = toFechaStr(r.fecha);
+      salidasMap[f] = Math.round(((salidasMap[f] ?? 0) + r.monto) * 100) / 100;
+    });
+
+    const fechasSet = new Set([...Object.keys(entradasMap), ...Object.keys(salidasMap)]);
+    const porDia = Array.from(fechasSet)
+      .sort()
+      .map((fecha) => {
+        const entradas = entradasMap[fecha] ?? 0;
+        const salidas = salidasMap[fecha] ?? 0;
+        return {
+          fecha,
+          entradas,
+          salidas,
+          neto: Math.round((entradas - salidas) * 100) / 100,
+        };
+      });
+
+    const totalEntradas =
+      Math.round(Object.values(entradasMap).reduce((s, v) => s + v, 0) * 100) / 100;
+    const totalSalidas =
+      Math.round(Object.values(salidasMap).reduce((s, v) => s + v, 0) * 100) / 100;
+
+    const porCategoria: Record<string, number> = {};
+    gastos.forEach((g) => {
+      porCategoria[g.categoria] = Math.round(((porCategoria[g.categoria] ?? 0) + g.monto) * 100) / 100;
+    });
+
+    return {
+      desde,
+      hasta,
+      totalEntradas,
+      totalSalidas,
+      neto: Math.round((totalEntradas - totalSalidas) * 100) / 100,
+      desgloseEntradas: {
+        pagos: Math.round(pagos.reduce((s, p) => s + p.montoTotal, 0) * 100) / 100,
+        inyecciones: Math.round(inyecciones.reduce((s, i) => s + i.monto, 0) * 100) / 100,
+      },
+      desgloseSalidas: {
+        desembolsos: Math.round(desembolsos.reduce((s, d) => s + d.monto, 0) * 100) / 100,
+        gastos: Math.round(gastos.reduce((s, g) => s + g.monto, 0) * 100) / 100,
+        retiros: Math.round(retiros.reduce((s, r) => s + r.monto, 0) * 100) / 100,
+      },
+      gastosPorCategoria: porCategoria,
+      porDia,
+    };
+  }
+
+  // ─── 7. DESEMPEÑO POR COBRADOR ──────────────────────────────────────────────
+
+  async desempenoPorCobrador(
+    user: any,
+    desde?: string,
+    hasta?: string,
+    usuarioId?: string,
+  ) {
+    const whereBase: any = {
+      prestamo: { empresaId: user.empresaId },
+    };
+    if (desde) whereBase.createdAt = { ...(whereBase.createdAt ?? {}), gte: getInicioDiaRD(desde) };
+    if (hasta) whereBase.createdAt = { ...(whereBase.createdAt ?? {}), lte: getFinDiaRD(hasta) };
+    if (usuarioId) whereBase.usuarioId = usuarioId;
+
+    const pagos = await this.prisma.pago.findMany({
+      where: whereBase,
+      select: {
+        montoTotal: true,
+        capital: true,
+        interes: true,
+        mora: true,
+        metodo: true,
+        createdAt: true,
+        usuarioId: true,
+        usuario: { select: { id: true, nombre: true } },
+      },
+    });
+
+    const porUsuario: Record<
+      string,
+      {
+        usuarioId: string;
+        nombre: string;
+        totalCobrado: number;
+        totalCapital: number;
+        totalInteres: number;
+        totalMora: number;
+        cantidadPagos: number;
+        pagosPorMetodo: Record<string, { cantidad: number; monto: number }>;
+        diasActivos: Set<string>;
+      }
+    > = {};
+
+    pagos.forEach((p) => {
+      const uid = p.usuarioId;
+      if (!porUsuario[uid]) {
+        porUsuario[uid] = {
+          usuarioId: uid,
+          nombre: p.usuario?.nombre ?? '—',
+          totalCobrado: 0,
+          totalCapital: 0,
+          totalInteres: 0,
+          totalMora: 0,
+          cantidadPagos: 0,
+          pagosPorMetodo: {},
+          diasActivos: new Set(),
+        };
+      }
+      const u = porUsuario[uid];
+      u.totalCobrado = Math.round((u.totalCobrado + p.montoTotal) * 100) / 100;
+      u.totalCapital = Math.round((u.totalCapital + p.capital) * 100) / 100;
+      u.totalInteres = Math.round((u.totalInteres + p.interes) * 100) / 100;
+      u.totalMora = Math.round((u.totalMora + p.mora) * 100) / 100;
+      u.cantidadPagos += 1;
+
+      const metodo = p.metodo;
+      if (!u.pagosPorMetodo[metodo]) u.pagosPorMetodo[metodo] = { cantidad: 0, monto: 0 };
+      u.pagosPorMetodo[metodo].cantidad += 1;
+      u.pagosPorMetodo[metodo].monto = Math.round((u.pagosPorMetodo[metodo].monto + p.montoTotal) * 100) / 100;
+
+      const d = new Date(p.createdAt);
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - offset * 60000);
+      u.diasActivos.add(local.toISOString().slice(0, 10));
+    });
+
+    const resultado = Object.values(porUsuario)
+      .map((u) => ({
+        usuarioId: u.usuarioId,
+        nombre: u.nombre,
+        totalCobrado: u.totalCobrado,
+        totalCapital: u.totalCapital,
+        totalInteres: u.totalInteres,
+        totalMora: u.totalMora,
+        cantidadPagos: u.cantidadPagos,
+        promedioPorPago: u.cantidadPagos > 0
+          ? Math.round((u.totalCobrado / u.cantidadPagos) * 100) / 100
+          : 0,
+        diasActivos: u.diasActivos.size,
+        promedioPorDia: u.diasActivos.size > 0
+          ? Math.round((u.totalCobrado / u.diasActivos.size) * 100) / 100
+          : 0,
+        pagosPorMetodo: u.pagosPorMetodo,
+      }))
+      .sort((a, b) => b.totalCobrado - a.totalCobrado);
+
+    const totalGeneral = {
+      totalCobrado: Math.round(resultado.reduce((s, r) => s + r.totalCobrado, 0) * 100) / 100,
+      totalCapital: Math.round(resultado.reduce((s, r) => s + r.totalCapital, 0) * 100) / 100,
+      totalInteres: Math.round(resultado.reduce((s, r) => s + r.totalInteres, 0) * 100) / 100,
+      totalMora: Math.round(resultado.reduce((s, r) => s + r.totalMora, 0) * 100) / 100,
+      cantidadPagos: resultado.reduce((s, r) => s + r.cantidadPagos, 0),
+      cobradores: resultado.length,
+    };
+
+    return {
+      desde: desde ?? null,
+      hasta: hasta ?? null,
+      ...totalGeneral,
+      cobradores: resultado,
+    };
+  }
+
+  // ─── 8. PROYECCIÓN DE CUOTAS ────────────────────────────────────────────────
+
+  async proyeccionCuotas(
+    user: any,
+    provincia?: string,
+  ) {
+    const prestamos = await this.prisma.prestamo.findMany({
+      where: {
+        empresaId: user.empresaId,
+        estado: { in: ['ACTIVO', 'ATRASADO'] },
+        cliente: provincia ? { provincia } : undefined,
+      },
+      include: {
+        cliente: { select: { nombre: true, apellido: true, cedula: true, provincia: true } },
+        cuotas: {
+          where: { pagada: false },
+          orderBy: { numero: 'asc' },
+          select: {
+            numero: true,
+            monto: true,
+            capital: true,
+            interes: true,
+            mora: true,
+            fechaVencimiento: true,
+          },
+        },
+      },
+      orderBy: { fechaInicio: 'asc' },
+    });
+
+    const hoy = new Date();
+
+    const porMes: Record<string, { month: string; cantidadCuotas: number; montoCapital: number; montoInteres: number; montoMora: number; montoTotal: number; vencidas: number }> = {};
+
+    const todosDetalles: any[] = [];
+
+    prestamos.forEach((p) => {
+      p.cuotas.forEach((c) => {
+        const d = new Date(c.fechaVencimiento);
+        const offset = d.getTimezoneOffset();
+        const local = new Date(d.getTime() - offset * 60000);
+        const monthKey = local.toISOString().slice(0, 7); // YYYY-MM
+
+        if (!porMes[monthKey]) {
+          porMes[monthKey] = {
+            month: monthKey,
+            cantidadCuotas: 0,
+            montoCapital: 0,
+            montoInteres: 0,
+            montoMora: 0,
+            montoTotal: 0,
+            vencidas: 0,
+          };
+        }
+        const m = porMes[monthKey];
+        m.cantidadCuotas += 1;
+        m.montoCapital = Math.round((m.montoCapital + c.capital) * 100) / 100;
+        m.montoInteres = Math.round((m.montoInteres + c.interes) * 100) / 100;
+        m.montoMora = Math.round((m.montoMora + c.mora) * 100) / 100;
+        m.montoTotal = Math.round((m.montoTotal + c.monto) * 100) / 100;
+
+        const esVencida = new Date(c.fechaVencimiento) < hoy;
+        if (esVencida) m.vencidas += 1;
+
+        todosDetalles.push({
+          cliente: `${p.cliente.nombre} ${p.cliente.apellido}`,
+          cedula: p.cliente.cedula,
+          provincia: p.cliente.provincia ?? '',
+          prestamoId: p.id,
+          numeroCuota: c.numero,
+          monto: c.monto,
+          fechaVencimiento: c.fechaVencimiento,
+          vencida: esVencida,
+        });
+      });
+    });
+
+    const resumenMeses = Object.values(porMes).sort((a, b) => a.month.localeCompare(b.month));
+
+    return {
+      totalPrestamos: prestamos.length,
+      totalCuotasPendientes: resumenMeses.reduce((s, m) => s + m.cantidadCuotas, 0),
+      totalMontoPendiente: Math.round(resumenMeses.reduce((s, m) => s + m.montoTotal, 0) * 100) / 100,
+      totalVencidas: resumenMeses.reduce((s, m) => s + m.vencidas, 0),
+      porMes: resumenMeses,
+      detalles: todosDetalles,
     };
   }
 }

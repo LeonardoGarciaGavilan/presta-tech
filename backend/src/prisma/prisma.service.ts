@@ -25,7 +25,9 @@ export class PrismaService
   private readonly extended: PrismaClient;
 
   constructor(private readonly tenantContext: TenantContext) {
-    super();
+    super({
+      transactionOptions: { maxWait: 5000, timeout: 15000 },
+    });
 
     // Defensa multi-tenancy (F6): lee el contexto de empresa del request y
     // exige empresaId en queries multi-fila de modelos de negocio.
