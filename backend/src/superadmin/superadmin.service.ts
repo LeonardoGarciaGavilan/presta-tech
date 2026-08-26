@@ -257,6 +257,9 @@ export class SuperAdminService {
     maxEmpleados: null,
     maxMontoPorPrestamo: null,
     modulosDeshabilitados: [],
+    accionesPrestamoCancelacion: true,
+    accionesPrestamoRefinanciamiento: true,
+    accionesPrestamoRenovacion: true,
     venceEn: null,
     activo: true,
   };
@@ -288,6 +291,10 @@ export class SuperAdminService {
             maxEmpleados: limite.maxEmpleados,
             maxMontoPorPrestamo: limite.maxMontoPorPrestamo,
             modulosDeshabilitados: limite.modulosDeshabilitados,
+            accionesPrestamoCancelacion: limite.accionesPrestamoCancelacion,
+            accionesPrestamoRefinanciamiento:
+              limite.accionesPrestamoRefinanciamiento,
+            accionesPrestamoRenovacion: limite.accionesPrestamoRenovacion,
             venceEn: limite.venceEn,
             activo: limite.activo,
           }
@@ -311,6 +318,9 @@ export class SuperAdminService {
       maxEmpleados?: number | null;
       maxMontoPorPrestamo?: number | null;
       modulosDeshabilitados?: string[];
+      accionesPrestamoCancelacion?: boolean;
+      accionesPrestamoRefinanciamiento?: boolean;
+      accionesPrestamoRenovacion?: boolean;
       venceEn?: string | null;
       activo?: boolean;
     },
@@ -345,6 +355,10 @@ export class SuperAdminService {
       maxEmpleados: datos.maxEmpleados ?? null,
       maxMontoPorPrestamo: datos.maxMontoPorPrestamo ?? null,
       modulosDeshabilitados: deshabilitados,
+      accionesPrestamoCancelacion: datos.accionesPrestamoCancelacion ?? true,
+      accionesPrestamoRefinanciamiento:
+        datos.accionesPrestamoRefinanciamiento ?? true,
+      accionesPrestamoRenovacion: datos.accionesPrestamoRenovacion ?? true,
       venceEn: datos.venceEn ? new Date(datos.venceEn) : null,
       activo: datos.activo ?? true,
     };
@@ -366,6 +380,22 @@ export class SuperAdminService {
         data: { authVersion: { increment: 1 } },
       });
       await this.permisosService.invalidarModulos(empresaId);
+    }
+
+    const cambiaAccionesPrestamo =
+      datos.accionesPrestamoCancelacion !== undefined ||
+      datos.accionesPrestamoRefinanciamiento !== undefined ||
+      datos.accionesPrestamoRenovacion !== undefined;
+    if (cambiaAccionesPrestamo) {
+      // Las acciones de préstamo cambiaron: bump authVersion para que los
+      // clientes recalculen, e invalida la caché de acciones de préstamo.
+      if (!cambiaModulos) {
+        await this.prisma.usuario.updateMany({
+          where: { empresaId },
+          data: { authVersion: { increment: 1 } },
+        });
+      }
+      await this.permisosService.invalidarAccionesPrestamo(empresaId);
     }
 
     await registrarAuditoria(this.prisma, {

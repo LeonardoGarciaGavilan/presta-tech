@@ -156,4 +156,71 @@ export class PermisosService {
       // cache no disponible → ignorar
     }
   }
+
+  // ─── Acciones de préstamo habilitadas por empresa (barrera 3) ─────────
+  private claveAccionesPrestamo(empresaId: string) {
+    return `limites:acciones-prestamo:${empresaId}`;
+  }
+
+  async accionesPrestamoHabilitadas(
+    empresaId: string,
+  ): Promise<{ cancelar: boolean; refinanciar: boolean; renovar: boolean }> {
+    const key = this.claveAccionesPrestamo(empresaId);
+    try {
+      const cached =
+        await this.cacheManager.get<{
+          cancelar: boolean;
+          refinanciar: boolean;
+          renovar: boolean;
+        }>(key);
+      if (cached) return cached;
+    } catch {
+      // cache no disponible → seguir sin caché
+    }
+
+    const defaults = {
+      cancelar: true,
+      refinanciar: true,
+      renovar: true,
+    };
+
+    let resultado = defaults;
+    try {
+      const limite = await this.prisma.limiteEmpresa.findUnique({
+        where: { empresaId },
+        select: {
+          accionesPrestamoCancelacion: true,
+          accionesPrestamoRefinanciamiento: true,
+          accionesPrestamoRenovacion: true,
+          activo: true,
+        },
+      });
+      if (limite && !limite.activo) {
+        resultado = { cancelar: false, refinanciar: false, renovar: false };
+      } else if (limite) {
+        resultado = {
+          cancelar: limite.accionesPrestamoCancelacion,
+          refinanciar: limite.accionesPrestamoRefinanciamiento,
+          renovar: limite.accionesPrestamoRenovacion,
+        };
+      }
+    } catch (e) {
+      console.warn('Error cargando accionesPrestamo:', e?.message);
+    }
+
+    try {
+      await this.cacheManager.set(key, resultado, TTL);
+    } catch {
+      // cache no disponible → seguir sin caché
+    }
+    return resultado;
+  }
+
+  async invalidarAccionesPrestamo(empresaId: string) {
+    try {
+      await this.cacheManager.del(this.claveAccionesPrestamo(empresaId));
+    } catch {
+      // cache no disponible → ignorar
+    }
+  }
 }

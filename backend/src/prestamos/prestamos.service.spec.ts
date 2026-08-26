@@ -1406,3 +1406,149 @@ describe('PrestamosService — cancelar (máquina de estados + motivo obligatori
     expect(tx.prestamo.update).not.toHaveBeenCalled();
   });
 });
+
+describe('PrestamosService — accionesPrestamo (hard limit del platform)', () => {
+  function buildServiceWithAcciones(acciones: {
+    cancelar: boolean;
+    refinanciar: boolean;
+    renovar: boolean;
+  }) {
+    const permisosService = {
+      accionesPrestamoHabilitadas: jest.fn().mockResolvedValue(acciones),
+    };
+    const prisma = {
+      prestamo: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        count: jest.fn().mockResolvedValue(0),
+        update: jest.fn(),
+      },
+      cuota: {
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn(),
+        createMany: jest.fn(),
+      },
+      usuario: {
+        findUnique: jest.fn().mockResolvedValue({ nombre: 'Sistema' }),
+      },
+      alerta: { create: jest.fn().mockResolvedValue({ id: 'a1' }) },
+      empresa: { findUnique: jest.fn().mockResolvedValue({ id: 'emp1' }) },
+      auditoria: { create: jest.fn().mockResolvedValue({ id: 'au1' }) },
+      configuracion: { findUnique: jest.fn().mockResolvedValue(null) },
+      movimientoFinanciero: { create: jest.fn() },
+      pago: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn(),
+    };
+    const quotaService = { validar: jest.fn().mockResolvedValue(true) };
+    const service = new PrestamosService(
+      prisma as never,
+      quotaService as never,
+      permisosService as never,
+      undefined,
+      undefined,
+    );
+    return { service, prisma, permisosService };
+  }
+
+  it('cancelar: rechaza cuando accionesPrestamo.cancelar es false', async () => {
+    const { service } = buildServiceWithAcciones({
+      cancelar: false,
+      refinanciar: true,
+      renovar: true,
+    });
+
+    await expect(
+      service.cancelar('p1', 'emp1', 'u1', 'motivo'),
+    ).rejects.toThrow('La cancelación de préstamos no está habilitada para tu empresa.');
+  });
+
+  it('cancelar: permite cuando accionesPrestamo.cancelar es true', async () => {
+    const prestamo = {
+      id: 'p1',
+      empresaId: 'emp1',
+      monto: 5000,
+      estado: 'ACTIVO',
+    };
+    const tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      prestamo: {
+        findFirst: jest.fn().mockResolvedValue(prestamo),
+        update: jest.fn().mockResolvedValue({
+          ...prestamo,
+          estado: 'CANCELADO',
+          cliente: { nombre: 'A', apellido: 'B' },
+        }),
+      },
+    };
+    const { service, prisma } = buildServiceWithAcciones({
+      cancelar: true,
+      refinanciar: true,
+      renovar: true,
+    });
+    prisma.prestamo.findFirst.mockResolvedValue(prestamo);
+    prisma.$transaction.mockImplementation(
+      (cb: (tx: unknown) => unknown) => cb(tx),
+    );
+
+    const res = await service.cancelar('p1', 'emp1', 'u1', 'motivo');
+    expect(res.estado).toBe('CANCELADO');
+  });
+
+  it('refinanciar: rechaza cuando accionesPrestamo.refinanciar es false', async () => {
+    const prestamo = {
+      id: 'p1',
+      empresaId: 'emp1',
+      monto: 5000,
+      estado: 'ACTIVO',
+      cuotas: [
+        { id: 'c1', pagada: false, capital: 1000, interes: 50, numero: 1 },
+      ],
+      cliente: { nombre: 'A', apellido: 'B' },
+      refinanciado: false,
+      vecesRefinanciado: 0,
+    };
+    const { service, prisma } = buildServiceWithAcciones({
+      cancelar: true,
+      refinanciar: false,
+      renovar: true,
+    });
+    prisma.prestamo.findFirst.mockResolvedValue(prestamo);
+
+    await expect(
+      service.refinanciar('p1', {
+        nuevasCuotas: 6,
+        motivo: 'test',
+      } as any, 'emp1', 'u1'),
+    ).rejects.toThrow('El refinanciamiento no está habilitado para tu empresa.');
+  });
+
+  it('renovar: rechaza cuando accionesPrestamo.renovar es false', async () => {
+    const prestamo = {
+      id: 'p1',
+      empresaId: 'emp1',
+      monto: 5000,
+      estado: 'ACTIVO',
+      cuotas: [
+        { id: 'c1', pagada: false, capital: 1000, interes: 50, numero: 1 },
+      ],
+      cliente: { nombre: 'A', apellido: 'B' },
+      cadenaRenovaciones: 0,
+    };
+    const { service, prisma } = buildServiceWithAcciones({
+      cancelar: true,
+      refinanciar: true,
+      renovar: false,
+    });
+    prisma.prestamo.findFirst.mockResolvedValue(prestamo);
+
+    await expect(
+      service.renovar('p1', {
+        montoNuevo: 10000,
+        tasaInteres: 5,
+        numeroCuotas: 12,
+        frecuenciaPago: 'MENSUAL',
+        fechaInicio: new Date().toISOString(),
+        motivo: 'test',
+      } as any, 'emp1', 'u1'),
+    ).rejects.toThrow('La renovación no está habilitada para tu empresa.');
+  });
+});

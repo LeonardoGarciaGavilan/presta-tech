@@ -32,6 +32,7 @@ import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { QuotaService } from '../common/quota/quota.service';
+import { PermisosService } from '../common/permisos/permisos.service';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
 export interface CuotaCalculada {
@@ -84,6 +85,7 @@ export class PrestamosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quotaService: QuotaService,
+    @Optional() private readonly permisosService?: PermisosService,
     @Optional() private readonly alertsGateway?: AlertsGateway,
     @Inject(CACHE_MANAGER) @Optional() private cacheManager?: Cache,
     @Optional() private readonly pushService?: PushNotificationsService,
@@ -1188,6 +1190,17 @@ export class PrestamosService {
       );
     }
 
+    // Barrera 3: hard limit del platform por empresa
+    if (this.permisosService) {
+      const acciones =
+        await this.permisosService.accionesPrestamoHabilitadas(empresaId);
+      if (!acciones.cancelar) {
+        throw new BadRequestException(
+          'La cancelación de préstamos no está habilitada para tu empresa.',
+        );
+      }
+    }
+
     const prestamo = await TenantUtils.findByIdOrThrow(
       this.prisma,
       'prestamo',
@@ -1572,6 +1585,17 @@ export class PrestamosService {
         'Este préstamo no tiene cuotas pendientes para refinanciar',
       );
 
+    // Barrera 3: hard limit del platform por empresa
+    if (this.permisosService) {
+      const acciones =
+        await this.permisosService.accionesPrestamoHabilitadas(empresaId);
+      if (!acciones.refinanciar) {
+        throw new BadRequestException(
+          'El refinanciamiento no está habilitado para tu empresa. Contacta al soporte.',
+        );
+      }
+    }
+
     // Reglas parametrizables por empresa (0 = desactivada)
     const configCacheKey = `config:${empresaId}`;
     let config: {
@@ -1936,6 +1960,17 @@ export class PrestamosService {
       throw new BadRequestException(
         'Este préstamo no tiene cuotas pendientes para renovar',
       );
+
+    // Barrera 3: hard limit del platform por empresa
+    if (this.permisosService) {
+      const acciones =
+        await this.permisosService.accionesPrestamoHabilitadas(empresaId);
+      if (!acciones.renovar) {
+        throw new BadRequestException(
+          'La renovación no está habilitada para tu empresa. Contacta al soporte.',
+        );
+      }
+    }
 
     // Reglas parametrizables por empresa (patrón de lectura igual a refinanciar)
     const configCacheKey = `config:${empresaId}`;

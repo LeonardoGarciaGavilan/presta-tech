@@ -32,6 +32,7 @@ describe('SuperAdminService (límites)', () => {
     };
     const permisosService = {
       invalidarModulos: jest.fn().mockResolvedValue(undefined),
+      invalidarAccionesPrestamo: jest.fn().mockResolvedValue(undefined),
     };
     const service = new SuperAdminService(
       prisma as unknown as PrismaService,
@@ -167,5 +168,92 @@ describe('SuperAdminService (límites)', () => {
     await expect(
       service.obtenerLimites(superadmin, 'e1'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('obtenerLimites incluye accionesPrestamo en la respuesta', async () => {
+    const { service, prisma } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.findUnique.mockResolvedValue({
+      plan: null,
+      maxClientes: null,
+      modulosDeshabilitados: [],
+      accionesPrestamoCancelacion: false,
+      accionesPrestamoRefinanciamiento: true,
+      accionesPrestamoRenovacion: false,
+      venceEn: null,
+      activo: true,
+    });
+
+    const res = await service.obtenerLimites(superadmin, 'e1');
+
+    expect(res.limite.accionesPrestamoCancelacion).toBe(false);
+    expect(res.limite.accionesPrestamoRefinanciamiento).toBe(true);
+    expect(res.limite.accionesPrestamoRenovacion).toBe(false);
+  });
+
+  it('obtenerLimites devuelve defaults true cuando no existe fila', async () => {
+    const { service, prisma } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.findUnique.mockResolvedValue(null);
+
+    const res = await service.obtenerLimites(superadmin, 'e1');
+
+    expect(res.limite.accionesPrestamoCancelacion).toBe(true);
+    expect(res.limite.accionesPrestamoRefinanciamiento).toBe(true);
+    expect(res.limite.accionesPrestamoRenovacion).toBe(true);
+  });
+
+  it('actualizarLimites guarda accionesPrestamo y hace upsert', async () => {
+    const { service, prisma } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.upsert.mockResolvedValue({});
+
+    await service.actualizarLimites(superadmin, 'e1', {
+      accionesPrestamoCancelacion: false,
+      accionesPrestamoRefinanciamiento: false,
+      accionesPrestamoRenovacion: true,
+    });
+
+    expect(prisma.limiteEmpresa.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          empresaId: 'e1',
+          accionesPrestamoCancelacion: false,
+          accionesPrestamoRefinanciamiento: false,
+          accionesPrestamoRenovacion: true,
+        }),
+      }),
+    );
+  });
+
+  it('actualizarLimites con cambios en accionesPrestamo hace bump authVersion e invalida caché', async () => {
+    const { service, prisma, permisosService } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.upsert.mockResolvedValue({});
+
+    await service.actualizarLimites(superadmin, 'e1', {
+      accionesPrestamoCancelacion: false,
+    });
+
+    expect(prisma.usuario.updateMany).toHaveBeenCalledWith({
+      where: { empresaId: 'e1' },
+      data: { authVersion: { increment: 1 } },
+    });
+    expect(permisosService.invalidarAccionesPrestamo).toHaveBeenCalledWith('e1');
+  });
+
+  it('actualizarLimites sin cambios en accionesPrestamo ni módulos no invalida nada', async () => {
+    const { service, prisma, permisosService } = buildService();
+    prisma.empresa.findUnique.mockResolvedValue({ id: 'e1', nombre: 'X' });
+    prisma.limiteEmpresa.upsert.mockResolvedValue({});
+
+    await service.actualizarLimites(superadmin, 'e1', {
+      plan: 'Premium',
+      maxClientes: 100,
+    });
+
+    expect(prisma.usuario.updateMany).not.toHaveBeenCalled();
+    expect(permisosService.invalidarModulos).not.toHaveBeenCalled();
+    expect(permisosService.invalidarAccionesPrestamo).not.toHaveBeenCalled();
   });
 });

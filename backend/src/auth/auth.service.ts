@@ -41,15 +41,31 @@ export class AuthService {
     empresaId: string | null;
   }) {
     if (usuario.rol === 'SUPERADMIN') {
-      return { permisos: [PERMISO_TODOS], modulosDeshabilitados: [] };
+      return {
+        permisos: [PERMISO_TODOS],
+        modulosDeshabilitados: [],
+        accionesPrestamo: {
+          cancelar: true,
+          refinanciar: true,
+          renovar: true,
+        },
+      };
     }
-    const [permisos, modulosDeshabilitados] = await Promise.all([
-      this.permisosService.permisosEfectivos(usuario.id),
-      usuario.empresaId
-        ? this.permisosService.modulosDeshabilitados(usuario.empresaId)
-        : Promise.resolve([]),
-    ]);
-    return { permisos, modulosDeshabilitados };
+    const [permisos, modulosDeshabilitados, accionesPrestamo] =
+      await Promise.all([
+        this.permisosService.permisosEfectivos(usuario.id),
+        usuario.empresaId
+          ? this.permisosService.modulosDeshabilitados(usuario.empresaId)
+          : Promise.resolve([]),
+        usuario.empresaId
+          ? this.permisosService.accionesPrestamoHabilitadas(usuario.empresaId)
+          : Promise.resolve({
+              cancelar: true,
+              refinanciar: true,
+              renovar: true,
+            }),
+      ]);
+    return { permisos, modulosDeshabilitados, accionesPrestamo };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -244,7 +260,7 @@ export class AuthService {
       },
     });
 
-    const { permisos, modulosDeshabilitados } =
+    const { permisos, modulosDeshabilitados, accionesPrestamo } =
       await this.adjuntarAccesos(user);
 
     const usuarioResponse = {
@@ -257,6 +273,7 @@ export class AuthService {
       authVersion: user.authVersion,
       permisos,
       modulosDeshabilitados,
+      accionesPrestamo,
     };
 
     if (res) {
@@ -541,7 +558,7 @@ export class AuthService {
       throw new UnauthorizedException('Cuenta desactivada');
     }
 
-    const { permisos, modulosDeshabilitados } =
+    const { permisos, modulosDeshabilitados, accionesPrestamo } =
       await this.adjuntarAccesos(user);
 
     return {
@@ -554,6 +571,7 @@ export class AuthService {
       authVersion: user.authVersion,
       permisos,
       modulosDeshabilitados,
+      accionesPrestamo,
     };
   }
 }
