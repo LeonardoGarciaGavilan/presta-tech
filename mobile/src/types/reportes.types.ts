@@ -61,6 +61,7 @@ export interface EstadoGeneralResumen {
   activos: number;
   atrasados: number;
   pagados: number;
+  renovados: number;
   cancelados: number;
   totalCartera: number;
   totalDesembolsado: number;
@@ -164,6 +165,7 @@ export interface CajasResumen {
   cajasCerradas: number;
   cajasAbiertas: number;
   efectivoSistema: number;
+  efectivoReal: number;
 }
 
 export interface PagoPorMetodo {
@@ -250,4 +252,100 @@ export interface CajasFilters {
   desde: string;
   hasta: string;
   usuarioId?: string;
+}
+
+// ─── Flujo de caja ──────────────────────────────────────────────────────────
+
+export interface FlujoDia {
+  fecha: string;
+  entradas: number;
+  salidas: number;
+  neto: number;
+}
+
+export interface FlujoCajaResponse {
+  desde: string;
+  hasta: string;
+  totalEntradas: number;
+  totalSalidas: number;
+  neto: number;
+  desgloseEntradas: { pagos: number; inyecciones: number };
+  desgloseSalidas: { desembolsos: number; gastos: number; retiros: number };
+  gastosPorCategoria: Record<string, number>;
+  porDia: FlujoDia[];
+}
+
+export interface FlujoCajaFilters {
+  desde: string;
+  hasta: string;
+  usuarioId?: string;
+}
+
+// ─── Desempeño por cobrador ─────────────────────────────────────────────────
+
+export interface CobradorItem {
+  usuarioId: string;
+  nombre: string;
+  totalCobrado: number;
+  totalCapital: number;
+  totalInteres: number;
+  totalMora: number;
+  cantidadPagos: number;
+  promedioPorPago: number;
+  diasActivos: number;
+  promedioPorDia: number;
+  pagosPorMetodo: Record<string, { cantidad: number; monto: number }>;
+}
+
+export interface DesempenoCobradorResponse {
+  desde: string | null;
+  hasta: string | null;
+  totalCobrado: number;
+  totalCapital: number;
+  totalInteres: number;
+  totalMora: number;
+  cantidadPagos: number;
+  cobradores: CobradorItem[];
+}
+
+export interface DesempenoFilters {
+  desde?: string;
+  hasta?: string;
+  usuarioId?: string;
+}
+
+// ─── Proyección de cuotas ───────────────────────────────────────────────────
+
+export interface ProyeccionMes {
+  month: string;
+  cantidadCuotas: number;
+  montoCapital: number;
+  montoInteres: number;
+  montoMora: number;
+  montoTotal: number;
+  vencidas: number;
+}
+
+export interface ProyeccionDetalle {
+  cliente: string;
+  cedula: string;
+  provincia: string;
+  prestamoId: string;
+  numeroCuota: number;
+  monto: number;
+  fechaVencimiento: string;
+  vencida: boolean;
+}
+
+export interface ProyeccionCuotasResponse {
+  totalPrestamos: number;
+  totalCuotasPendientes: number;
+  totalMontoPendiente: number;
+  totalVencidas: number;
+  porMes: ProyeccionMes[];
+  detalles: ProyeccionDetalle[];
+}
+
+export interface ProyeccionFilters {
+  provincia?: string;
 }

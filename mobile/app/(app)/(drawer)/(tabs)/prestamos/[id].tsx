@@ -297,7 +297,8 @@ export default function PrestamoDetalleScreen() {
   const puedeCancelar =
     prestamo &&
     ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&
-    tienePermiso("prestamos:cancelar");
+    tienePermiso("prestamos:cancelar") &&
+    user?.accionesPrestamo?.cancelar !== false;
   // El switch maestro de refinanciamiento oculta el botón (decisión
   // empresa-wide); las reglas paramétricas se explican dentro del modal.
   // Sin config cacheada no se oculta: el servidor es la fuente de verdad.
@@ -305,7 +306,8 @@ export default function PrestamoDetalleScreen() {
     prestamo &&
     ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&
     configuracion?.permitirRefinanciamiento !== false &&
-    tienePermiso("prestamos:refinanciar");
+    tienePermiso("prestamos:refinanciar") &&
+    user?.accionesPrestamo?.refinanciar !== false;
   // El switch maestro de renovación oculta el botón (decisión empresa-wide);
   // las reglas paramétricas se explican dentro del modal. Sin config cacheada
   // no se oculta: el servidor es la fuente de verdad.
@@ -313,7 +315,8 @@ export default function PrestamoDetalleScreen() {
     prestamo &&
     ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&
     configuracion?.permitirRenovacion !== false &&
-    tienePermiso("prestamos:renovar");
+    tienePermiso("prestamos:renovar") &&
+    user?.accionesPrestamo?.renovar !== false;
   const puedePagar =
     prestamo &&
     ["ACTIVO", "ATRASADO"].includes(prestamo.estado) &&

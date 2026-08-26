@@ -70,6 +70,36 @@ function last7ISO() {
   return toISODate(d);
 }
 
+function renderJsonRows(
+  data: Record<string, unknown>,
+  accentColor: string,
+  colors: typeof Colors.light,
+) {
+  if (!data || typeof data !== 'object') {
+    return (
+      <Text style={[detalleStyles.jsonValue, { color: accentColor }]}>
+        {String(data)}
+      </Text>
+    );
+  }
+
+  return Object.entries(data).map(([key, value]) => {
+    const displayValue =
+      typeof value === 'object' && value !== null
+        ? JSON.stringify(value)
+        : String(value ?? '');
+
+    return (
+      <View key={key} style={[detalleStyles.jsonRow, { borderBottomColor: colors.borderLight }]}>
+        <Text style={[detalleStyles.jsonKey, { color: colors.textTertiary }]}>{key}</Text>
+        <Text style={[detalleStyles.jsonValue, { color: accentColor }]} numberOfLines={3}>
+          {displayValue}
+        </Text>
+      </View>
+    );
+  });
+}
+
 const QUICK_FILTERS: Record<string, { label: string; desde: () => string; hasta: () => string }> = {
   hoy:   { label: 'Hoy',       desde: todayISO, hasta: todayISO },
   ayer:  { label: 'Ayer',      desde: yesterdayISO, hasta: yesterdayISO },
@@ -106,9 +136,11 @@ export default function AuditoriaScreen() {
 
   // ---- detail modal ----
   const [selected, setSelected] = useState<Auditoria | null>(null);
+  const [showDatos, setShowDatos] = useState(false);
+  const [datosItem, setDatosItem] = useState<Auditoria | null>(null);
 
   // ---- data ----
-  const { data, isLoading, isRefetching, refetch, isError } = useAuditoria(filters);
+  const { data, isLoading, isRefetching, refetch, isError, error } = useAuditoria(filters);
   const { data: empresas } = useEmpresas();
 
   // ---- empresa lookup (name → id) ----
@@ -223,6 +255,9 @@ export default function AuditoriaScreen() {
           activeOpacity={0.7}
           onPress={() => openDetail(item)}
           style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Registro de auditoría: ${item.accion}, tipo ${item.tipo}, ${item.usuario?.nombre || 'sin usuario'}`}
+          accessibilityHint="Toca para ver detalles"
         >
           <View style={styles.cardTop}>
             <View style={styles.cardTopLeft}>
@@ -274,6 +309,11 @@ export default function AuditoriaScreen() {
         <View style={styles.content}>
           <Skeleton height={48} style={{ marginBottom: Spacing.md }} />
           <Skeleton height={40} style={{ marginBottom: Spacing.md }} />
+          <View style={styles.chipRow}>
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} width={scale(60)} height={scale(28)} borderRadius={BorderRadius.full} />
+            ))}
+          </View>
           <Skeleton height={80} style={{ marginBottom: Spacing.md }} />
           <Skeleton height={90} style={{ marginBottom: Spacing.sm }} />
           <Skeleton height={90} style={{ marginBottom: Spacing.sm }} />
@@ -456,7 +496,11 @@ export default function AuditoriaScreen() {
           isError ? (
             <EmptyState
               title="Error al cargar auditoría"
-              subtitle="No se pudieron obtener los registros. Verifica tu conexión."
+              subtitle={
+                error instanceof Error
+                  ? `${error.message}`
+                  : 'No se pudieron obtener los registros. Verifica tu conexión.'
+              }
               icon="cloud-offline-outline"
               actionLabel="Reintentar"
               onAction={refetch}
@@ -464,7 +508,9 @@ export default function AuditoriaScreen() {
           ) : (
             <EmptyState
               title="No hay registros de auditoría"
-              subtitle={search.trim() ? 'Intenta con otros términos de búsqueda.' : 'No se encontraron registros para los filtros seleccionados.'}
+              subtitle={search.trim()
+                ? `No se encontraron resultados para "${search}"`
+                : 'No se encontraron registros para los filtros seleccionados.'}
               icon="document-text-outline"
               actionLabel={search.trim() ? undefined : 'Limpiar filtros'}
               onAction={search.trim() ? undefined : clearAll}
@@ -486,9 +532,29 @@ export default function AuditoriaScreen() {
         >
           <Pressable
             style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}
-            onPress={() => {}}
+            onPress={(e) => e.stopPropagation()}
           >
-            {selected && <DetalleContent item={selected} colors={colors} onClose={closeDetail} />}
+            {selected && <DetalleContent item={selected} colors={colors} onClose={closeDetail} onVerDatos={() => { setDatosItem(selected); setSelected(null); setShowDatos(true); }} />}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de datos adicionales */}
+      <Modal
+        visible={showDatos}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatos(false)}
+      >
+        <Pressable
+          style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}
+          onPress={() => setShowDatos(false)}
+        >
+          <Pressable
+            style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {datosItem && <DatosContent item={datosItem} colors={colors} onClose={() => { setDatosItem(null); setShowDatos(false); }} />}
           </Pressable>
         </Pressable>
       </Modal>
@@ -504,17 +570,19 @@ function DetalleContent({
   item,
   colors,
   onClose,
+  onVerDatos,
 }: {
   item: Auditoria;
   colors: typeof Colors.light;
   onClose: () => void;
+  onVerDatos: () => void;
 }) {
   const [showExtra, setShowExtra] = useState(false);
   const tMeta = getTipoMeta(item.tipo);
   const nMeta = getNivelMeta(item.nivel);
 
   const row = (label: string, value: React.ReactNode) => (
-    <View style={detalleStyles.row}>
+    <View style={[detalleStyles.row, { borderBottomColor: colors.border }]}>
       <Text style={[detalleStyles.label, { color: colors.textTertiary }]}>{label}</Text>
       <View style={detalleStyles.valueWrap}>{typeof value === 'string' ? <Text style={[detalleStyles.value, { color: colors.text }]}>{value}</Text> : value}</View>
     </View>
@@ -527,98 +595,184 @@ function DetalleContent({
   );
 
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-      bounces={false}
-    >
-      <View style={detalleStyles.header}>
+    <View style={{ flex: 1 }}>
+      {/* ZONA 1: Header fijo */}
+      <View style={[detalleStyles.header, { borderBottomColor: colors.border }]}>
         <Text style={[detalleStyles.title, { color: colors.text }]}>
           Detalle de Auditoría
         </Text>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cerrar detalle de auditoría">
           <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
         </TouchableOpacity>
       </View>
 
-      <View style={detalleStyles.body}>
-        {row('Fecha', formatDateTime(item.createdAt))}
-        {row('Nivel', badge(nMeta.bg, nMeta.text, item.nivel || 'INFO'))}
-        {row('Tipo', badge(tMeta.bg, tMeta.text, item.tipo))}
-        {row('Acción', item.accion)}
-        {item.usuario?.nombre
-          ? row('Usuario', `${item.usuario.nombre}${item.usuario.email ? ` (${item.usuario.email})` : ''}`)
-          : null}
-        {item.empresa?.nombre ? row('Empresa', item.empresa.nombre) : null}
-        {item.ip ? row('IP', item.ip) : null}
-        {item.referenciaId ? row('Referencia ID', item.referenciaId) : null}
-        {item.descripcion ? row('Descripción', item.descripcion) : null}
-        {item.monto != null ? row('Monto', formatCurrency(item.monto)) : null}
+      {/* ZONA 2: Body scrolleable */}
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        nestedScrollEnabled
+      >
+        <View style={detalleStyles.body}>
+          {row('Fecha', formatDateTime(item.createdAt))}
+          {row('Nivel', badge(nMeta.bg, nMeta.text, item.nivel || 'INFO'))}
+          {row('Tipo', badge(tMeta.bg, tMeta.text, item.tipo))}
+          {row('Acción', item.accion)}
+          {item.usuario?.nombre
+            ? row('Usuario', `${item.usuario.nombre}${item.usuario.email ? ` (${item.usuario.email})` : ''}`)
+            : null}
+          {item.empresa?.nombre ? row('Empresa', item.empresa.nombre) : null}
+          {item.ip ? row('IP', item.ip) : null}
+          {item.referenciaId ? row('Referencia ID', item.referenciaId) : null}
+          {item.descripcion ? row('Descripción', item.descripcion) : null}
+          {item.monto != null ? row('Monto', formatCurrency(item.monto)) : null}
 
-        {item.userAgent && (
-          <TouchableOpacity
-            onPress={() => setShowExtra((p) => !p)}
-            style={detalleStyles.expandBtn}
-          >
-            <Text style={[detalleStyles.expandText, { color: colors.primary }]}>
-              {showExtra ? 'Ocultar' : 'Ver'} User Agent
-            </Text>
-            <Ionicons
-              name={showExtra ? 'chevron-up' : 'chevron-down'}
-              size={scale(14)}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-        )}
+          {item.userAgent && (
+            <TouchableOpacity
+              onPress={() => setShowExtra((p) => !p)}
+              style={detalleStyles.expandBtn}
+              accessibilityRole="button"
+              accessibilityLabel={showExtra ? 'Ocultar User Agent' : 'Ver User Agent'}
+              accessibilityState={{ expanded: showExtra }}
+            >
+              <Text style={[detalleStyles.expandText, { color: colors.primary }]}>
+                {showExtra ? 'Ocultar' : 'Ver'} User Agent
+              </Text>
+              <Ionicons
+                name={showExtra ? 'chevron-up' : 'chevron-down'}
+                size={scale(14)}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          )}
 
-        {showExtra && item.userAgent && (
-          <View style={[detalleStyles.jsonBlock, { backgroundColor: colors.surface }]}>
-            <Text style={[detalleStyles.jsonText, { color: colors.textSecondary }]}>
-              {item.userAgent}
-            </Text>
-          </View>
-        )}
+          {showExtra && item.userAgent && (
+            <View style={[detalleStyles.jsonBlock, { backgroundColor: colors.surface }]}>
+              <Text style={[detalleStyles.jsonText, { color: colors.textSecondary }]}>
+                {item.userAgent}
+              </Text>
+            </View>
+          )}
 
-        {(item.datosAnteriores || item.datosNuevos) && (
-          <View style={detalleStyles.datosSection}>
-            <Text style={[detalleStyles.datosTitle, { color: colors.text }]}>
-              Datos adicionales
-            </Text>
+          {(item.datosAnteriores || item.datosNuevos) && (
+            <TouchableOpacity
+              onPress={onVerDatos}
+              style={[detalleStyles.datosBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Ver datos adicionales de auditoría"
+            >
+              <Ionicons name="document-text-outline" size={scale(18)} color={colors.primary} />
+              <Text style={[detalleStyles.datosBtnText, { color: colors.primary }]}>
+                Ver datos completos
+              </Text>
+              <Ionicons name="chevron-forward" size={scale(16)} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
 
-            {item.datosAnteriores && (
-              <View style={detalleStyles.datosBlock}>
-                <Text style={[detalleStyles.datosLabel, { color: colors.error }]}>Antes:</Text>
-                <View style={[detalleStyles.jsonBlock, { backgroundColor: colors.errorLight }]}>
-                  <Text style={[detalleStyles.jsonText, { color: colors.error }]}>
-                    {JSON.stringify(item.datosAnteriores, null, 2)}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {item.datosNuevos && (
-              <View style={detalleStyles.datosBlock}>
-                <Text style={[detalleStyles.datosLabel, { color: colors.success }]}>Después:</Text>
-                <View style={[detalleStyles.jsonBlock, { backgroundColor: colors.successLight }]}>
-                  <Text style={[detalleStyles.jsonText, { color: colors.success }]}>
-                    {JSON.stringify(item.datosNuevos, null, 2)}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-
+      {/* ZONA 3: Botón Cerrar fijo */}
       <TouchableOpacity
         onPress={onClose}
         style={[detalleStyles.closeBtn, { backgroundColor: colors.borderLight }]}
+        accessibilityRole="button"
+        accessibilityLabel="Cerrar detalle de auditoría"
       >
         <Text style={[detalleStyles.closeBtnText, { color: colors.textSecondary }]}>
           Cerrar
         </Text>
       </TouchableOpacity>
-    </ScrollView>
+    </View>
+  );
+}
+
+// ──────────────────────────────────────────
+// DatosContent — modal secundario para datos adicionales
+// ──────────────────────────────────────────
+
+function DatosContent({
+  item,
+  colors,
+  onClose,
+}: {
+  item: Auditoria;
+  colors: typeof Colors.light;
+  onClose: () => void;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      {/* ZONA 1: Header fijo */}
+      <View style={[detalleStyles.header, { borderBottomColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[detalleStyles.title, { color: colors.text }]}>
+            Datos adicionales
+          </Text>
+          <Text style={[detalleStyles.weak, { color: colors.textTertiary }]}>
+            ID {item.id}
+          </Text>
+        </View>
+        <Pressable
+          onPress={onClose}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar datos adicionales"
+        >
+          <Ionicons name="close-circle" size={scale(28)} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      {/* ZONA 2: Body scrollable */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: Spacing.lg, paddingBottom: Spacing.md }}
+        showsVerticalScrollIndicator={false}
+      >
+        {item.datosAnteriores && (
+          <View style={{ marginBottom: Spacing.lg }}>
+            <View style={[detalleStyles.chip, { backgroundColor: colors.errorLight, alignSelf: 'flex-start', marginBottom: Spacing.sm }]}>
+              <Ionicons name="arrow-back-circle-outline" size={scale(14)} color={colors.error} />
+              <Text style={[detalleStyles.chipText, { color: colors.error }]}>Antes</Text>
+            </View>
+            <View style={[detalleStyles.jsonBlock, { backgroundColor: colors.errorLight }]}>
+              {renderJsonRows(item.datosAnteriores as Record<string, unknown>, colors.error, colors)}
+            </View>
+          </View>
+        )}
+
+        {item.datosNuevos && (
+          <View>
+            <View style={[detalleStyles.chip, { backgroundColor: colors.successLight, alignSelf: 'flex-start', marginBottom: Spacing.sm }]}>
+              <Ionicons name="arrow-forward-circle-outline" size={scale(14)} color={colors.success} />
+              <Text style={[detalleStyles.chipText, { color: colors.success }]}>Después</Text>
+            </View>
+            <View style={[detalleStyles.jsonBlock, { backgroundColor: colors.successLight }]}>
+              {renderJsonRows(item.datosNuevos as Record<string, unknown>, colors.success, colors)}
+            </View>
+          </View>
+        )}
+
+        {!item.datosAnteriores && !item.datosNuevos && (
+          <EmptyState
+            title="Sin datos adicionales"
+            subtitle="Este registro no contiene datos adicionales."
+            icon="document-text-outline"
+          />
+        )}
+      </ScrollView>
+
+      {/* ZONA 3: Botón Cerrar fijo */}
+      <TouchableOpacity
+        onPress={onClose}
+        style={[detalleStyles.closeBtn, { backgroundColor: colors.borderLight }]}
+        accessibilityRole="button"
+        accessibilityLabel="Cerrar datos adicionales"
+      >
+        <Text style={[detalleStyles.closeBtnText, { color: colors.textSecondary }]}>
+          Cerrar
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -741,6 +895,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
     maxHeight: '85%',
+    flex: 1,
     paddingBottom: Platform.OS === 'ios' ? 34 : Spacing.md,
   },
 });
@@ -755,6 +910,17 @@ const detalleStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  weak: { fontSize: FontSize.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(4),
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: scale(3),
+    borderRadius: BorderRadius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  chipText: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold },
   title: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   body: { padding: Spacing.lg },
   row: {
@@ -786,10 +952,32 @@ const detalleStyles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   jsonText: { fontFamily: 'monospace', fontSize: FontSize.xs },
-  datosSection: { marginTop: Spacing.md },
-  datosTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
-  datosBlock: { marginBottom: Spacing.sm },
-  datosLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginBottom: scale(2) },
+  jsonRow: {
+    flexDirection: 'row',
+    paddingVertical: scale(4),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  jsonKey: {
+    width: scale(100),
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  jsonValue: {
+    flex: 1,
+    fontSize: FontSize.xs,
+    fontFamily: 'monospace',
+  },
+  datosBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  datosBtnText: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   closeBtn: {
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.md,

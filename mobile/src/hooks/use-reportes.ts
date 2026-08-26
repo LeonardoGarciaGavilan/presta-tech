@@ -6,6 +6,9 @@ import type {
   CarteraFilters,
   EstadoFilters,
   CajasFilters,
+  FlujoCajaFilters,
+  DesempenoFilters,
+  ProyeccionFilters,
 } from '@/types/reportes.types';
 
 export function useCobros(
@@ -59,6 +62,39 @@ export function useReporteCajas(
   return useQuery({
     queryKey: ['reportes', 'cajas', filters],
     queryFn: () => reportesApi.getReporteCajas(filters),
+    enabled,
+  });
+}
+
+export function useFlujoCaja(
+  filters: FlujoCajaFilters,
+  enabled = false,
+) {
+  return useQuery({
+    queryKey: ['reportes', 'flujo-caja', filters],
+    queryFn: () => reportesApi.getFlujoCaja(filters),
+    enabled,
+  });
+}
+
+export function useDesempenoCobrador(
+  filters?: DesempenoFilters,
+  enabled = false,
+) {
+  return useQuery({
+    queryKey: ['reportes', 'desempeno-cobrador', filters],
+    queryFn: () => reportesApi.getDesempenoCobrador(filters),
+    enabled,
+  });
+}
+
+export function useProyeccionCuotas(
+  filters?: ProyeccionFilters,
+  enabled = false,
+) {
+  return useQuery({
+    queryKey: ['reportes', 'proyeccion-cuotas', filters],
+    queryFn: () => reportesApi.getProyeccionCuotas(filters),
     enabled,
   });
 }

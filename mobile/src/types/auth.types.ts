@@ -10,6 +10,11 @@ export interface User {
   permisos?: string[];
   modulosDeshabilitados?: string[];
   authVersion?: number;
+  accionesPrestamo?: {
+    cancelar: boolean;
+    refinanciar: boolean;
+    renovar: boolean;
+  };
 }
 
 export interface LoginRequest {

@@ -9,6 +9,12 @@ import type {
   ClienteReporteResponse,
   CajasResponse,
   CajasFilters,
+  FlujoCajaResponse,
+  FlujoCajaFilters,
+  DesempenoCobradorResponse,
+  DesempenoFilters,
+  ProyeccionCuotasResponse,
+  ProyeccionFilters,
 } from '@/types/reportes.types';
 
 export async function getCobros(
@@ -69,5 +75,45 @@ export async function getReporteCajas(
   const response = await client.get<CajasResponse>('/reportes/cajas', {
     params,
   });
+  return response.data;
+}
+
+export async function getFlujoCaja(
+  filters: FlujoCajaFilters,
+): Promise<FlujoCajaResponse> {
+  const params: Record<string, string> = {
+    desde: filters.desde,
+    hasta: filters.hasta,
+  };
+  if (filters.usuarioId) params.usuarioId = filters.usuarioId;
+  const response = await client.get<FlujoCajaResponse>('/reportes/flujo-caja', {
+    params,
+  });
+  return response.data;
+}
+
+export async function getDesempenoCobrador(
+  filters?: DesempenoFilters,
+): Promise<DesempenoCobradorResponse> {
+  const params: Record<string, string> = {};
+  if (filters?.desde) params.desde = filters.desde;
+  if (filters?.hasta) params.hasta = filters.hasta;
+  if (filters?.usuarioId) params.usuarioId = filters.usuarioId;
+  const response = await client.get<DesempenoCobradorResponse>(
+    '/reportes/desempeno-cobrador',
+    { params },
+  );
+  return response.data;
+}
+
+export async function getProyeccionCuotas(
+  filters?: ProyeccionFilters,
+): Promise<ProyeccionCuotasResponse> {
+  const params: Record<string, string> = {};
+  if (filters?.provincia) params.provincia = filters.provincia;
+  const response = await client.get<ProyeccionCuotasResponse>(
+    '/reportes/proyeccion-cuotas',
+    { params },
+  );
   return response.data;
 }

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
-import { useCobros, useCarteraVencida, useEstadoGeneral, useReporteCliente, useReporteCajas } from '@/hooks/use-reportes';
+import { useCobros, useCarteraVencida, useEstadoGeneral, useReporteCliente, useReporteCajas, useFlujoCaja, useDesempenoCobrador, useProyeccionCuotas } from '@/hooks/use-reportes';
 import { useClientes } from '@/hooks/use-clientes';
 import { Skeleton, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import { AppInput } from '@/components/ui/app-input';
@@ -45,7 +45,7 @@ const METODO_COLORS: Record<string, string> = {
   CHEQUE: '#D97706',
 };
 
-type TabId = 'cobros' | 'cartera' | 'estado' | 'cliente' | 'cajas';
+type TabId = 'cobros' | 'cartera' | 'estado' | 'cliente' | 'cajas' | 'flujo' | 'cobrador' | 'proyeccion';
 
 const TABS: { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'cobros', label: 'Cobros', icon: 'cash-outline' },
@@ -53,6 +53,9 @@ const TABS: { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap }[]
   { id: 'estado', label: 'Estado', icon: 'stats-chart-outline' },
   { id: 'cliente', label: 'Cliente', icon: 'person-outline' },
   { id: 'cajas', label: 'Cajas', icon: 'archive-outline' },
+  { id: 'flujo', label: 'Flujo', icon: 'trending-up-outline' },
+  { id: 'cobrador', label: 'Cobrador', icon: 'people-outline' },
+  { id: 'proyeccion', label: 'Proyección', icon: 'calendar-outline' },
 ];
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -135,8 +138,45 @@ export default function ReportesScreen() {
   const cajasFilters = useMemo(() => ({ desde, hasta, usuarioId: usuarioId || undefined }), [desde, hasta, usuarioId]);
   const { data: cajasData, isLoading: cajasLoading, isRefetching: cajasRefetching, refetch: refetchCajas } = useReporteCajas(cajasFilters, shouldFetch && tab === 'cajas');
 
-  const loading = cobrosLoading || carteraLoading || estadoLoading || clienteLoading || cajasLoading;
-  const isRefetching = cobrosRefetching || carteraRefetching || estadoRefetching || clienteRefetching || cajasRefetching;
+  // Flujo de caja query
+  const flujoFilters = useMemo(() => ({ desde, hasta, usuarioId: usuarioId || undefined }), [desde, hasta, usuarioId]);
+  const { data: flujoData, isLoading: flujoLoading, isRefetching: flujoRefetching, refetch: refetchFlujo } = useFlujoCaja(flujoFilters, shouldFetch && tab === 'flujo');
+
+  // Desempeño cobrador query
+  const desempenoFilters = useMemo(() => ({ desde: desde || undefined, hasta: hasta || undefined, usuarioId: usuarioId || undefined }), [desde, hasta, usuarioId]);
+  const { data: desempenoData, isLoading: desempenoLoading, isRefetching: desempenoRefetching, refetch: refetchDesempeno } = useDesempenoCobrador(desempenoFilters, shouldFetch && tab === 'cobrador');
+
+  // Proyección cuotas query
+  const proyeccionFilters = useMemo(() => ({ provincia: provincia || undefined }), [provincia]);
+  const { data: proyeccionData, isLoading: proyeccionLoading, isRefetching: proyeccionRefetching, refetch: refetchProyeccion } = useProyeccionCuotas(proyeccionFilters, shouldFetch && tab === 'proyeccion');
+
+  const loading = useMemo(() => {
+    switch (tab) {
+      case 'cobros': return cobrosLoading;
+      case 'cartera': return carteraLoading;
+      case 'estado': return estadoLoading;
+      case 'cliente': return clienteLoading;
+      case 'cajas': return cajasLoading;
+      case 'flujo': return flujoLoading;
+      case 'cobrador': return desempenoLoading;
+      case 'proyeccion': return proyeccionLoading;
+      default: return false;
+    }
+  }, [tab, cobrosLoading, carteraLoading, estadoLoading, clienteLoading, cajasLoading, flujoLoading, desempenoLoading, proyeccionLoading]);
+
+  const isRefetching = useMemo(() => {
+    switch (tab) {
+      case 'cobros': return cobrosRefetching;
+      case 'cartera': return carteraRefetching;
+      case 'estado': return estadoRefetching;
+      case 'cliente': return clienteRefetching;
+      case 'cajas': return cajasRefetching;
+      case 'flujo': return flujoRefetching;
+      case 'cobrador': return desempenoRefetching;
+      case 'proyeccion': return proyeccionRefetching;
+      default: return false;
+    }
+  }, [tab, cobrosRefetching, carteraRefetching, estadoRefetching, clienteRefetching, cajasRefetching, flujoRefetching, desempenoRefetching, proyeccionRefetching]);
 
   const currentData = useMemo(() => {
     switch (tab) {
@@ -145,9 +185,12 @@ export default function ReportesScreen() {
       case 'estado': return estadoData as any;
       case 'cliente': return clienteData as any;
       case 'cajas': return cajasData as any;
+      case 'flujo': return flujoData as any;
+      case 'cobrador': return desempenoData as any;
+      case 'proyeccion': return proyeccionData as any;
       default: return null;
     }
-  }, [tab, cobrosData, carteraData, estadoData, clienteData, cajasData]);
+  }, [tab, cobrosData, carteraData, estadoData, clienteData, cajasData, flujoData, desempenoData, proyeccionData]);
 
   // ─── Generate ─────────────────────────────────────────────────────────────
 
@@ -164,9 +207,12 @@ export default function ReportesScreen() {
         case 'estado': refetchEstado(); break;
         case 'cliente': refetchCliente(); break;
         case 'cajas': refetchCajas(); break;
+        case 'flujo': refetchFlujo(); break;
+        case 'cobrador': refetchDesempeno(); break;
+        case 'proyeccion': refetchProyeccion(); break;
       }
     }, 0);
-  }, [tab, clienteSelected, showToast, refetchCobros, refetchCartera, refetchEstado, refetchCliente, refetchCajas]);
+  }, [tab, clienteSelected, showToast, refetchCobros, refetchCartera, refetchEstado, refetchCliente, refetchCajas, refetchFlujo, refetchDesempeno, refetchProyeccion]);
 
   // ─── Refresh ──────────────────────────────────────────────────────────────
 
@@ -178,8 +224,11 @@ export default function ReportesScreen() {
       case 'estado': refetchEstado(); break;
       case 'cliente': refetchCliente(); break;
       case 'cajas': refetchCajas(); break;
+      case 'flujo': refetchFlujo(); break;
+      case 'cobrador': refetchDesempeno(); break;
+      case 'proyeccion': refetchProyeccion(); break;
     }
-  }, [tab, shouldFetch, refetchCobros, refetchCartera, refetchEstado, refetchCliente, refetchCajas]);
+  }, [tab, shouldFetch, refetchCobros, refetchCartera, refetchEstado, refetchCliente, refetchCajas, refetchFlujo, refetchDesempeno, refetchProyeccion]);
 
   // ─── Change tab ───────────────────────────────────────────────────────────
 
@@ -219,6 +268,7 @@ export default function ReportesScreen() {
     switch (tab) {
       case 'cobros':
       case 'cajas':
+      case 'flujo':
         return (
           <View style={[styles.filterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Filtros</Text>
@@ -242,6 +292,7 @@ export default function ReportesScreen() {
         );
       case 'cartera':
       case 'estado':
+      case 'proyeccion':
         return (
           <View style={[styles.filterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Filtros</Text>
@@ -271,6 +322,20 @@ export default function ReportesScreen() {
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
+          </View>
+        );
+      case 'cobrador':
+        return (
+          <View style={[styles.filterCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Filtros</Text>
+            <View style={styles.filterRow}>
+              <View style={styles.filterHalf}>
+                <DatePickerField label="Desde" value={desde} onChange={setDesde} />
+              </View>
+              <View style={styles.filterHalf}>
+                <DatePickerField label="Hasta" value={hasta} onChange={setHasta} />
+              </View>
+            </View>
           </View>
         );
       default:
@@ -550,6 +615,119 @@ export default function ReportesScreen() {
     );
   }, [cajasData, colors, renderKpiRow]);
 
+  // ─── Render flujo de caja ─────────────────────────────────────────────────
+
+  const renderFlujo = useCallback(() => {
+    if (!flujoData) return null;
+    return (
+      <View>
+        {renderKpiRow([
+          { label: 'Entradas', value: formatFullCurrency(flujoData.totalEntradas), color: colors.success, bg: colors.successLight },
+          { label: 'Salidas', value: formatFullCurrency(flujoData.totalSalidas), color: colors.error, bg: colors.errorLight },
+          { label: 'Neto', value: formatFullCurrency(flujoData.neto), color: flujoData.neto >= 0 ? colors.primary : colors.error, bg: flujoData.neto >= 0 ? colors.primaryLight : colors.errorLight },
+        ])}
+        {renderKpiRow([
+          { label: 'Pagos', value: formatFullCurrency(flujoData.desgloseEntradas.pagos), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Desembolsos', value: formatFullCurrency(flujoData.desgloseSalidas.desembolsos), color: colors.warning, bg: colors.warningLight },
+        ])}
+        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
+          {flujoData.porDia.length} día{flujoData.porDia.length !== 1 ? 's' : ''} con movimiento
+        </Text>
+        {flujoData.porDia.map((d, i) => (
+          <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.itemTop}>
+              <Text style={[styles.itemTitle, { color: colors.text }]}>{formatFecha(d.fecha)}</Text>
+              <Badge label={d.neto >= 0 ? 'Positivo' : 'Negativo'} color={d.neto >= 0 ? colors.success : colors.error} />
+            </View>
+            <View style={styles.itemBreakdown}>
+              <Text style={[styles.breakdownLabel, { color: colors.success }]}>+{formatCurrencyCompact(d.entradas)}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.error }]}>-{formatCurrencyCompact(d.salidas)}</Text>
+              <Text style={[styles.breakdownLabel, { color: d.neto >= 0 ? colors.primary : colors.error, fontWeight: '700' }]}>
+                = {formatCurrencyCompact(d.neto)}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }, [flujoData, colors, renderKpiRow]);
+
+  // ─── Render desempeño cobrador ────────────────────────────────────────────
+
+  const renderCobrador = useCallback(() => {
+    if (!desempenoData) return null;
+    return (
+      <View>
+        {renderKpiRow([
+          { label: 'Total cobrado', value: formatFullCurrency(desempenoData.totalCobrado), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Pagos', value: String(desempenoData.cantidadPagos), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Mora', value: formatFullCurrency(desempenoData.totalMora), color: colors.warning, bg: colors.warningLight },
+          { label: 'Cobradores', value: String(desempenoData.cobradores.length), color: colors.info, bg: colors.infoLight },
+        ])}
+        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
+          {desempenoData.cobradores.length} cobrador{desempenoData.cobradores.length !== 1 ? 'es' : ''}
+        </Text>
+        {desempenoData.cobradores.map((c, i) => (
+          <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.itemTop}>
+              <Text style={[styles.itemTitle, { color: colors.text }]}>{c.nombre}</Text>
+              <Badge label={`${c.cantidadPagos} pagos`} color={colors.primary} />
+            </View>
+            <View style={styles.itemBreakdown}>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cobrado:</Text>
+              <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatFullCurrency(c.totalCobrado)}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Días:</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{c.diasActivos}</Text>
+            </View>
+            <View style={styles.itemBreakdown}>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Promedio/pago:</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatCurrencyCompact(c.promedioPorPago)}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Promedio/día:</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatCurrencyCompact(c.promedioPorDia)}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }, [desempenoData, colors, renderKpiRow]);
+
+  // ─── Render proyección cuotas ─────────────────────────────────────────────
+
+  const renderProyeccion = useCallback(() => {
+    if (!proyeccionData) return null;
+    return (
+      <View>
+        {renderKpiRow([
+          { label: 'Préstamos', value: String(proyeccionData.totalPrestamos), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Cuotas pend.', value: String(proyeccionData.totalCuotasPendientes), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Monto total', value: formatFullCurrency(proyeccionData.totalMontoPendiente), color: colors.success, bg: colors.successLight },
+          { label: 'Vencidas', value: String(proyeccionData.totalVencidas), color: colors.error, bg: colors.errorLight },
+        ])}
+        <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
+          Proyección por mes
+        </Text>
+        {proyeccionData.porMes.map((m, i) => {
+          const [y, mo] = m.month.split('-');
+          const mesLabel = new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString('es-DO', { month: 'long', year: 'numeric' });
+          return (
+            <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.itemTop}>
+                <Text style={[styles.itemTitle, { color: colors.text }]}>{mesLabel}</Text>
+                {m.vencidas > 0 && <Badge label={`${m.vencidas} venc.`} color={colors.error} />}
+              </View>
+              <View style={styles.itemBreakdown}>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cuotas:</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>{m.cantidadCuotas}</Text>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Total:</Text>
+                <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatFullCurrency(m.montoTotal)}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    );
+  }, [proyeccionData, colors, renderKpiRow]);
+
   // ─── Render data ──────────────────────────────────────────────────────────
 
   const renderData = useCallback(() => {
@@ -559,9 +737,12 @@ export default function ReportesScreen() {
       case 'estado': return renderEstado();
       case 'cliente': return renderCliente();
       case 'cajas': return renderCajas();
+      case 'flujo': return renderFlujo();
+      case 'cobrador': return renderCobrador();
+      case 'proyeccion': return renderProyeccion();
       default: return null;
     }
-  }, [tab, renderCobros, renderCartera, renderEstado, renderCliente, renderCajas]);
+  }, [tab, renderCobros, renderCartera, renderEstado, renderCliente, renderCajas, renderFlujo, renderCobrador, renderProyeccion]);
 
   // ─── Loading skeleton ─────────────────────────────────────────────────────
 
