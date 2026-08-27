@@ -217,6 +217,7 @@ export class ReportesService {
                 municipio: true,
               },
             },
+            cuotas: { where: { pagada: false } },
             _count: { select: { cuotas: { where: { pagada: false } } } },
           },
           orderBy: { createdAt: 'desc' },
