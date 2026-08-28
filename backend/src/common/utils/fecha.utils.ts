@@ -23,12 +23,6 @@ export const getInicioDiaRD = (fecha?: string): Date => {
   const inicioDiaRD = startOfDay(fechaBase);
   const inicioUTC = fromZonedTime(inicioDiaRD, TIMEZONE);
 
-  /*console.log('RANGO CORRECTO RD - getInicioDiaRD:', {
-    fechaBase: fechaBase.toISOString(),
-    inicioDiaRD: inicioDiaRD.toISOString(),
-    inicioUTC: inicioUTC.toISOString(),
-  }); */
-
   return inicioUTC;
 };
 
@@ -44,12 +38,6 @@ export const getFinDiaRD = (fecha?: string): Date => {
 
   const finDiaRD = endOfDay(fechaBase);
   const finUTC = fromZonedTime(finDiaRD, TIMEZONE);
-
-  /*console.log('RANGO CORRECTO RD - getFinDiaRD:', {
-    fechaBase: fechaBase.toISOString(),
-    finDiaRD: finDiaRD.toISOString(),
-    finUTC: finUTC.toISOString(),
-  }); */
 
   return finUTC;
 };

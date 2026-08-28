@@ -347,6 +347,37 @@ describe('ReportesService', () => {
       expect(result.pagos).toEqual([]);
       expect(result.resumenPorUsuario).toEqual([]);
     });
+
+    it('C agrupa porDia por el createdAt del pago, no por la fecha actual', async () => {
+      const fechaPago = '2026-03-15T14:30:00.000Z';
+      const findMany = jest.fn()
+        .mockResolvedValueOnce([]) // cajas
+        .mockResolvedValueOnce([]) // pagos paginados
+        .mockResolvedValueOnce([
+          {
+            montoTotal: 100, capital: 50, interes: 40, mora: 10,
+            metodo: 'EFECTIVO', usuarioId: 'u1', createdAt: fechaPago,
+          },
+        ]); // allPagos
+      const count = jest.fn().mockResolvedValue(1);
+
+      const service = new ReportesService({
+        cajaSesion: { findMany },
+        pago: { findMany, count },
+      } as unknown as PrismaService);
+
+      const result = await service.reporteCajas(
+        { empresaId: 'emp1' },
+        '2026-03-01',
+        '2026-03-31',
+      );
+
+      expect(result.resumenPorDia).toContainEqual(
+        expect.objectContaining({ fecha: '2026-03-15', totalCobrado: 100 }),
+      );
+      expect(result.resumen.totalCobrado).toBe(100);
+      expect(result.resumen.efectivoReal).toBe(0);
+    });
   });
 
   describe('flujoDeCaja', () => {
@@ -440,8 +471,7 @@ describe('ReportesService', () => {
     it('pasa usuarioId como filtro cuando se proporciona', async () => {
       const findMany = jest.fn().mockResolvedValue([]);
       const service = new ReportesService({
-        movimientoFinanciero: { findMany },
-        pago: { findMany: jest.fn().mockResolvedValue([]) },
+        pago: { findMany },
         gasto: { findMany: jest.fn().mockResolvedValue([]) },
         desembolsoCaja: { findMany: jest.fn().mockResolvedValue([]) },
         inyeccionCapital: { findMany: jest.fn().mockResolvedValue([]) },

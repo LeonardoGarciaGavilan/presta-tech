@@ -1,6 +1,8 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsOptional, IsUUID } from 'class-validator';
+import { ValidarRango } from './validar-rango.decorator';
 
 export class DesempenoQueryDto {
+  @ValidarRango({ maxDias: 366 })
   @IsOptional()
   @IsDateString()
   desde?: string;
@@ -10,6 +12,6 @@ export class DesempenoQueryDto {
   hasta?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   usuarioId?: string;
 }

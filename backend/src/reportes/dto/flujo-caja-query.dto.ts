@@ -1,6 +1,8 @@
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsOptional, IsUUID } from 'class-validator';
+import { ValidarRango } from './validar-rango.decorator';
 
 export class FlujoCajaQueryDto {
+  @ValidarRango({ maxDias: 366 })
   @IsDateString()
   desde: string;
 
@@ -8,6 +10,6 @@ export class FlujoCajaQueryDto {
   hasta: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   usuarioId?: string;
 }

@@ -1,7 +1,16 @@
-import { IsOptional, IsString, IsDateString, IsInt, Min, Max, IsUUID } from 'class-validator';
+import {
+  IsOptional,
+  IsDateString,
+  IsInt,
+  Min,
+  Max,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+import { ValidarRango } from './validar-rango.decorator';
 
 export class CajasQueryDto {
+  @ValidarRango({ maxDias: 366 })
   @IsDateString({}, { message: 'desde debe ser una fecha válida (YYYY-MM-DD)' })
   desde: string;
 

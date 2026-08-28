@@ -6,6 +6,13 @@ import {
 } from '../common/utils/prestamo.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 
+const toFechaStr = (d: Date | string): string => {
+  const date = new Date(d);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 10);
+};
+
 @Injectable()
 export class ReportesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -447,7 +454,15 @@ export class ReportesService {
 
     const allPagos = await this.prisma.pago.findMany({
       where: pagosWhere,
-      select: { montoTotal: true, capital: true, interes: true, mora: true, metodo: true, usuarioId: true },
+      select: {
+        montoTotal: true,
+        capital: true,
+        interes: true,
+        mora: true,
+        metodo: true,
+        usuarioId: true,
+        createdAt: true,
+      },
     });
 
     const totalCobrado =
@@ -574,11 +589,7 @@ export class ReportesService {
     });
 
     allPagos.forEach((p) => {
-      const fecha = new Date(
-        Date.now() - new Date().getTimezoneOffset() * 60000,
-      )
-        .toISOString()
-        .slice(0, 10);
+      const fecha = toFechaStr(p.createdAt);
       if (!porDia[fecha]) {
         porDia[fecha] = {
           fecha,
@@ -602,6 +613,9 @@ export class ReportesService {
           cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0)) *
           100,
       ) / 100;
+    const efectivoReal =
+      Math.round(cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0) * 100) /
+      100;
 
     return {
       desde,
@@ -621,6 +635,7 @@ export class ReportesService {
         cajasCerradas,
         cajasAbiertas,
         efectivoSistema,
+        efectivoReal,
       },
       pagosPorMetodo,
       cajas: cajas.map((c) => ({
@@ -670,19 +685,8 @@ export class ReportesService {
     const desdeDate = getInicioDiaRD(desde);
     const hastaDate = getFinDiaRD(hasta);
 
-    const whereBase: any = {
-      empresaId: user.empresaId,
-      fecha: { gte: desdeDate, lte: hastaDate },
-    };
-    if (usuarioId) whereBase.usuarioId = usuarioId;
-
-    const [movimientos, pagos, gastos, desembolsos, inyecciones, retiros] =
+    const [pagos, gastos, desembolsos, inyecciones, retiros] =
       await Promise.all([
-        this.prisma.movimientoFinanciero.findMany({
-          where: whereBase,
-          select: { tipo: true, monto: true, capital: true, interes: true, mora: true, fecha: true },
-          orderBy: { fecha: 'asc' },
-        }),
         this.prisma.pago.findMany({
           where: {
             prestamo: { empresaId: user.empresaId },
@@ -708,13 +712,6 @@ export class ReportesService {
           select: { monto: true, fecha: true },
         }),
       ]);
-
-    const toFechaStr = (d: Date | string): string => {
-      const date = new Date(d);
-      const offset = date.getTimezoneOffset();
-      const local = new Date(date.getTime() - offset * 60000);
-      return local.toISOString().slice(0, 10);
-    };
 
     const entradasMap: Record<string, number> = {};
     const salidasMap: Record<string, number> = {};
