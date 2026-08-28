@@ -33,8 +33,15 @@ export const fechaReporte = new Intl.DateTimeFormat("es-DO", {
 // ─── Exportar Excel ──────────────────────────────────────────────────────────
 export const exportarExcel = (sheets, filename) => {
   const wb = XLSX.utils.book_new();
-  sheets.forEach(({ name, data }) => {
-    const ws = XLSX.utils.json_to_sheet(data);
+  sheets.forEach(({ name, data, footer }) => {
+    const rows = Array.isArray(footer) && footer.length > 0
+      ? data.concat([footer.reduce((acc, val, i) => {
+          const key = data[0] ? Object.keys(data[0])[i] : `Columna${i + 1}`;
+          acc[key] = val;
+          return acc;
+        }, {})])
+      : data;
+    const ws = XLSX.utils.json_to_sheet(rows);
     XLSX.utils.book_append_sheet(wb, ws, name);
   });
   XLSX.writeFile(wb, `${filename}.xlsx`);

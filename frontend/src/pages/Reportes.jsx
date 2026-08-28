@@ -74,10 +74,12 @@ export default function Reportes() {
         res = await api.get(`/reportes/flujo-caja?desde=${desde}&hasta=${hasta}${uQ}`);
       }
       if (tab === "cobrador") {
-        const uQ = filtroUsuario ? `&usuarioId=${filtroUsuario}` : "";
-        const dQ = desde ? `&desde=${desde}` : "";
-        const hQ = hasta ? `&hasta=${hasta}` : "";
-        res = await api.get(`/reportes/desempeno-cobrador?${dQ}${hQ}${uQ}`);
+        const params = new URLSearchParams();
+        if (desde) params.set("desde", desde);
+        if (hasta) params.set("hasta", hasta);
+        if (filtroUsuario) params.set("usuarioId", filtroUsuario);
+        const qs = params.toString();
+        res = await api.get(`/reportes/desempeno-cobrador${qs ? `?${qs}` : ""}`);
       }
       if (tab === "proyeccion") {
         res = await api.get(`/reportes/proyeccion-cuotas${provQS}`);
@@ -161,9 +163,37 @@ export default function Reportes() {
       ], `Reporte_Cajas_${desde}_${hasta}`);
     }
     if (tab === "flujo") {
-      exportarExcel([{ name: "Flujo de Caja", data: data.porDia.map((d) => ({
+      const filasDiarias = data.porDia.map((d) => ({
         Fecha: d.fecha, Entradas: d.entradas, Salidas: d.salidas, Neto: d.neto,
-      })) }], `Flujo_Caja_${desde}_${hasta}`);
+      }));
+      const filasTotales = filasDiarias.concat([
+        {
+          Fecha: "TOTAL",
+          Entradas: data.totalEntradas,
+          Salidas: data.totalSalidas,
+          Neto: data.neto,
+        },
+      ]);
+      exportarExcel([
+        {
+          name: "Flujo de Caja",
+          data: filasDiarias,
+          footer: ["TOTAL", data.totalEntradas, data.totalSalidas, data.neto],
+        },
+        {
+          name: "Resumen",
+          data: [
+            { Concepto: "Total entradas", Monto: data.totalEntradas },
+            { Concepto: "Total salidas", Monto: data.totalSalidas },
+            { Concepto: "Neto", Monto: data.neto },
+            { Concepto: "Pagos recibidos", Monto: data.desgloseEntradas.pagos },
+            { Concepto: "Inyecciones de capital", Monto: data.desgloseEntradas.inyecciones },
+            { Concepto: "Desembolsos", Monto: data.desgloseSalidas.desembolsos },
+            { Concepto: "Gastos operativos", Monto: data.desgloseSalidas.gastos },
+            { Concepto: "Retiros de ganancias", Monto: data.desgloseSalidas.retiros },
+          ],
+        },
+      ], `Flujo_Caja_${desde}_${hasta}`);
     }
     if (tab === "cobrador") {
       exportarExcel([{ name: "Desempeño Cobrador", data: data.cobradores.map((c) => ({
@@ -216,7 +246,7 @@ export default function Reportes() {
         {/* Filtros */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end">
-            {(tab === "cobros" || tab === "cajas" || tab === "flujo") && (
+            {(tab === "cobros" || tab === "cajas" || tab === "flujo" || tab === "cobrador") && (
               <div className="grid grid-cols-2 sm:flex gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Desde</label>
@@ -266,6 +296,9 @@ export default function Reportes() {
                     <input type="text" value={clienteQuery} onChange={(e) => buscarClientes(e.target.value)}
                       placeholder="Nombre o cédula…"
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    {buscandoCli && (
+                      <div className="absolute -right-3 top-9 w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                    )}
                     {clientesSuger.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
                         {clientesSuger.map((c) => (

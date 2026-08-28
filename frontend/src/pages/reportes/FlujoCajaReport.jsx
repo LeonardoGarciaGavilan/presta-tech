@@ -3,11 +3,6 @@ import { formatCurrency } from "../../utils/prestamosUtils";
 import { fmtFechaCorta } from "./reporteHelpers";
 import { SumCard, Tabla } from "./reporteShared";
 
-const COLORS = {
-  positivo: "text-emerald-600 bg-emerald-50",
-  negativo: "text-red-600 bg-red-50",
-};
-
 export default function FlujoCajaReport({ data }) {
   if (!data) return null;
 
