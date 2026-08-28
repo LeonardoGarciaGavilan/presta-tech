@@ -1,10 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
-import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale } from '@/constants/theme';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import { useCobros, useCarteraVencida, useEstadoGeneral, useReporteCliente, useReporteCajas, useFlujoCaja, useDesempenoCobrador, useProyeccionCuotas } from '@/hooks/use-reportes';
+import { useUsuarios } from '@/hooks/use-usuarios';
+import type { Usuario } from '@/api/usuarios.api';
 import { useClientes } from '@/hooks/use-clientes';
 import { Skeleton, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import { AppInput } from '@/components/ui/app-input';
@@ -13,6 +16,10 @@ import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
+import EmptyState from '@/components/ui/empty-state';
+import ScrollToTopButton from '@/components/ui/scroll-to-top';
+import KpiCard from '@/components/ui/kpi-card';
+import Badge from '@/components/ui/badge';
 import { formatCurrencyCompact, formatFullCurrency, getTodayISO, getMonthStart } from '@/utils/formatters';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,22 +37,109 @@ function formatFechaCorta(dateStr: string): string {
   return d.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
 }
 
-const ESTADO_COLORS: Record<string, string> = {
-  ACTIVO: '#16A34A',
-  ATRASADO: '#DC2626',
-  PAGADO: '#2563EB',
-  CANCELADO: '#6B7280',
-  SOLICITADO: '#D97706',
-};
+function getMetodoColor(metodo: string, colors: Record<string, string>) {
+  switch (metodo) {
+    case 'EFECTIVO': return { color: colors.success, bg: colors.successLight };
+    case 'TARJETA': return { color: colors.info, bg: colors.infoLight };
+    case 'TRANSFERENCIA': return { color: colors.warning, bg: colors.warningLight };
+    default: return { color: colors.textSecondary, bg: colors.surface };
+  }
+}
 
-const METODO_COLORS: Record<string, string> = {
-  EFECTIVO: '#16A34A',
-  TRANSFERENCIA: '#2563EB',
-  TARJETA: '#7C3AED',
-  CHEQUE: '#D97706',
-};
+function getEstadoColor(estado: string, colors: Record<string, string>) {
+  switch (estado) {
+    case 'ACTIVO': return { color: colors.success, bg: colors.successLight };
+    case 'ATRASADO': return { color: colors.error, bg: colors.errorLight };
+    case 'PAGADO': return { color: colors.info, bg: colors.infoLight };
+    case 'CANCELADO': return { color: colors.textTertiary, bg: colors.surface };
+    case 'SOLICITADO': return { color: colors.warning, bg: colors.warningLight };
+    case 'RENOVADO': return { color: colors.warning, bg: colors.warningLight };
+    default: return { color: colors.textSecondary, bg: colors.surface };
+  }
+}
 
 type TabId = 'cobros' | 'cartera' | 'estado' | 'cliente' | 'cajas' | 'flujo' | 'cobrador' | 'proyeccion';
+
+type CobradorSelectorProps = {
+  usuarios?: Usuario[];
+  loading: boolean;
+  usuarioId: string;
+  onSelect: (id: string) => void;
+  onClear: () => void;
+  colors: Record<string, string>;
+};
+
+function CobradorSelector({ usuarios, loading, usuarioId, onSelect, onClear, colors }: CobradorSelectorProps) {
+  const [open, setOpen] = useState(false);
+  const cobradores = (usuarios ?? []).filter((u) => u.rol === 'EMPLEADO');
+  const selected = cobradores.find((u) => u.id === usuarioId);
+
+  return (
+    <>
+      <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Cobrador (opcional)</Text>
+      <TouchableOpacity
+        onPress={() => setOpen(true)}
+        style={[styles.clienteSelector, { backgroundColor: colors.background, borderColor: colors.border }]}
+      >
+        <Ionicons name="people-outline" size={scale(18)} color={colors.textTertiary} />
+        <Text style={[styles.clienteSelectorText, { color: selected ? colors.text : colors.textTertiary }]}>
+          {loading ? 'Cargando...' : selected ? selected.nombre : 'Todos los cobradores'}
+        </Text>
+        {!selected ? (
+          <Ionicons name="chevron-down" size={scale(18)} color={colors.textTertiary} />
+        ) : (
+          <TouchableOpacity onPress={() => { onClear(); setOpen(false); }} hitSlop={8}>
+            <Ionicons name="close-circle" size={scale(18)} color={colors.textTertiary} />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Pressable style={[styles.modalOverlay, { backgroundColor: colors.overlay }]} onPress={() => setOpen(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: colors.surfaceElevated }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Seleccionar cobrador</Text>
+              <TouchableOpacity onPress={() => setOpen(false)} hitSlop={8}>
+                <Ionicons name="close" size={scale(24)} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={cobradores}
+              keyExtractor={(u) => u.id}
+              renderItem={({ item }) => {
+                const activo = item.id === usuarioId;
+                return (
+                  <TouchableOpacity
+                    onPress={() => { onSelect(item.id); setOpen(false); }}
+                    style={[styles.clienteItem, { borderBottomColor: colors.borderLight }, activo && { backgroundColor: colors.primaryLight }]}
+                  >
+                    <View style={[styles.clienteAvatar, { backgroundColor: colors.primaryLight }]}>
+                      <Text style={[styles.clienteAvatarText, { color: colors.primary }]}>
+                        {(item.nombre?.[0] ?? '?').toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.clienteItemInfo}>
+                      <Text style={[styles.clienteItemName, { color: colors.text }]}>{item.nombre}</Text>
+                      <Text style={[styles.clienteItemCedula, { color: colors.textTertiary }]}>{item.email}</Text>
+                    </View>
+                    {activo && <Ionicons name="checkmark-circle" size={scale(20)} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <EmptyState
+                  icon="people-outline"
+                  title="Sin cobradores"
+                  subtitle="No hay empleados disponibles"
+                />
+              }
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
 const TABS: { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'cobros', label: 'Cobros', icon: 'cash-outline' },
@@ -57,37 +151,6 @@ const TABS: { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap }[]
   { id: 'cobrador', label: 'Cobrador', icon: 'people-outline' },
   { id: 'proyeccion', label: 'Proyección', icon: 'calendar-outline' },
 ];
-
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-
-function KpiCard({
-  label,
-  value,
-  color,
-  bg,
-}: {
-  label: string;
-  value: string;
-  color: string;
-  bg: string;
-}) {
-  return (
-    <View style={[styles.kpiCard, { backgroundColor: bg }]}>
-      <Text style={[styles.kpiValue, { color }]}>{value}</Text>
-      <Text style={[styles.kpiLabel, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
-// ─── Badge ────────────────────────────────────────────────────────────────────
-
-function Badge({ label, color }: { label: string; color: string }) {
-  return (
-    <View style={[styles.badge, { backgroundColor: color + '18' }]}>
-      <Text style={[styles.badgeText, { color }]}>{label}</Text>
-    </View>
-  );
-}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -109,9 +172,15 @@ export default function ReportesScreen() {
   const [clienteSearch, setClienteSearch] = useState('');
   const [clienteSelected, setClienteSelected] = useState<{ id: string; nombre: string } | null>(null);
   const [showClienteModal, setShowClienteModal] = useState(false);
+  const [showCobradorModal, setShowCobradorModal] = useState(false);
+  const { data: usuarios, isLoading: usuariosLoading } = useUsuarios();
 
   // Query control
   const [shouldFetch, setShouldFetch] = useState(false);
+
+  // Scroll tracking
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const listRef = useRef<FlatList<any>>(null);
 
   // Client search
   const { data: clientesData } = useClientes(
@@ -121,34 +190,34 @@ export default function ReportesScreen() {
 
   // Cobros query
   const cobrosFilters = useMemo(() => ({ desde, hasta, provincia: provincia || undefined }), [desde, hasta, provincia]);
-  const { data: cobrosData, isLoading: cobrosLoading, isRefetching: cobrosRefetching, refetch: refetchCobros } = useCobros(cobrosFilters, shouldFetch && tab === 'cobros');
+  const { data: cobrosData, isLoading: cobrosLoading, isRefetching: cobrosRefetching, refetch: refetchCobros, error: cobrosError } = useCobros(cobrosFilters, shouldFetch && tab === 'cobros');
 
   // Cartera vencida query
   const carteraFilters = useMemo(() => ({ provincia: provincia || undefined }), [provincia]);
-  const { data: carteraData, isLoading: carteraLoading, isRefetching: carteraRefetching, refetch: refetchCartera } = useCarteraVencida(carteraFilters, shouldFetch && tab === 'cartera');
+  const { data: carteraData, isLoading: carteraLoading, isRefetching: carteraRefetching, refetch: refetchCartera, error: carteraError } = useCarteraVencida(carteraFilters, shouldFetch && tab === 'cartera');
 
   // Estado general query
   const estadoFilters = useMemo(() => ({ provincia: provincia || undefined }), [provincia]);
-  const { data: estadoData, isLoading: estadoLoading, isRefetching: estadoRefetching, refetch: refetchEstado } = useEstadoGeneral(estadoFilters, shouldFetch && tab === 'estado');
+  const { data: estadoData, isLoading: estadoLoading, isRefetching: estadoRefetching, refetch: refetchEstado, error: estadoError } = useEstadoGeneral(estadoFilters, shouldFetch && tab === 'estado');
 
   // Cliente reporte query
-  const { data: clienteData, isLoading: clienteLoading, isRefetching: clienteRefetching, refetch: refetchCliente } = useReporteCliente(clienteSelected?.id ?? null, shouldFetch && tab === 'cliente' && !!clienteSelected);
+  const { data: clienteData, isLoading: clienteLoading, isRefetching: clienteRefetching, refetch: refetchCliente, error: clienteError } = useReporteCliente(clienteSelected?.id ?? null, shouldFetch && tab === 'cliente' && !!clienteSelected);
 
   // Cajas query
   const cajasFilters = useMemo(() => ({ desde, hasta, usuarioId: usuarioId || undefined }), [desde, hasta, usuarioId]);
-  const { data: cajasData, isLoading: cajasLoading, isRefetching: cajasRefetching, refetch: refetchCajas } = useReporteCajas(cajasFilters, shouldFetch && tab === 'cajas');
+  const { data: cajasData, isLoading: cajasLoading, isRefetching: cajasRefetching, refetch: refetchCajas, error: cajasError } = useReporteCajas(cajasFilters, shouldFetch && tab === 'cajas');
 
   // Flujo de caja query
   const flujoFilters = useMemo(() => ({ desde, hasta, usuarioId: usuarioId || undefined }), [desde, hasta, usuarioId]);
-  const { data: flujoData, isLoading: flujoLoading, isRefetching: flujoRefetching, refetch: refetchFlujo } = useFlujoCaja(flujoFilters, shouldFetch && tab === 'flujo');
+  const { data: flujoData, isLoading: flujoLoading, isRefetching: flujoRefetching, refetch: refetchFlujo, error: flujoError } = useFlujoCaja(flujoFilters, shouldFetch && tab === 'flujo');
 
   // Desempeño cobrador query
   const desempenoFilters = useMemo(() => ({ desde: desde || undefined, hasta: hasta || undefined, usuarioId: usuarioId || undefined }), [desde, hasta, usuarioId]);
-  const { data: desempenoData, isLoading: desempenoLoading, isRefetching: desempenoRefetching, refetch: refetchDesempeno } = useDesempenoCobrador(desempenoFilters, shouldFetch && tab === 'cobrador');
+  const { data: desempenoData, isLoading: desempenoLoading, isRefetching: desempenoRefetching, refetch: refetchDesempeno, error: desempenoError } = useDesempenoCobrador(desempenoFilters, shouldFetch && tab === 'cobrador');
 
   // Proyección cuotas query
   const proyeccionFilters = useMemo(() => ({ provincia: provincia || undefined }), [provincia]);
-  const { data: proyeccionData, isLoading: proyeccionLoading, isRefetching: proyeccionRefetching, refetch: refetchProyeccion } = useProyeccionCuotas(proyeccionFilters, shouldFetch && tab === 'proyeccion');
+  const { data: proyeccionData, isLoading: proyeccionLoading, isRefetching: proyeccionRefetching, refetch: refetchProyeccion, error: proyeccionError } = useProyeccionCuotas(proyeccionFilters, shouldFetch && tab === 'proyeccion');
 
   const loading = useMemo(() => {
     switch (tab) {
@@ -192,6 +261,20 @@ export default function ReportesScreen() {
     }
   }, [tab, cobrosData, carteraData, estadoData, clienteData, cajasData, flujoData, desempenoData, proyeccionData]);
 
+  const activeError = useMemo(() => {
+    switch (tab) {
+      case 'cobros': return cobrosError;
+      case 'cartera': return carteraError;
+      case 'estado': return estadoError;
+      case 'cliente': return clienteError;
+      case 'cajas': return cajasError;
+      case 'flujo': return flujoError;
+      case 'cobrador': return desempenoError;
+      case 'proyeccion': return proyeccionError;
+      default: return null;
+    }
+  }, [tab, cobrosError, carteraError, estadoError, clienteError, cajasError, flujoError, desempenoError, proyeccionError]);
+
   // ─── Generate ─────────────────────────────────────────────────────────────
 
   const handleGenerate = useCallback(() => {
@@ -216,8 +299,7 @@ export default function ReportesScreen() {
 
   // ─── Refresh ──────────────────────────────────────────────────────────────
 
-  const handleRefresh = useCallback(() => {
-    if (!shouldFetch) return;
+  const handleRefresh = useCallback(async () => {
     switch (tab) {
       case 'cobros': refetchCobros(); break;
       case 'cartera': refetchCartera(); break;
@@ -228,7 +310,7 @@ export default function ReportesScreen() {
       case 'cobrador': refetchDesempeno(); break;
       case 'proyeccion': refetchProyeccion(); break;
     }
-  }, [tab, shouldFetch, refetchCobros, refetchCartera, refetchEstado, refetchCliente, refetchCajas, refetchFlujo, refetchDesempeno, refetchProyeccion]);
+  }, [tab, refetchCobros, refetchCartera, refetchEstado, refetchCliente, refetchCajas, refetchFlujo, refetchDesempeno, refetchProyeccion]);
 
   // ─── Change tab ───────────────────────────────────────────────────────────
 
@@ -244,6 +326,14 @@ export default function ReportesScreen() {
     setShowClienteModal(false);
   }, []);
 
+  // ─── Focus refresh ────────────────────────────────────────────────────────
+
+  useFocusEffect(
+    useCallback(() => {
+      if (shouldFetch) handleRefresh();
+    }, [shouldFetch, handleRefresh]),
+  );
+
   // ─── Render helpers ───────────────────────────────────────────────────────
 
   const renderKpiRow = useCallback(
@@ -258,9 +348,14 @@ export default function ReportesScreen() {
   );
 
   const renderEstadoBadge = useCallback((estado: string) => {
-    const color = ESTADO_COLORS[estado] ?? '#6B7280';
-    return <Badge label={estado} color={color} />;
-  }, []);
+    const { color, bg } = getEstadoColor(estado, colors);
+    return <Badge label={estado} color={color} bg={bg} />;
+  }, [colors]);
+
+  const renderMetodoBadge = useCallback((metodo: string) => {
+    const { color, bg } = getMetodoColor(metodo, colors);
+    return <Badge label={METODO_PAGO_LABELS[metodo as keyof typeof METODO_PAGO_LABELS] ?? metodo} color={color} bg={bg} />;
+  }, [colors]);
 
   // ─── Top filters ──────────────────────────────────────────────────────────
 
@@ -286,6 +381,16 @@ export default function ReportesScreen() {
                 placeholder="Ej: Santo Domingo"
                 value={provincia}
                 onChangeText={setProvincia}
+              />
+            )}
+            {(tab === 'cajas' || tab === 'flujo') && (
+              <CobradorSelector
+                usuarios={usuarios}
+                loading={usuariosLoading}
+                usuarioId={usuarioId}
+                onSelect={setUsuarioId}
+                onClear={() => setUsuarioId('')}
+                colors={colors}
               />
             )}
           </View>
@@ -336,6 +441,14 @@ export default function ReportesScreen() {
                 <DatePickerField label="Hasta" value={hasta} onChange={setHasta} />
               </View>
             </View>
+            <CobradorSelector
+              usuarios={usuarios}
+              loading={usuariosLoading}
+              usuarioId={usuarioId}
+              onSelect={setUsuarioId}
+              onClear={() => setUsuarioId('')}
+              colors={colors}
+            />
           </View>
         );
       default:
@@ -362,7 +475,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{pago.cliente}</Text>
-              <Badge label={METODO_PAGO_LABELS[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
+              {renderMetodoBadge(pago.metodo)}
             </View>
             <Text style={[styles.itemSub, { color: colors.textSecondary }]}>
               {pago.cedula} · {pago.provincia}{pago.municipio ? `, ${pago.municipio}` : ''}
@@ -384,7 +497,7 @@ export default function ReportesScreen() {
         ))}
       </View>
     );
-  }, [cobrosData, colors, renderKpiRow]);
+  }, [cobrosData, colors, renderKpiRow, renderMetodoBadge]);
 
   // ─── Render cartera ──────────────────────────────────────────────────────
 
@@ -404,7 +517,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.cliente}</Text>
-              <Badge label={`${item.diasMaxAtraso}d`} color={item.diasMaxAtraso > 30 ? colors.error : colors.warning} />
+              <Badge label={`${item.diasMaxAtraso}d`} color={item.diasMaxAtraso > 30 ? colors.error : colors.warning} bg={item.diasMaxAtraso > 30 ? colors.errorLight : colors.warningLight} />
             </View>
             <Text style={[styles.itemSub, { color: colors.textSecondary }]}>
               {item.cedula} · {item.telefono}
@@ -539,7 +652,7 @@ export default function ReportesScreen() {
                   <View key={i} style={styles.pagoRow}>
                     <Text style={[styles.pagoFecha, { color: colors.textTertiary }]}>{formatFechaCorta(pago.fecha)}</Text>
                     <Text style={[styles.pagoMonto, { color: colors.text }]}>{formatFullCurrency(pago.total)}</Text>
-                    <Badge label={METODO_PAGO_LABELS[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
+                    {renderMetodoBadge(pago.metodo)}
                   </View>
                 ))}
                 {prestamo.pagos.length > 5 && (
@@ -553,7 +666,7 @@ export default function ReportesScreen() {
         ))}
       </View>
     );
-  }, [clienteData, colors, renderKpiRow, renderEstadoBadge]);
+  }, [clienteData, colors, renderKpiRow, renderEstadoBadge, renderMetodoBadge]);
 
   // ─── Render cajas ─────────────────────────────────────────────────────────
 
@@ -599,7 +712,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{pago.cliente}</Text>
-              <Badge label={METODO_PAGO_LABELS[pago.metodo] ?? pago.metodo} color={METODO_COLORS[pago.metodo] ?? '#6B7280'} />
+              {renderMetodoBadge(pago.metodo)}
             </View>
             <View style={styles.itemMeta}>
               <Text style={[styles.itemMetaText, { color: colors.textTertiary }]}>
@@ -613,7 +726,7 @@ export default function ReportesScreen() {
         ))}
       </View>
     );
-  }, [cajasData, colors, renderKpiRow]);
+  }, [cajasData, colors, renderKpiRow, renderMetodoBadge]);
 
   // ─── Render flujo de caja ─────────────────────────────────────────────────
 
@@ -637,7 +750,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]}>{formatFecha(d.fecha)}</Text>
-              <Badge label={d.neto >= 0 ? 'Positivo' : 'Negativo'} color={d.neto >= 0 ? colors.success : colors.error} />
+              <Badge label={d.neto >= 0 ? 'Positivo' : 'Negativo'} color={d.neto >= 0 ? colors.success : colors.error} bg={d.neto >= 0 ? colors.successLight : colors.errorLight} />
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.success }]}>+{formatCurrencyCompact(d.entradas)}</Text>
@@ -671,7 +784,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]}>{c.nombre}</Text>
-              <Badge label={`${c.cantidadPagos} pagos`} color={colors.primary} />
+              <Badge label={`${c.cantidadPagos} pagos`} color={colors.primary} bg={colors.primaryLight} />
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cobrado:</Text>
@@ -713,7 +826,7 @@ export default function ReportesScreen() {
             <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.itemTop}>
                 <Text style={[styles.itemTitle, { color: colors.text }]}>{mesLabel}</Text>
-                {m.vencidas > 0 && <Badge label={`${m.vencidas} venc.`} color={colors.error} />}
+                {m.vencidas > 0 && <Badge label={`${m.vencidas} venc.`} color={colors.error} bg={colors.errorLight} />}
               </View>
               <View style={styles.itemBreakdown}>
                 <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cuotas:</Text>
@@ -760,6 +873,24 @@ export default function ReportesScreen() {
     );
   }
 
+  // ─── Error state ──────────────────────────────────────────────────────────
+
+  if (shouldFetch && activeError) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.content}>
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Error al cargar reporte"
+            subtitle={activeError instanceof Error ? activeError.message : 'Error de conexión'}
+            actionLabel="Reintentar"
+            onAction={handleRefresh}
+          />
+        </View>
+      </View>
+    );
+  }
+
   if (!moduloHabilitado('REPORTES') || !tienePermiso('reportes:exportar')) {
     return <SinAcceso />;
   }
@@ -767,6 +898,7 @@ export default function ReportesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
+        ref={listRef}
         data={[0]}
         keyExtractor={() => 'content'}
         renderItem={() => (
@@ -783,20 +915,20 @@ export default function ReportesScreen() {
             {/* Data */}
             {shouldFetch && currentData && !loading ? (
               <View>{renderData()}</View>
-            ) : shouldFetch && !loading && !currentData ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="alert-circle-outline" size={scale(48)} color={colors.textTertiary} />
-                <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-                  No se encontraron datos
-                </Text>
-              </View>
+            ) : shouldFetch && !loading && !currentData && !activeError ? (
+              <EmptyState
+                icon="alert-circle-outline"
+                title="Sin datos"
+                subtitle="No se encontraron datos con los filtros seleccionados"
+                actionLabel="Reintentar"
+                onAction={handleRefresh}
+              />
             ) : !shouldFetch ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="bar-chart-outline" size={scale(48)} color={colors.textTertiary} />
-                <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-                  Selecciona filtros y genera el reporte
-                </Text>
-              </View>
+              <EmptyState
+                icon="bar-chart-outline"
+                title="Reportes"
+                subtitle="Selecciona filtros y genera el reporte"
+              />
             ) : null}
           </View>
         )}
@@ -804,45 +936,58 @@ export default function ReportesScreen() {
         onRefresh={handleRefresh}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => setShowScrollTop(e.nativeEvent.contentOffset.y > 300)}
+        scrollEventThrottle={100}
         ListHeaderComponent={
           <View>
             {/* Tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
-              {TABS.map((t) => {
-                const active = tab === t.id;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => changeTab(t.id)}
-                    style={[
-                      styles.tab,
-                      { borderColor: colors.border },
-                      active && { backgroundColor: colors.primary, borderColor: colors.primary },
-                    ]}
-                  >
-                    <Ionicons
-                      name={t.icon}
-                      size={scale(14)}
-                      color={active ? '#FFFFFF' : colors.textSecondary}
-                      style={{ marginRight: scale(4) }}
-                    />
-                    <Text
+            <View style={styles.tabsContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll}>
+                {TABS.map((t) => {
+                  const active = tab === t.id;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => changeTab(t.id)}
                       style={[
-                        styles.tabText,
-                        { color: active ? '#FFFFFF' : colors.textSecondary },
+                        styles.tab,
+                        { borderColor: colors.border },
+                        active && { backgroundColor: colors.primary, borderColor: colors.primary },
                       ]}
                     >
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                      <Ionicons
+                        name={t.icon}
+                        size={scale(14)}
+                        color={active ? '#FFFFFF' : colors.textSecondary}
+                        style={{ marginRight: scale(4) }}
+                      />
+                      <Text
+                        style={[
+                          styles.tabText,
+                          { color: active ? '#FFFFFF' : colors.textSecondary },
+                        ]}
+                      >
+                        {t.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {/* Fade indicator for more tabs */}
+              <View pointerEvents="none" style={[styles.tabsFadeRight, { backgroundColor: colors.background }]} />
+            </View>
 
             {/* Filters */}
             {renderFilters()}
           </View>
         }
+      />
+
+      {/* Scroll to top */}
+      <ScrollToTopButton
+        visible={showScrollTop}
+        bottom={88}
+        onPress={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}
       />
 
       {/* Cliente search modal */}
@@ -907,7 +1052,16 @@ export default function ReportesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.md, paddingBottom: Spacing.xxl },
-  tabScroll: { marginBottom: Spacing.md },
+  tabsContainer: { position: 'relative', marginBottom: Spacing.md },
+  tabsFadeRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: scale(40),
+    opacity: 0.9,
+  },
+  tabScroll: { marginBottom: 0 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -935,20 +1089,11 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
+  filterLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginBottom: Spacing.xs, marginTop: Spacing.sm },
   filterRow: { flexDirection: 'row', gap: Spacing.sm },
   filterHalf: { flex: 1 },
   sectionTitle: { fontSize: FontSize.md, fontWeight: FontWeight.bold, marginBottom: Spacing.sm },
   kpiScroll: { marginBottom: Spacing.sm },
-  kpiCard: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    marginRight: Spacing.sm,
-    minWidth: scale(100),
-    alignItems: 'center',
-  },
-  kpiValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginTop: scale(1) },
   itemCard: {
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -964,13 +1109,6 @@ const styles = StyleSheet.create({
   itemBreakdown: { flexDirection: 'row', alignItems: 'center', gap: scale(4), marginTop: scale(4), flexWrap: 'wrap' },
   breakdownLabel: { fontSize: FontSize.xs },
   breakdownValue: { fontSize: FontSize.xs, fontWeight: FontWeight.semibold, marginRight: Spacing.sm },
-  badge: {
-    paddingHorizontal: scale(6),
-    paddingVertical: scale(1),
-    borderRadius: BorderRadius.sm,
-  },
-  badgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
-  emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl * 2, gap: Spacing.sm },
   emptyText: { fontSize: FontSize.sm, textAlign: 'center' },
   clienteSelector: {
     flexDirection: 'row',
