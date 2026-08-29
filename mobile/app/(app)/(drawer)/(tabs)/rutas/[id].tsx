@@ -21,14 +21,13 @@ import { AppButton } from '@/components/ui/app-button';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
-import { formatCurrency } from '@/utils/formatters';
-import { guardarReciboPDF } from '@/utils/recibo-pdf';
+import { formatCurrency, dateToISO } from '@/utils/formatters';
 import type { ReciboData } from '@/utils/recibo-pdf';
 import type { ClienteVistaDia, ResumenVistaDia } from '@/types/rutas.types';
 import { useTheme } from '@/components/ui/theme-provider';
-import { dateToISO } from '@/utils/formatters';
 import { getCuotaACobrar, getMontoCuotaACobrar } from '@/utils/rutas';
 import CobroRapidoModal from '@/components/rutas/cobro-rapido-modal';
+import ReciboPagoModal from '@/components/pagos/recibo-modal';
 import MapMarkerSheet from '@/components/rutas/map-marker-sheet';
 import { DateNavigator } from '@/components/rutas/date-navigator';
 import { RutaStatsGrid } from '@/components/rutas/ruta-stats-grid';
@@ -59,6 +58,7 @@ export default function VistaDiaScreen() {
   const [sortByCercania, setSortByCercania] = useState(false);
 
   const [cobroCliente, setCobroCliente] = useState<ClienteVistaDia | null>(null);
+  const [reciboData, setReciboData] = useState<ReciboData | null>(null);
   const [mapSelectedCliente, setMapSelectedCliente] = useState<ClienteVistaDia | null>(null);
   const [cobradorLocation, setCobradorLocation] = useState<Coordinate | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(true);
@@ -205,7 +205,7 @@ export default function VistaDiaScreen() {
       setCobroCliente(null);
       showToast('Pago registrado', 'success');
       refetch();
-      guardarReciboPDF(result as ReciboData);
+      setReciboData(result as ReciboData);
     } catch (err: any) {
       showToast(err?.message || 'Error al procesar pago', 'error');
     }
@@ -440,6 +440,14 @@ export default function VistaDiaScreen() {
         loading={pagando}
         onClose={() => setCobroCliente(null)}
         onConfirm={handleProcesarPago}
+      />
+
+      <ReciboPagoModal
+        visible={!!reciboData}
+        reciboData={reciboData}
+        title="Pago Registrado"
+        closeLabel="Cerrar"
+        onClose={() => setReciboData(null)}
       />
 
       {mapSelectedCliente && (

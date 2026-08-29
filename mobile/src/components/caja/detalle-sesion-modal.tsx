@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/ui/app-button';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useResumenCaja, useAuditoriaCaja } from '@/hooks/use-caja';
+import { useImprimirRecibo } from '@/hooks/use-imprimir-recibo';
 import { obtenerPago } from '@/api/pagos.api';
-import { guardarReciboPDF } from '@/utils/recibo-pdf';
+import { guardarReciboPDF, reciboPagoImprimible } from '@/utils/recibo-pdf';
 import { useToast } from '@/components/ui/toast';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
@@ -117,6 +118,7 @@ function ReconstruccionCard({
 export default function DetalleSesionModal({ visible, cajaId, caja, onClose }: Props) {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { imprimir } = useImprimirRecibo();
 
   const [activeTab, setActiveTab] = useState<'resumen' | 'auditoria'>('resumen');
 
@@ -132,13 +134,18 @@ export default function DetalleSesionModal({ visible, cajaId, caja, onClose }: P
     async (pagoId: string) => {
       try {
         const detalle = await obtenerPago(pagoId);
+        const resultado = await imprimir(reciboPagoImprimible(detalle));
+        if (resultado.ok) {
+          showToast('Recibo enviado a la impresora', 'success');
+          return;
+        }
         await guardarReciboPDF(detalle);
-        showToast('Recibo reimpreso exitosamente', 'success');
+        showToast(`${resultado.mensaje}. Se guardó el recibo como PDF.`, 'info');
       } catch (err: any) {
         showToast(err?.message || 'Error al reimprimir recibo', 'error');
       }
     },
-    [showToast],
+    [imprimir, showToast],
   );
 
   function getEstadoColor(estado: string) {

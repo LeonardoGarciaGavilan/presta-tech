@@ -8,8 +8,8 @@ import PickerField from '@/components/ui/picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useRegistrarPago, useSaldarPrestamo } from '@/hooks/use-pagos';
 import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from '@/constants/theme';
-import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
-import { guardarReciboPDF } from '@/utils/recibo-pdf';
+import { formatCurrency, formatDate } from '@/utils/formatters';
+import ReciboPagoModal from '@/components/pagos/recibo-modal';
 import type { Cuota, MetodoPago, Prestamo } from '@/types/prestamo.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import { METODO_PAGO_LABELS, METODO_PAGO_ICONS, METODO_PAGO_OPTIONS } from '@/constants/pagos.constants';
@@ -35,7 +35,7 @@ export default function PaymentForm({
   reciboCloseLabel = 'Cerrar',
   onReciboClose,
 }: PaymentFormProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const { showToast } = useToast();
 
   const { mutateAsync: registrarPago, isPending: isPaying } = useRegistrarPago();
@@ -157,16 +157,6 @@ export default function PaymentForm({
       onBack();
     }
   }, [onBack, onReciboClose]);
-
-  const handlePressGuardarPDF = useCallback(async () => {
-    if (!reciboData) return;
-    try {
-      await guardarReciboPDF(reciboData);
-      showToast(`PDF guardado: recibo_${(reciboData?.pago?.id?.slice(-8) ?? 'pago').toUpperCase()}.pdf`, 'success');
-    } catch (err: any) {
-      showToast(err?.message || 'Error al guardar PDF', 'error');
-    }
-  }, [reciboData, showToast]);
 
   const cliente = prestamo?.cliente;
 
@@ -465,116 +455,15 @@ export default function PaymentForm({
       </Modal>
 
       {/* Recibo Modal */}
-      <Modal visible={showRecibo} transparent animationType="fade" onRequestClose={handleCerrarRecibo}>
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <View style={[styles.reciboCard, { backgroundColor: colors.surfaceElevated }]}>
-            <ScrollView contentContainerStyle={styles.reciboContent}>
-              <View style={styles.reciboHeader}>
-                <Ionicons name="checkmark-circle" size={scale(48)} color="#16A34A" />
-                <Text style={[styles.reciboTitle, { color: colors.text }]}>Pago Registrado</Text>
-              </View>
-
-              {reciboData && (
-                <>
-                  <View style={[styles.reciboDivider, { backgroundColor: colors.border }]} />
-
-                  <ReciboField label="Recibo #" value={reciboData?.pago?.id?.slice(-8).toUpperCase()} colors={colors} />
-                  <ReciboField label="Fecha" value={formatDateTime(reciboData?.pago?.createdAt)} colors={colors} />
-
-                  <View style={[styles.reciboDivider, { backgroundColor: colors.border }]} />
-
-                  <ReciboField label="Cliente" value={`${reciboData?.cliente?.nombre || ''} ${reciboData?.cliente?.apellido || ''}`} colors={colors} />
-                  <ReciboField label="Cédula" value={reciboData?.cliente?.cedula} colors={colors} />
-
-                  <View style={[styles.reciboDivider, { backgroundColor: colors.border }]} />
-
-                  <View style={styles.reciboGrid}>
-                    <View style={styles.reciboGridItem}>
-                      <Text style={[styles.reciboGridLabel, { color: colors.textTertiary }]}>Capital</Text>
-                      <Text style={[styles.reciboGridValue, { color: colors.text }]}>
-                        {formatCurrency(reciboData?.pago?.capital || 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.reciboGridItem}>
-                      <Text style={[styles.reciboGridLabel, { color: colors.textTertiary }]}>Interés</Text>
-                      <Text style={[styles.reciboGridValue, { color: colors.warning }]}>
-                        {formatCurrency(reciboData?.pago?.interes || 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.reciboGridItem}>
-                      <Text style={[styles.reciboGridLabel, { color: colors.textTertiary }]}>Mora</Text>
-                      <Text style={[styles.reciboGridValue, { color: colors.error }]}>
-                        {formatCurrency(reciboData?.pago?.mora || 0)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.reciboTotal, { backgroundColor: colors.primaryLight }]}>
-                    <Text style={[styles.reciboTotalLabel, { color: colors.primary }]}>Total pagado</Text>
-                    <Text style={[styles.reciboTotalValue, { color: colors.primary }]}>
-                      {formatCurrency(reciboData?.pago?.montoTotal || 0)}
-                    </Text>
-                  </View>
-
-                  <ReciboField label="Método" value={METODO_PAGO_LABELS[reciboData?.pago?.metodo] || reciboData?.pago?.metodo} colors={colors} />
-
-                  {reciboData?.pago?.referencia && (
-                    <ReciboField label="Referencia" value={reciboData.pago.referencia} colors={colors} />
-                  )}
-
-                  {reciboData?.pago?.observacion && (
-                    <ReciboField label="Observación" value={reciboData.pago.observacion} colors={colors} />
-                  )}
-
-                  {reciboData?.pago?.abonoCapital > 0 && (
-                    <View style={[styles.badge, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC', marginTop: Spacing.sm }]}>
-                      <Ionicons name="arrow-forward" size={scale(14)} color="#16A34A" />
-                      <Text style={[styles.badgeText, { color: '#16A34A' }]}>
-                        Abono a capital: {formatCurrency(reciboData.pago.abonoCapital)}
-                      </Text>
-                    </View>
-                  )}
-
-                  {reciboData?.prestamo?.saldoPendiente <= 0.01 && (
-                    <View style={[styles.badge, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC', marginTop: Spacing.sm }]}>
-                      <Ionicons name="checkmark-done-circle" size={scale(16)} color="#16A34A" />
-                      <Text style={[styles.badgeText, { color: '#16A34A', fontWeight: FontWeight.bold }]}>
-                        ¡Préstamo completamente pagado!
-                      </Text>
-                    </View>
-                  )}
-
-                  <ReciboField label="Registrado por" value={reciboData?.usuario?.nombre || 'Sistema'} colors={colors} />
-                </>
-              )}
-
-              <View style={styles.reciboActions}>
-                <AppButton
-                  title="Guardar PDF"
-                  onPress={handlePressGuardarPDF}
-                  variant="secondary"
-                  icon="download-outline"
-                />
-                <AppButton
-                  title={reciboCloseLabel}
-                  onPress={handleCerrarRecibo}
-                  variant="primary"
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <ReciboPagoModal
+        visible={showRecibo}
+        reciboData={reciboData}
+        closeLabel={reciboCloseLabel}
+        onClose={handleCerrarRecibo}
+      />
     </ScreenContainer>
   );
 }
-
-const ReciboField = ({ label, value, colors }: { label: string; value?: string; colors: any }) => (
-  <View style={styles.reciboFieldRow}>
-    <Text style={[styles.reciboFieldLabel, { color: colors.textTertiary }]}>{label}</Text>
-    <Text style={[styles.reciboFieldValue, { color: colors.text }]}>{value || '—'}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -680,41 +569,4 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
   },
   modalActions: { flexDirection: 'row', gap: Spacing.sm },
-  reciboCard: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: BorderRadius.lg,
-    maxHeight: '90%',
-  },
-  reciboContent: { padding: Spacing.md },
-  reciboHeader: { alignItems: 'center', paddingVertical: Spacing.md },
-  reciboTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, marginTop: Spacing.sm },
-  reciboDivider: { height: scale(1), marginVertical: Spacing.md },
-  reciboFieldRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  reciboFieldLabel: { fontSize: FontSize.xs, flex: 1 },
-  reciboFieldValue: { fontSize: FontSize.sm, fontWeight: FontWeight.medium, flex: 2, textAlign: 'right' },
-  reciboGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  reciboGridItem: { flex: 1, alignItems: 'center' },
-  reciboGridLabel: { fontSize: FontSize.xs, marginBottom: scale(2) },
-  reciboGridValue: { fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  reciboTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginVertical: Spacing.sm,
-  },
-  reciboTotalLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  reciboTotalValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
-  reciboActions: { marginTop: Spacing.md, gap: Spacing.sm },
 });

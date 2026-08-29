@@ -1,8 +1,10 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import type { Node } from 'react-native-thermal-printer-driver';
 import { useAuthStore } from '@/store/auth.store';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import { formatCedula, formatCurrency } from '@/utils/formatters';
+import { buildReciboDocument, buildReciboDesembolso, buildReciboRetiro } from '@/utils/recibo-escpos';
 
 const FRECUENCIA_LABEL: Record<string, string> = {
   DIARIO: 'Diario',
@@ -10,6 +12,81 @@ const FRECUENCIA_LABEL: Record<string, string> = {
   QUINCENAL: 'Quincenal',
   MENSUAL: 'Mensual',
 };
+
+const RECIBO_STYLE = `
+    @page { margin: 0; size: 58mm auto; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      width: 58mm;
+      max-width: 58mm;
+      font-size: 14px;
+      line-height: 1.3;
+      color: #000;
+      padding: 12px 8px;
+    }
+    .center { text-align: center; }
+    .bold { font-weight: 800; }
+    .uppercase { text-transform: uppercase; }
+    .divider-dashed {
+      border-top: 1px dashed #000;
+      margin: 6px 0;
+    }
+    .divider-solid {
+      border-top: 1.5px solid #000;
+      margin: 6px 0;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .label {
+      font-size: 13px;
+      color: #000;
+    }
+    .value {
+      font-weight: 700;
+      font-size: 14px;
+      text-align: right;
+      color: #000;
+    }
+    .section-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: #000;
+    }
+    .info-box {
+      border: 1px solid #000;
+      border-radius: 3px;
+      padding: 4px 6px;
+      margin: 4px 0;
+      font-size: 13px;
+      color: #000;
+    }
+    .total-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      margin: 0 0 3px;
+    }
+    .total-value {
+      font-size: 20px;
+      font-weight: 800;
+      margin: 0;
+    }
+    .empresa-name {
+      font-size: 16px;
+      font-weight: 800;
+      margin: 0 0 2px;
+    }
+    .recibo-subtitle {
+      font-size: 13px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+  `;
 
 function formatDateLong(date: string | null | undefined): string {
   if (!date) return '—';
@@ -86,80 +163,7 @@ export function generateReciboHtml(data: ReciboData): string {
   const nombreEmpresa = user?.empresa ?? 'PrestaTech';
   const fechaActual = formatDateShort(new Date().toISOString());
 
-  const style = `
-    @page { margin: 0; size: 58mm auto; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      width: 58mm;
-      max-width: 58mm;
-      font-size: 14px;
-      line-height: 1.3;
-      color: #000;
-      padding: 12px 8px;
-    }
-    .center { text-align: center; }
-    .bold { font-weight: 800; }
-    .uppercase { text-transform: uppercase; }
-    .divider-dashed {
-      border-top: 1px dashed #000;
-      margin: 6px 0;
-    }
-    .divider-solid {
-      border-top: 1.5px solid #000;
-      margin: 6px 0;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-    .label {
-      font-size: 13px;
-      color: #000;
-    }
-    .value {
-      font-weight: 700;
-      font-size: 14px;
-      text-align: right;
-      color: #000;
-    }
-    .section-title {
-      font-size: 13px;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-      color: #000;
-    }
-    .info-box {
-      border: 1px solid #000;
-      border-radius: 3px;
-      padding: 4px 6px;
-      margin: 4px 0;
-      font-size: 13px;
-      color: #000;
-    }
-    .total-label {
-      font-size: 13px;
-      text-transform: uppercase;
-      margin: 0 0 3px;
-    }
-    .total-value {
-      font-size: 20px;
-      font-weight: 800;
-      margin: 0;
-    }
-    .empresa-name {
-      font-size: 16px;
-      font-weight: 800;
-      margin: 0 0 2px;
-    }
-    .recibo-subtitle {
-      font-size: 13px;
-      text-transform: uppercase;
-      margin: 0;
-    }
-  `;
+  const style = RECIBO_STYLE;
 
   return `<!DOCTYPE html>
 <html>
@@ -392,4 +396,185 @@ export async function guardarReciboPDF(data: ReciboData): Promise<string> {
     });
   }
   return uri;
+}
+
+export interface DesembolsoReciboData {
+  desembolso?: {
+    id: string;
+    monto: number;
+    numeroCuotas: number;
+    frecuenciaPago: string;
+    tasaInteres: number;
+    createdAt: string;
+  };
+  cliente?: { nombre: string; apellido: string | null; cedula: string };
+  usuario?: { nombre: string };
+}
+
+export interface RetiroReciboData {
+  retiro?: {
+    id?: string;
+    tipo: string;
+    monto: number;
+    concepto?: string;
+    createdAt: string;
+  };
+  usuario?: { nombre: string };
+}
+
+export interface ReciboImprimible {
+  escpos: Node[];
+  html: string;
+}
+
+export function generateReciboDesembolsoHtml(data: DesembolsoReciboData): string {
+  const { desembolso, cliente, usuario } = data;
+  const user = useAuthStore.getState().user;
+  const nombreEmpresa = user?.empresa ?? 'PrestaTech';
+  const fechaActual = formatDateShort(new Date().toISOString());
+  const numero = desembolso?.id?.slice(-8)?.toUpperCase() ?? '—';
+  const monto = formatCurrency(desembolso?.monto ?? 0);
+  const frecuencia = FRECUENCIA_LABEL[desembolso?.frecuenciaPago ?? ''] || desembolso?.frecuenciaPago || '—';
+  const tasa = (desembolso?.tasaInteres ?? 0) > 0 ? `${desembolso?.tasaInteres}% ${frecuencia}` : 'Cuota fija';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=58mm">
+  <title>Desembolso #${numero}</title>
+  <style>${RECIBO_STYLE}</style>
+</head>
+<body>
+  <div class="center" style="margin-bottom: 8px;">
+    <p class="empresa-name">${nombreEmpresa}</p>
+    <p class="recibo-subtitle">Recibo de Desembolso</p>
+  </div>
+
+  <div class="divider-dashed"></div>
+
+  <p style="font-size: 13px; text-transform: uppercase; margin-bottom: 2px;">Desembolso Nº</p>
+  <p style="font-size: 15px; font-weight: 800; margin: 0 0 3px;">#${numero}</p>
+  <p style="font-size: 14px; margin-bottom: 4px;">${formatDateLong(desembolso?.createdAt)}</p>
+
+  <div class="divider-dashed"></div>
+
+  <p class="section-title">Cliente</p>
+  <p style="font-size: 16px; font-weight: 700; margin-bottom: 2px;">
+    ${cliente?.nombre ?? ''} ${cliente?.apellido ?? ''}
+  </p>
+  <p style="font-size: 14px; margin-bottom: 0;">
+    ${formatCedula(cliente?.cedula ?? '')}
+  </p>
+
+  <div class="divider-dashed"></div>
+
+  <p class="section-title">Préstamo</p>
+  <div class="row">
+    <span class="label">Monto desembolsado</span>
+    <span class="value">${monto}</span>
+  </div>
+  <div class="row">
+    <span class="label">Cuotas</span>
+    <span class="value">${desembolso?.numeroCuotas ?? '—'} cuotas</span>
+  </div>
+  <div class="row">
+    <span class="label">Frecuencia</span>
+    <span class="value">${frecuencia}</span>
+  </div>
+  <div class="row">
+    <span class="label">Tasa</span>
+    <span class="value">${tasa}</span>
+  </div>
+
+  <div class="divider-solid"></div>
+
+  <div class="center" style="margin: 8px 0 6px;">
+    <p class="total-label">Total Desembolsado</p>
+    <p class="total-value">${monto}</p>
+  </div>
+
+  <div class="divider-dashed"></div>
+
+  <div class="center">
+    <p style="font-size: 14px;">
+      Registrado por: ${usuario?.nombre ?? '—'}
+    </p>
+    <p style="font-size: 14px; margin-top: 2px;">
+      ${nombreEmpresa} · ${fechaActual}
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+export function generateReciboRetiroHtml(data: RetiroReciboData): string {
+  const { retiro, usuario } = data;
+  const user = useAuthStore.getState().user;
+  const nombreEmpresa = user?.empresa ?? 'PrestaTech';
+  const fechaActual = formatDateShort(new Date().toISOString());
+  const monto = formatCurrency(retiro?.monto ?? 0);
+  const tipo = retiro?.tipo || 'Retiro';
+  const numero = retiro?.id ? `#${retiro.id.slice(-8).toUpperCase()}` : null;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=58mm">
+  <title>${tipo}</title>
+  <style>${RECIBO_STYLE}</style>
+</head>
+<body>
+  <div class="center" style="margin-bottom: 8px;">
+    <p class="empresa-name">${nombreEmpresa}</p>
+    <p class="recibo-subtitle">Recibo de Retiro</p>
+  </div>
+
+  <div class="divider-dashed"></div>
+
+  <p class="section-title">${tipo}</p>
+  ${numero ? `<p style="font-size: 13px; font-weight: 700; margin-bottom: 3px;">${numero}</p>` : ''}
+  <p style="font-size: 14px; margin-bottom: 4px;">${formatDateLong(retiro?.createdAt)}</p>
+
+  <div class="divider-solid"></div>
+
+  <div class="center" style="margin: 8px 0 6px;">
+    <p class="total-label">Monto Retirado</p>
+    <p class="total-value">${monto}</p>
+  </div>
+
+  ${retiro?.concepto ? `
+  <div class="divider-dashed"></div>
+  <p class="section-title">Concepto</p>
+  <p style="font-size: 14px;">${retiro.concepto}</p>` : ''}
+
+  <div class="divider-dashed"></div>
+
+  <div class="center">
+    <p style="font-size: 14px;">
+      Registrado por: ${usuario?.nombre ?? '—'}
+    </p>
+    <p style="font-size: 14px; margin-top: 2px;">
+      ${nombreEmpresa} · ${fechaActual}
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+export function reciboPagoImprimible(data: ReciboData): ReciboImprimible {
+  return { escpos: buildReciboDocument(data), html: generateReciboHtml(data) };
+}
+
+export function reciboDesembolsoImprimible(data: DesembolsoReciboData): ReciboImprimible {
+  return { escpos: buildReciboDesembolso(data), html: generateReciboDesembolsoHtml(data) };
+}
+
+export function reciboRetiroImprimible(data: RetiroReciboData): ReciboImprimible {
+  return { escpos: buildReciboRetiro(data), html: generateReciboRetiroHtml(data) };
+}
+
+export async function imprimirAirPrint(recibo: ReciboImprimible): Promise<void> {
+  await Print.printAsync({ html: recibo.html });
 }

@@ -79,7 +79,9 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "react-native-thermal-printer-driver",
+      "./plugins/with-thermal-bt-scan-no-location"
     ],
     "experiments": {
       "typedRoutes": true,

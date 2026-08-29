@@ -177,6 +177,13 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           colors={colors}
         />
 
+        <DrawerItem
+          label="Impresora"
+          icon="print-outline"
+          onPress={() => props.navigation.navigate('impresora')}
+          colors={colors}
+        />
+
         {adminItems.length > 0 && (
           <>
             <View
@@ -277,6 +284,16 @@ export default function DrawerLayout() {
         options={{
           headerShown: false,
           drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="impresora"
+        options={{
+          title: 'Impresora',
+          headerShown: true,
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
         }}
       />
       <Drawer.Screen

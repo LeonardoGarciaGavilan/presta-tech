@@ -12,7 +12,8 @@ import { useToast } from '@/components/ui/toast';
 import { useCajaActiva, useAbrirCaja, useCerrarCaja, useCajas } from '@/hooks/use-caja';
 import { usePermisos } from '@/permisos/use-permisos';
 import { obtenerPago } from '@/api/pagos.api';
-import { guardarReciboPDF } from '@/utils/recibo-pdf';
+import { useImprimirRecibo } from '@/hooks/use-imprimir-recibo';
+import { guardarReciboPDF, reciboPagoImprimible } from '@/utils/recibo-pdf';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { formatCurrency, formatDateTime } from '@/utils/formatters';
 import type { CajaActivaResponse } from '@/types/caja.types';
@@ -35,6 +36,7 @@ function hoyStr() {
 export default function CajaScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
+  const { imprimir } = useImprimirRecibo();
 
   const fecha = hoyStr();
   const { data: caja, isLoading, refetch } = useCajaActiva(fecha);
@@ -112,12 +114,17 @@ export default function CajaScreen() {
     try {
       const detalle = await obtenerPago(pagoId);
       if (!detalle) throw new Error('No se encontró el pago');
+      const resultado = await imprimir(reciboPagoImprimible(detalle));
+      if (resultado.ok) {
+        showToast('Recibo enviado a la impresora', 'success');
+        return;
+      }
       await guardarReciboPDF(detalle);
-      showToast('Recibo reimpreso exitosamente', 'success');
+      showToast(`${resultado.mensaje}. Se guardó el recibo como PDF.`, 'info');
     } catch (err: any) {
       showToast(err?.message || 'Error al reimprimir recibo', 'error');
     }
-  }, [showToast]);
+  }, [imprimir, showToast]);
 
   if (isLoading) {
     return (

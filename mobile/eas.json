@@ -13,7 +13,8 @@
       "channel": "preview",
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_API_URL": "https://presta-tech-production.up.railway.app"
       },
       "android": {
         "buildType": "apk"
