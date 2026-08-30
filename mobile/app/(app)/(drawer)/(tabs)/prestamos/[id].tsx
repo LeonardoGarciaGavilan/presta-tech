@@ -57,9 +57,6 @@ import RefinanciarModal from "@/components/prestamos/refinanciar-modal";
 import RenovarModal from "@/components/prestamos/renovar-modal";
 import HistorialRenovacion from "@/components/prestamos/historial-renovacion";
 import HistorialRefinanciamiento from "@/components/prestamos/historial-refinanciamiento";
-import { useImprimirRecibo } from "@/hooks/use-imprimir-recibo";
-import { reciboDesembolsoImprimible } from "@/utils/recibo-pdf";
-import type { DesembolsoReciboData } from "@/utils/recibo-pdf";
 
 const FLOW_ACCION_CONFIG = ACCIONES_FLOW_CONFIG;
 
@@ -263,7 +260,6 @@ export default function PrestamoDetalleScreen() {
     useCancelarPrestamo();
   const { mutateAsync: desembolsarMutation, isPending: isDesembolsando } =
     useDesembolsarPrestamo();
-  const { imprimir: imprimirRecibo } = useImprimirRecibo();
   const cambiarEstadoMutation = useCambiarEstadoPrestamo();
 
   const [tab, setTab] = useState<"cuotas" | "pagos">("cuotas");
@@ -375,39 +371,14 @@ export default function PrestamoDetalleScreen() {
     try {
       await desembolsarMutation(prestamo.id);
       setShowDesembolsoModal(false);
-      const datos: DesembolsoReciboData = {
-        desembolso: {
-          id: prestamo.id,
-          monto: prestamo.monto,
-          numeroCuotas: prestamo.numeroCuotas,
-          frecuenciaPago: prestamo.frecuenciaPago,
-          tasaInteres: prestamo.tasaInteres,
-          createdAt: new Date().toISOString(),
-        },
-        cliente: prestamo.cliente
-          ? {
-              nombre: prestamo.cliente.nombre,
-              apellido: prestamo.cliente.apellido,
-              cedula: prestamo.cliente.cedula,
-            }
-          : undefined,
-        usuario: user ? { nombre: user.nombre } : undefined,
-      };
-      const resultado = await imprimirRecibo(reciboDesembolsoImprimible(datos));
-      if (resultado.ok) {
-        showToast("Préstamo desembolsado. Recibo enviado a la impresora.", "success");
-      } else if (resultado.motivo === "sin-impresora") {
-        showToast("Préstamo desembolsado. Configura una impresora en Impresora para imprimir el recibo.", "info");
-      } else {
-        showToast(resultado.mensaje, "error");
-      }
+      showToast("Préstamo desembolsado exitosamente", "success");
       refetch();
     } catch (err) {
       const { message } = err as ApiError;
       showToast(message || "Error al desembolsar", "error");
       setShowDesembolsoModal(false);
     }
-  }, [prestamo, user, desembolsarMutation, imprimirRecibo, showToast, refetch]);
+  }, [prestamo, desembolsarMutation, showToast, refetch]);
 
   const ejecutarFlowAccion = useCallback(
     async (motivo?: string) => {

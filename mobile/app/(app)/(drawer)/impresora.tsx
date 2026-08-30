@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { CodePage, Device, ScanResult } from 'react-native-thermal-printer-driver';
+import type { Device, ScanResult } from 'react-native-thermal-printer-driver';
 
+import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
 import { BorderRadius, FontSize, FontWeight, scale, Spacing, Shadows } from '@/constants/theme';
 import {
@@ -20,14 +21,6 @@ import { renderNodes, buildReciboDocument } from '@/utils/recibo-escpos';
 import type { ReciboData } from '@/utils/recibo-pdf';
 import { buildDocumentoPrueba } from '@/utils/recibo-test';
 import { fusionarListas } from '@/utils/dispositivos';
-
-const CODE_PAGES: { label: string; value?: CodePage }[] = [
-  { label: 'Default' },
-  { label: 'CP437', value: 'cp437' },
-  { label: 'CP850', value: 'cp850' },
-  { label: 'CP858', value: 'cp858' },
-  { label: 'CP1252', value: 'cp1252' },
-];
 
 const DEVICE_TYPE_LABEL: Record<Device['deviceType'], string> = {
   bt: 'Bluetooth',
@@ -74,7 +67,6 @@ export default function ImpresoraScreen() {
   const [scanning, setScanning] = useState(false);
   const [devices, setDevices] = useState<ScanResult | null>(null);
   const [busyAddress, setBusyAddress] = useState<string | null>(null);
-  const [codePage, setCodePage] = useState<CodePage | undefined>(undefined);
   const [log, setLog] = useState<string[]>([]);
   const [disponible, setDisponible] = useState<boolean | null>(null);
   const [showTestPreview, setShowTestPreview] = useState(false);
@@ -134,9 +126,9 @@ export default function ImpresoraScreen() {
     }
     pushLog(`Enviando prueba a ${device.name}...`);
     try {
-      const result = await imprimirPrueba(address, codePage);
+      const result = await imprimirPrueba(address);
       if (result.success) {
-        pushLog(`Impresión enviada (${result.bytesWritten ?? 0} bytes) con página ${codePage ?? 'default'}`);
+        pushLog(`Impresión enviada (${result.bytesWritten ?? 0} bytes)`);
         Alert.alert('Listo', `${device.name} configurada y prueba enviada.`);
       } else {
         const error = result.error;
@@ -270,6 +262,46 @@ export default function ImpresoraScreen() {
         </View>
       )}
 
+      <AppButton
+        title="Buscar impresoras"
+        icon="bluetooth-outline"
+        onPress={handleBuscar}
+        loading={scanning}
+        disabled={disponible !== true}
+        style={{ marginBottom: Spacing.lg }}
+        accessibilityLabel="Buscar impresoras Bluetooth"
+      />
+
+      {devices && (
+        <>
+          {vinculadas.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>
+                CONECTADAS AL TELÉFONO ({vinculadas.length})
+              </Text>
+              {vinculadas.map((device) => renderDevice(device, 'vinculadas'))}
+            </View>
+          )}
+          {detectadas.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>
+                DETECTADAS EN EL ESCANEO ({detectadas.length})
+              </Text>
+              {detectadas.map((device) => renderDevice(device, 'detectadas'))}
+            </View>
+          )}
+          {vinculadas.length === 0 && detectadas.length === 0 && (
+            <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No se detectaron impresoras. Si tu impresora ya está vinculada al teléfono debería
+                aparecer en «Conectadas al teléfono»; también puedes vincularla en los ajustes de
+                Bluetooth y volver a buscar.
+              </Text>
+            </View>
+          )}
+        </>
+      )}
+
       {disponible === false && (
         <View style={[styles.previewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.previewTitle, { color: colors.text }]}>
@@ -284,34 +316,6 @@ export default function ImpresoraScreen() {
           </View>
         </View>
       )}
-
-      <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Página de códigos</Text>
-      <View style={styles.codePageRow}>
-        {CODE_PAGES.map((option) => {
-          const active = (option.value ?? undefined) === (codePage ?? undefined);
-          return (
-            <TouchableOpacity
-              key={option.label}
-              style={[
-                styles.codePageChip,
-                {
-                  backgroundColor: active ? colors.primary : colors.surface,
-                  borderColor: active ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setCodePage(option.value)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-            >
-              <Text
-                style={[styles.codePageLabel, { color: active ? '#FFFFFF' : colors.textSecondary }]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
 
       <TouchableOpacity onPress={() => setShowTestPreview((prev) => !prev)} style={styles.previewToggle} accessibilityRole="button">
         <Ionicons name={showTestPreview ? 'eye-outline' : 'eye-off-outline'} size={scale(14)} color={colors.textTertiary} />
@@ -333,51 +337,6 @@ export default function ImpresoraScreen() {
             ))}
           </View>
         </View>
-      )}
-
-      <TouchableOpacity
-        style={[styles.scanButton, { backgroundColor: colors.primary }, Shadows.sm]}
-        onPress={handleBuscar}
-        disabled={scanning || disponible !== true}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Buscar impresoras Bluetooth"
-        accessibilityState={{ disabled: scanning || disponible !== true }}
-      >
-        <Ionicons name="bluetooth-outline" size={scale(18)} color="#FFFFFF" />
-        <Text style={styles.scanButtonText}>
-          {scanning ? 'Buscando...' : 'Buscar impresoras'}
-        </Text>
-      </TouchableOpacity>
-
-      {devices && (
-        <>
-          {vinculadas.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel2, { color: colors.textTertiary }]}>
-                CONECTADAS AL TELÉFONO ({vinculadas.length})
-              </Text>
-              {vinculadas.map((device) => renderDevice(device, 'vinculadas'))}
-            </View>
-          )}
-          {detectadas.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel2, { color: colors.textTertiary }]}>
-                DETECTADAS EN EL ESCANEO ({detectadas.length})
-              </Text>
-              {detectadas.map((device) => renderDevice(device, 'detectadas'))}
-            </View>
-          )}
-          {vinculadas.length === 0 && detectadas.length === 0 && (
-            <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No se detectaron impresoras. Si tu impresora ya está vinculada al teléfono debería
-                aparecer en «Conectadas al teléfono»; también puedes vincularla en los ajustes de
-                Bluetooth y volver a buscar.
-              </Text>
-            </View>
-          )}
-        </>
       )}
 
       {log.length > 0 && (
@@ -462,33 +421,8 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-  },
-  sectionLabel2: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginBottom: Spacing.sm,
   },
-  codePageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  codePageChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-  },
-  codePageLabel: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.lg,
-  },
-  scanButtonText: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.semibold },
   section: { marginBottom: Spacing.lg },
   deviceRow: {
     flexDirection: 'row',

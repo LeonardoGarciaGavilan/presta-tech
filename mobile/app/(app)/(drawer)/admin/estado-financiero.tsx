@@ -15,10 +15,6 @@ import { useToast } from '@/components/ui/toast';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
-import { useAuthStore } from '@/store/auth.store';
-import { useImprimirRecibo } from '@/hooks/use-imprimir-recibo';
-import { reciboRetiroImprimible } from '@/utils/recibo-pdf';
-import type { RetiroReciboData } from '@/utils/recibo-pdf';
 import { formatCurrencyCompact, formatFullCurrency, formatTimeAgo } from '@/utils/formatters';
 
 const MOVEMENT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -66,9 +62,7 @@ const PATRIMONIO_COLORS = ['#2563EB', '#059669', '#D97706', '#7C3AED'];
 export default function EstadoFinancieroScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
-  const user = useAuthStore((state) => state.user);
   const { moduloHabilitado, tienePermiso } = usePermisos();
-  const { imprimir: imprimirRecibo } = useImprimirRecibo();
 
   const { data: dash, isLoading: dashLoading, refetch, isRefetching } = useDashboard();
   const { data: movimientos } = useMovimientos(15);
@@ -119,33 +113,16 @@ export default function EstadoFinancieroScreen() {
     if (!retirarForm.concepto.trim()) { showToast('Ingrese un concepto', 'error'); return; }
     try {
       const esGanancias = showRetirar === 'ganancias';
-      const resultado = esGanancias
-        ? await retiroGananciasMutation.mutateAsync({ monto, concepto: retirarForm.concepto.trim() })
-        : await retiroCapitalMutation.mutateAsync({ monto, concepto: retirarForm.concepto.trim() });
-      const datos: RetiroReciboData = {
-        retiro: {
-          id: esGanancias ? undefined : (resultado as { id?: string })?.id,
-          tipo: esGanancias ? 'Retiro de ganancias' : 'Retiro de capital',
-          monto,
-          concepto: retirarForm.concepto.trim(),
-          createdAt: new Date().toISOString(),
-        },
-        usuario: user ? { nombre: user.nombre } : undefined,
-      };
-      const impresion = await imprimirRecibo(reciboRetiroImprimible(datos));
-      if (impresion.ok) {
-        showToast('Retiro realizado. Recibo enviado a la impresora.', 'success');
-      } else if (impresion.motivo === 'sin-impresora') {
-        showToast('Retiro realizado. Configura una impresora en Impresora para imprimir el recibo.', 'info');
-      } else {
-        showToast(impresion.mensaje, 'error');
-      }
+      await (esGanancias
+        ? retiroGananciasMutation.mutateAsync({ monto, concepto: retirarForm.concepto.trim() })
+        : retiroCapitalMutation.mutateAsync({ monto, concepto: retirarForm.concepto.trim() }));
+      showToast('Retiro realizado exitosamente', 'success');
       setShowRetirar(null);
       setRetirarForm({ monto: '', concepto: '' });
     } catch {
       showToast('Error al realizar el retiro', 'error');
     }
-  }, [retirarForm, showRetirar, retiroGananciasMutation, retiroCapitalMutation, imprimirRecibo, user, showToast]);
+  }, [retirarForm, showRetirar, retiroGananciasMutation, retiroCapitalMutation, showToast]);
 
   const renderMovimiento = useCallback(
     ({ item }: { item: { id: string; tipo: string; monto: number; fecha: string; descripcion: string | null; usuario?: { nombre: string } | null; capital: number; interes: number; mora: number } }) => {

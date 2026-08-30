@@ -1,13 +1,15 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-import type { CodePage, Device, Node, PrintResult, ScanResult } from 'react-native-thermal-printer-driver';
+import type { Device, Node, PrintResult, ScanResult } from 'react-native-thermal-printer-driver';
 
 import { buildDocumentoPrueba } from '@/utils/recibo-test';
+import { compilarDocumento } from '@/utils/escpos-compiler';
+import type { CodigoSalida } from '@/utils/escpos-code-pages';
 
 type Driver = typeof import('react-native-thermal-printer-driver').default;
 
 const CONNECT_TIMEOUT_MS = 10000;
 
-export const CODIGO_PAGINA_DEFECTO: CodePage | undefined = 'cp858';
+export const CODIGO_PAGINA_DEFECTO: CodigoSalida = 'ascii';
 
 const TRANSPORT_PREFIX_RE = /^(bt|ble|lan):/i;
 
@@ -90,14 +92,17 @@ export async function desconectarImpresora(address: string): Promise<void> {
 
 export async function imprimirPrueba(
   address: string,
-  codePage?: CodePage,
+  codePage?: CodigoSalida,
 ): Promise<PrintResult> {
   const driver = await getDriver();
   const target = await conectarImpresora(address);
   try {
-    return await driver.print(target, buildDocumentoPrueba(), {
+    const bytes = compilarDocumento(buildDocumentoPrueba(), {
       paperWidthMm: 58,
-      codePage,
+      codePage: codePage ?? CODIGO_PAGINA_DEFECTO,
+    });
+    return await driver.printRaw(target, bytes, {
+      keepAlive: false,
       timeout: CONNECT_TIMEOUT_MS,
     });
   } finally {
@@ -108,14 +113,17 @@ export async function imprimirPrueba(
 export async function imprimirDocumento(
   address: string,
   nodes: Node[],
-  codePage?: CodePage,
+  codePage?: CodigoSalida,
 ): Promise<PrintResult> {
   const driver = await getDriver();
   const target = await conectarImpresora(address);
   try {
-    return await driver.print(target, nodes, {
+    const bytes = compilarDocumento(nodes, {
       paperWidthMm: 58,
       codePage: codePage ?? CODIGO_PAGINA_DEFECTO,
+    });
+    return await driver.printRaw(target, bytes, {
+      keepAlive: false,
       timeout: CONNECT_TIMEOUT_MS,
     });
   } finally {

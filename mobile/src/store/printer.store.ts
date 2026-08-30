@@ -26,8 +26,8 @@ async function readConfig(): Promise<PrinterConfig | null> {
 
 function normalizeConfig(config: PrinterConfig): PrinterConfig {
   return {
-    ...config,
     address: direccionConTransporte(config.address),
+    name: config.name,
   };
 }
 

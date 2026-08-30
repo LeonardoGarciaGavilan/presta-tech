@@ -18,6 +18,8 @@ export function buildDocumentoPrueba(): Node[] {
     { type: 'text', content: 'con acentos: á é í ó ú ñ ü' },
     { type: 'text', content: 'MAYUSCULAS  : Á É Í Ó Ú Ñ Ü' },
     { type: 'text', content: 'Nombres: Pérez, Martínez, Sánchez, Ñúñez' },
+    { type: 'text', content: 'simbolos: Recibo N° 3 · saldo °C' },
+    { type: 'text', content: 'solo ascii: a e i o u n u', style: { align: 'center' } },
     { type: 'line', style: 'dashed' },
     {
       type: 'text',

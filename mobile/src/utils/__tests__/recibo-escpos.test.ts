@@ -121,7 +121,8 @@ describe('buildReciboDesembolso', () => {
     expect(texts).toContain('Recibo de Desembolso');
     expect(texts).toContain('#76543210');
     expect(nodes.some((n) => n.type === 'text' && n.content.includes('María Díaz'))).toBe(true);
-    expect(columns.some((n) => n.columns[0]?.content === 'Monto desembolsado')).toBe(true);
+    expect(texts).toContain('PRÉSTAMO');
+    expect(columns.some((n) => n.columns[0]?.content === 'Cuotas')).toBe(true);
     expect(texts).toContain('Total Desembolsado');
     expect(nodes.some((n) => n.type === 'cut')).toBe(true);
   });

@@ -6,14 +6,14 @@ jest.mock('react-native-thermal-printer-driver', () => ({
   default: {
     connect: jest.fn(),
     disconnect: jest.fn(),
-    print: jest.fn(),
+    printRaw: jest.fn(),
   },
 }));
 
 const driver = driverModule as unknown as {
   connect: jest.Mock;
   disconnect: jest.Mock;
-  print: jest.Mock;
+  printRaw: jest.Mock;
 };
 
 function errorConexion(): Error {
@@ -81,12 +81,34 @@ describe('imprimirPrueba', () => {
 
   it('imprime usando el transporte efectivo (ble:) cuando hubo respaldo', async () => {
     driver.connect.mockRejectedValueOnce(errorConexion()).mockResolvedValueOnce(undefined);
-    driver.print.mockResolvedValueOnce({ success: true, bytesWritten: 42 });
+    driver.printRaw.mockResolvedValueOnce({ success: true, bytesWritten: 42 });
 
     const result = await imprimirPrueba('86:67:7A:C9:78:49');
 
-    expect(driver.print).toHaveBeenCalledWith('ble:86:67:7A:C9:78:49', expect.any(Array), expect.anything());
+    expect(driver.printRaw).toHaveBeenCalledWith(
+      'ble:86:67:7A:C9:78:49',
+      expect.any(Array),
+      expect.anything(),
+    );
     expect(driver.disconnect).toHaveBeenCalledWith('ble:86:67:7A:C9:78:49');
     expect(result.success).toBe(true);
+    expect(result.bytesWritten).toBe(42);
+  });
+
+  it('compila en modo ASCII por defecto (sin ESC t y sin bytes >= 0x80)', async () => {
+    driver.connect.mockResolvedValueOnce(undefined);
+    driver.printRaw.mockResolvedValueOnce({ success: true, bytesWritten: 0 });
+
+    await imprimirPrueba('86:67:7A:C9:78:49');
+
+    const bytes = driver.printRaw.mock.calls[0][1] as number[];
+    const tieneEscT = bytes.some((b, i) => b === 0x1b && bytes[i + 1] === 0x74);
+    expect(bytes).toContain(0x1b);
+    expect(bytes).toContain(0x1c); // FS . (cancelar modo chino)
+    expect(bytes).toContain(0x2e);
+    expect(tieneEscT).toBe(false); // sin ESC t
+    for (const byte of bytes) {
+      expect(byte).toBeLessThan(0x80); // solo ASCII, nunca bytes altos
+    }
   });
 });

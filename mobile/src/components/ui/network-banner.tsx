@@ -20,6 +20,14 @@ import { onSyncComplete } from '@/services/sync-manager';
 
 type BannerState = 'idle' | 'offline' | 'syncing' | 'synced' | 'restored';
 
+// En el arranque en frío la app parte asumiendo OFFLINE (por diseño, para no
+// perder dinero: sin evidencia real de red, una mutación se encola). Si el
+// banner tratara ese default como una desconexión, cada vez que se abre la app
+// saltaría un falso "Sin conexión → Conexión restaurada" con vibración. Con
+// `null` (en vez de 'idle') marcamos que aún no hay un estado de red real: el
+// primer evento de NetInfo se toma como línea base sin disparar transiciones.
+type PrevState = BannerState | 'online' | null;
+
 function getBannerColors(
   state: BannerState,
   colorScheme: 'light' | 'dark',
@@ -55,7 +63,7 @@ export function NetworkBanner() {
   const { network, pendingCount, isSyncing, triggerSync, setBannerVisible } = useNetworkContext();
   const [bannerState, setBannerState] = useState<BannerState>('idle');
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevStateRef = useRef<BannerState>('idle');
+  const prevStateRef = useRef<PrevState>(null);
 
   useEffect(() => {
     return () => {
@@ -66,6 +74,23 @@ export function NetworkBanner() {
   }, []);
 
   useEffect(() => {
+    // Primer estado de red real: lo tomamos como línea base SIN disparar la
+    // falsa transición "offline default → online" del arranque en frío. En el
+    // arranque la app parte asumiendo offline por diseño (para no perder
+    // dinero), así que pasar a online aquí NO es una reconexión real: no hay
+    // vibración ni banner "Conexión restaurada". Si la primera lectura real trae
+    // online, no se muestra nada; si trae offline, la barra sí se muestra (el
+    // usuario abrió la app sin conexión).
+    if (prevStateRef.current === null) {
+      prevStateRef.current = network.isOnline ? 'online' : 'offline';
+      if (isSyncing) {
+        setBannerState('syncing');
+      } else if (!network.isOnline) {
+        setBannerState('offline');
+      }
+      return;
+    }
+
     if (isSyncing) {
       if (dismissTimerRef.current) {
         clearTimeout(dismissTimerRef.current);
@@ -94,17 +119,17 @@ export function NetworkBanner() {
 
     if (bannerState === 'offline') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      prevStateRef.current = 'restored';
+      prevStateRef.current = 'online';
       setBannerState('restored');
       dismissTimerRef.current = setTimeout(() => {
         setBannerState('idle');
-        prevStateRef.current = 'idle';
+        prevStateRef.current = 'online';
         dismissTimerRef.current = null;
       }, 3000);
     }
 
     if (bannerState === 'syncing' && !isSyncing) {
-      prevStateRef.current = 'idle';
+      prevStateRef.current = 'online';
       setBannerState('idle');
     }
   }, [network.isOnline, isSyncing, bannerState]);

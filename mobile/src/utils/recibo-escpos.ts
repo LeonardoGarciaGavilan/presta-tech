@@ -39,11 +39,13 @@ function divider(style: 'solid' | 'dashed' = 'dashed'): Node {
 }
 
 function fila(label: string, value: string): Node {
+  const valueWidth = Math.max(8, Math.min(CARACTERES_POR_LINEA - label.length - 1, 16));
+  const labelWidth = CARACTERES_POR_LINEA - valueWidth - 1;
   return {
     type: 'columns',
     columns: [
-      { content: label, width: 0.45, align: 'left' },
-      { content: value, width: 0.55, align: 'right', style: { bold: true } },
+      { content: label, width: labelWidth / CARACTERES_POR_LINEA, align: 'left' },
+      { content: value, width: valueWidth / CARACTERES_POR_LINEA, align: 'right', style: { bold: true } },
     ],
   };
 }
@@ -77,7 +79,7 @@ export function buildReciboDocument(data: ReciboData): Node[] {
     headerCentrado('Recibo de Pago', true),
     divider(),
     { type: 'text', content: 'Recibo N°', style: { bold: true } },
-    { type: 'text', content: `#${numeroRecibo}`, style: { bold: true, size: 2 } },
+    { type: 'text', content: `#${numeroRecibo}`, style: { bold: true } },
     { type: 'text', content: formatDateLong(pago?.createdAt) },
     divider(),
     title('Cliente'),
@@ -185,8 +187,7 @@ export function buildReciboDesembolso(data: DesembolsoReciboData): Node[] {
     { type: 'text', content: [cliente?.nombre, cliente?.apellido].filter(Boolean).join(' ').trim(), style: { bold: true } },
     { type: 'text', content: formatCedula(cliente?.cedula ?? '') },
     divider(),
-    title('Prestamo'),
-    fila('Monto desembolsado', monto),
+    title('Préstamo'),
     fila('Cuotas', `${desembolso?.numeroCuotas ?? '—'} cuotas`),
     fila('Frecuencia', frecuencia),
     fila('Tasa', tasa),
