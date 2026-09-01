@@ -20,7 +20,9 @@ function formatDateLong(date: string | null | undefined): string {
   return new Intl.DateTimeFormat('es-DO', {
     day: '2-digit', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  }).format(new Date(date));
+  })
+    .format(new Date(date))
+    .replace(/\u00a0/g, ' ');
 }
 
 function formatDateShort(date: string | null | undefined): string {

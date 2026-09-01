@@ -1,6 +1,7 @@
 import type { Node } from 'react-native-thermal-printer-driver';
 
 import { buildReciboDocument, buildReciboDesembolso, buildReciboRetiro } from '@/utils/recibo-escpos';
+import { compilarDocumento } from '@/utils/escpos-compiler';
 import { useAuthStore } from '@/store/auth.store';
 import type { DesembolsoReciboData, ReciboData, RetiroReciboData } from '@/utils/recibo-pdf';
 
@@ -94,6 +95,33 @@ describe('buildReciboDocument', () => {
       .map((n) => n.content);
 
     expect(texts.some((t) => t.includes('completamente pagado'))).toBe(true);
+  });
+});
+
+describe('recibo impreso en modo ASCII', () => {
+  it('no emite ningún byte >= 0x80 ni el espacio no separador a.m./p.m.', () => {
+    const bytes = compilarDocumento(buildReciboDocument(RECIBO_BASE), {
+      codePage: 'ascii',
+      paperWidthMm: 58,
+    });
+
+    for (const byte of bytes) {
+      expect(byte).toBeLessThan(0x80);
+    }
+
+    expect(bytes).not.toContain(0xa0);
+  });
+
+  it('formatea la fecha con marcador a. m. usando un espacio normal', () => {
+    const nodes = buildReciboDocument(RECIBO_BASE);
+    const texts = nodes
+      .filter((n): n is Extract<Node, { type: 'text' }> => n.type === 'text')
+      .map((n) => n.content);
+
+    const fecha = texts.find((t) => t.includes('de agosto de 2026'));
+    expect(fecha).toBeTruthy();
+    expect(fecha).toContain('a. m.');
+    expect(fecha).not.toContain('a.\u00a0m.');
   });
 });
 
