@@ -2,7 +2,7 @@ import { eq, like, or, sql, inArray } from 'drizzle-orm';
 import { db } from './index';
 import { prestamos, cuotas, clientes } from './schema';
 import { upsertPagos } from './pagos-db';
-import { roundMoney } from '@/utils/money';
+import { roundMoney, toCents, fromCents } from '@/utils/money';
 import type { Prestamo, Cuota } from '@/types/prestamo.types';
 
 function rowToPrestamo(
@@ -19,16 +19,17 @@ function rowToPrestamo(
 
   return {
     id: row.id,
-    monto: row.monto,
+    // B2: la BD guarda céntimos enteros; el dominio trabaja en pesos.
+    monto: fromCents(row.monto),
     tasaInteres: row.tasaInteres,
     numeroCuotas: row.numeroCuotas,
-    montoTotal: row.montoTotal,
-    saldoPendiente: row.saldoPendiente,
-    cuotaMensual: row.cuotaMensual,
+    montoTotal: fromCents(row.montoTotal),
+    saldoPendiente: fromCents(row.saldoPendiente),
+    cuotaMensual: fromCents(row.cuotaMensual),
     frecuenciaPago: row.frecuenciaPago as Prestamo['frecuenciaPago'],
     fechaInicio: row.fechaInicio,
     fechaVencimiento: row.fechaVencimiento,
-    moraAcumulada: row.moraAcumulada ?? 0,
+    moraAcumulada: fromCents(row.moraAcumulada ?? 0),
     estado: row.estado as Prestamo['estado'],
     refinanciado: row.refinanciado ?? false,
     vecesRefinanciado: row.vecesRefinanciado ?? 0,
@@ -59,10 +60,10 @@ function rowToCuota(row: typeof cuotas.$inferSelect): Cuota {
   return {
     id: row.id,
     numero: row.numero,
-    monto: row.monto,
-    capital: row.capital,
-    interes: row.interes,
-    mora: row.mora ?? 0,
+    monto: fromCents(row.monto),
+    capital: fromCents(row.capital),
+    interes: fromCents(row.interes),
+    mora: fromCents(row.mora ?? 0),
     fechaVencimiento: row.fechaVencimiento,
     pagada: row.pagada ?? false,
     fechaPago: row.fechaPago,
@@ -74,16 +75,16 @@ function rowToCuota(row: typeof cuotas.$inferSelect): Cuota {
 function prestamoToRow(p: Prestamo) {
   return {
     id: p.id,
-    monto: p.monto,
+    monto: toCents(p.monto),
     tasaInteres: p.tasaInteres,
     numeroCuotas: p.numeroCuotas,
-    montoTotal: p.montoTotal,
-    saldoPendiente: p.saldoPendiente,
-    cuotaMensual: p.cuotaMensual,
+    montoTotal: toCents(p.montoTotal),
+    saldoPendiente: toCents(p.saldoPendiente),
+    cuotaMensual: toCents(p.cuotaMensual),
     frecuenciaPago: p.frecuenciaPago,
     fechaInicio: p.fechaInicio,
     fechaVencimiento: p.fechaVencimiento,
-    moraAcumulada: p.moraAcumulada ?? 0,
+    moraAcumulada: toCents(p.moraAcumulada ?? 0),
     estado: p.estado,
     refinanciado: p.refinanciado ?? false,
     vecesRefinanciado: p.vecesRefinanciado ?? 0,
@@ -109,10 +110,10 @@ function cuotaToRow(c: Cuota) {
   return {
     id: c.id,
     numero: c.numero,
-    monto: c.monto,
-    capital: c.capital,
-    interes: c.interes,
-    mora: c.mora ?? 0,
+    monto: toCents(c.monto),
+    capital: toCents(c.capital),
+    interes: toCents(c.interes),
+    mora: toCents(c.mora ?? 0),
     fechaVencimiento: c.fechaVencimiento,
     pagada: c.pagada ?? false,
     fechaPago: c.fechaPago,

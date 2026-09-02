@@ -1,5 +1,6 @@
 import { db } from './index';
 import { configuracion } from './schema';
+import { toCents, fromCents } from '@/utils/money';
 import type { ConfiguracionResponse } from '@/api/configuracion.api';
 
 function rowToConfig(row: typeof configuracion.$inferSelect): ConfiguracionResponse {
@@ -9,9 +10,11 @@ function rowToConfig(row: typeof configuracion.$inferSelect): ConfiguracionRespo
     moraPorcentajeMensual: row.moraPorcentajeMensual,
     diasGracia: row.diasGracia,
     permitirAbonoCapital: row.permitirAbonoCapital ?? true,
-    montoMinimoPrestamo: row.montoMinimoPrestamo ?? 0,
-    montoMaximoPrestamo: row.montoMaximoPrestamo,
-    montoMaximoPago: row.montoMaximoPago,
+    montoMinimoPrestamo: fromCents(row.montoMinimoPrestamo ?? 0),
+    montoMaximoPrestamo:
+      row.montoMaximoPrestamo === null ? null : fromCents(row.montoMaximoPrestamo),
+    montoMaximoPago:
+      row.montoMaximoPago === null ? null : fromCents(row.montoMaximoPago),
     cuotasRestantesParaRenovar: row.cuotasRestantesParaRenovar ?? 0,
     maxRefinanciamientosPorPrestamo: row.maxRefinanciamientosPorPrestamo ?? 0,
     permitirRefinanciamiento: row.permitirRefinanciamiento ?? true,
@@ -33,9 +36,11 @@ export function setConfiguracion(config: ConfiguracionResponse): void {
     moraPorcentajeMensual: config.moraPorcentajeMensual,
     diasGracia: config.diasGracia,
     permitirAbonoCapital: config.permitirAbonoCapital,
-    montoMinimoPrestamo: config.montoMinimoPrestamo ?? 0,
-    montoMaximoPrestamo: config.montoMaximoPrestamo,
-    montoMaximoPago: config.montoMaximoPago,
+    montoMinimoPrestamo: toCents(config.montoMinimoPrestamo ?? 0),
+    montoMaximoPrestamo:
+      config.montoMaximoPrestamo === null ? null : toCents(config.montoMaximoPrestamo),
+    montoMaximoPago:
+      config.montoMaximoPago === null ? null : toCents(config.montoMaximoPago),
     cuotasRestantesParaRenovar: config.cuotasRestantesParaRenovar ?? 0,
     maxRefinanciamientosPorPrestamo: config.maxRefinanciamientosPorPrestamo ?? 0,
     permitirRefinanciamiento: config.permitirRefinanciamiento ?? true,

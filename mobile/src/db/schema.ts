@@ -15,7 +15,8 @@ export const clientes = sqliteTable('clientes', {
   direccion: text('direccion'),
   ocupacion: text('ocupacion'),
   empresaLaboral: text('empresa_laboral'),
-  ingresos: real('ingresos'),
+  // B2: dinero en céntimos enteros
+  ingresos: integer('ingresos'),
   observaciones: text('observaciones'),
   activo: integer('activo', { mode: 'boolean' }).notNull().default(true),
   empresaId: text('empresa_id').notNull(),
@@ -31,16 +32,17 @@ export const clientes = sqliteTable('clientes', {
 // ─── Préstamos ────────────────────────────────────────────────
 export const prestamos = sqliteTable('prestamos', {
   id: text('id').primaryKey(),
-  monto: real('monto').notNull(),
+  // B2: dinero en céntimos enteros
+  monto: integer('monto').notNull(),
   tasaInteres: real('tasa_interes').notNull(),
   numeroCuotas: integer('numero_cuotas').notNull(),
-  montoTotal: real('monto_total').notNull(),
-  saldoPendiente: real('saldo_pendiente').notNull(),
-  cuotaMensual: real('cuota_mensual').notNull(),
+  montoTotal: integer('monto_total').notNull(),
+  saldoPendiente: integer('saldo_pendiente').notNull(),
+  cuotaMensual: integer('cuota_mensual').notNull(),
   frecuenciaPago: text('frecuencia_pago').notNull(),
   fechaInicio: text('fecha_inicio').notNull(),
   fechaVencimiento: text('fecha_vencimiento').notNull(),
-  moraAcumulada: real('mora_acumulada').default(0),
+  moraAcumulada: integer('mora_acumulada').default(0),
   estado: text('estado').notNull(),
   refinanciado: integer('refinanciado', { mode: 'boolean' }).default(false),
   vecesRefinanciado: integer('veces_refinanciado').default(0),
@@ -66,10 +68,11 @@ export const prestamos = sqliteTable('prestamos', {
 export const cuotas = sqliteTable('cuotas', {
   id: text('id').primaryKey(),
   numero: integer('numero').notNull(),
-  monto: real('monto').notNull(),
-  capital: real('capital').notNull(),
-  interes: real('interes').notNull(),
-  mora: real('mora').default(0),
+  // B2: dinero en céntimos enteros
+  monto: integer('monto').notNull(),
+  capital: integer('capital').notNull(),
+  interes: integer('interes').notNull(),
+  mora: integer('mora').default(0),
   fechaVencimiento: text('fecha_vencimiento').notNull(),
   pagada: integer('pagada', { mode: 'boolean' }).default(false),
   fechaPago: text('fecha_pago'),
@@ -80,10 +83,11 @@ export const cuotas = sqliteTable('cuotas', {
 // ─── Pagos ────────────────────────────────────────────────────
 export const pagos = sqliteTable('pagos', {
   id: text('id').primaryKey(),
-  montoTotal: real('monto_total').notNull(),
-  capital: real('capital').notNull(),
-  interes: real('interes').notNull(),
-  mora: real('mora').default(0),
+  // B2: dinero en céntimos enteros
+  montoTotal: integer('monto_total').notNull(),
+  capital: integer('capital').notNull(),
+  interes: integer('interes').notNull(),
+  mora: integer('mora').default(0),
   metodo: text('metodo').notNull(),
   referencia: text('referencia'),
   observacion: text('observacion'),
@@ -124,9 +128,10 @@ export const configuracion = sqliteTable('configuracion', {
   moraPorcentajeMensual: real('mora_porcentaje_mensual').notNull(),
   diasGracia: integer('dias_gracia').notNull(),
   permitirAbonoCapital: integer('permitir_abono_capital', { mode: 'boolean' }).default(true),
-  montoMinimoPrestamo: real('monto_minimo_prestamo').default(0),
-  montoMaximoPrestamo: real('monto_maximo_prestamo'),
-  montoMaximoPago: real('monto_maximo_pago'),
+  // B2: montos en céntimos enteros (tasas y porcentajes siguen REAL)
+  montoMinimoPrestamo: integer('monto_minimo_prestamo').default(0),
+  montoMaximoPrestamo: integer('monto_maximo_prestamo'),
+  montoMaximoPago: integer('monto_maximo_pago'),
   cuotasRestantesParaRenovar: integer('cuotas_restantes_para_renovar').default(0),
   maxRefinanciamientosPorPrestamo: integer('max_refinanciamientos_por_prestamo').default(0),
   // Switch maestro de refinanciamiento (v9); default activado

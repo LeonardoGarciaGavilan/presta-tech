@@ -375,6 +375,33 @@ describe('initializeDatabase', () => {
     expect(db.columns.configuracion).toContain('permitir_refinanciamiento');
   });
 
+  it('v9 → v10 (B2): reconstruye las tablas money a céntimos enteros con CAST(ROUND(x*100))', async () => {
+    const db = createFakeDb({ userVersion: 9 });
+    await initializeDatabase(db as any);
+
+    const sqls = db.calls.join('\n');
+    // Cada tabla con dinero se reconstruye: rename → create → insert → drop.
+    for (const tabla of ['clientes', 'prestamos', 'cuotas', 'pagos', 'configuracion']) {
+      expect(sqls).toContain(`ALTER TABLE ${tabla} RENAME TO ${tabla}_v9;`);
+      expect(sqls).toMatch(new RegExp(`DROP TABLE ${tabla}_v9;`));
+    }
+    // Conversión tolerante al ruido de coma flotante.
+    expect(sqls).toContain(
+      'CAST(ROUND(ingresos * 100) AS INTEGER)',
+    );
+    expect(sqls).toContain(
+      'CAST(ROUND(monto_total * 100) AS INTEGER)',
+    );
+    expect(sqls).toContain(
+      'CAST(ROUND(monto_minimo_prestamo * 100) AS INTEGER)',
+    );
+    // Tasas/porcentajes/coordenadas siguen REAL (no se tocan).
+    expect(sqls).toContain('tasa_interes REAL NOT NULL');
+    expect(sqls).toContain('tasa_interes_base REAL NOT NULL');
+    // offline_queue no se reconstruye (data/snapshot siguen en pesos).
+    expect(sqls).not.toContain('ALTER TABLE offline_queue RENAME');
+  });
+
   it(`v${SCHEMA_VERSION}: no hace nada (early return)`, async () => {
     const db = createFakeDb({ userVersion: SCHEMA_VERSION });
     await initializeDatabase(db as any);
@@ -408,7 +435,9 @@ describe('initializeDatabase', () => {
     );
     await initializeDatabase(db as any);
 
-    expect(db.calls.join('\n')).not.toContain('ALTER TABLE');
+    // Las columnas ya existen: no se ejecuta ningún ADD COLUMN. El rebuild
+    // v9→v10 sí usa ALTER TABLE ... RENAME (reconstrucción de tablas money).
+    expect(db.calls.join('\n')).not.toContain('ADD COLUMN');
   });
 
   it('fallo de la migración es NO-fatal: warn y continúa hasta user_version', async () => {
@@ -424,7 +453,7 @@ describe('initializeDatabase', () => {
     warnSpy.mockRestore();
   });
 
-  it('exporta SCHEMA_VERSION = 9', () => {
-    expect(SCHEMA_VERSION).toBe(9);
+  it('exporta SCHEMA_VERSION = 10', () => {
+    expect(SCHEMA_VERSION).toBe(10);
   });
 });

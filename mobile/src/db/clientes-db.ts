@@ -1,6 +1,7 @@
 import { eq, like, or, sql, inArray, and } from 'drizzle-orm';
 import { db } from './index';
 import { clientes, rutaClientes, rutas } from './schema';
+import { toCents, fromCents } from '@/utils/money';
 import type { Cliente } from '@/types/cliente.types';
 
 function rowToCliente(row: typeof clientes.$inferSelect): Cliente {
@@ -18,7 +19,7 @@ function rowToCliente(row: typeof clientes.$inferSelect): Cliente {
     direccion: row.direccion,
     ocupacion: row.ocupacion,
     empresaLaboral: row.empresaLaboral,
-    ingresos: row.ingresos,
+    ingresos: row.ingresos === null ? null : fromCents(row.ingresos),
     observaciones: row.observaciones,
     activo: row.activo,
     empresaId: row.empresaId,
@@ -47,7 +48,7 @@ function clienteToRow(c: Cliente) {
     direccion: c.direccion,
     ocupacion: c.ocupacion,
     empresaLaboral: c.empresaLaboral,
-    ingresos: c.ingresos,
+    ingresos: c.ingresos === null ? null : toCents(c.ingresos),
     observaciones: c.observaciones,
     activo: c.activo,
     empresaId: c.empresaId,
