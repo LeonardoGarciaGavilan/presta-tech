@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoPrestamo } from '@prisma/client';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
+import { roundMoney } from '../common/utils/money';
 import {
   format,
   subMonths,
@@ -193,7 +194,7 @@ export class DashboardService {
     );
     const resumen = {
       cobroEsperadoHoy: {
-        monto: Math.round((cobroEsperado._sum.monto ?? 0) * 100) / 100,
+        monto: roundMoney(cobroEsperado._sum.monto ?? 0),
         cuotas: cobroEsperado._count.id,
       },
       moraCritica: {
@@ -229,13 +230,11 @@ export class DashboardService {
       if (key) cantidades[key] = item._count.id;
     }
 
-    const saldoPendienteTotal =
-      Math.round(
-        ((saldoCuotas._sum.capital ?? 0) +
-          (saldoCuotas._sum.interes ?? 0) +
-          (saldoCuotas._sum.mora ?? 0)) *
-          100,
-      ) / 100;
+    const saldoPendienteTotal = roundMoney(
+      (saldoCuotas._sum.capital ?? 0) +
+        (saldoCuotas._sum.interes ?? 0) +
+        (saldoCuotas._sum.mora ?? 0),
+    );
 
     const cobrosPorMes = this.procesarGraficoMensual(cobrosGrafico);
     const desembolsosPorMes = this.procesarGraficoMensual(desembolsosGrafico);
@@ -252,8 +251,8 @@ export class DashboardService {
         clientesActivos,
       },
       pagos: {
-        cobradoHoy: Math.round((pagosTotales._sum.montoTotal ?? 0) * 100) / 100,
-        cobradoMes: Math.round((pagosDelMes._sum.montoTotal ?? 0) * 100) / 100,
+        cobradoHoy: roundMoney(pagosTotales._sum.montoTotal ?? 0),
+        cobradoMes: roundMoney(pagosDelMes._sum.montoTotal ?? 0),
         pagosHoy: 0,
         pagosMes: 0,
       },
@@ -287,7 +286,7 @@ export class DashboardService {
 
       resultado.push({
         mes: nombreMes,
-        monto: Math.round((dato?.monto ? Number(dato.monto) : 0) * 100) / 100,
+        monto: roundMoney(dato?.monto ? Number(dato.monto) : 0),
       });
     }
 
@@ -385,7 +384,7 @@ export class DashboardService {
       return {
         id: p.id,
         monto: p.monto,
-        saldoPendiente: Math.round(saldoCalculado * 100) / 100,
+        saldoPendiente: roundMoney(saldoCalculado),
         estado: p.estado,
         cuotasVencidas: p.cuotas.length,
         cliente: {
@@ -461,10 +460,9 @@ export class DashboardService {
     const saldoPorPrestamo = new Map(
       saldos.map((s) => [
         s.prestamoId,
-        Math.round(
-          ((s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0)) *
-            100,
-        ) / 100,
+        roundMoney(
+          (s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0),
+        ),
       ]),
     );
 

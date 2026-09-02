@@ -31,6 +31,7 @@ import { format, toZonedTime } from 'date-fns-tz';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { roundMoney } from '../common/utils/money';
 import { QuotaService } from '../common/quota/quota.service';
 import { PermisosService } from '../common/permisos/permisos.service';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
@@ -148,7 +149,7 @@ export class PrestamosService {
       );
     }
 
-    const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
+    const gananciaTotal = roundMoney(montoTotal - monto);
 
     if (gananciaTotal <= 0) {
       throw new BadRequestException(
@@ -171,9 +172,7 @@ export class PrestamosService {
     }
 
     const gananciaPorCuota =
-      numeroCuotas > 0
-        ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
-        : 0;
+      numeroCuotas > 0 ? roundMoney(gananciaTotal / numeroCuotas) : 0;
 
     let saldo = monto;
     let totalIntereses = 0;
@@ -183,12 +182,9 @@ export class PrestamosService {
       const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
       const interes =
         i === numeroCuotas
-          ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+          ? roundMoney(gananciaTotal - totalIntereses)
           : gananciaPorCuota;
-      const capital = Math.max(
-        0,
-        Math.round((montoCuota - interes) * 100) / 100,
-      );
+      const capital = Math.max(0, roundMoney(montoCuota - interes));
 
       cuotas.push({
         numero: i,
@@ -196,14 +192,14 @@ export class PrestamosService {
         capital,
         interes,
         monto: Math.round(montoCuota),
-        saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
+        saldoRestante: Math.max(0, roundMoney(saldo - capital)),
       });
 
       totalIntereses += interes;
-      saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+      saldo = Math.max(0, roundMoney(saldo - capital));
     }
 
-    const montoTotalRounded = Math.round(montoTotal * 100) / 100;
+    const montoTotalRounded = roundMoney(montoTotal);
     const sumaCuotas = cuotas.reduce((sum, c) => sum + c.monto, 0);
 
     if (sumaCuotas !== montoTotalRounded) {
@@ -250,12 +246,10 @@ export class PrestamosService {
 
     let cuotaFija: number;
     if (tasaPeriodo === 0) {
-      cuotaFija = Math.round((monto / numeroCuotas) * 100) / 100;
+      cuotaFija = roundMoney(monto / numeroCuotas);
     } else {
       const factor = Math.pow(1 + tasaPeriodo, numeroCuotas);
-      cuotaFija =
-        Math.round(((monto * (tasaPeriodo * factor)) / (factor - 1)) * 100) /
-        100;
+      cuotaFija = roundMoney((monto * (tasaPeriodo * factor)) / (factor - 1));
     }
 
     let saldo = monto;
@@ -263,12 +257,12 @@ export class PrestamosService {
     const cuotas: CuotaCalculada[] = [];
 
     for (let i = 1; i <= numeroCuotas; i++) {
-      const interes = Math.round(saldo * tasaPeriodo * 100) / 100;
+      const interes = roundMoney(saldo * tasaPeriodo);
       const capital =
         i === numeroCuotas
-          ? Math.round(saldo * 100) / 100
-          : Math.round((cuotaFija - interes) * 100) / 100;
-      const montoCuota = Math.round((capital + interes) * 100) / 100;
+          ? roundMoney(saldo)
+          : roundMoney(cuotaFija - interes);
+      const montoCuota = roundMoney(capital + interes);
       const fechaVencimiento = this.siguienteFecha(
         fechaInicio,
         frecuenciaPago,
@@ -281,18 +275,18 @@ export class PrestamosService {
         capital,
         interes,
         monto: montoCuota,
-        saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
+        saldoRestante: Math.max(0, roundMoney(saldo - capital)),
       });
 
       totalIntereses += interes;
-      saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+      saldo = Math.max(0, roundMoney(saldo - capital));
     }
 
-    const totalInteresesRedondeado = Math.round(totalIntereses * 100) / 100;
+    const totalInteresesRedondeado = roundMoney(totalIntereses);
 
     return {
       cuotaInicial: cuotas[0].monto,
-      montoTotal: Math.round((monto + totalInteresesRedondeado) * 100) / 100,
+      montoTotal: roundMoney(monto + totalInteresesRedondeado),
       totalIntereses: totalInteresesRedondeado,
       cuotas,
     };
@@ -329,9 +323,7 @@ export class PrestamosService {
 
     if (diasAtraso <= (config.diasGracia ?? 0)) return 0;
 
-    return (
-      Math.round(cuota.monto * (config.moraPorcentajeMensual / 100) * 100) / 100
-    );
+    return roundMoney(cuota.monto * (config.moraPorcentajeMensual / 100));
   }
 
   // ─── FUNCIÓN ÚNICA PARA CALCULAR SALDO PENDIENTE ────────────────────────
@@ -350,7 +342,7 @@ export class PrestamosService {
       0,
     );
 
-    return Math.round(saldo * 100) / 100;
+    return roundMoney(saldo);
   }
 
   // ─── FUNCIÓN ÚNICA PARA CALCULAR MORA ACUMULADA ────────────────────────────
@@ -366,7 +358,7 @@ export class PrestamosService {
 
     const mora = cuotas.reduce((sum, c) => sum + (c.mora || 0), 0);
 
-    return Math.round(mora * 100) / 100;
+    return roundMoney(mora);
   }
 
   // ─── FUNCIÓN HELPER PARA CALCULAR DESDE OBJETO ───────────────────────────────
@@ -393,8 +385,8 @@ export class PrestamosService {
     const mora = cuotasPendientes.reduce((sum, c) => sum + (c.mora || 0), 0);
 
     return {
-      saldoPendiente: Math.round(saldo * 100) / 100,
-      moraAcumulada: Math.round(mora * 100) / 100,
+      saldoPendiente: roundMoney(saldo),
+      moraAcumulada: roundMoney(mora),
     };
   }
 
@@ -903,13 +895,11 @@ export class PrestamosService {
         }),
       ]);
 
-      const efectivoEnCaja =
-        Math.round(
-          (cajaBloqueada.montoInicial +
-            (pagosEfectivo._sum.montoTotal || 0) -
-            (desembolsosCaja._sum.monto || 0)) *
-            100,
-        ) / 100;
+      const efectivoEnCaja = roundMoney(
+        cajaBloqueada.montoInicial +
+          (pagosEfectivo._sum.montoTotal || 0) -
+          (desembolsosCaja._sum.monto || 0),
+      );
 
       // ─── 4. Validar que monto ≤ efectivo disponible ───────────────────
       if (prestamo.monto > efectivoEnCaja) {
@@ -1368,8 +1358,7 @@ export class PrestamosService {
 
             // Usar configuración con valores por defecto
             const moraPorcentaje = config?.moraPorcentajeMensual ?? 0;
-            const mora =
-              Math.round(cuota.monto * (moraPorcentaje / 100) * 100) / 100;
+            const mora = roundMoney(cuota.monto * (moraPorcentaje / 100));
 
             if (mora <= 0) return null;
 
@@ -1407,10 +1396,9 @@ export class PrestamosService {
     for (const batch of prestamoBatches) {
       await this.prisma.$transaction(async (tx) => {
         const updates = batch.map((prestamo) => {
-          const moraRecalculada =
-            Math.round(
-              prestamo.cuotas.reduce((sum, c) => sum + (c.mora || 0), 0) * 100,
-            ) / 100;
+          const moraRecalculada = roundMoney(
+            prestamo.cuotas.reduce((sum, c) => sum + (c.mora || 0), 0),
+          );
 
           return tx.prestamo.update({
             where: { id: prestamo.id },
@@ -1650,8 +1638,7 @@ export class PrestamosService {
       (sum, c) => sum + (c.mora || 0),
       0,
     );
-    const saldoRefinanciar =
-      Math.round((capitalPendiente + morasPendientes) * 100) / 100;
+    const saldoRefinanciar = roundMoney(capitalPendiente + morasPendientes);
 
     const frecuenciaFinal: FrecuenciaPago =
       dto.nuevaFrecuencia ?? prestamo.frecuenciaPago;
@@ -1739,10 +1726,9 @@ export class PrestamosService {
 
     // Snapshot completo de las cuotas que serán eliminadas: preserva la
     // amortización original para auditoría sin mantener filas activas en DB.
-    const interesPerdido =
-      Math.round(
-        cuotasPendientes.reduce((sum, c) => sum + (c.interes || 0), 0) * 100,
-      ) / 100;
+    const interesPerdido = roundMoney(
+      cuotasPendientes.reduce((sum, c) => sum + (c.interes || 0), 0),
+    );
     const cuotasEliminadasSnapshot = cuotasPendientes.map((c) => ({
       numero: c.numero,
       monto: c.monto,
@@ -2021,24 +2007,21 @@ export class PrestamosService {
     // Capital y mora son deuda real; el interés futuro es parametrizable
     // (incluirInteresEnRenovacion, default true = cobrar todo).
     const incluirInteres = config.incluirInteresEnRenovacion !== false;
-    const capitalAplicado =
-      Math.round(cuotasPendientes.reduce((s, c) => s + c.capital, 0) * 100) /
-      100;
+    const capitalAplicado = roundMoney(
+      cuotasPendientes.reduce((s, c) => s + c.capital, 0),
+    );
     const interesAplicado = incluirInteres
-      ? Math.round(
-          cuotasPendientes.reduce((s, c) => s + (c.interes || 0), 0) * 100,
-        ) / 100
+      ? roundMoney(cuotasPendientes.reduce((s, c) => s + (c.interes || 0), 0))
       : 0;
-    const moraAplicada =
-      Math.round(
-        cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0) * 100,
-      ) / 100;
-    const saldoAplicado =
-      Math.round((capitalAplicado + interesAplicado + moraAplicada) * 100) /
-      100;
+    const moraAplicada = roundMoney(
+      cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0),
+    );
+    const saldoAplicado = roundMoney(
+      capitalAplicado + interesAplicado + moraAplicada,
+    );
 
     // ─── Validaciones del nuevo préstamo ────────────────────────────────────
-    const montoNuevo = Math.round(dto.montoNuevo * 100) / 100;
+    const montoNuevo = roundMoney(dto.montoNuevo);
     if (montoNuevo <= saldoAplicado) {
       throw new BadRequestException(
         `El monto nuevo (RD$${montoNuevo.toLocaleString()}) debe ser mayor al saldo anterior aplicado (RD$${saldoAplicado.toLocaleString()}).`,
@@ -2055,7 +2038,7 @@ export class PrestamosService {
       );
     }
 
-    const desembolsoNeto = Math.round((montoNuevo - saldoAplicado) * 100) / 100;
+    const desembolsoNeto = roundMoney(montoNuevo - saldoAplicado);
 
     const frecuenciaFinal: FrecuenciaPago =
       dto.frecuenciaPago ?? prestamo.frecuenciaPago;
@@ -2194,13 +2177,11 @@ export class PrestamosService {
           _sum: { monto: true },
         }),
       ]);
-      const efectivoEnCaja =
-        Math.round(
-          (cajaBloqueada.montoInicial +
-            (pagosEfectivo._sum.montoTotal || 0) -
-            (desembolsosCaja._sum.monto || 0)) *
-            100,
-        ) / 100;
+      const efectivoEnCaja = roundMoney(
+        cajaBloqueada.montoInicial +
+          (pagosEfectivo._sum.montoTotal || 0) -
+          (desembolsosCaja._sum.monto || 0),
+      );
 
       if (efectivoEnCaja + saldoAplicado < montoNuevo) {
         throw new BadRequestException(

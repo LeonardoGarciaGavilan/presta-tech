@@ -661,6 +661,60 @@ describe('PagosService — C7 (concurrencia y replay)', () => {
     });
   });
 
+  it('C7e (A1): abono parcial de cuota con mora NO infla monto con la mora restante', async () => {
+    const cuotaConMora = {
+      id: 'c1',
+      numero: 1,
+      monto: 120,
+      capital: 100,
+      interes: 20,
+      mora: 15,
+      fechaVencimiento: new Date('2026-08-10T00:00:00.000Z'),
+    };
+    const { tx } = buildTx({
+      cuotasPendientes: [{ ...cuotaConMora, pagada: false }],
+      cuotasPostPago: [{ ...cuotaConMora, mora: 10, pagada: false }],
+    });
+    const $transaction = jest
+      .fn()
+      .mockImplementation(
+        (cb: (tx: Record<string, unknown>) => Promise<unknown>) => cb(tx),
+      );
+    const prestamo = {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'p1',
+        estado: 'ACTIVO',
+        monto: 1000,
+        numeroCuotas: 4,
+        frecuenciaPago: 'MENSUAL',
+        tasaInteres: 5,
+        cliente: { nombre: 'Ana', apellido: 'R', cedula: '000-1' },
+        cuotas: [{ ...cuotaConMora, pagada: false }],
+      }),
+    };
+    const { service } = buildService({ $transaction, prestamo });
+
+    // Pago de 5: solo toca mora. cuota debe quedar con monto = capital+interés
+    // (120), no 130 como con el doble conteo (monto que ya incluía mora).
+    await service.registrarPago(
+      { prestamoId: 'p1', montoPagado: 5, metodo: 'EFECTIVO' },
+      'emp1',
+      'u1',
+    );
+
+    const c1Update = tx.cuota.update.mock.calls.find(
+      ([args]: [{ where: { id: string } }]) => args.where.id === 'c1',
+    );
+    expect(c1Update).toBeDefined();
+    expect(c1Update[0].data).toMatchObject({
+      capital: 100,
+      interes: 20,
+      mora: 10,
+      monto: 120,
+    });
+    expect(tx.pago.create).toHaveBeenCalledTimes(1);
+  });
+
   it('C7d: el replay de un saldo devuelve cuota: null', async () => {
     const findFirst = jest
       .fn()

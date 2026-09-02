@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
+import { roundMoney } from '../common/utils/money';
 import { MovimientoFinancieroTipo } from '@prisma/client';
 
 // Tipos de movimiento que constituyen egresos de caja (salida de efectivo).
@@ -85,18 +86,17 @@ export class CajaService {
     porMetodo.forEach((m) => {
       pagosPorMetodo[m.metodo] = {
         cantidad: m._count,
-        monto: Math.round((m._sum.montoTotal ?? 0) * 100) / 100,
+        monto: roundMoney(m._sum.montoTotal ?? 0),
       };
     });
 
     return {
       pagos,
-      totalCobrado: Math.round((totales._sum.montoTotal ?? 0) * 100) / 100,
-      totalEfectivo:
-        Math.round((pagosPorMetodo['EFECTIVO']?.monto ?? 0) * 100) / 100,
-      totalCapital: Math.round((totales._sum.capital ?? 0) * 100) / 100,
-      totalInteres: Math.round((totales._sum.interes ?? 0) * 100) / 100,
-      totalMora: Math.round((totales._sum.mora ?? 0) * 100) / 100,
+      totalCobrado: roundMoney(totales._sum.montoTotal ?? 0),
+      totalEfectivo: roundMoney(pagosPorMetodo['EFECTIVO']?.monto ?? 0),
+      totalCapital: roundMoney(totales._sum.capital ?? 0),
+      totalInteres: roundMoney(totales._sum.interes ?? 0),
+      totalMora: roundMoney(totales._sum.mora ?? 0),
       cantidadPagos: pagos.length,
       pagosPorMetodo,
     };
@@ -144,7 +144,7 @@ export class CajaService {
 
     return {
       desembolsos,
-      totalDesembolsado: Math.round((totales._sum.monto ?? 0) * 100) / 100,
+      totalDesembolsado: roundMoney(totales._sum.monto ?? 0),
       cantidadDesembolsos: desembolsos.length,
     };
   }
@@ -169,9 +169,7 @@ export class CajaService {
     const totalInyectado = inyecciones._sum.monto ?? 0;
     const totalRetirado = retiros._sum.monto ?? 0;
 
-    return (
-      Math.round((capitalBase + totalInyectado - totalRetirado) * 100) / 100
-    );
+    return roundMoney(capitalBase + totalInyectado - totalRetirado);
   }
 
   // ─── Helper: Calcular dinero total en cajas abiertas ─────────────────────
@@ -183,7 +181,7 @@ export class CajaService {
     });
 
     const abiertas = cajas.find((c) => c.estado === 'ABIERTA');
-    return Math.round((abiertas?._sum?.montoInicial ?? 0) * 100) / 100;
+    return roundMoney(abiertas?._sum?.montoInicial ?? 0);
   }
 
   // ─── Helper: Calcular dinero en calle (préstamos activos) ─────────────
@@ -206,7 +204,7 @@ export class CajaService {
     const totalPrestado = prestamos._sum.monto ?? 0;
     const totalCobrado = cobros._sum.capital ?? 0;
 
-    return Math.max(0, Math.round((totalPrestado - totalCobrado) * 100) / 100);
+    return Math.max(0, roundMoney(totalPrestado - totalCobrado));
   }
 
   async abrirCaja(
@@ -344,13 +342,11 @@ export class CajaService {
       caja.id,
     );
 
-    const efectivoSistema =
-      Math.round(
-        (caja.montoInicial +
-          resumenPagos.totalEfectivo -
-          resumenDesembol.totalDesembolsado) *
-          100,
-      ) / 100;
+    const efectivoSistema = roundMoney(
+      caja.montoInicial +
+        resumenPagos.totalEfectivo -
+        resumenDesembol.totalDesembolsado,
+    );
 
     return {
       ...caja,
@@ -398,13 +394,11 @@ export class CajaService {
       !isAdmin ? usuarioId : undefined,
     );
 
-    const efectivoSistema =
-      Math.round(
-        (cajas.reduce((s, c) => s + c.montoInicial, 0) +
-          resumenPagos.totalEfectivo -
-          resumenDesembol.totalDesembolsado) *
-          100,
-      ) / 100;
+    const efectivoSistema = roundMoney(
+      cajas.reduce((s, c) => s + c.montoInicial, 0) +
+        resumenPagos.totalEfectivo -
+        resumenDesembol.totalDesembolsado,
+    );
 
     return {
       fecha,
@@ -466,7 +460,7 @@ export class CajaService {
       // GASTOS, RETIROS, etc. NO afectan caja operativa (son globales)
     }
 
-    return Math.round((caja.montoInicial + entradas - salidas) * 100) / 100;
+    return roundMoney(caja.montoInicial + entradas - salidas);
   }
 
   // ─── OBTENER CAJA ACTIVA DEL USUARIO ─────────────────────────────────────
@@ -483,13 +477,10 @@ export class CajaService {
     totalIngresos?: number;
     totalEgresos?: number;
   }) {
-    return (
-      Math.round(
-        ((caja.montoInicial ?? 0) +
-          (caja.totalIngresos ?? 0) -
-          (caja.totalEgresos ?? 0)) *
-          100,
-      ) / 100
+    return roundMoney(
+      (caja.montoInicial ?? 0) +
+        (caja.totalIngresos ?? 0) -
+        (caja.totalEgresos ?? 0),
     );
   }
 
@@ -561,10 +552,9 @@ export class CajaService {
 
     const ingresosCalc = ingresos._sum.montoTotal ?? 0;
     const egresosCalc = egresos._sum.monto ?? 0;
-    const esperado =
-      Math.round((caja.montoInicial + ingresosCalc - egresosCalc) * 100) / 100;
+    const esperado = roundMoney(caja.montoInicial + ingresosCalc - egresosCalc);
 
-    const diferencia = Math.round(((montoCierre ?? 0) - esperado) * 100) / 100;
+    const diferencia = roundMoney((montoCierre ?? 0) - esperado);
 
     // Determinar estado del cuadre
     let estadoCuadre: 'CUADRADO' | 'SOBRANTE' | 'FALTANTE' = 'CUADRADO';
@@ -721,9 +711,9 @@ export class CajaService {
 
         const ingresosCalc = ingresosAgg._sum.montoTotal ?? 0;
         const egresosCalc = egresosAgg._sum.monto ?? 0;
-        const esperadoCalc =
-          Math.round((caja.montoInicial + ingresosCalc - egresosCalc) * 100) /
-          100;
+        const esperadoCalc = roundMoney(
+          caja.montoInicial + ingresosCalc - egresosCalc,
+        );
 
         return {
           ...caja,
@@ -776,12 +766,10 @@ export class CajaService {
       }
     });
 
-    const esperado = Math.round((inicial + ingresos - egresos) * 100) / 100;
+    const esperado = roundMoney(inicial + ingresos - egresos);
     const real = caja.montoCierre;
     const diferencia =
-      real !== null && real !== undefined
-        ? Math.round((real - esperado) * 100) / 100
-        : 0;
+      real !== null && real !== undefined ? roundMoney(real - esperado) : 0;
 
     const aperturaExiste = movimientos.some((m) => m.tipo === 'APERTURA_CAJA');
     const cierreExiste = movimientos.some((m) => m.tipo === 'CIERRE_CAJA');

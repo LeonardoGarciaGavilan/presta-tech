@@ -13,6 +13,7 @@ import { EstadoPrestamo, MetodoPago } from '@prisma/client';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
+import { roundMoney } from '../common/utils/money';
 import { startOfDay, differenceInDays } from 'date-fns';
 import {
   getFechaRD,
@@ -145,11 +146,11 @@ export class PagosService {
 
     const saldoPendiente = Math.max(
       0,
-      Math.round(
+      roundMoney(
         full.prestamo.cuotas
           .filter((c) => !c.pagada)
-          .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100,
-      ) / 100,
+          .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0),
+      ),
     );
 
     // C7d: distinguir un replay de SALDO de un replay de pago normal. En el
@@ -183,9 +184,7 @@ export class PagosService {
         mora: full.mora,
         abonoCapital: Math.max(
           0,
-          Math.round(
-            (full.montoTotal - full.capital - full.interes - full.mora) * 100,
-          ) / 100,
+          roundMoney(full.montoTotal - full.capital - full.interes - full.mora),
         ),
         pagoCompleto,
         metodo: full.metodo,
@@ -365,13 +364,12 @@ export class PagosService {
           }
 
           // 2. Saldo REAL desde las cuotas recién leídas
-          const saldoReal =
-            Math.round(
-              cuotasPendientes.reduce(
-                (s, c) => s + c.capital + c.interes + (c.mora || 0),
-                0,
-              ) * 100,
-            ) / 100;
+          const saldoReal = roundMoney(
+            cuotasPendientes.reduce(
+              (s, c) => s + c.capital + c.interes + (c.mora || 0),
+              0,
+            ),
+          );
 
           // 3. Validar contra saldo real
           if (dto.montoPagado > saldoReal + 0.001) {
@@ -402,11 +400,12 @@ export class PagosService {
             cuotaObjetivo = cuotaEspecifica;
           }
 
-          const montoExacto =
-            Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
+          const montoExacto = roundMoney(
+            cuotaObjetivo.monto + cuotaObjetivo.mora,
+          );
 
           // 6. Calcular distribución del pago (mora → interés → capital)
-          let montoPagado = Math.round(dto.montoPagado * 100) / 100;
+          let montoPagado = roundMoney(dto.montoPagado);
           let moraAplicada = 0;
           let interesAplicado = 0;
           let capitalAplicado = 0;
@@ -414,33 +413,30 @@ export class PagosService {
 
           if (cuotaObjetivo.mora > 0) {
             moraAplicada = Math.min(montoPagado, cuotaObjetivo.mora);
-            montoPagado = Math.round((montoPagado - moraAplicada) * 100) / 100;
+            montoPagado = roundMoney(montoPagado - moraAplicada);
           }
           if (montoPagado > 0) {
             interesAplicado = Math.min(montoPagado, cuotaObjetivo.interes);
-            montoPagado =
-              Math.round((montoPagado - interesAplicado) * 100) / 100;
+            montoPagado = roundMoney(montoPagado - interesAplicado);
           }
           if (montoPagado > 0) {
             capitalAplicado = Math.min(montoPagado, cuotaObjetivo.capital);
-            montoPagado =
-              Math.round((montoPagado - capitalAplicado) * 100) / 100;
+            montoPagado = roundMoney(montoPagado - capitalAplicado);
           }
 
           // Lo que sobra tras cubrir la cuota objetivo es excedente
-          excedente = Math.round(montoPagado * 100) / 100;
+          excedente = roundMoney(montoPagado);
 
           // ¿Cubre el pago el total exacto de la cuota?
-          const pagoCompleto =
-            Math.round(dto.montoPagado * 100) / 100 >= montoExacto;
+          const pagoCompleto = roundMoney(dto.montoPagado) >= montoExacto;
 
           // 7. Crear el pago
           const pago = await tx.pago.create({
             data: {
               prestamoId: dto.prestamoId,
               usuarioId,
-              montoTotal: dto.montoPagado,
-              capital: Math.round((capitalAplicado + excedente) * 100) / 100,
+              montoTotal: roundMoney(dto.montoPagado),
+              capital: roundMoney(capitalAplicado + excedente),
               interes: interesAplicado,
               mora: moraAplicada,
               metodo: dto.metodo,
@@ -468,18 +464,17 @@ export class PagosService {
             // pero la cuota no se actualizaba, perdiendo el abono.
             const nuevaMora = Math.max(
               0,
-              Math.round((cuotaObjetivo.mora - moraAplicada) * 100) / 100,
+              roundMoney(cuotaObjetivo.mora - moraAplicada),
             );
             const nuevoInteres = Math.max(
               0,
-              Math.round((cuotaObjetivo.interes - interesAplicado) * 100) / 100,
+              roundMoney(cuotaObjetivo.interes - interesAplicado),
             );
             const nuevoCapital = Math.max(
               0,
-              Math.round((cuotaObjetivo.capital - capitalAplicado) * 100) / 100,
+              roundMoney(cuotaObjetivo.capital - capitalAplicado),
             );
-            const nuevoMonto =
-              Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+            const nuevoMonto = roundMoney(nuevoCapital + nuevoInteres);
 
             await tx.cuota.update({
               where: { id: cuotaObjetivo.id },
@@ -513,32 +508,27 @@ export class PagosService {
 
               if (cuota.mora > 0) {
                 pagoMora = Math.min(restante, cuota.mora);
-                restante = Math.round((restante - pagoMora) * 100) / 100;
+                restante = roundMoney(restante - pagoMora);
               }
               if (restante > 0) {
                 pagoInteres = Math.min(restante, cuota.interes);
-                restante = Math.round((restante - pagoInteres) * 100) / 100;
+                restante = roundMoney(restante - pagoInteres);
               }
               if (restante > 0) {
                 pagoCapital = Math.min(restante, cuota.capital);
-                restante = Math.round((restante - pagoCapital) * 100) / 100;
+                restante = roundMoney(restante - pagoCapital);
               }
 
-              const nuevaMora = Math.max(
-                0,
-                Math.round((cuota.mora - pagoMora) * 100) / 100,
-              );
+              const nuevaMora = Math.max(0, roundMoney(cuota.mora - pagoMora));
               const nuevoInteres = Math.max(
                 0,
-                Math.round((cuota.interes - pagoInteres) * 100) / 100,
+                roundMoney(cuota.interes - pagoInteres),
               );
               const nuevoCapital = Math.max(
                 0,
-                Math.round((cuota.capital - pagoCapital) * 100) / 100,
+                roundMoney(cuota.capital - pagoCapital),
               );
-              const nuevoMonto =
-                Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) /
-                100;
+              const nuevoMonto = roundMoney(nuevoCapital + nuevoInteres);
 
               if (nuevoMonto <= 0) {
                 await tx.cuota.update({
@@ -563,10 +553,9 @@ export class PagosService {
                   },
                 });
               }
-              abonoRestante =
-                Math.round(
-                  (abonoRestante - pagoMora - pagoInteres - pagoCapital) * 100,
-                ) / 100;
+              abonoRestante = roundMoney(
+                abonoRestante - pagoMora - pagoInteres - pagoCapital,
+              );
             }
           }
 
@@ -578,22 +567,22 @@ export class PagosService {
 
           const nuevoSaldo = Math.max(
             0,
-            Math.round(
+            roundMoney(
               cuotasRestantesActualizadas.reduce(
                 (s, c) => s + c.capital + c.interes + (c.mora || 0),
                 0,
-              ) * 100,
-            ) / 100,
+              ),
+            ),
           );
 
           const nuevaMoraAcumulada = Math.max(
             0,
-            Math.round(
+            roundMoney(
               cuotasRestantesActualizadas.reduce(
                 (s, c) => s + (c.mora || 0),
                 0,
-              ) * 100,
-            ) / 100,
+              ),
+            ),
           );
 
           // 11. Determinar nuevo estado del préstamo
@@ -642,8 +631,8 @@ export class PagosService {
           await tx.movimientoFinanciero.create({
             data: {
               tipo: 'PAGO_RECIBIDO',
-              monto: dto.montoPagado,
-              capital: Math.round((capitalAplicado + excedente) * 100) / 100,
+              monto: roundMoney(dto.montoPagado),
+              capital: roundMoney(capitalAplicado + excedente),
               interes: interesAplicado,
               mora: moraAplicada,
               referenciaTipo: 'PAGO',
@@ -667,8 +656,8 @@ export class PagosService {
             pago: {
               id: pago.id,
               createdAt: pago.createdAt,
-              montoTotal: dto.montoPagado,
-              capital: Math.round((capitalAplicado + excedente) * 100) / 100,
+              montoTotal: roundMoney(dto.montoPagado),
+              capital: roundMoney(capitalAplicado + excedente),
               interes: interesAplicado,
               mora: moraAplicada,
               metodo: pago.metodo,
@@ -858,20 +847,18 @@ export class PagosService {
             );
 
           // Calcular totales exactos desde las cuotas (respeta pagos parciales previos)
-          const totalCapital =
-            Math.round(
-              cuotasSaldadas.reduce((s, c) => s + c.capital, 0) * 100,
-            ) / 100;
-          const totalInteres =
-            Math.round(
-              cuotasSaldadas.reduce((s, c) => s + c.interes, 0) * 100,
-            ) / 100;
-          const totalMora =
-            Math.round(
-              cuotasSaldadas.reduce((s, c) => s + (c.mora || 0), 0) * 100,
-            ) / 100;
-          const montoTotal =
-            Math.round((totalCapital + totalInteres + totalMora) * 100) / 100;
+          const totalCapital = roundMoney(
+            cuotasSaldadas.reduce((s, c) => s + c.capital, 0),
+          );
+          const totalInteres = roundMoney(
+            cuotasSaldadas.reduce((s, c) => s + c.interes, 0),
+          );
+          const totalMora = roundMoney(
+            cuotasSaldadas.reduce((s, c) => s + (c.mora || 0), 0),
+          );
+          const montoTotal = roundMoney(
+            totalCapital + totalInteres + totalMora,
+          );
 
           const pago = await tx.pago.create({
             data: {
@@ -1046,10 +1033,9 @@ export class PagosService {
     const saldoPorPrestamo = new Map(
       saldos.map((s) => [
         s.prestamoId,
-        Math.round(
-          ((s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0)) *
-            100,
-        ) / 100,
+        roundMoney(
+          (s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0),
+        ),
       ]),
     );
 
@@ -1082,11 +1068,11 @@ export class PagosService {
 
     const saldoPendiente = Math.max(
       0,
-      Math.round(
+      roundMoney(
         pago.prestamo.cuotas
           .filter((c) => !c.pagada)
-          .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100,
-      ) / 100,
+          .reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0),
+      ),
     );
 
     const cuotaDelPago =
@@ -1114,10 +1100,9 @@ export class PagosService {
             startOfDay(new Date(cuotaDelPago.fechaVencimiento)),
           );
           if (diasAtraso > (config.diasGracia ?? 0)) {
-            moraCalculada =
-              Math.round(
-                cuotaDelPago.monto * (config.moraPorcentajeMensual / 100) * 100,
-              ) / 100;
+            moraCalculada = roundMoney(
+              cuotaDelPago.monto * (config.moraPorcentajeMensual / 100),
+            );
           }
         }
       } catch {
@@ -1135,9 +1120,7 @@ export class PagosService {
         mora: moraCalculada,
         abonoCapital: Math.max(
           0,
-          Math.round(
-            (pago.montoTotal - pago.capital - pago.interes - pago.mora) * 100,
-          ) / 100,
+          roundMoney(pago.montoTotal - pago.capital - pago.interes - pago.mora),
         ),
         pagoCompleto: !!(cuotaDelPago?.pagada && cuotaDelPago?.fechaPago),
         metodo: pago.metodo,

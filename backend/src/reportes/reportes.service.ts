@@ -1,10 +1,9 @@
 //reportes.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  calcularDesdeObjeto,
-} from '../common/utils/prestamo.utils';
+import { calcularDesdeObjeto } from '../common/utils/prestamo.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
+import { roundMoney } from '../common/utils/money';
 
 const toFechaStr = (d: Date | string): string => {
   const date = new Date(d);
@@ -190,7 +189,7 @@ export class ReportesService {
       totalRegistros: totalPrestamos,
       totalPaginas: Math.ceil(totalPrestamos / porPagina),
       totalSaldoVencido: totales._sum.monto ?? 0,
-      totalMora: Math.round((totales._sum.moraAcumulada ?? 0) * 100) / 100,
+      totalMora: roundMoney(totales._sum.moraAcumulada ?? 0),
       prestamos: resultado,
     };
   }
@@ -210,45 +209,50 @@ export class ReportesService {
       cliente: provincia ? { provincia } : undefined,
     };
 
-    const [prestamos, totalPrestamos, conteoEstados, totalesMonto, totalesCartera] =
-      await Promise.all([
-        this.prisma.prestamo.findMany({
-          where,
-          include: {
-            cliente: {
-              select: {
-                nombre: true,
-                apellido: true,
-                cedula: true,
-                provincia: true,
-                municipio: true,
-              },
+    const [
+      prestamos,
+      totalPrestamos,
+      conteoEstados,
+      totalesMonto,
+      totalesCartera,
+    ] = await Promise.all([
+      this.prisma.prestamo.findMany({
+        where,
+        include: {
+          cliente: {
+            select: {
+              nombre: true,
+              apellido: true,
+              cedula: true,
+              provincia: true,
+              municipio: true,
             },
-            cuotas: { where: { pagada: false } },
-            _count: { select: { cuotas: { where: { pagada: false } } } },
           },
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: porPagina,
-        }),
-        this.prisma.prestamo.count({ where }),
-        this.prisma.prestamo.groupBy({
-          by: ['estado'],
-          where,
-          _count: true,
-        }),
-        this.prisma.prestamo.aggregate({
-          where,
-          _sum: { monto: true },
-        }),
-        this.prisma.prestamo.aggregate({
-          where: {
-            ...where,
-            estado: { in: ['ACTIVO', 'ATRASADO'] },
-          },
-          _sum: { saldoPendiente: true },
-        }),
-      ]);
+          cuotas: { where: { pagada: false } },
+          _count: { select: { cuotas: { where: { pagada: false } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: porPagina,
+      }),
+      this.prisma.prestamo.count({ where }),
+      this.prisma.prestamo.groupBy({
+        by: ['estado'],
+        where,
+        _count: true,
+      }),
+      this.prisma.prestamo.aggregate({
+        where,
+        _sum: { monto: true },
+      }),
+      this.prisma.prestamo.aggregate({
+        where: {
+          ...where,
+          estado: { in: ['ACTIVO', 'ATRASADO'] },
+        },
+        _sum: { saldoPendiente: true },
+      }),
+    ]);
 
     const estadoCounts = conteoEstados.reduce(
       (acc, e) => {
@@ -264,7 +268,7 @@ export class ReportesService {
       pagados: estadoCounts['PAGADO'] ?? 0,
       renovados: estadoCounts['RENOVADO'] ?? 0,
       cancelados: estadoCounts['CANCELADO'] ?? 0,
-      totalCartera: Math.round((totalesCartera._sum.saldoPendiente ?? 0) * 100) / 100,
+      totalCartera: roundMoney(totalesCartera._sum.saldoPendiente ?? 0),
       totalDesembolsado: totalesMonto._sum.monto ?? 0,
     };
 
@@ -324,20 +328,18 @@ export class ReportesService {
     const prestamosActivosFilter = prestamos.filter((p) =>
       ['ACTIVO', 'ATRASADO'].includes(p.estado),
     );
-    const totalSaldo =
-      Math.round(
-        prestamosActivosFilter.reduce((s, p) => {
-          const { saldoPendiente } = calcularDesdeObjeto(p);
-          return s + saldoPendiente;
-        }, 0) * 100,
-      ) / 100;
-    const totalMora =
-      Math.round(
-        prestamosActivosFilter.reduce((s, p) => {
-          const { moraAcumulada } = calcularDesdeObjeto(p);
-          return s + moraAcumulada;
-        }, 0) * 100,
-      ) / 100;
+    const totalSaldo = roundMoney(
+      prestamosActivosFilter.reduce((s, p) => {
+        const { saldoPendiente } = calcularDesdeObjeto(p);
+        return s + saldoPendiente;
+      }, 0),
+    );
+    const totalMora = roundMoney(
+      prestamosActivosFilter.reduce((s, p) => {
+        const { moraAcumulada } = calcularDesdeObjeto(p);
+        return s + moraAcumulada;
+      }, 0),
+    );
     const prestamosActivos = prestamosActivosFilter.length;
 
     return {
@@ -441,7 +443,9 @@ export class ReportesService {
           prestamo: {
             select: {
               id: true,
-              cliente: { select: { nombre: true, apellido: true, cedula: true } },
+              cliente: {
+                select: { nombre: true, apellido: true, cedula: true },
+              },
             },
           },
         },
@@ -465,20 +469,21 @@ export class ReportesService {
       },
     });
 
-    const totalCobrado =
-      Math.round(allPagos.reduce((s, p) => s + p.montoTotal, 0) * 100) / 100;
-    const totalCapital =
-      Math.round(allPagos.reduce((s, p) => s + p.capital, 0) * 100) / 100;
-    const totalInteres =
-      Math.round(allPagos.reduce((s, p) => s + p.interes, 0) * 100) / 100;
-    const totalMora =
-      Math.round(allPagos.reduce((s, p) => s + p.mora, 0) * 100) / 100;
-    const totalEfectivo =
-      Math.round(
-        allPagos
-          .filter((p) => p.metodo === 'EFECTIVO')
-          .reduce((s, p) => s + p.montoTotal, 0) * 100,
-      ) / 100;
+    const totalCobrado = roundMoney(
+      allPagos.reduce((s, p) => s + p.montoTotal, 0),
+    );
+    const totalCapital = roundMoney(
+      allPagos.reduce((s, p) => s + p.capital, 0),
+    );
+    const totalInteres = roundMoney(
+      allPagos.reduce((s, p) => s + p.interes, 0),
+    );
+    const totalMora = roundMoney(allPagos.reduce((s, p) => s + p.mora, 0));
+    const totalEfectivo = roundMoney(
+      allPagos
+        .filter((p) => p.metodo === 'EFECTIVO')
+        .reduce((s, p) => s + p.montoTotal, 0),
+    );
 
     const pagosPorMetodo: Record<string, { cantidad: number; monto: number }> =
       {};
@@ -486,8 +491,9 @@ export class ReportesService {
       if (!pagosPorMetodo[p.metodo])
         pagosPorMetodo[p.metodo] = { cantidad: 0, monto: 0 };
       pagosPorMetodo[p.metodo].cantidad += 1;
-      pagosPorMetodo[p.metodo].monto =
-        Math.round((pagosPorMetodo[p.metodo].monto + p.montoTotal) * 100) / 100;
+      pagosPorMetodo[p.metodo].monto = roundMoney(
+        pagosPorMetodo[p.metodo].monto + p.montoTotal,
+      );
     });
 
     const porUsuario: Record<
@@ -524,16 +530,13 @@ export class ReportesService {
       else porUsuario[uid].cajasCerradas++;
       if (c.diferencia != null) {
         if (c.diferencia > 0)
-          porUsuario[uid].diferenciasPositivas =
-            Math.round(
-              (porUsuario[uid].diferenciasPositivas + c.diferencia) * 100,
-            ) / 100;
+          porUsuario[uid].diferenciasPositivas = roundMoney(
+            porUsuario[uid].diferenciasPositivas + c.diferencia,
+          );
         if (c.diferencia < 0)
-          porUsuario[uid].diferenciasNegativas =
-            Math.round(
-              (porUsuario[uid].diferenciasNegativas + Math.abs(c.diferencia)) *
-                100,
-            ) / 100;
+          porUsuario[uid].diferenciasNegativas = roundMoney(
+            porUsuario[uid].diferenciasNegativas + Math.abs(c.diferencia),
+          );
       }
     });
 
@@ -553,13 +556,14 @@ export class ReportesService {
           diferenciasNegativas: 0,
         };
       }
-      porUsuario[uid].totalCobrado =
-        Math.round((porUsuario[uid].totalCobrado + p.montoTotal) * 100) / 100;
+      porUsuario[uid].totalCobrado = roundMoney(
+        porUsuario[uid].totalCobrado + p.montoTotal,
+      );
       porUsuario[uid].cantidadPagos += 1;
       if (p.metodo === 'EFECTIVO') {
-        porUsuario[uid].totalEfectivo =
-          Math.round((porUsuario[uid].totalEfectivo + p.montoTotal) * 100) /
-          100;
+        porUsuario[uid].totalEfectivo = roundMoney(
+          porUsuario[uid].totalEfectivo + p.montoTotal,
+        );
       }
     });
 
@@ -599,23 +603,22 @@ export class ReportesService {
           cantidadPagos: 0,
         };
       }
-      porDia[fecha].totalCobrado =
-        Math.round((porDia[fecha].totalCobrado + p.montoTotal) * 100) / 100;
+      porDia[fecha].totalCobrado = roundMoney(
+        porDia[fecha].totalCobrado + p.montoTotal,
+      );
       porDia[fecha].cantidadPagos += 1;
     });
 
     const cajasCerradas = cajas.filter((c) => c.estado === 'CERRADA').length;
     const cajasAbiertas = cajas.filter((c) => c.estado === 'ABIERTA').length;
-    const efectivoSistema =
-      Math.round(
-        (cajas.reduce((s, c) => s + c.montoInicial, 0) +
-          totalEfectivo -
-          cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0)) *
-          100,
-      ) / 100;
-    const efectivoReal =
-      Math.round(cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0) * 100) /
-      100;
+    const efectivoSistema = roundMoney(
+      cajas.reduce((s, c) => s + c.montoInicial, 0) +
+        totalEfectivo -
+        cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0),
+    );
+    const efectivoReal = roundMoney(
+      cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0),
+    );
 
     return {
       desde,
@@ -693,22 +696,45 @@ export class ReportesService {
             createdAt: { gte: desdeDate, lte: hastaDate },
             ...(usuarioId && { usuarioId }),
           },
-          select: { montoTotal: true, capital: true, interes: true, mora: true, metodo: true, createdAt: true },
+          select: {
+            montoTotal: true,
+            capital: true,
+            interes: true,
+            mora: true,
+            metodo: true,
+            createdAt: true,
+          },
         }),
         this.prisma.gasto.findMany({
-          where: { empresaId: user.empresaId, fecha: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          where: {
+            empresaId: user.empresaId,
+            fecha: { gte: desdeDate, lte: hastaDate },
+            ...(usuarioId && { usuarioId }),
+          },
           select: { monto: true, categoria: true, fecha: true },
         }),
         this.prisma.desembolsoCaja.findMany({
-          where: { empresaId: user.empresaId, createdAt: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          where: {
+            empresaId: user.empresaId,
+            createdAt: { gte: desdeDate, lte: hastaDate },
+            ...(usuarioId && { usuarioId }),
+          },
           select: { monto: true, createdAt: true },
         }),
         this.prisma.inyeccionCapital.findMany({
-          where: { empresaId: user.empresaId, fecha: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          where: {
+            empresaId: user.empresaId,
+            fecha: { gte: desdeDate, lte: hastaDate },
+            ...(usuarioId && { usuarioId }),
+          },
           select: { monto: true, fecha: true },
         }),
         this.prisma.retiroGanancias.findMany({
-          where: { empresaId: user.empresaId, fecha: { gte: desdeDate, lte: hastaDate }, ...(usuarioId && { usuarioId }) },
+          where: {
+            empresaId: user.empresaId,
+            fecha: { gte: desdeDate, lte: hastaDate },
+            ...(usuarioId && { usuarioId }),
+          },
           select: { monto: true, fecha: true },
         }),
       ]);
@@ -718,30 +744,33 @@ export class ReportesService {
 
     pagos.forEach((p) => {
       const f = toFechaStr(p.createdAt);
-      entradasMap[f] = Math.round(((entradasMap[f] ?? 0) + p.montoTotal) * 100) / 100;
+      entradasMap[f] = roundMoney((entradasMap[f] ?? 0) + p.montoTotal);
     });
 
     inyecciones.forEach((i) => {
       const f = toFechaStr(i.fecha);
-      entradasMap[f] = Math.round(((entradasMap[f] ?? 0) + i.monto) * 100) / 100;
+      entradasMap[f] = roundMoney((entradasMap[f] ?? 0) + i.monto);
     });
 
     desembolsos.forEach((d) => {
       const f = toFechaStr(d.createdAt);
-      salidasMap[f] = Math.round(((salidasMap[f] ?? 0) + d.monto) * 100) / 100;
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + d.monto);
     });
 
     gastos.forEach((g) => {
       const f = toFechaStr(g.fecha);
-      salidasMap[f] = Math.round(((salidasMap[f] ?? 0) + g.monto) * 100) / 100;
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + g.monto);
     });
 
     retiros.forEach((r) => {
       const f = toFechaStr(r.fecha);
-      salidasMap[f] = Math.round(((salidasMap[f] ?? 0) + r.monto) * 100) / 100;
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + r.monto);
     });
 
-    const fechasSet = new Set([...Object.keys(entradasMap), ...Object.keys(salidasMap)]);
+    const fechasSet = new Set([
+      ...Object.keys(entradasMap),
+      ...Object.keys(salidasMap),
+    ]);
     const porDia = Array.from(fechasSet)
       .sort()
       .map((fecha) => {
@@ -751,18 +780,22 @@ export class ReportesService {
           fecha,
           entradas,
           salidas,
-          neto: Math.round((entradas - salidas) * 100) / 100,
+          neto: roundMoney(entradas - salidas),
         };
       });
 
-    const totalEntradas =
-      Math.round(Object.values(entradasMap).reduce((s, v) => s + v, 0) * 100) / 100;
-    const totalSalidas =
-      Math.round(Object.values(salidasMap).reduce((s, v) => s + v, 0) * 100) / 100;
+    const totalEntradas = roundMoney(
+      Object.values(entradasMap).reduce((s, v) => s + v, 0),
+    );
+    const totalSalidas = roundMoney(
+      Object.values(salidasMap).reduce((s, v) => s + v, 0),
+    );
 
     const porCategoria: Record<string, number> = {};
     gastos.forEach((g) => {
-      porCategoria[g.categoria] = Math.round(((porCategoria[g.categoria] ?? 0) + g.monto) * 100) / 100;
+      porCategoria[g.categoria] = roundMoney(
+        (porCategoria[g.categoria] ?? 0) + g.monto,
+      );
     });
 
     return {
@@ -770,15 +803,15 @@ export class ReportesService {
       hasta,
       totalEntradas,
       totalSalidas,
-      neto: Math.round((totalEntradas - totalSalidas) * 100) / 100,
+      neto: roundMoney(totalEntradas - totalSalidas),
       desgloseEntradas: {
-        pagos: Math.round(pagos.reduce((s, p) => s + p.montoTotal, 0) * 100) / 100,
-        inyecciones: Math.round(inyecciones.reduce((s, i) => s + i.monto, 0) * 100) / 100,
+        pagos: roundMoney(pagos.reduce((s, p) => s + p.montoTotal, 0)),
+        inyecciones: roundMoney(inyecciones.reduce((s, i) => s + i.monto, 0)),
       },
       desgloseSalidas: {
-        desembolsos: Math.round(desembolsos.reduce((s, d) => s + d.monto, 0) * 100) / 100,
-        gastos: Math.round(gastos.reduce((s, g) => s + g.monto, 0) * 100) / 100,
-        retiros: Math.round(retiros.reduce((s, r) => s + r.monto, 0) * 100) / 100,
+        desembolsos: roundMoney(desembolsos.reduce((s, d) => s + d.monto, 0)),
+        gastos: roundMoney(gastos.reduce((s, g) => s + g.monto, 0)),
+        retiros: roundMoney(retiros.reduce((s, r) => s + r.monto, 0)),
       },
       gastosPorCategoria: porCategoria,
       porDia,
@@ -796,8 +829,16 @@ export class ReportesService {
     const whereBase: any = {
       prestamo: { empresaId: user.empresaId },
     };
-    if (desde) whereBase.createdAt = { ...(whereBase.createdAt ?? {}), gte: getInicioDiaRD(desde) };
-    if (hasta) whereBase.createdAt = { ...(whereBase.createdAt ?? {}), lte: getFinDiaRD(hasta) };
+    if (desde)
+      whereBase.createdAt = {
+        ...(whereBase.createdAt ?? {}),
+        gte: getInicioDiaRD(desde),
+      };
+    if (hasta)
+      whereBase.createdAt = {
+        ...(whereBase.createdAt ?? {}),
+        lte: getFinDiaRD(hasta),
+      };
     if (usuarioId) whereBase.usuarioId = usuarioId;
 
     const pagos = await this.prisma.pago.findMany({
@@ -845,16 +886,19 @@ export class ReportesService {
         };
       }
       const u = porUsuario[uid];
-      u.totalCobrado = Math.round((u.totalCobrado + p.montoTotal) * 100) / 100;
-      u.totalCapital = Math.round((u.totalCapital + p.capital) * 100) / 100;
-      u.totalInteres = Math.round((u.totalInteres + p.interes) * 100) / 100;
-      u.totalMora = Math.round((u.totalMora + p.mora) * 100) / 100;
+      u.totalCobrado = roundMoney(u.totalCobrado + p.montoTotal);
+      u.totalCapital = roundMoney(u.totalCapital + p.capital);
+      u.totalInteres = roundMoney(u.totalInteres + p.interes);
+      u.totalMora = roundMoney(u.totalMora + p.mora);
       u.cantidadPagos += 1;
 
       const metodo = p.metodo;
-      if (!u.pagosPorMetodo[metodo]) u.pagosPorMetodo[metodo] = { cantidad: 0, monto: 0 };
+      if (!u.pagosPorMetodo[metodo])
+        u.pagosPorMetodo[metodo] = { cantidad: 0, monto: 0 };
       u.pagosPorMetodo[metodo].cantidad += 1;
-      u.pagosPorMetodo[metodo].monto = Math.round((u.pagosPorMetodo[metodo].monto + p.montoTotal) * 100) / 100;
+      u.pagosPorMetodo[metodo].monto = roundMoney(
+        u.pagosPorMetodo[metodo].monto + p.montoTotal,
+      );
 
       const d = new Date(p.createdAt);
       const offset = d.getTimezoneOffset();
@@ -871,22 +915,30 @@ export class ReportesService {
         totalInteres: u.totalInteres,
         totalMora: u.totalMora,
         cantidadPagos: u.cantidadPagos,
-        promedioPorPago: u.cantidadPagos > 0
-          ? Math.round((u.totalCobrado / u.cantidadPagos) * 100) / 100
-          : 0,
+        promedioPorPago:
+          u.cantidadPagos > 0
+            ? roundMoney(u.totalCobrado / u.cantidadPagos)
+            : 0,
         diasActivos: u.diasActivos.size,
-        promedioPorDia: u.diasActivos.size > 0
-          ? Math.round((u.totalCobrado / u.diasActivos.size) * 100) / 100
-          : 0,
+        promedioPorDia:
+          u.diasActivos.size > 0
+            ? roundMoney(u.totalCobrado / u.diasActivos.size)
+            : 0,
         pagosPorMetodo: u.pagosPorMetodo,
       }))
       .sort((a, b) => b.totalCobrado - a.totalCobrado);
 
     const totalGeneral = {
-      totalCobrado: Math.round(resultado.reduce((s, r) => s + r.totalCobrado, 0) * 100) / 100,
-      totalCapital: Math.round(resultado.reduce((s, r) => s + r.totalCapital, 0) * 100) / 100,
-      totalInteres: Math.round(resultado.reduce((s, r) => s + r.totalInteres, 0) * 100) / 100,
-      totalMora: Math.round(resultado.reduce((s, r) => s + r.totalMora, 0) * 100) / 100,
+      totalCobrado: roundMoney(
+        resultado.reduce((s, r) => s + r.totalCobrado, 0),
+      ),
+      totalCapital: roundMoney(
+        resultado.reduce((s, r) => s + r.totalCapital, 0),
+      ),
+      totalInteres: roundMoney(
+        resultado.reduce((s, r) => s + r.totalInteres, 0),
+      ),
+      totalMora: roundMoney(resultado.reduce((s, r) => s + r.totalMora, 0)),
       cantidadPagos: resultado.reduce((s, r) => s + r.cantidadPagos, 0),
       cobradores: resultado.length,
     };
@@ -901,10 +953,7 @@ export class ReportesService {
 
   // ─── 8. PROYECCIÓN DE CUOTAS ────────────────────────────────────────────────
 
-  async proyeccionCuotas(
-    user: any,
-    provincia?: string,
-  ) {
+  async proyeccionCuotas(user: any, provincia?: string) {
     const prestamos = await this.prisma.prestamo.findMany({
       where: {
         empresaId: user.empresaId,
@@ -912,7 +961,14 @@ export class ReportesService {
         cliente: provincia ? { provincia } : undefined,
       },
       include: {
-        cliente: { select: { nombre: true, apellido: true, cedula: true, provincia: true } },
+        cliente: {
+          select: {
+            nombre: true,
+            apellido: true,
+            cedula: true,
+            provincia: true,
+          },
+        },
         cuotas: {
           where: { pagada: false },
           orderBy: { numero: 'asc' },
@@ -931,7 +987,18 @@ export class ReportesService {
 
     const hoy = new Date();
 
-    const porMes: Record<string, { month: string; cantidadCuotas: number; montoCapital: number; montoInteres: number; montoMora: number; montoTotal: number; vencidas: number }> = {};
+    const porMes: Record<
+      string,
+      {
+        month: string;
+        cantidadCuotas: number;
+        montoCapital: number;
+        montoInteres: number;
+        montoMora: number;
+        montoTotal: number;
+        vencidas: number;
+      }
+    > = {};
 
     const todosDetalles: any[] = [];
 
@@ -955,10 +1022,10 @@ export class ReportesService {
         }
         const m = porMes[monthKey];
         m.cantidadCuotas += 1;
-        m.montoCapital = Math.round((m.montoCapital + c.capital) * 100) / 100;
-        m.montoInteres = Math.round((m.montoInteres + c.interes) * 100) / 100;
-        m.montoMora = Math.round((m.montoMora + c.mora) * 100) / 100;
-        m.montoTotal = Math.round((m.montoTotal + c.monto) * 100) / 100;
+        m.montoCapital = roundMoney(m.montoCapital + c.capital);
+        m.montoInteres = roundMoney(m.montoInteres + c.interes);
+        m.montoMora = roundMoney(m.montoMora + c.mora);
+        m.montoTotal = roundMoney(m.montoTotal + c.monto);
 
         const esVencida = new Date(c.fechaVencimiento) < hoy;
         if (esVencida) m.vencidas += 1;
@@ -976,12 +1043,19 @@ export class ReportesService {
       });
     });
 
-    const resumenMeses = Object.values(porMes).sort((a, b) => a.month.localeCompare(b.month));
+    const resumenMeses = Object.values(porMes).sort((a, b) =>
+      a.month.localeCompare(b.month),
+    );
 
     return {
       totalPrestamos: prestamos.length,
-      totalCuotasPendientes: resumenMeses.reduce((s, m) => s + m.cantidadCuotas, 0),
-      totalMontoPendiente: Math.round(resumenMeses.reduce((s, m) => s + m.montoTotal, 0) * 100) / 100,
+      totalCuotasPendientes: resumenMeses.reduce(
+        (s, m) => s + m.cantidadCuotas,
+        0,
+      ),
+      totalMontoPendiente: roundMoney(
+        resumenMeses.reduce((s, m) => s + m.montoTotal, 0),
+      ),
       totalVencidas: resumenMeses.reduce((s, m) => s + m.vencidas, 0),
       porMes: resumenMeses,
       detalles: todosDetalles,
