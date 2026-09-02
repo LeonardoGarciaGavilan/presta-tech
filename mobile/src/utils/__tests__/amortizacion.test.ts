@@ -6,6 +6,8 @@ import {
 } from "@/utils/amortizacion";
 import type { Prestamo } from "@/types/prestamo.types";
 
+import { roundMoney } from "@/utils/money";
+
 const dosDecimales = (n: number) =>
   Math.abs(Math.round(n * 100) - n * 100) < 1e-6;
 
@@ -41,6 +43,35 @@ describe("calcularAmortizacionLocal (paridad con backend)", () => {
     expect(tabla.totalIntereses).toBe(0);
     expect(tabla.cuotas.every((c) => c.interes === 0)).toBe(true);
     expect(tabla.cuotas.reduce((s, c) => s + c.capital, 0)).toBe(300);
+  });
+
+  it("invariante en límites de centavo: suma cuotas == montoTotal y suma capital == monto", () => {
+    // Tasa y montos que en binario caen justo en fronteras de centavo (1.005/2.675).
+    const casos = [
+      [1000, 5, 3, "MENSUAL"],
+      [200.5, 3, 6, "SEMANAL"],
+      [1, 99, 2, "MENSUAL"],
+    ] as const;
+    for (const [monto, tasa, cuotas, frecuencia] of casos) {
+      const tabla = calcularAmortizacionLocal(
+        monto,
+        tasa,
+        cuotas,
+        frecuencia,
+        "2026-01-05",
+      );
+      const sumaCuotas = roundMoney(
+        tabla.cuotas.reduce((s, c) => s + c.monto, 0),
+      );
+      const sumaCapital = roundMoney(
+        tabla.cuotas.reduce((s, c) => s + c.capital, 0),
+      );
+      expect(sumaCuotas).toBe(tabla.montoTotal);
+      expect(sumaCapital).toBe(monto);
+      for (const c of tabla.cuotas) {
+        expect(roundMoney(c.capital + c.interes)).toBe(c.monto);
+      }
+    }
   });
 
   it("fechas de vencimiento avanzan según frecuencia", () => {

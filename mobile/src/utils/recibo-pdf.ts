@@ -4,6 +4,7 @@ import type { Node } from 'react-native-thermal-printer-driver';
 import { useAuthStore } from '@/store/auth.store';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import { formatCedula, formatCurrency } from '@/utils/formatters';
+import { roundMoney } from '@/utils/money';
 import { buildReciboDocument, buildReciboDesembolso, buildReciboRetiro } from '@/utils/recibo-escpos';
 
 const FRECUENCIA_LABEL: Record<string, string> = {
@@ -156,7 +157,7 @@ export function generateReciboHtml(data: ReciboData): string {
   const abonoCapital = pago?.abonoCapital ?? 0;
   const tieneAbono = abonoCapital > 0 && pagoCompleto;
   const capitalDeCuota = tieneAbono
-    ? Math.max(0, Math.round((capitalPagado - abonoCapital) * 100) / 100)
+    ? Math.max(0, roundMoney((capitalPagado - abonoCapital)))
     : capitalPagado;
 
   const user = useAuthStore.getState().user;
@@ -344,7 +345,7 @@ function calculateHeightPx(data: ReciboData): number {
   const abonoCapital = pago?.abonoCapital ?? 0;
   const tieneAbono = abonoCapital > 0 && pagoCompleto;
   const capitalDeCuota = tieneAbono
-    ? Math.max(0, Math.round((capitalPagado - abonoCapital) * 100) / 100)
+    ? Math.max(0, roundMoney((capitalPagado - abonoCapital)))
     : capitalPagado;
   const estaSaldado = (prestamo?.saldoPendiente ?? 0) <= 0.01;
 

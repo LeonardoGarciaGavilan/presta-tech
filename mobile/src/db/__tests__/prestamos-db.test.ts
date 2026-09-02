@@ -336,6 +336,26 @@ describe('aplicarPagoLocal (offline)', () => {
     expect(getPrestamoById('prestamo_1')!.cuotas.find((c) => c.id === 'cuota_1')?.pagada).toBe(true);
   });
 
+  it('abono parcial que toca solo mora NO infla monto con la mora restante (bug doble conteo)', () => {
+    seedConCuotas();
+    upsertCuotas([{ ...cuota(1), mora: 200 }]);
+    const res = aplicarPagoLocal('prestamo_1', 'cuota_1', 50);
+    expect(res).toEqual({
+      capital: 0,
+      interes: 0,
+      mora: 50,
+      abonoCapital: 0,
+      pagoCompleto: false,
+    });
+    const cuota1 = getPrestamoById('prestamo_1')!.cuotas.find((c) => c.id === 'cuota_1')!;
+    expect(cuota1.pagada).toBe(false);
+    expect(cuota1.mora).toBe(150);
+    expect(cuota1.monto).toBe(3000);
+    expect(cuota1.capital).toBe(2500);
+    expect(cuota1.interes).toBe(500);
+    expect(getPrestamoById('prestamo_1')!.saldoPendiente).toBe(12150);
+  });
+
   it('excedente cubre interés de cuotas siguientes antes que capital (paridad backend)', () => {
     seedConCuotas();
     const res = aplicarPagoLocal('prestamo_1', 'cuota_1', 3500);

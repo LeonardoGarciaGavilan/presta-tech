@@ -1,6 +1,7 @@
 import type { Node } from 'react-native-thermal-printer-driver';
 
 import { formatCedula, formatCurrency } from '@/utils/formatters';
+import { roundMoney } from '@/utils/money';
 import { METODO_PAGO_LABELS } from '@/constants/pagos.constants';
 import { useAuthStore } from '@/store/auth.store';
 import type { DesembolsoReciboData, ReciboData, RetiroReciboData } from '@/utils/recibo-pdf';
@@ -69,7 +70,7 @@ export function buildReciboDocument(data: ReciboData): Node[] {
   const abonoCapital = pago?.abonoCapital ?? 0;
   const tieneAbono = abonoCapital > 0 && pagoCompleto;
   const capitalDeCuota = tieneAbono
-    ? Math.max(0, Math.round((capitalPagado - abonoCapital) * 100) / 100)
+    ? Math.max(0, roundMoney((capitalPagado - abonoCapital)))
     : capitalPagado;
 
   const { nombreEmpresa, fechaActual, totalPagado } = obtenerDatosRecibo(data);

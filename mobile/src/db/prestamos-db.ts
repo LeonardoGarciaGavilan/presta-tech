@@ -2,6 +2,7 @@ import { eq, like, or, sql, inArray } from 'drizzle-orm';
 import { db } from './index';
 import { prestamos, cuotas, clientes } from './schema';
 import { upsertPagos } from './pagos-db';
+import { roundMoney } from '@/utils/money';
 import type { Prestamo, Cuota } from '@/types/prestamo.types';
 
 function rowToPrestamo(
@@ -341,27 +342,27 @@ export function aplicarPagoLocal(
     if (especifica) cuotaObjetivo = especifica;
   }
 
-  const montoExacto = Math.round((cuotaObjetivo.monto + cuotaObjetivo.mora) * 100) / 100;
+  const montoExacto = roundMoney((cuotaObjetivo.monto + cuotaObjetivo.mora));
 
-  let montoPagado = Math.round(montoPagadoRaw * 100) / 100;
+  let montoPagado = roundMoney(montoPagadoRaw);
   let moraAplicada = 0;
   let interesAplicado = 0;
   let capitalAplicado = 0;
 
   if (cuotaObjetivo.mora > 0) {
     moraAplicada = Math.min(montoPagado, cuotaObjetivo.mora);
-    montoPagado = Math.round((montoPagado - moraAplicada) * 100) / 100;
+    montoPagado = roundMoney((montoPagado - moraAplicada));
   }
   if (montoPagado > 0) {
     interesAplicado = Math.min(montoPagado, cuotaObjetivo.interes);
-    montoPagado = Math.round((montoPagado - interesAplicado) * 100) / 100;
+    montoPagado = roundMoney((montoPagado - interesAplicado));
   }
   if (montoPagado > 0) {
     capitalAplicado = Math.min(montoPagado, cuotaObjetivo.capital);
-    montoPagado = Math.round((montoPagado - capitalAplicado) * 100) / 100;
+    montoPagado = roundMoney((montoPagado - capitalAplicado));
   }
-  const excedente = Math.round(montoPagado * 100) / 100;
-  const pagoCompleto = Math.round(montoPagadoRaw * 100) / 100 >= montoExacto;
+  const excedente = roundMoney(montoPagado);
+  const pagoCompleto = roundMoney(montoPagadoRaw) >= montoExacto;
 
   const map = new Map(todas.map((c) => [c.id, { ...c }]));
 
@@ -370,13 +371,13 @@ export function aplicarPagoLocal(
     cuotaObj.pagada = true;
     cuotaObj.fechaPago = fecha;
   } else {
-    const nuevaMora = Math.max(0, Math.round((cuotaObj.mora - moraAplicada) * 100) / 100);
-    const nuevoInteres = Math.max(0, Math.round((cuotaObj.interes - interesAplicado) * 100) / 100);
-    const nuevoCapital = Math.max(0, Math.round((cuotaObj.capital - capitalAplicado) * 100) / 100);
+    const nuevaMora = Math.max(0, roundMoney((cuotaObj.mora - moraAplicada)));
+    const nuevoInteres = Math.max(0, roundMoney((cuotaObj.interes - interesAplicado)));
+    const nuevoCapital = Math.max(0, roundMoney((cuotaObj.capital - capitalAplicado)));
     cuotaObj.mora = nuevaMora;
     cuotaObj.interes = nuevoInteres;
     cuotaObj.capital = nuevoCapital;
-    cuotaObj.monto = Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+    cuotaObj.monto = roundMoney((nuevoCapital + nuevoInteres));
   }
   map.set(cuotaObjetivo.id, cuotaObj);
 
@@ -394,21 +395,21 @@ export function aplicarPagoLocal(
 
       if (c.mora > 0) {
         pagoMora = Math.min(restante, c.mora);
-        restante = Math.round((restante - pagoMora) * 100) / 100;
+        restante = roundMoney((restante - pagoMora));
       }
       if (restante > 0) {
         pagoInteres = Math.min(restante, c.interes);
-        restante = Math.round((restante - pagoInteres) * 100) / 100;
+        restante = roundMoney((restante - pagoInteres));
       }
       if (restante > 0) {
         pagoCapital = Math.min(restante, c.capital);
-        restante = Math.round((restante - pagoCapital) * 100) / 100;
+        restante = roundMoney((restante - pagoCapital));
       }
 
-      const nuevaMora = Math.max(0, Math.round((c.mora - pagoMora) * 100) / 100);
-      const nuevoInteres = Math.max(0, Math.round((c.interes - pagoInteres) * 100) / 100);
-      const nuevoCapital = Math.max(0, Math.round((c.capital - pagoCapital) * 100) / 100);
-      const nuevoMonto = Math.round((nuevoCapital + nuevoInteres + nuevaMora) * 100) / 100;
+      const nuevaMora = Math.max(0, roundMoney((c.mora - pagoMora)));
+      const nuevoInteres = Math.max(0, roundMoney((c.interes - pagoInteres)));
+      const nuevoCapital = Math.max(0, roundMoney((c.capital - pagoCapital)));
+      const nuevoMonto = roundMoney((nuevoCapital + nuevoInteres));
 
       if (nuevoMonto <= 0) {
         c.capital = 0;
@@ -425,18 +426,18 @@ export function aplicarPagoLocal(
       }
       map.set(cuota.id, c);
       abonoRestante =
-        Math.round((abonoRestante - pagoMora - pagoInteres - pagoCapital) * 100) / 100;
+        roundMoney((abonoRestante - pagoMora - pagoInteres - pagoCapital));
     }
   }
 
   const actualizadas = [...map.values()].filter((c) => !c.pagada);
   const nuevoSaldo = Math.max(
     0,
-    Math.round(actualizadas.reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0) * 100) / 100,
+    roundMoney(actualizadas.reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0)),
   );
   const nuevaMoraAcumulada = Math.max(
     0,
-    Math.round(actualizadas.reduce((s, c) => s + (c.mora || 0), 0) * 100) / 100,
+    roundMoney(actualizadas.reduce((s, c) => s + (c.mora || 0), 0)),
   );
 
   // Cargamos solo la fila del préstamo (y su cliente) sin las cuotas: evita la

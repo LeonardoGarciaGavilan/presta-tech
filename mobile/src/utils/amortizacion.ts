@@ -7,6 +7,7 @@ import type {
   RenovarPrestamoDto,
   TablaAmortizacion,
 } from "@/types/prestamo.types";
+import { roundMoney } from '@/utils/money';
 
 export const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
   DIARIO: 1,
@@ -67,11 +68,11 @@ export function calcularAmortizacionLocal(
 
   let cuotaFija: number;
   if (tasaPeriodo === 0) {
-    cuotaFija = Math.round((monto / numeroCuotas) * 100) / 100;
+    cuotaFija = roundMoney((monto / numeroCuotas));
   } else {
     const factor = Math.pow(1 + tasaPeriodo, numeroCuotas);
     cuotaFija =
-      Math.round(((monto * (tasaPeriodo * factor)) / (factor - 1)) * 100) / 100;
+      roundMoney(((monto * (tasaPeriodo * factor)) / (factor - 1)));
   }
 
   const startDate = fechaInicio ? new Date(fechaInicio) : new Date();
@@ -80,15 +81,15 @@ export function calcularAmortizacionLocal(
   let totalIntereses = 0;
 
   for (let i = 1; i <= numeroCuotas; i++) {
-    const interes = Math.round(saldo * tasaPeriodo * 100) / 100;
+    const interes = roundMoney(saldo * tasaPeriodo);
     const capital =
       i === numeroCuotas
-        ? Math.round(saldo * 100) / 100
-        : Math.round((cuotaFija - interes) * 100) / 100;
-    const montoCuota = Math.round((capital + interes) * 100) / 100;
+        ? roundMoney(saldo)
+        : roundMoney((cuotaFija - interes));
+    const montoCuota = roundMoney((capital + interes));
     const saldoRestante = Math.max(
       0,
-      Math.round((saldo - capital) * 100) / 100,
+      roundMoney((saldo - capital)),
     );
 
     cuotas.push({
@@ -107,8 +108,8 @@ export function calcularAmortizacionLocal(
   }
 
   return {
-    montoTotal: Math.round((monto + totalIntereses) * 100) / 100,
-    totalIntereses: Math.round(totalIntereses * 100) / 100,
+    montoTotal: roundMoney((monto + totalIntereses)),
+    totalIntereses: roundMoney(totalIntereses),
     cuotaInicial: cuotas[0]?.monto ?? 0,
     tasaPeriodo,
     cuotas,
@@ -126,12 +127,12 @@ export function calcularAmortizacionRapidaLocal(
   frecuenciaPago: FrecuenciaPago,
   fechaInicio?: string,
 ): TablaAmortizacion {
-  const gananciaTotal = Math.round((montoTotal - monto) * 100) / 100;
+  const gananciaTotal = roundMoney((montoTotal - monto));
   const cuotaFija = Math.round(montoTotal / numeroCuotas);
   const ultimaCuota = Math.round(montoTotal - cuotaFija * (numeroCuotas - 1));
   const gananciaPorCuota =
     numeroCuotas > 0
-      ? Math.round((gananciaTotal / numeroCuotas) * 100) / 100
+      ? roundMoney((gananciaTotal / numeroCuotas))
       : 0;
 
   const startDate = fechaInicio ? new Date(fechaInicio) : new Date();
@@ -143,11 +144,11 @@ export function calcularAmortizacionRapidaLocal(
     const montoCuota = i === numeroCuotas ? ultimaCuota : cuotaFija;
     const interes =
       i === numeroCuotas
-        ? Math.round((gananciaTotal - totalIntereses) * 100) / 100
+        ? roundMoney((gananciaTotal - totalIntereses))
         : gananciaPorCuota;
     const capital = Math.max(
       0,
-      Math.round((montoCuota - interes) * 100) / 100,
+      roundMoney((montoCuota - interes)),
     );
 
     cuotas.push({
@@ -158,16 +159,16 @@ export function calcularAmortizacionRapidaLocal(
       fechaVencimiento: siguienteFecha(startDate, frecuenciaPago, i)
         .toISOString()
         .split('T')[0],
-      saldoRestante: Math.max(0, Math.round((saldo - capital) * 100) / 100),
+      saldoRestante: Math.max(0, roundMoney((saldo - capital))),
     });
 
     totalIntereses += interes;
-    saldo = Math.max(0, Math.round((saldo - capital) * 100) / 100);
+    saldo = Math.max(0, roundMoney((saldo - capital)));
   }
 
   return {
-    montoTotal: Math.round(montoTotal * 100) / 100,
-    totalIntereses: Math.round(gananciaTotal * 100) / 100,
+    montoTotal: roundMoney(montoTotal),
+    totalIntereses: roundMoney(gananciaTotal),
     cuotaInicial: cuotas[0]?.monto ?? 0,
     tasaPeriodo: 0,
     cuotas,
@@ -203,7 +204,7 @@ export function construirPrestamoRefinanciadoLocal(
   const capitalPendiente = pendientes.reduce((sum, c) => sum + c.capital, 0);
   const morasPendientes = pendientes.reduce((sum, c) => sum + (c.mora || 0), 0);
   const saldoRefinanciado =
-    Math.round((capitalPendiente + morasPendientes) * 100) / 100;
+    roundMoney((capitalPendiente + morasPendientes));
 
   const frecuenciaFinal = dto.nuevaFrecuencia ?? prestamo.frecuenciaPago;
 
@@ -322,17 +323,16 @@ export function calcularRenovacionLocal(
 
   const pendientes = (prestamo.cuotas ?? []).filter((c) => !c.pagada);
   const capital =
-    Math.round(pendientes.reduce((s, c) => s + c.capital, 0) * 100) / 100;
+    roundMoney(pendientes.reduce((s, c) => s + c.capital, 0));
   const interes = incluirInteres
-    ? Math.round(pendientes.reduce((s, c) => s + (c.interes || 0), 0) * 100) /
-      100
+    ? roundMoney(pendientes.reduce((s, c) => s + (c.interes || 0), 0))
     : 0;
   const mora =
-    Math.round(pendientes.reduce((s, c) => s + (c.mora || 0), 0) * 100) / 100;
-  const saldoAplicado = Math.round((capital + interes + mora) * 100) / 100;
+    roundMoney(pendientes.reduce((s, c) => s + (c.mora || 0), 0));
+  const saldoAplicado = roundMoney((capital + interes + mora));
 
-  const montoNuevo = Math.round(dto.montoNuevo * 100) / 100;
-  const desembolsoNeto = Math.round((montoNuevo - saldoAplicado) * 100) / 100;
+  const montoNuevo = roundMoney(dto.montoNuevo);
+  const desembolsoNeto = roundMoney((montoNuevo - saldoAplicado));
 
   let error: string | null = null;
   if (pendientes.length === 0) {
