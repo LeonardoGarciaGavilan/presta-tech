@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { m } from '../common/utils/money';
 import { CreateGastoDto, UpdateGastoDto } from './dto/gastos.dto';
 
 @Injectable()
@@ -93,13 +94,13 @@ export class GastosService {
 
     const porCategoria: Record<string, number> = {};
     todos.forEach((g) => {
-      porCategoria[g.categoria] = (porCategoria[g.categoria] || 0) + g.monto;
+      porCategoria[g.categoria] = (porCategoria[g.categoria] || 0) + m(g.monto);
     });
 
     return {
-      totalMes: totalMes._sum.monto || 0,
-      totalAno: totalAno._sum.monto || 0,
-      totalGral: todos.reduce((s, g) => s + g.monto, 0),
+      totalMes: m(totalMes._sum.monto || 0),
+      totalAno: m(totalAno._sum.monto || 0),
+      totalGral: todos.reduce((s, g) => s + m(g.monto), 0),
       porCategoria,
     };
   }
@@ -146,9 +147,9 @@ export class GastosService {
 
       const gananciasNetas =
         Math.round(
-          ((totalIntereses._sum.interes ?? 0) +
-            (totalIntereses._sum.mora ?? 0) -
-            (totalGastosPrevios._sum.interes ?? 0)) *
+          (m(totalIntereses._sum.interes ?? 0) +
+            m(totalIntereses._sum.mora ?? 0) -
+            m(totalGastosPrevios._sum.interes ?? 0)) *
             100,
         ) / 100;
 

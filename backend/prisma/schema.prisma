@@ -71,7 +71,7 @@ model LimiteEmpresa {
   maxPrestamosActivos   Int?
   maxRutas              Int?
   maxEmpleados          Int?
-  maxMontoPorPrestamo   Float?
+  maxMontoPorPrestamo   Decimal? @db.Decimal(14,2)
   modulosDeshabilitados            String[]  @default([])
   accionesPrestamoCancelacion      Boolean   @default(true)
   accionesPrestamoRefinanciamiento Boolean   @default(true)
@@ -115,7 +115,7 @@ model Cliente {
   direccion         String?
   ocupacion         String?
   empresaLaboral    String?
-  ingresos          Float?
+  ingresos          Decimal?  @db.Decimal(14,2)
   observaciones     String?
   activo            Boolean       @default(true)
   createdAt         DateTime      @default(now())
@@ -142,16 +142,16 @@ model Cliente {
 
 model Prestamo {
   id                        String          @id @default(uuid())
-  monto                     Float
+  monto                     Decimal         @db.Decimal(14,2)
   tasaInteres               Float
   numeroCuotas              Int
-  montoTotal                Float
-  saldoPendiente            Float           @default(0)
-  cuotaMensual              Float
+  montoTotal                Decimal         @db.Decimal(14,2)
+  saldoPendiente            Decimal         @default(0) @db.Decimal(14,2)
+  cuotaMensual              Decimal         @db.Decimal(14,2)
   frecuenciaPago            FrecuenciaPago  @default(MENSUAL)
   fechaInicio               DateTime        @default(now())
   fechaVencimiento          DateTime
-  moraAcumulada             Float           @default(0)
+  moraAcumulada             Decimal         @default(0) @db.Decimal(14,2)
   estado                    EstadoPrestamo  @default(SOLICITADO)
   refinanciado              Boolean         @default(false)
   vecesRefinanciado         Int             @default(0)
@@ -195,10 +195,10 @@ model Prestamo {
 model Cuota {
   id               String    @id @default(uuid())
   numero           Int
-  monto            Float
-  capital          Float
-  interes          Float
-  mora             Float     @default(0)
+  monto            Decimal @db.Decimal(14,2)
+  capital          Decimal @db.Decimal(14,2)
+  interes          Decimal @db.Decimal(14,2)
+  mora             Decimal @default(0) @db.Decimal(14,2)
   fechaVencimiento DateTime
   pagada           Boolean   @default(false)
   fechaPago        DateTime?
@@ -215,10 +215,10 @@ model Cuota {
 
 model Pago {
   id             String      @id @default(uuid())
-  montoTotal     Float
-  capital        Float
-  interes        Float
-  mora           Float       @default(0)
+  montoTotal     Decimal @db.Decimal(14,2)
+  capital        Decimal @db.Decimal(14,2)
+  interes        Decimal @db.Decimal(14,2)
+  mora           Decimal @default(0) @db.Decimal(14,2)
   metodo         MetodoPago
   referencia     String?
   observacion    String?
@@ -248,9 +248,9 @@ model Configuracion {
   permitirAbonoCapital          Boolean  @default(true)
   createdAt                     DateTime @default(now())
   empresaId                     String   @unique
-  montoMaximoPago               Float?
-  montoMaximoPrestamo           Float?
-  montoMinimoPrestamo           Float    @default(500)
+  montoMaximoPago               Decimal? @db.Decimal(14,2)
+  montoMaximoPrestamo           Decimal? @db.Decimal(14,2)
+  montoMinimoPrestamo           Decimal  @default(500) @db.Decimal(14,2)
   cuotasRestantesParaRenovar    Int      @default(0)
   maxRefinanciamientosPorPrestamo Int    @default(0)
   maxPrestamosActivosPorCliente Int      @default(0)
@@ -272,7 +272,7 @@ model Auditoria {
   datosAnteriores Json?
   datosNuevos     Json?
   ip              String?
-  monto           Float?
+  monto           Decimal? @db.Decimal(14,2)
   nivel           String?
   referenciaId    String?
   referenciaTipo  String?
@@ -292,7 +292,7 @@ model Gasto {
   id            String   @id @default(cuid())
   categoria     String
   descripcion   String
-  monto         Float
+  monto         Decimal @db.Decimal(14,2)
   fecha         DateTime
   proveedor     String?
   referencia    String?
@@ -311,19 +311,19 @@ model Gasto {
 model CajaSesion {
   id              String           @id @default(uuid())
   fecha           String
-  montoInicial    Float
-  estado          EstadoCaja       @default(ABIERTA)
-  montoCierre     Float?
-  diferencia      Float?
+  montoInicial    Decimal         @db.Decimal(14,2)
+  estado          EstadoCaja      @default(ABIERTA)
+  montoCierre     Decimal?        @db.Decimal(14,2)
+  diferencia      Decimal?        @db.Decimal(14,2)
   observaciones   String?
   fechaCierre     DateTime?
-  createdAt       DateTime         @default(now())
+  createdAt       DateTime        @default(now())
   empresaId       String
   usuarioId       String
-  efectivoReal    Float?
-  efectivoSistema Float?
-  totalEgresos    Float            @default(0)
-  totalIngresos   Float            @default(0)
+  efectivoReal    Decimal?        @db.Decimal(14,2)
+  efectivoSistema Decimal?        @db.Decimal(14,2)
+  totalEgresos    Decimal         @default(0) @db.Decimal(14,2)
+  totalIngresos   Decimal         @default(0) @db.Decimal(14,2)
   empresa         Empresa          @relation(fields: [empresaId], references: [id])
   usuario         Usuario          @relation(fields: [usuarioId], references: [id])
   desembolsos     DesembolsoCaja[]
@@ -335,7 +335,7 @@ model CajaSesion {
 
 model DesembolsoCaja {
   id         String     @id @default(uuid())
-  monto      Float
+  monto      Decimal @db.Decimal(14,2)
   concepto   String
   createdAt  DateTime   @default(now())
   cajaId     String
@@ -419,7 +419,7 @@ model Empleado {
   email          String?
   cargo          String
   departamento   String?
-  salario        Float
+  salario        Decimal @db.Decimal(14,2)
   frecuenciaPago FrecuenciaPagoEmpleado @default(QUINCENAL)
   fechaIngreso   DateTime
   activo         Boolean                @default(true)
@@ -457,9 +457,9 @@ model PagoSalario {
   empresaId       String
   periodo         String
   descripcion     String?
-  salarioBruto    Float
-  totalDescuentos Float              @default(0)
-  salarioNeto     Float
+  salarioBruto    Decimal             @db.Decimal(14,2)
+  totalDescuentos Decimal             @default(0) @db.Decimal(14,2)
+  salarioNeto     Decimal             @db.Decimal(14,2)
   metodoPago      MetodoPagoEmpleado @default(EFECTIVO)
   referencia      String?
   fechaPago       DateTime           @default(now())
@@ -477,7 +477,7 @@ model DescuentoEmpleado {
   empresaId   String
   tipo        TipoDescuento
   descripcion String
-  monto       Float
+  monto       Decimal @db.Decimal(14,2)
   fecha       DateTime      @default(now())
   aplicado    Boolean       @default(false)
   createdAt   DateTime      @default(now())
@@ -490,7 +490,7 @@ model DescuentoEmpleado {
 model CapitalEmpresa {
   id             String   @id @default(uuid())
   empresaId      String   @unique
-  capitalInicial Float
+  capitalInicial Decimal @db.Decimal(14,2)
   fechaRegistro  DateTime @default(now())
   observaciones  String?
   activo         Boolean  @default(true)
@@ -503,7 +503,7 @@ model CapitalEmpresa {
 model InyeccionCapital {
   id        String   @id @default(uuid())
   empresaId String
-  monto     Float
+  monto     Decimal @db.Decimal(14,2)
   fecha     DateTime @default(now())
   concepto  String
   usuarioId String
@@ -519,7 +519,7 @@ model InyeccionCapital {
 model RetiroGanancias {
   id        String   @id @default(uuid())
   empresaId String
-  monto     Float
+  monto     Decimal @db.Decimal(14,2)
   fecha     DateTime @default(now())
   concepto  String
   usuarioId String
@@ -536,10 +536,10 @@ model MovimientoFinanciero {
   id             String                   @id @default(uuid())
   empresaId      String
   tipo           MovimientoFinancieroTipo
-  monto          Float
-  capital        Float                    @default(0)
-  interes        Float                    @default(0)
-  mora           Float                    @default(0)
+  monto          Decimal @db.Decimal(14,2)
+  capital        Decimal @default(0) @db.Decimal(14,2)
+  interes        Decimal @default(0) @db.Decimal(14,2)
+  mora           Decimal @default(0) @db.Decimal(14,2)
   fecha          DateTime                 @default(now())
   descripcion    String?
   referenciaTipo ReferenciaTipo?

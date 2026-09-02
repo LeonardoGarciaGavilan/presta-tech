@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EstadoPrestamo } from '@prisma/client';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
-import { roundMoney } from '../common/utils/money';
+import { roundMoney, m } from '../common/utils/money';
 import {
   format,
   subMonths,
@@ -231,9 +231,9 @@ export class DashboardService {
     }
 
     const saldoPendienteTotal = roundMoney(
-      (saldoCuotas._sum.capital ?? 0) +
-        (saldoCuotas._sum.interes ?? 0) +
-        (saldoCuotas._sum.mora ?? 0),
+      m(saldoCuotas._sum.capital ?? 0) +
+        m(saldoCuotas._sum.interes ?? 0) +
+        m(saldoCuotas._sum.mora ?? 0),
     );
 
     const cobrosPorMes = this.procesarGraficoMensual(cobrosGrafico);
@@ -377,7 +377,7 @@ export class DashboardService {
     return prestamos.map((p) => {
       const cuotaVencida = p.cuotas[0];
       const saldoCalculado = p.cuotas.reduce(
-        (sum, c) => sum + c.capital + c.interes + (c.mora ?? 0),
+        (sum, c) => sum + m(c.capital) + m(c.interes) + m(c.mora ?? 0),
         0,
       );
 
@@ -461,7 +461,7 @@ export class DashboardService {
       saldos.map((s) => [
         s.prestamoId,
         roundMoney(
-          (s._sum.capital ?? 0) + (s._sum.interes ?? 0) + (s._sum.mora ?? 0),
+          m(s._sum.capital ?? 0) + m(s._sum.interes ?? 0) + m(s._sum.mora ?? 0),
         ),
       ]),
     );

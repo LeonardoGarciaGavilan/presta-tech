@@ -9,6 +9,7 @@ import {
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
+import { roundMoney, m } from '../common/utils/money';
 import { CreatePrestamoDto } from './dto/create-prestamo.dto';
 import { RefinanciarPrestamoDto } from './dto/refinanciar-prestamo.dto';
 import { RenovarPrestamoDto } from './dto/renovar-prestamo.dto';
@@ -31,7 +32,6 @@ import { format, toZonedTime } from 'date-fns-tz';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
-import { roundMoney } from '../common/utils/money';
 import { QuotaService } from '../common/quota/quota.service';
 import { PermisosService } from '../common/permisos/permisos.service';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
@@ -367,9 +367,9 @@ export class PrestamosService {
   private calcularDesdeObjeto(prestamo: {
     cuotas?: {
       pagada: boolean;
-      capital: number;
-      interes: number;
-      mora: number;
+      capital: number | Prisma.Decimal;
+      interes: number | Prisma.Decimal;
+      mora: number | Prisma.Decimal;
     }[];
   }): {
     saldoPendiente: number;
@@ -378,11 +378,11 @@ export class PrestamosService {
     const cuotasPendientes = prestamo.cuotas?.filter((c) => !c.pagada) ?? [];
 
     const saldo = cuotasPendientes.reduce(
-      (sum, c) => sum + c.capital + c.interes + (c.mora || 0),
+      (sum, c) => sum + m(c.capital) + m(c.interes) + m(c.mora || 0),
       0,
     );
 
-    const mora = cuotasPendientes.reduce((sum, c) => sum + (c.mora || 0), 0);
+    const mora = cuotasPendientes.reduce((sum, c) => sum + m(c.mora || 0), 0);
 
     return {
       saldoPendiente: roundMoney(saldo),
@@ -812,9 +812,9 @@ export class PrestamosService {
     let amortizacion: ResumenAmortizacion;
     if (prestamo.modoRapido === true) {
       amortizacion = this.calcularAmortizacionRapida(
-        prestamo.monto,
+        m(prestamo.monto),
         prestamo.numeroCuotas,
-        prestamo.montoTotal,
+        m(prestamo.montoTotal),
         prestamo.frecuenciaPago,
         prestamo.fechaInicio,
       );
@@ -824,13 +824,15 @@ export class PrestamosService {
         montoTotal: prestamo.montoTotal,
         numeroCuotas: prestamo.numeroCuotas,
         cuotasGeneradas: amortizacion.cuotas.length,
-        cuotaFija: amortizacion.cuotas[0]?.monto,
-        ultimaCuota: amortizacion.cuotas[amortizacion.cuotas.length - 1]?.monto,
-        sumaCuotas: amortizacion.cuotas.reduce((s, c) => s + c.monto, 0),
+        cuotaFija: m(amortizacion.cuotas[0]?.monto ?? 0),
+        ultimaCuota: m(
+          amortizacion.cuotas[amortizacion.cuotas.length - 1]?.monto ?? 0,
+        ),
+        sumaCuotas: amortizacion.cuotas.reduce((s, c) => s + m(c.monto), 0),
       });
     } else {
       amortizacion = this.calcularAmortizacion(
-        prestamo.monto,
+        m(prestamo.monto),
         prestamo.tasaInteres / 100,
         prestamo.numeroCuotas,
         prestamo.frecuenciaPago,
@@ -896,15 +898,15 @@ export class PrestamosService {
       ]);
 
       const efectivoEnCaja = roundMoney(
-        cajaBloqueada.montoInicial +
-          (pagosEfectivo._sum.montoTotal || 0) -
-          (desembolsosCaja._sum.monto || 0),
+        m(cajaBloqueada.montoInicial) +
+          m(pagosEfectivo._sum.montoTotal || 0) -
+          m(desembolsosCaja._sum.monto || 0),
       );
 
       // ─── 4. Validar que monto ≤ efectivo disponible ───────────────────
-      if (prestamo.monto > efectivoEnCaja) {
+      if (m(prestamo.monto) > efectivoEnCaja) {
         throw new BadRequestException(
-          `Fondos insuficientes en caja para desembolso. Disponible: RD$${efectivoEnCaja.toLocaleString()}, Solicitado: RD$${prestamo.monto.toLocaleString()}`,
+          `Fondos insuficientes en caja para desembolso. Disponible: RD$${efectivoEnCaja.toLocaleString()}, Solicitado: RD$${m(prestamo.monto).toLocaleString()}`,
         );
       }
 
@@ -993,8 +995,8 @@ export class PrestamosService {
       usuarioId: adminId,
       tipo: 'PRESTAMO',
       accion: 'DESEMBOLSO',
-      descripcion: `Desembolso RD$${prestamo.monto.toLocaleString()} a ${clienteNombre}`,
-      monto: prestamo.monto,
+      descripcion: `Desembolso RD$${m(prestamo.monto).toLocaleString()} a ${clienteNombre}`,
+      monto: m(prestamo.monto),
       referenciaId: id,
       referenciaTipo: 'Prestamo',
       datosAnteriores: { estado: 'APROBADO' },
@@ -1631,11 +1633,11 @@ export class PrestamosService {
     }
 
     const capitalPendiente = cuotasPendientes.reduce(
-      (sum, c) => sum + c.capital,
+      (sum, c) => sum + m(c.capital),
       0,
     );
     const morasPendientes = cuotasPendientes.reduce(
-      (sum, c) => sum + (c.mora || 0),
+      (sum, c) => sum + m(c.mora || 0),
       0,
     );
     const saldoRefinanciar = roundMoney(capitalPendiente + morasPendientes);
@@ -1727,7 +1729,7 @@ export class PrestamosService {
     // Snapshot completo de las cuotas que serán eliminadas: preserva la
     // amortización original para auditoría sin mantener filas activas en DB.
     const interesPerdido = roundMoney(
-      cuotasPendientes.reduce((sum, c) => sum + (c.interes || 0), 0),
+      cuotasPendientes.reduce((sum, c) => sum + m(c.interes || 0), 0),
     );
     const cuotasEliminadasSnapshot = cuotasPendientes.map((c) => ({
       numero: c.numero,
@@ -2008,13 +2010,13 @@ export class PrestamosService {
     // (incluirInteresEnRenovacion, default true = cobrar todo).
     const incluirInteres = config.incluirInteresEnRenovacion !== false;
     const capitalAplicado = roundMoney(
-      cuotasPendientes.reduce((s, c) => s + c.capital, 0),
+      cuotasPendientes.reduce((s, c) => s + m(c.capital), 0),
     );
     const interesAplicado = incluirInteres
-      ? roundMoney(cuotasPendientes.reduce((s, c) => s + (c.interes || 0), 0))
+      ? roundMoney(cuotasPendientes.reduce((s, c) => s + m(c.interes || 0), 0))
       : 0;
     const moraAplicada = roundMoney(
-      cuotasPendientes.reduce((s, c) => s + (c.mora || 0), 0),
+      cuotasPendientes.reduce((s, c) => s + m(c.mora || 0), 0),
     );
     const saldoAplicado = roundMoney(
       capitalAplicado + interesAplicado + moraAplicada,
@@ -2178,9 +2180,9 @@ export class PrestamosService {
         }),
       ]);
       const efectivoEnCaja = roundMoney(
-        cajaBloqueada.montoInicial +
-          (pagosEfectivo._sum.montoTotal || 0) -
-          (desembolsosCaja._sum.monto || 0),
+        m(cajaBloqueada.montoInicial) +
+          m(pagosEfectivo._sum.montoTotal || 0) -
+          m(desembolsosCaja._sum.monto || 0),
       );
 
       if (efectivoEnCaja + saldoAplicado < montoNuevo) {

@@ -1,6 +1,8 @@
 // src/common/quota/quota.service.ts
 import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { m } from '../utils/money';
 
 export type QuotaTipo =
   | 'usuarios'
@@ -27,7 +29,7 @@ interface LimiteRow {
   maxPrestamosActivos: number | null;
   maxRutas: number | null;
   maxEmpleados: number | null;
-  maxMontoPorPrestamo: number | null;
+  maxMontoPorPrestamo: number | Prisma.Decimal | null;
 }
 
 const UMBRAL_ADVERTENCIA = 0.9;
@@ -118,10 +120,15 @@ export class QuotaService {
       case 'empleados':
         return limite?.maxEmpleados ?? null;
       case 'montoPrestamo':
-        return limite?.maxMontoPorPrestamo ?? null;
+        return QuotaService.montoMaxPara(limite);
       default:
         return null;
     }
+  }
+
+  private static montoMaxPara(limite: LimiteRow | null): number | null {
+    const v = limite?.maxMontoPorPrestamo;
+    return v == null ? null : m(v);
   }
 
   /**

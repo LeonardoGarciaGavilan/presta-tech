@@ -16,6 +16,29 @@ const OPERACIONES_MULTI: ReadonlySet<string> = new Set([
   'deleteMany',
 ]);
 
+function esDecimal(valor: unknown): valor is { toNumber: () => number } {
+  return (
+    typeof valor === 'object' &&
+    valor !== null &&
+    typeof (valor as any).toNumber === 'function' &&
+    (valor as any).constructor?.name === 'Decimal'
+  );
+}
+
+function convertirDecimales(valor: unknown): unknown {
+  if (valor == null || typeof valor !== 'object') return valor;
+  if (esDecimal(valor)) return valor.toNumber();
+  if (valor instanceof Date) return valor;
+  if (valor instanceof Uint8Array) return valor;
+  if (Array.isArray(valor)) return valor.map((v) => convertirDecimales(v));
+  for (const key of Object.keys(valor)) {
+    (valor as Record<string, unknown>)[key] = convertirDecimales(
+      (valor as Record<string, unknown>)[key],
+    );
+  }
+  return valor;
+}
+
 @Injectable()
 export class PrismaService
   extends PrismaClient
@@ -62,14 +85,10 @@ export class PrismaService
     this.extended = this.$extends({
       query: {
         $allModels: {
-          findMany: ({ model, operation, args, query }) =>
-            proteger(model, operation, args, query),
-          count: ({ model, operation, args, query }) =>
-            proteger(model, operation, args, query),
-          updateMany: ({ model, operation, args, query }) =>
-            proteger(model, operation, args, query),
-          deleteMany: ({ model, operation, args, query }) =>
-            proteger(model, operation, args, query),
+          $allOperations: async ({ model, operation, args, query }) => {
+            const resultado = await proteger(model, operation, args, query);
+            return convertirDecimales(resultado);
+          },
         },
       },
     }) as unknown as PrismaClient;

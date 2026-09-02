@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { m } from '../common/utils/money';
 
 @Injectable()
 export class FinanzasService {
@@ -133,10 +134,10 @@ export class FinanzasService {
       const d = new Date(p.createdAt);
       const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
       if (mesMap[key]) {
-        mesMap[key].cobrado += p.montoTotal;
-        mesMap[key].capital += p.capital;
-        mesMap[key].interes += p.interes;
-        mesMap[key].mora += p.mora;
+        mesMap[key].cobrado += m(p.montoTotal);
+        mesMap[key].capital += m(p.capital);
+        mesMap[key].interes += m(p.interes);
+        mesMap[key].mora += m(p.mora);
         mesMap[key].cantidadPagos += 1;
       }
     }
@@ -146,7 +147,7 @@ export class FinanzasService {
       const d = new Date(g.fecha);
       const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
       if (mesMap[key]) {
-        mesMap[key].gastado += g.monto;
+        mesMap[key].gastado += m(g.monto);
         mesMap[key].cantidadGastos += 1;
       }
     }
@@ -181,7 +182,7 @@ export class FinanzasService {
     const porCategoria: Record<string, number> = {};
     for (const g of gastos) {
       porCategoria[g.categoria] =
-        Math.round(((porCategoria[g.categoria] ?? 0) + g.monto) * 100) / 100;
+        Math.round(((porCategoria[g.categoria] ?? 0) + m(g.monto)) * 100) / 100;
     }
 
     // ── Margen operacional (si cobrado > 0) ───────────────────────────────────

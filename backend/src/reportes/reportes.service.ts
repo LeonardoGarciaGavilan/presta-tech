@@ -3,7 +3,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { calcularDesdeObjeto } from '../common/utils/prestamo.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
-import { roundMoney } from '../common/utils/money';
+import { roundMoney, m } from '../common/utils/money';
 
 const toFechaStr = (d: Date | string): string => {
   const date = new Date(d);
@@ -323,7 +323,7 @@ export class ReportesService {
 
     const totalPagado = prestamos
       .flatMap((p) => p.pagos)
-      .reduce((s, pg) => s + pg.montoTotal, 0);
+      .reduce((s, pg) => s + m(pg.montoTotal), 0);
 
     const prestamosActivosFilter = prestamos.filter((p) =>
       ['ACTIVO', 'ATRASADO'].includes(p.estado),
@@ -470,19 +470,19 @@ export class ReportesService {
     });
 
     const totalCobrado = roundMoney(
-      allPagos.reduce((s, p) => s + p.montoTotal, 0),
+      allPagos.reduce((s, p) => s + m(p.montoTotal), 0),
     );
     const totalCapital = roundMoney(
-      allPagos.reduce((s, p) => s + p.capital, 0),
+      allPagos.reduce((s, p) => s + m(p.capital), 0),
     );
     const totalInteres = roundMoney(
-      allPagos.reduce((s, p) => s + p.interes, 0),
+      allPagos.reduce((s, p) => s + m(p.interes), 0),
     );
-    const totalMora = roundMoney(allPagos.reduce((s, p) => s + p.mora, 0));
+    const totalMora = roundMoney(allPagos.reduce((s, p) => s + m(p.mora), 0));
     const totalEfectivo = roundMoney(
       allPagos
         .filter((p) => p.metodo === 'EFECTIVO')
-        .reduce((s, p) => s + p.montoTotal, 0),
+        .reduce((s, p) => s + m(p.montoTotal), 0),
     );
 
     const pagosPorMetodo: Record<string, { cantidad: number; monto: number }> =
@@ -492,7 +492,7 @@ export class ReportesService {
         pagosPorMetodo[p.metodo] = { cantidad: 0, monto: 0 };
       pagosPorMetodo[p.metodo].cantidad += 1;
       pagosPorMetodo[p.metodo].monto = roundMoney(
-        pagosPorMetodo[p.metodo].monto + p.montoTotal,
+        pagosPorMetodo[p.metodo].monto + m(p.montoTotal),
       );
     });
 
@@ -529,13 +529,13 @@ export class ReportesService {
       if (c.estado === 'ABIERTA') porUsuario[uid].cajasAbiertas++;
       else porUsuario[uid].cajasCerradas++;
       if (c.diferencia != null) {
-        if (c.diferencia > 0)
+        if (m(c.diferencia) > 0)
           porUsuario[uid].diferenciasPositivas = roundMoney(
-            porUsuario[uid].diferenciasPositivas + c.diferencia,
+            porUsuario[uid].diferenciasPositivas + m(c.diferencia),
           );
-        if (c.diferencia < 0)
+        if (m(c.diferencia) < 0)
           porUsuario[uid].diferenciasNegativas = roundMoney(
-            porUsuario[uid].diferenciasNegativas + Math.abs(c.diferencia),
+            porUsuario[uid].diferenciasNegativas + Math.abs(m(c.diferencia)),
           );
       }
     });
@@ -557,12 +557,12 @@ export class ReportesService {
         };
       }
       porUsuario[uid].totalCobrado = roundMoney(
-        porUsuario[uid].totalCobrado + p.montoTotal,
+        porUsuario[uid].totalCobrado + m(p.montoTotal),
       );
       porUsuario[uid].cantidadPagos += 1;
       if (p.metodo === 'EFECTIVO') {
         porUsuario[uid].totalEfectivo = roundMoney(
-          porUsuario[uid].totalEfectivo + p.montoTotal,
+          porUsuario[uid].totalEfectivo + m(p.montoTotal),
         );
       }
     });
@@ -604,7 +604,7 @@ export class ReportesService {
         };
       }
       porDia[fecha].totalCobrado = roundMoney(
-        porDia[fecha].totalCobrado + p.montoTotal,
+        porDia[fecha].totalCobrado + m(p.montoTotal),
       );
       porDia[fecha].cantidadPagos += 1;
     });
@@ -612,12 +612,12 @@ export class ReportesService {
     const cajasCerradas = cajas.filter((c) => c.estado === 'CERRADA').length;
     const cajasAbiertas = cajas.filter((c) => c.estado === 'ABIERTA').length;
     const efectivoSistema = roundMoney(
-      cajas.reduce((s, c) => s + c.montoInicial, 0) +
+      cajas.reduce((s, c) => s + m(c.montoInicial), 0) +
         totalEfectivo -
-        cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0),
+        cajas.reduce((s, c) => s + m(c.efectivoReal ?? 0), 0),
     );
     const efectivoReal = roundMoney(
-      cajas.reduce((s, c) => s + (c.efectivoReal ?? 0), 0),
+      cajas.reduce((s, c) => s + m(c.efectivoReal ?? 0), 0),
     );
 
     return {
@@ -744,27 +744,27 @@ export class ReportesService {
 
     pagos.forEach((p) => {
       const f = toFechaStr(p.createdAt);
-      entradasMap[f] = roundMoney((entradasMap[f] ?? 0) + p.montoTotal);
+      entradasMap[f] = roundMoney((entradasMap[f] ?? 0) + m(p.montoTotal));
     });
 
     inyecciones.forEach((i) => {
       const f = toFechaStr(i.fecha);
-      entradasMap[f] = roundMoney((entradasMap[f] ?? 0) + i.monto);
+      entradasMap[f] = roundMoney((entradasMap[f] ?? 0) + m(i.monto));
     });
 
     desembolsos.forEach((d) => {
       const f = toFechaStr(d.createdAt);
-      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + d.monto);
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + m(d.monto));
     });
 
     gastos.forEach((g) => {
       const f = toFechaStr(g.fecha);
-      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + g.monto);
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + m(g.monto));
     });
 
     retiros.forEach((r) => {
       const f = toFechaStr(r.fecha);
-      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + r.monto);
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + m(r.monto));
     });
 
     const fechasSet = new Set([
@@ -794,7 +794,7 @@ export class ReportesService {
     const porCategoria: Record<string, number> = {};
     gastos.forEach((g) => {
       porCategoria[g.categoria] = roundMoney(
-        (porCategoria[g.categoria] ?? 0) + g.monto,
+        (porCategoria[g.categoria] ?? 0) + m(g.monto),
       );
     });
 
@@ -805,13 +805,17 @@ export class ReportesService {
       totalSalidas,
       neto: roundMoney(totalEntradas - totalSalidas),
       desgloseEntradas: {
-        pagos: roundMoney(pagos.reduce((s, p) => s + p.montoTotal, 0)),
-        inyecciones: roundMoney(inyecciones.reduce((s, i) => s + i.monto, 0)),
+        pagos: roundMoney(pagos.reduce((s, p) => s + m(p.montoTotal), 0)),
+        inyecciones: roundMoney(
+          inyecciones.reduce((s, i) => s + m(i.monto), 0),
+        ),
       },
       desgloseSalidas: {
-        desembolsos: roundMoney(desembolsos.reduce((s, d) => s + d.monto, 0)),
-        gastos: roundMoney(gastos.reduce((s, g) => s + g.monto, 0)),
-        retiros: roundMoney(retiros.reduce((s, r) => s + r.monto, 0)),
+        desembolsos: roundMoney(
+          desembolsos.reduce((s, d) => s + m(d.monto), 0),
+        ),
+        gastos: roundMoney(gastos.reduce((s, g) => s + m(g.monto), 0)),
+        retiros: roundMoney(retiros.reduce((s, r) => s + m(r.monto), 0)),
       },
       gastosPorCategoria: porCategoria,
       porDia,
@@ -886,10 +890,10 @@ export class ReportesService {
         };
       }
       const u = porUsuario[uid];
-      u.totalCobrado = roundMoney(u.totalCobrado + p.montoTotal);
-      u.totalCapital = roundMoney(u.totalCapital + p.capital);
-      u.totalInteres = roundMoney(u.totalInteres + p.interes);
-      u.totalMora = roundMoney(u.totalMora + p.mora);
+      u.totalCobrado = roundMoney(u.totalCobrado + m(p.montoTotal));
+      u.totalCapital = roundMoney(u.totalCapital + m(p.capital));
+      u.totalInteres = roundMoney(u.totalInteres + m(p.interes));
+      u.totalMora = roundMoney(u.totalMora + m(p.mora));
       u.cantidadPagos += 1;
 
       const metodo = p.metodo;
@@ -897,7 +901,7 @@ export class ReportesService {
         u.pagosPorMetodo[metodo] = { cantidad: 0, monto: 0 };
       u.pagosPorMetodo[metodo].cantidad += 1;
       u.pagosPorMetodo[metodo].monto = roundMoney(
-        u.pagosPorMetodo[metodo].monto + p.montoTotal,
+        u.pagosPorMetodo[metodo].monto + m(p.montoTotal),
       );
 
       const d = new Date(p.createdAt);
@@ -1020,15 +1024,15 @@ export class ReportesService {
             vencidas: 0,
           };
         }
-        const m = porMes[monthKey];
-        m.cantidadCuotas += 1;
-        m.montoCapital = roundMoney(m.montoCapital + c.capital);
-        m.montoInteres = roundMoney(m.montoInteres + c.interes);
-        m.montoMora = roundMoney(m.montoMora + c.mora);
-        m.montoTotal = roundMoney(m.montoTotal + c.monto);
+        const mes = porMes[monthKey];
+        mes.cantidadCuotas += 1;
+        mes.montoCapital = roundMoney(mes.montoCapital + m(c.capital));
+        mes.montoInteres = roundMoney(mes.montoInteres + m(c.interes));
+        mes.montoMora = roundMoney(mes.montoMora + m(c.mora));
+        mes.montoTotal = roundMoney(mes.montoTotal + m(c.monto));
 
         const esVencida = new Date(c.fechaVencimiento) < hoy;
-        if (esVencida) m.vencidas += 1;
+        if (esVencida) mes.vencidas += 1;
 
         todosDetalles.push({
           cliente: `${p.cliente.nombre} ${p.cliente.apellido}`,

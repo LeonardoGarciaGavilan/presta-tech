@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TenantUtils } from '../common/utils/tenant.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
-import { roundMoney } from '../common/utils/money';
+import { roundMoney, m } from '../common/utils/money';
 import { MovimientoFinancieroTipo } from '@prisma/client';
 
 // Tipos de movimiento que constituyen egresos de caja (salida de efectivo).
@@ -169,7 +169,7 @@ export class CajaService {
     const totalInyectado = inyecciones._sum.monto ?? 0;
     const totalRetirado = retiros._sum.monto ?? 0;
 
-    return roundMoney(capitalBase + totalInyectado - totalRetirado);
+    return roundMoney(m(capitalBase) + m(totalInyectado) - m(totalRetirado));
   }
 
   // ─── Helper: Calcular dinero total en cajas abiertas ─────────────────────
@@ -204,7 +204,7 @@ export class CajaService {
     const totalPrestado = prestamos._sum.monto ?? 0;
     const totalCobrado = cobros._sum.capital ?? 0;
 
-    return Math.max(0, roundMoney(totalPrestado - totalCobrado));
+    return Math.max(0, roundMoney(m(totalPrestado) - m(totalCobrado)));
   }
 
   async abrirCaja(
@@ -343,7 +343,7 @@ export class CajaService {
     );
 
     const efectivoSistema = roundMoney(
-      caja.montoInicial +
+      m(caja.montoInicial) +
         resumenPagos.totalEfectivo -
         resumenDesembol.totalDesembolsado,
     );
@@ -395,7 +395,7 @@ export class CajaService {
     );
 
     const efectivoSistema = roundMoney(
-      cajas.reduce((s, c) => s + c.montoInicial, 0) +
+      cajas.reduce((s, c) => s + m(c.montoInicial), 0) +
         resumenPagos.totalEfectivo -
         resumenDesembol.totalDesembolsado,
     );
@@ -453,14 +453,14 @@ export class CajaService {
     let entradas = 0;
     let salidas = 0;
 
-    for (const m of movimientos) {
-      if (m.tipo === 'PAGO_RECIBIDO' || m.tipo === 'INYECCION_CAPITAL')
-        entradas += m.monto;
-      else if (m.tipo === 'DESEMBOLSO') salidas += m.monto;
+    for (const mov of movimientos) {
+      if (mov.tipo === 'PAGO_RECIBIDO' || mov.tipo === 'INYECCION_CAPITAL')
+        entradas += m(mov.monto);
+      else if (mov.tipo === 'DESEMBOLSO') salidas += m(mov.monto);
       // GASTOS, RETIROS, etc. NO afectan caja operativa (son globales)
     }
 
-    return roundMoney(caja.montoInicial + entradas - salidas);
+    return roundMoney(m(caja.montoInicial) + entradas - salidas);
   }
 
   // ─── OBTENER CAJA ACTIVA DEL USUARIO ─────────────────────────────────────
@@ -552,7 +552,9 @@ export class CajaService {
 
     const ingresosCalc = ingresos._sum.montoTotal ?? 0;
     const egresosCalc = egresos._sum.monto ?? 0;
-    const esperado = roundMoney(caja.montoInicial + ingresosCalc - egresosCalc);
+    const esperado = roundMoney(
+      m(caja.montoInicial) + m(ingresosCalc) - m(egresosCalc),
+    );
 
     const diferencia = roundMoney((montoCierre ?? 0) - esperado);
 
@@ -712,7 +714,7 @@ export class CajaService {
         const ingresosCalc = ingresosAgg._sum.montoTotal ?? 0;
         const egresosCalc = egresosAgg._sum.monto ?? 0;
         const esperadoCalc = roundMoney(
-          caja.montoInicial + ingresosCalc - egresosCalc,
+          m(caja.montoInicial) + m(ingresosCalc) - m(egresosCalc),
         );
 
         return {
@@ -754,22 +756,22 @@ export class CajaService {
     let ingresos = 0;
     let egresos = 0;
 
-    movimientos.forEach((m) => {
-      if (m.tipo === 'APERTURA_CAJA') inicial = m.monto;
+    movimientos.forEach((mov) => {
+      if (mov.tipo === 'APERTURA_CAJA') inicial = m(mov.monto);
 
-      if (['PAGO_RECIBIDO', 'INYECCION_CAPITAL'].includes(m.tipo)) {
-        ingresos += m.monto;
+      if (['PAGO_RECIBIDO', 'INYECCION_CAPITAL'].includes(mov.tipo)) {
+        ingresos += m(mov.monto);
       }
 
-      if (EGRESOS_CAJA.includes(m.tipo)) {
-        egresos += m.monto;
+      if (EGRESOS_CAJA.includes(mov.tipo)) {
+        egresos += m(mov.monto);
       }
     });
 
     const esperado = roundMoney(inicial + ingresos - egresos);
     const real = caja.montoCierre;
     const diferencia =
-      real !== null && real !== undefined ? roundMoney(real - esperado) : 0;
+      real !== null && real !== undefined ? roundMoney(m(real) - esperado) : 0;
 
     const aperturaExiste = movimientos.some((m) => m.tipo === 'APERTURA_CAJA');
     const cierreExiste = movimientos.some((m) => m.tipo === 'CIERRE_CAJA');
