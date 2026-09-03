@@ -160,13 +160,13 @@ export default function AnalisisRutasScreen() {
           <View style={styles.rutaStats}>
             <View style={styles.rutaStat}>
               <Text style={[styles.rutaStatValue, { color: colors.text }]}>
-                {formatCurrencyCompact(item.totalCobrado)}
+                {formatCurrencyCompact(item.totalCobrado ?? 0)}
               </Text>
               <Text style={[styles.rutaStatLabel, { color: colors.textTertiary }]}>Cobrado</Text>
             </View>
             <View style={styles.rutaStat}>
               <Text style={[styles.rutaStatValue, { color: colors.text }]}>
-                {formatCurrencyCompact(item.dineroEnCalle)}
+                {formatCurrencyCompact(item.dineroEnCalle ?? 0)}
               </Text>
               <Text style={[styles.rutaStatLabel, { color: colors.textTertiary }]}>En calle</Text>
             </View>
@@ -183,7 +183,7 @@ export default function AnalisisRutasScreen() {
               {item.clientesActivos} clientes · {item.prestamosActivos} préstamos
             </Text>
             <Text style={[styles.rutaMetaText, { color: colors.textTertiary }]}>
-              {formatCurrencyCompact(item.totalInteres)} intereses
+              {formatCurrencyCompact(item.totalInteres ?? 0)} intereses
             </Text>
           </View>
         </View>
@@ -275,7 +275,7 @@ export default function AnalisisRutasScreen() {
                 </View>
                 {rutasCriticas.map((r) => (
                   <Text key={r.rutaId} style={[styles.alertItem, { color: colors.error }]}>
-                    {r.nombre} · {calcEficiencia(r).toFixed(0)}% eficiencia · {formatCurrencyCompact(r.dineroEnCalle)} en calle
+                    {r.nombre} · {calcEficiencia(r).toFixed(0)}% eficiencia · {formatCurrencyCompact(r.dineroEnCalle ?? 0)} en calle
                   </Text>
                 ))}
               </View>
@@ -294,7 +294,7 @@ export default function AnalisisRutasScreen() {
                   const ef = calcEficiencia(r);
                   return (
                     <Text key={r.rutaId} style={[styles.alertItem, { color: colors.warning }]}>
-                      {r.nombre} · {ef.toFixed(0)}% eficiencia · {formatCurrencyCompact(r.dineroEnCalle)} en calle
+                      {r.nombre} · {ef.toFixed(0)}% eficiencia · {formatCurrencyCompact(r.dineroEnCalle ?? 0)} en calle
                     </Text>
                   );
                 })}
@@ -411,10 +411,10 @@ export default function AnalisisRutasScreen() {
                       {topRoute.cobrador}
                     </Text>
                     <Text style={[styles.topRouteDetail, { color: colors.textSecondary }]}>
-                      {formatCurrencyCompact(topRoute.totalInteres)} intereses · {calcEficiencia(topRoute).toFixed(0)}% eficiencia
+                      {formatCurrencyCompact(topRoute.totalInteres ?? 0)} intereses · {calcEficiencia(topRoute).toFixed(0)}% eficiencia
                     </Text>
                     <Text style={[styles.topRouteDetail, { color: colors.textSecondary }]}>
-                      {formatCurrencyCompact(topRoute.dineroEnCalle)} en calle
+                      {formatCurrencyCompact(topRoute.dineroEnCalle ?? 0)} en calle
                     </Text>
                   </View>
                 </View>

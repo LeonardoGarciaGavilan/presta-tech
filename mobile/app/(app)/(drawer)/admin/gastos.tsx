@@ -263,7 +263,7 @@ export default function GastosScreen() {
             </Text>
           </View>
           <Text style={[styles.gastoMonto, { color: colors.error }]}>
-            -{formatCurrencyCompact(item.monto)}
+            -{formatCurrencyCompact(item.monto ?? 0)}
           </Text>
         </TouchableOpacity>
       );
@@ -360,7 +360,7 @@ export default function GastosScreen() {
                       <View style={[styles.catDot, { backgroundColor: meta.color }]} />
                       <Ionicons name={meta.icon} size={scale(12)} color={meta.color} style={{ marginRight: scale(4) }} />
                       <Text style={[styles.catLabel, { color: colors.textSecondary }]}>{cat}</Text>
-                      <Text style={[styles.catValue, { color: colors.text }]}>{formatCurrencyCompact(val)}</Text>
+                      <Text style={[styles.catValue, { color: colors.text }]}>{formatCurrencyCompact(val ?? 0)}</Text>
                       <Text style={[styles.catPct, { color: colors.textTertiary }]}>
                         {pct.toFixed(1)}%
                       </Text>
@@ -591,7 +591,7 @@ export default function GastosScreen() {
         title="Eliminar gasto"
         message={
           deleteTarget
-            ? `¿Eliminar gasto de ${formatFullCurrency(deleteTarget.monto)} por "${deleteTarget.descripcion}"?`
+            ? `¿Eliminar gasto de ${formatFullCurrency(deleteTarget.monto ?? 0)} por "${deleteTarget.descripcion}"?`
             : ''
         }
         confirmLabel="Eliminar"

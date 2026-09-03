@@ -141,12 +141,12 @@ export default function EstadoFinancieroScreen() {
             </Text>
             <Text style={[styles.movMeta, { color: colors.textTertiary }]}>
               {item.usuario?.nombre ? `${item.usuario.nombre} · ` : ''}{formatMovFecha(item.fecha)}
-              {item.interes > 0 && ` · ${formatCurrencyCompact(item.interes)} int`}
-              {item.mora > 0 && ` · ${formatCurrencyCompact(item.mora)} mora`}
+              {item.interes > 0 && ` · ${formatCurrencyCompact(item.interes ?? 0)} int`}
+              {item.mora > 0 && ` · ${formatCurrencyCompact(item.mora ?? 0)} mora`}
             </Text>
           </View>
           <Text style={[styles.movMonto, { color: isPositive ? colors.success : colors.error }]}>
-            {isPositive ? '+' : '-'}{formatCurrencyCompact(Math.abs(item.monto))}
+            {isPositive ? '+' : '-'}{formatCurrencyCompact(Math.abs(item.monto ?? 0))}
           </Text>
         </View>
       );

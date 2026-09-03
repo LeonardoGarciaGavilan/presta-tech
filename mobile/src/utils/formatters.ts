@@ -81,13 +81,15 @@ export function formatDateTime(value: string | null): string {
   });
 }
 
-export function formatCurrencyCompact(n: number): string {
+export function formatCurrencyCompact(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '$0';
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
   return `$${n.toFixed(0)}`;
 }
 
-export function formatFullCurrency(n: number): string {
+export function formatFullCurrency(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '$0.00';
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

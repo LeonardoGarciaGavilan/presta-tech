@@ -463,10 +463,10 @@ export default function ReportesScreen() {
     return (
       <View>
         {renderKpiRow([
-          { label: 'Total cobrado', value: formatFullCurrency(cobrosData.totalCobrado), color: colors.primary, bg: colors.primaryLight },
-          { label: 'Capital', value: formatFullCurrency(cobrosData.totalCapital), color: colors.secondary, bg: colors.secondaryLight },
-          { label: 'Interés', value: formatFullCurrency(cobrosData.totalInteres), color: colors.warning, bg: colors.warningLight },
-          { label: 'Mora', value: formatFullCurrency(cobrosData.totalMora), color: colors.error, bg: colors.errorLight },
+          { label: 'Total cobrado', value: formatFullCurrency(cobrosData.totalCobrado ?? 0), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Capital', value: formatFullCurrency(cobrosData.totalCapital ?? 0), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Interés', value: formatFullCurrency(cobrosData.totalInteres ?? 0), color: colors.warning, bg: colors.warningLight },
+          { label: 'Mora', value: formatFullCurrency(cobrosData.totalMora ?? 0), color: colors.error, bg: colors.errorLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
           {cobrosData.totalRegistros} cobro{cobrosData.totalRegistros !== 1 ? 's' : ''}
@@ -485,12 +485,12 @@ export default function ReportesScreen() {
                 {formatFechaCorta(pago.fecha)} · {pago.cobrador}
               </Text>
               <Text style={[styles.itemMonto, { color: colors.text }]}>
-                {formatFullCurrency(pago.total)}
+                {formatFullCurrency(pago.total ?? 0)}
               </Text>
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
-                Cap: {formatCurrencyCompact(pago.capital)} | Int: {formatCurrencyCompact(pago.interes)} | Mora: {formatCurrencyCompact(pago.mora)}
+                Cap: {formatCurrencyCompact(pago.capital ?? 0)} | Int: {formatCurrencyCompact(pago.interes ?? 0)} | Mora: {formatCurrencyCompact(pago.mora ?? 0)}
               </Text>
             </View>
           </View>
@@ -506,8 +506,8 @@ export default function ReportesScreen() {
     return (
       <View>
         {renderKpiRow([
-          { label: 'Saldo vencido', value: formatFullCurrency(carteraData.totalSaldoVencido), color: colors.error, bg: colors.errorLight },
-          { label: 'Mora total', value: formatFullCurrency(carteraData.totalMora), color: colors.warning, bg: colors.warningLight },
+          { label: 'Saldo vencido', value: formatFullCurrency(carteraData.totalSaldoVencido ?? 0), color: colors.error, bg: colors.errorLight },
+          { label: 'Mora total', value: formatFullCurrency(carteraData.totalMora ?? 0), color: colors.warning, bg: colors.warningLight },
           { label: 'Préstamos', value: String(carteraData.totalRegistros), color: colors.primary, bg: colors.primaryLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
@@ -529,11 +529,11 @@ export default function ReportesScreen() {
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Original:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatFullCurrency(item.montoOriginal)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatFullCurrency(item.montoOriginal ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Saldo:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.error }]}>{formatFullCurrency(item.saldoPendiente)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.error }]}>{formatFullCurrency(item.saldoPendiente ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Mora:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.warning }]}>{formatFullCurrency(item.moraAcumulada)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.warning }]}>{formatFullCurrency(item.moraAcumulada ?? 0)}</Text>
             </View>
           </View>
         ))}
@@ -555,8 +555,8 @@ export default function ReportesScreen() {
           { label: 'Cancelados', value: String(r.cancelados), color: colors.textTertiary, bg: colors.surface },
         ])}
         {renderKpiRow([
-          { label: 'Cartera activa', value: formatFullCurrency(r.totalCartera), color: colors.primary, bg: colors.primaryLight },
-          { label: 'Desembolsado', value: formatFullCurrency(r.totalDesembolsado), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Cartera activa', value: formatFullCurrency(r.totalCartera ?? 0), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Desembolsado', value: formatFullCurrency(r.totalDesembolsado ?? 0), color: colors.secondary, bg: colors.secondaryLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
           {estadoData.totalRegistros} préstamo{estadoData.totalRegistros !== 1 ? 's' : ''}
@@ -577,9 +577,9 @@ export default function ReportesScreen() {
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Original:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatFullCurrency(item.montoOriginal)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatFullCurrency(item.montoOriginal ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Saldo:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.error }]}>{formatFullCurrency(item.saldoPendiente)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.error }]}>{formatFullCurrency(item.saldoPendiente ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Tasa:</Text>
               <Text style={[styles.breakdownValue, { color: colors.text }]}>{item.tasaInteres}%</Text>
             </View>
@@ -610,8 +610,8 @@ export default function ReportesScreen() {
         {renderKpiRow([
           { label: 'Préstamos', value: String(clienteData.totalPrestamos), color: colors.primary, bg: colors.primaryLight },
           { label: 'Activos', value: String(clienteData.prestamosActivos), color: colors.success, bg: colors.successLight },
-          { label: 'Pagado', value: formatFullCurrency(clienteData.totalPagado), color: colors.secondary, bg: colors.secondaryLight },
-          { label: 'Saldo', value: formatFullCurrency(clienteData.totalSaldo), color: colors.error, bg: colors.errorLight },
+          { label: 'Pagado', value: formatFullCurrency(clienteData.totalPagado ?? 0), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Saldo', value: formatFullCurrency(clienteData.totalSaldo ?? 0), color: colors.error, bg: colors.errorLight },
         ])}
 
         {clienteData.prestamos.map((prestamo) => (
@@ -622,11 +622,11 @@ export default function ReportesScreen() {
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Monto:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatFullCurrency(prestamo.monto)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatFullCurrency(prestamo.monto ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Saldo:</Text>
-              <Text style={[styles.breakdownValue, { color: prestamo.saldo > 0 ? colors.error : colors.success }]}>{formatFullCurrency(prestamo.saldo)}</Text>
+              <Text style={[styles.breakdownValue, { color: (prestamo.saldo ?? 0) > 0 ? colors.error : colors.success }]}>{formatFullCurrency(prestamo.saldo ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Mora:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.warning }]}>{formatFullCurrency(prestamo.moraAcumulada)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.warning }]}>{formatFullCurrency(prestamo.moraAcumulada ?? 0)}</Text>
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cuotas:</Text>
@@ -651,7 +651,7 @@ export default function ReportesScreen() {
                 {prestamo.pagos.slice(0, 5).map((pago, i) => (
                   <View key={i} style={styles.pagoRow}>
                     <Text style={[styles.pagoFecha, { color: colors.textTertiary }]}>{formatFechaCorta(pago.fecha)}</Text>
-                    <Text style={[styles.pagoMonto, { color: colors.text }]}>{formatFullCurrency(pago.total)}</Text>
+                    <Text style={[styles.pagoMonto, { color: colors.text }]}>{formatFullCurrency(pago.total ?? 0)}</Text>
                     {renderMetodoBadge(pago.metodo)}
                   </View>
                 ))}
@@ -676,8 +676,8 @@ export default function ReportesScreen() {
     return (
       <View>
         {renderKpiRow([
-          { label: 'Cobrado', value: formatFullCurrency(r.totalCobrado), color: colors.primary, bg: colors.primaryLight },
-          { label: 'Efectivo', value: formatFullCurrency(r.totalEfectivo), color: colors.success, bg: colors.successLight },
+          { label: 'Cobrado', value: formatFullCurrency(r.totalCobrado ?? 0), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Efectivo', value: formatFullCurrency(r.totalEfectivo ?? 0), color: colors.success, bg: colors.successLight },
           { label: 'Pagos', value: String(r.cantidadPagos), color: colors.secondary, bg: colors.secondaryLight },
           { label: 'Cajas', value: String(r.cantidadCajas), color: colors.info, bg: colors.infoLight },
         ])}
@@ -698,7 +698,7 @@ export default function ReportesScreen() {
                     {u.cantidadPagos} pagos · {u.cajasCerradas} cierres
                   </Text>
                 </View>
-                <Text style={[styles.usuarioTotal, { color: colors.primary }]}>{formatFullCurrency(u.totalCobrado)}</Text>
+                <Text style={[styles.usuarioTotal, { color: colors.primary }]}>{formatFullCurrency(u.totalCobrado ?? 0)}</Text>
               </View>
             ))}
           </View>
@@ -719,7 +719,7 @@ export default function ReportesScreen() {
                 {formatFechaCorta(pago.fecha)} · {pago.cajero}
               </Text>
               <Text style={[styles.itemMonto, { color: colors.text }]}>
-                {formatFullCurrency(pago.total)}
+                {formatFullCurrency(pago.total ?? 0)}
               </Text>
             </View>
           </View>
@@ -735,13 +735,13 @@ export default function ReportesScreen() {
     return (
       <View>
         {renderKpiRow([
-          { label: 'Entradas', value: formatFullCurrency(flujoData.totalEntradas), color: colors.success, bg: colors.successLight },
-          { label: 'Salidas', value: formatFullCurrency(flujoData.totalSalidas), color: colors.error, bg: colors.errorLight },
-          { label: 'Neto', value: formatFullCurrency(flujoData.neto), color: flujoData.neto >= 0 ? colors.primary : colors.error, bg: flujoData.neto >= 0 ? colors.primaryLight : colors.errorLight },
+          { label: 'Entradas', value: formatFullCurrency(flujoData.totalEntradas ?? 0), color: colors.success, bg: colors.successLight },
+          { label: 'Salidas', value: formatFullCurrency(flujoData.totalSalidas ?? 0), color: colors.error, bg: colors.errorLight },
+          { label: 'Neto', value: formatFullCurrency(flujoData.neto ?? 0), color: (flujoData.neto ?? 0) >= 0 ? colors.primary : colors.error, bg: (flujoData.neto ?? 0) >= 0 ? colors.primaryLight : colors.errorLight },
         ])}
         {renderKpiRow([
-          { label: 'Pagos', value: formatFullCurrency(flujoData.desgloseEntradas.pagos), color: colors.secondary, bg: colors.secondaryLight },
-          { label: 'Desembolsos', value: formatFullCurrency(flujoData.desgloseSalidas.desembolsos), color: colors.warning, bg: colors.warningLight },
+          { label: 'Pagos', value: formatFullCurrency(flujoData.desgloseEntradas.pagos ?? 0), color: colors.secondary, bg: colors.secondaryLight },
+          { label: 'Desembolsos', value: formatFullCurrency(flujoData.desgloseSalidas.desembolsos ?? 0), color: colors.warning, bg: colors.warningLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
           {flujoData.porDia.length} día{flujoData.porDia.length !== 1 ? 's' : ''} con movimiento
@@ -753,10 +753,10 @@ export default function ReportesScreen() {
               <Badge label={d.neto >= 0 ? 'Positivo' : 'Negativo'} color={d.neto >= 0 ? colors.success : colors.error} bg={d.neto >= 0 ? colors.successLight : colors.errorLight} />
             </View>
             <View style={styles.itemBreakdown}>
-              <Text style={[styles.breakdownLabel, { color: colors.success }]}>+{formatCurrencyCompact(d.entradas)}</Text>
-              <Text style={[styles.breakdownLabel, { color: colors.error }]}>-{formatCurrencyCompact(d.salidas)}</Text>
-              <Text style={[styles.breakdownLabel, { color: d.neto >= 0 ? colors.primary : colors.error, fontWeight: '700' }]}>
-                = {formatCurrencyCompact(d.neto)}
+              <Text style={[styles.breakdownLabel, { color: colors.success }]}>+{formatCurrencyCompact(d.entradas ?? 0)}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.error }]}>-{formatCurrencyCompact(d.salidas ?? 0)}</Text>
+              <Text style={[styles.breakdownLabel, { color: (d.neto ?? 0) >= 0 ? colors.primary : colors.error, fontWeight: '700' }]}>
+                = {formatCurrencyCompact(d.neto ?? 0)}
               </Text>
             </View>
           </View>
@@ -772,9 +772,9 @@ export default function ReportesScreen() {
     return (
       <View>
         {renderKpiRow([
-          { label: 'Total cobrado', value: formatFullCurrency(desempenoData.totalCobrado), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Total cobrado', value: formatFullCurrency(desempenoData.totalCobrado ?? 0), color: colors.primary, bg: colors.primaryLight },
           { label: 'Pagos', value: String(desempenoData.cantidadPagos), color: colors.secondary, bg: colors.secondaryLight },
-          { label: 'Mora', value: formatFullCurrency(desempenoData.totalMora), color: colors.warning, bg: colors.warningLight },
+          { label: 'Mora', value: formatFullCurrency(desempenoData.totalMora ?? 0), color: colors.warning, bg: colors.warningLight },
           { label: 'Cobradores', value: String(desempenoData.cobradores.length), color: colors.info, bg: colors.infoLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
@@ -788,15 +788,15 @@ export default function ReportesScreen() {
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cobrado:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatFullCurrency(c.totalCobrado)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatFullCurrency(c.totalCobrado ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Días:</Text>
               <Text style={[styles.breakdownValue, { color: colors.text }]}>{c.diasActivos}</Text>
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Promedio/pago:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatCurrencyCompact(c.promedioPorPago)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatCurrencyCompact(c.promedioPorPago ?? 0)}</Text>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Promedio/día:</Text>
-              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatCurrencyCompact(c.promedioPorDia)}</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>{formatCurrencyCompact(c.promedioPorDia ?? 0)}</Text>
             </View>
           </View>
         ))}
@@ -813,7 +813,7 @@ export default function ReportesScreen() {
         {renderKpiRow([
           { label: 'Préstamos', value: String(proyeccionData.totalPrestamos), color: colors.primary, bg: colors.primaryLight },
           { label: 'Cuotas pend.', value: String(proyeccionData.totalCuotasPendientes), color: colors.secondary, bg: colors.secondaryLight },
-          { label: 'Monto total', value: formatFullCurrency(proyeccionData.totalMontoPendiente), color: colors.success, bg: colors.successLight },
+          { label: 'Monto total', value: formatFullCurrency(proyeccionData.totalMontoPendiente ?? 0), color: colors.success, bg: colors.successLight },
           { label: 'Vencidas', value: String(proyeccionData.totalVencidas), color: colors.error, bg: colors.errorLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>
@@ -832,7 +832,7 @@ export default function ReportesScreen() {
                 <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cuotas:</Text>
                 <Text style={[styles.breakdownValue, { color: colors.text }]}>{m.cantidadCuotas}</Text>
                 <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Total:</Text>
-                <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatFullCurrency(m.montoTotal)}</Text>
+                <Text style={[styles.breakdownValue, { color: colors.primary }]}>{formatFullCurrency(m.montoTotal ?? 0)}</Text>
               </View>
             </View>
           );

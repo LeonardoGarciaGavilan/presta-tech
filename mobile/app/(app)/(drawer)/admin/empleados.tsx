@@ -364,7 +364,7 @@ export default function EmpleadosScreen() {
       <View style={styles.cardInfo}>
         <View style={styles.cardTop}>
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>{item.nombre} {item.apellido}</Text>
-          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrencyCompact(item.salario)}</Text>
+          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrencyCompact(item.salario ?? 0)}</Text>
         </View>
         <Text style={[styles.cardSub, { color: colors.textSecondary }]} numberOfLines={1}>
           {item.cargo}{item.departamento ? ` · ${item.departamento}` : ''}
@@ -569,7 +569,7 @@ export default function EmpleadosScreen() {
           <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
             {item.empleado.nombre} {item.empleado.apellido}
           </Text>
-          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrencyCompact(item.salarioNeto)}</Text>
+          <Text style={[styles.cardAmount, { color: colors.primary }]}>{formatCurrencyCompact(item.salarioNeto ?? 0)}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' }}>
           <Text style={[styles.cardSub, { color: colors.textSecondary }]}>Período {item.periodo}</Text>
@@ -578,7 +578,7 @@ export default function EmpleadosScreen() {
           </View>
         </View>
         <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>
-          Bruto: {formatFullCurrency(item.salarioBruto)} · Desc: {formatFullCurrency(item.totalDescuentos)}
+          Bruto: {formatFullCurrency(item.salarioBruto ?? 0)} · Desc: {formatFullCurrency(item.totalDescuentos ?? 0)}
         </Text>
       </View>
     </View>
@@ -664,7 +664,7 @@ export default function EmpleadosScreen() {
                 <View style={[styles.badge, { backgroundColor: ESTADO_COLORS.TARDANZA + '18' }]}>
                   <Text style={[styles.badgeText, { color: ESTADO_COLORS.TARDANZA }]}>{TIPO_DESC_LABELS[item.tipo]}</Text>
                 </View>
-                <Text style={[styles.cardAmount, { color: colors.error }]}>{formatCurrencyCompact(item.monto)}</Text>
+                <Text style={[styles.cardAmount, { color: colors.error }]}>{formatCurrencyCompact(item.monto ?? 0)}</Text>
               </View>
               <Text style={[styles.cardSub, { color: colors.text }]}>{item.descripcion}</Text>
               <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>
@@ -799,7 +799,7 @@ export default function EmpleadosScreen() {
                     <View style={[styles.card, { backgroundColor: colors.primaryLight, marginBottom: Spacing.md, padding: Spacing.sm, borderRadius: BorderRadius.md }]}>
                       <Text style={[styles.cardTitle, { color: colors.primary }]}>{emp.nombre} {emp.apellido}</Text>
                       <Text style={[{ color: colors.primary, fontSize: FontSize.sm }]}>
-                        Salario: {formatFullCurrency(emp.salario)} · {FRECUENCIA_LABELS[emp.frecuenciaPago]}
+                        Salario: {formatFullCurrency(emp.salario ?? 0)} · {FRECUENCIA_LABELS[emp.frecuenciaPago]}
                       </Text>
                     </View>
                   );
@@ -821,7 +821,7 @@ export default function EmpleadosScreen() {
                           <Ionicons name={sel ? 'checkbox' : 'square-outline'} size={scale(20)} color={sel ? colors.primary : colors.textTertiary} />
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.cardSub, { color: colors.text }]}>{d.descripcion}</Text>
-                            <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>{TIPO_DESC_LABELS[d.tipo]} · {formatFullCurrency(d.monto)}</Text>
+                            <Text style={[styles.cardMeta, { color: colors.textTertiary }]}>{TIPO_DESC_LABELS[d.tipo]} · {formatFullCurrency(d.monto ?? 0)}</Text>
                           </View>
                         </TouchableOpacity>
                       );

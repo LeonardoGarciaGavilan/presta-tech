@@ -127,6 +127,14 @@ describe('formatCurrencyCompact', () => {
   it('formats zero', () => {
     expect(formatCurrencyCompact(0)).toBe('$0');
   });
+
+  it('handles null gracefully', () => {
+    expect(formatCurrencyCompact(null)).toBe('$0');
+  });
+
+  it('handles undefined gracefully', () => {
+    expect(formatCurrencyCompact(undefined)).toBe('$0');
+  });
 });
 
 describe('formatFullCurrency', () => {
@@ -140,6 +148,14 @@ describe('formatFullCurrency', () => {
 
   it('formats zero', () => {
     expect(formatFullCurrency(0)).toBe('$0.00');
+  });
+
+  it('handles null gracefully', () => {
+    expect(formatFullCurrency(null)).toBe('$0.00');
+  });
+
+  it('handles undefined gracefully', () => {
+    expect(formatFullCurrency(undefined)).toBe('$0.00');
   });
 });
 
