@@ -955,12 +955,22 @@ export class CapitalService {
   async getMovimientos(user: any, limite = 50) {
     this.assertAdmin(user);
 
-    return this.prisma.movimientoFinanciero.findMany({
+    const movimientos = await this.prisma.movimientoFinanciero.findMany({
       where: { empresaId: user.empresaId },
       orderBy: { fecha: 'desc' },
       take: limite,
       include: { usuario: { select: { nombre: true } } },
     });
+
+    // Convertir Decimal -> number en la frontera (defensa adicional a
+    // convertirDecimales, garantiza tipos numéricos al cliente).
+    return movimientos.map((mo) => ({
+      ...mo,
+      monto: m(mo.monto),
+      capital: m(mo.capital),
+      interes: m(mo.interes),
+      mora: m(mo.mora),
+    }));
   }
 
   // ─── VALIDAR BALANCE CONTABLE ─────────────────────────────────────────

@@ -17,11 +17,17 @@ const OPERACIONES_MULTI: ReadonlySet<string> = new Set([
 ]);
 
 function esDecimal(valor: unknown): valor is { toNumber: () => number } {
+  if (typeof valor !== 'object' || valor === null) return false;
+  const v = valor as Record<string, unknown>;
+  // Detecta Prisma.Decimal (decimal.js) por su estructura interna estable (d/e/s)
+  // en lugar de `constructor.name`, que cambia según la minificación y hace fallar
+  // la conversión a number en builds de producción.
   return (
-    typeof valor === 'object' &&
-    valor !== null &&
-    typeof (valor as any).toNumber === 'function' &&
-    (valor as any).constructor?.name === 'Decimal'
+    Array.isArray(v.d) &&
+    typeof v.e === 'number' &&
+    typeof v.s === 'number' &&
+    typeof v.toNumber === 'function' &&
+    typeof v.toFixed === 'function'
   );
 }
 
