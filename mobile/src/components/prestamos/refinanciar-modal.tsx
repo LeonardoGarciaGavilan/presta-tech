@@ -25,6 +25,7 @@ import {
   calcularAmortizacionRapidaLocal,
 } from '@/utils/amortizacion';
 import { formatCurrency } from '@/utils/formatters';
+import { m } from '@/utils/money';
 import type { FrecuenciaPago, Prestamo } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 
@@ -131,7 +132,7 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
   const saldoRefinanciado = useMemo(
     () =>
       Math.round(
-        cuotasPendientes.reduce((s, c) => s + c.capital + (c.mora || 0), 0) * 100,
+        cuotasPendientes.reduce((s, c) => s + m(c.capital) + m(c.mora), 0) * 100,
       ) / 100,
     [cuotasPendientes],
   );

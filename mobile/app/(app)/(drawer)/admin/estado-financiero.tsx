@@ -16,6 +16,7 @@ import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, formatTimeAgo } from '@/utils/formatters';
+import { m } from '@/utils/money';
 
 const MOVEMENT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   PAGO_RECIBIDO: 'cash',
@@ -84,8 +85,8 @@ export default function EstadoFinancieroScreen() {
   const patrimonioData = useMemo(() => {
     if (!dash) return [];
     return [
-      { label: 'Capital', value: dash.capital.total, color: PATRIMONIO_COLORS[0] },
-      { label: 'Ganancias', value: Math.max(0, dash.ganancias.netas), color: PATRIMONIO_COLORS[1] },
+      { label: 'Capital', value: m(dash.capital.total), color: PATRIMONIO_COLORS[0] },
+      { label: 'Ganancias', value: Math.max(0, m(dash.ganancias.netas)), color: PATRIMONIO_COLORS[1] },
     ];
   }, [dash]);
 
@@ -282,13 +283,13 @@ export default function EstadoFinancieroScreen() {
             <View style={styles.metricsRow}>
               <View style={[styles.metricChip, { backgroundColor: colors.primaryLight }]}>
                 <Text style={[styles.metricValue, { color: colors.primary }]}>
-                  {dash?.metricas.rentabilidad != null ? `${dash.metricas.rentabilidad.toFixed(1)}%` : 'N/A'}
+                  {dash?.metricas.rentabilidad != null ? `${m(dash.metricas.rentabilidad).toFixed(1)}%` : 'N/A'}
                 </Text>
                 <Text style={[styles.metricLabel, { color: colors.primary }]}>Rentabilidad</Text>
               </View>
               <View style={[styles.metricChip, { backgroundColor: colors.secondaryLight }]}>
                 <Text style={[styles.metricValue, { color: colors.secondary }]}>
-                  {dash?.metricas.eficienciaCobranza != null ? `${dash.metricas.eficienciaCobranza.toFixed(1)}%` : 'N/A'}
+                  {dash?.metricas.eficienciaCobranza != null ? `${m(dash.metricas.eficienciaCobranza).toFixed(1)}%` : 'N/A'}
                 </Text>
                 <Text style={[styles.metricLabel, { color: colors.secondary }]}>Eficiencia</Text>
               </View>
@@ -301,7 +302,7 @@ export default function EstadoFinancieroScreen() {
               <View style={[styles.metricChip, { backgroundColor: colors.infoLight }]}>
                 <Text style={[styles.metricValue, { color: colors.info }]}>
                   {dash?.metricas.crecimientoMensual != null
-                    ? `${dash.metricas.crecimientoMensual >= 0 ? '+' : ''}${dash.metricas.crecimientoMensual.toFixed(1)}%`
+                    ? `${m(dash.metricas.crecimientoMensual) >= 0 ? '+' : ''}${m(dash.metricas.crecimientoMensual).toFixed(1)}%`
                     : 'N/A'}
                 </Text>
                 <Text style={[styles.metricLabel, { color: colors.info }]}>Crecimiento</Text>

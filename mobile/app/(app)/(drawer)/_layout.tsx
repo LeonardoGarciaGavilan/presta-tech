@@ -3,7 +3,7 @@ import { Drawer } from 'expo-router/drawer';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { DrawerContentScrollView, type DrawerContentComponentProps } from '@react-navigation/drawer';
+import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/drawer';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';

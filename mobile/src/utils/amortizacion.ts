@@ -7,7 +7,7 @@ import type {
   RenovarPrestamoDto,
   TablaAmortizacion,
 } from "@/types/prestamo.types";
-import { roundMoney } from '@/utils/money';
+import { roundMoney, m } from '@/utils/money';
 
 export const DIAS_FRECUENCIA: Record<FrecuenciaPago, number> = {
   DIARIO: 1,
@@ -201,8 +201,8 @@ export function construirPrestamoRefinanciadoLocal(
 ): PrestamoRefinanciadoLocal {
   const cuotasActuales = prestamo.cuotas ?? [];
   const pendientes = cuotasActuales.filter((c) => !c.pagada);
-  const capitalPendiente = pendientes.reduce((sum, c) => sum + c.capital, 0);
-  const morasPendientes = pendientes.reduce((sum, c) => sum + (c.mora || 0), 0);
+  const capitalPendiente = pendientes.reduce((sum, c) => sum + m(c.capital), 0);
+  const morasPendientes = pendientes.reduce((sum, c) => sum + m(c.mora), 0);
   const saldoRefinanciado =
     roundMoney((capitalPendiente + morasPendientes));
 
@@ -323,12 +323,12 @@ export function calcularRenovacionLocal(
 
   const pendientes = (prestamo.cuotas ?? []).filter((c) => !c.pagada);
   const capital =
-    roundMoney(pendientes.reduce((s, c) => s + c.capital, 0));
+    roundMoney(pendientes.reduce((s, c) => s + m(c.capital), 0));
   const interes = incluirInteres
-    ? roundMoney(pendientes.reduce((s, c) => s + (c.interes || 0), 0))
+    ? roundMoney(pendientes.reduce((s, c) => s + m(c.interes), 0))
     : 0;
   const mora =
-    roundMoney(pendientes.reduce((s, c) => s + (c.mora || 0), 0));
+    roundMoney(pendientes.reduce((s, c) => s + m(c.mora), 0));
   const saldoAplicado = roundMoney((capital + interes + mora));
 
   const montoNuevo = roundMoney(dto.montoNuevo);

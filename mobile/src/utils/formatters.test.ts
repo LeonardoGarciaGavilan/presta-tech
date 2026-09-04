@@ -135,6 +135,15 @@ describe('formatCurrencyCompact', () => {
   it('handles undefined gracefully', () => {
     expect(formatCurrencyCompact(undefined)).toBe('$0');
   });
+
+  it('handles string values (backend Decimal) gracefully', () => {
+    expect(formatCurrencyCompact('25.00' as any)).toBe('$25');
+    expect(formatCurrencyCompact('1500' as any)).toBe('$1.5K');
+  });
+
+  it('handles NaN gracefully', () => {
+    expect(formatCurrencyCompact(Number.NaN as any)).toBe('$0');
+  });
 });
 
 describe('formatFullCurrency', () => {
@@ -156,6 +165,14 @@ describe('formatFullCurrency', () => {
 
   it('handles undefined gracefully', () => {
     expect(formatFullCurrency(undefined)).toBe('$0.00');
+  });
+
+  it('handles string values (backend Decimal) gracefully', () => {
+    expect(formatFullCurrency('25.00' as any)).toBe('$25.00');
+  });
+
+  it('handles NaN gracefully', () => {
+    expect(formatFullCurrency(Number.NaN as any)).toBe('$0.00');
   });
 });
 

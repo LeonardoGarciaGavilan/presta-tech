@@ -43,6 +43,7 @@ import {
   ACCIONES_FLOW_CONFIG,
 } from "@/constants/prestamos.constants";
 import { formatCurrency, formatDate, formatDateTime } from "@/utils/formatters";
+import { totalCuota } from "@/utils/money";
 import type { ApiError } from "@/types/api.types";
 import type {
   EstadoPrestamo,
@@ -855,7 +856,7 @@ export default function PrestamoDetalleScreen() {
               label="Próxima cuota"
               value={
                 proximaCuota
-                  ? `${formatCurrency(proximaCuota.monto + (proximaCuota.mora || 0))} — ${formatDate(proximaCuota.fechaVencimiento)}`
+                  ? `${formatCurrency(totalCuota(proximaCuota.monto, proximaCuota.mora))} — ${formatDate(proximaCuota.fechaVencimiento)}`
                   : "—"
               }
             />
@@ -1137,7 +1138,7 @@ export default function PrestamoDetalleScreen() {
                               { fontWeight: FontWeight.bold },
                             ]}
                           >
-                            {formatCurrency(c.monto + (c.mora || 0))}
+                            {formatCurrency(totalCuota(c.monto, c.mora))}
                           </Text>
                         </View>
                       </View>

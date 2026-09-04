@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { m } from '@/utils/money';
 import type { Prestamo } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePrestamoEstados } from '@/hooks/use-prestamo-estados';
@@ -14,11 +15,11 @@ interface PrestamoCardProps {
 }
 
 function calcularSaldoReal(prestamo: Prestamo): number {
-  if (prestamo.saldoPendiente > 0) return prestamo.saldoPendiente;
+  if (m(prestamo.saldoPendiente) > 0) return m(prestamo.saldoPendiente);
   if (prestamo.cuotas?.length) {
-    return prestamo.cuotas.reduce((sum, c) => sum + (c.monto || 0) + (c.mora || 0), 0);
+    return prestamo.cuotas.reduce((sum, c) => sum + m(c.monto) + m(c.mora), 0);
   }
-  return prestamo.saldoPendiente ?? 0;
+  return m(prestamo.saldoPendiente);
 }
 
 function formatFrecuencia(f: string | undefined): string {

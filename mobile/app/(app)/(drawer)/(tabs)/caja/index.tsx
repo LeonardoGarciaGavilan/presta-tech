@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View, Alert } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
+import ModalCerrarCaja from '@/components/caja/cerrar-caja-modal';
 
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
@@ -15,8 +16,7 @@ import { obtenerPago } from '@/api/pagos.api';
 import { useImprimirRecibo } from '@/hooks/use-imprimir-recibo';
 import { guardarReciboPDF, reciboPagoImprimible } from '@/utils/recibo-pdf';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
-import { formatCurrency, formatDateTime } from '@/utils/formatters';
-import type { CajaActivaResponse } from '@/types/caja.types';
+import { formatCurrency, formatDateTime, unformatIngresosInput } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
 function hoyStr() {
@@ -51,8 +51,6 @@ export default function CajaScreen() {
   const [showAbrirModal, setShowAbrirModal] = useState(false);
   const [montoInicial, setMontoInicial] = useState('');
   const [showCerrarModal, setShowCerrarModal] = useState(false);
-  const [montoCierre, setMontoCierre] = useState('');
-  const [observaciones, setObservaciones] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -65,7 +63,7 @@ export default function CajaScreen() {
   const resumen = cajaAbierta?.resumen;
 
   const handleAbrirCaja = useCallback(async () => {
-    const monto = parseFloat(montoInicial.replace(/[^0-9.]/g, '')) || 0;
+    const monto = parseFloat(unformatIngresosInput(montoInicial)) || 0;
     if (monto < 0) {
       showToast('El monto inicial debe ser mayor o igual a 0', 'error');
       return;
@@ -80,25 +78,22 @@ export default function CajaScreen() {
     }
   }, [montoInicial, fecha, abrirCajaFn, showToast]);
 
-  const handleCerrarCaja = useCallback(async () => {
+  const handleConfirmCierre = useCallback(async (datos: { monto: number; observaciones?: string }) => {
     if (!cajaAbierta) return;
     if (cajaAbierta.id.startsWith('caja_temp_')) {
+      setShowCerrarModal(false);
       Alert.alert(
         'Caja sin sincronizar',
         'Debes sincronizar la apertura de caja antes de cerrarla. Ve a Sincronización y presiona "Sincronizar ahora".',
       );
-      setShowCerrarModal(false);
       return;
     }
-    const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
     try {
       const result = await cerrarCajaFn({
         id: cajaAbierta.id,
-        dto: { montoCierre: monto, observaciones: observaciones || undefined },
+        dto: { montoCierre: datos.monto, observaciones: datos.observaciones },
       });
       setShowCerrarModal(false);
-      setMontoCierre('');
-      setObservaciones('');
       if (result.diferencia === 0) {
         showToast('Caja cerrada — ¡Cuadrada!', 'success');
       } else {
@@ -108,7 +103,8 @@ export default function CajaScreen() {
     } catch (err: any) {
       showToast(err?.message || 'Error al cerrar caja', 'error');
     }
-  }, [cajaAbierta, montoCierre, observaciones, cerrarCajaFn, showToast]);
+  }, [cajaAbierta, cerrarCajaFn, showToast]);
+
 
   const handleReimprimir = useCallback(async (pagoId: string) => {
     try {
@@ -203,14 +199,17 @@ export default function CajaScreen() {
         {cajaAbierta && (
           <>
             {/* Estado banner */}
-            <View style={[styles.banner, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}>
-              <Ionicons name="checkmark-circle" size={scale(20)} color="#16A34A" />
+            <View style={[styles.banner, { backgroundColor: colors.successLight, borderColor: colors.success }]}>
+              <Ionicons name="checkmark-circle" size={scale(20)} color={colors.success} />
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: '#16A34A' }}>
+                <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.success }}>
                   Caja abierta
                 </Text>
-                <Text style={{ fontSize: FontSize.xs, color: '#16A34A' }}>
+                <Text style={{ fontSize: FontSize.xs, color: colors.success }}>
                   Inicial: {formatCurrency(cajaAbierta.montoInicial)}
+                  {cajaAbierta.createdAt
+                    ? ` · Apertura ${new Date(cajaAbierta.createdAt).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}`
+                    : ''}
                 </Text>
               </View>
             </View>
@@ -218,16 +217,16 @@ export default function CajaScreen() {
             {/* Resumen cards */}
             <View style={styles.resumenGrid}>
               <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`Cobrado hoy: ${formatCurrency(resumen?.totalCobrado || 0)}`}>
-                <Text style={[styles.resumenValue, { color: colors.primary }]}>{formatCurrency(resumen?.totalCobrado || 0)}</Text>
-                <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>Cobrado hoy</Text>
+                <Text style={[styles.resumenValue, { color: colors.success }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{formatCurrency(resumen?.totalCobrado || 0)}</Text>
+                <Text style={[styles.resumenLabel, { color: colors.textSecondary }]}>Cobrado hoy</Text>
               </View>
               <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`${resumen?.cantidadPagos || 0} pagos`}>
-                <Text style={[styles.resumenValue, { color: colors.text }]}>{resumen?.cantidadPagos || 0}</Text>
-                <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>Pagos</Text>
+                <Text style={[styles.resumenValue, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{resumen?.cantidadPagos || 0}</Text>
+                <Text style={[styles.resumenLabel, { color: colors.textSecondary }]}>Pagos</Text>
               </View>
-              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`Efectivo en caja: ${formatCurrency(resumen?.efectivoEnCaja || 0)}`}>
-                <Text style={[styles.resumenValue, { color: colors.warning }]}>{formatCurrency(resumen?.efectivoEnCaja || 0)}</Text>
-                <Text style={[styles.resumenLabel, { color: colors.textTertiary }]}>Efectivo en caja</Text>
+              <View style={[styles.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="text" accessibilityLabel={`Efectivo esperado: ${formatCurrency(resumen?.efectivoEnCaja || 0)}`}>
+                <Text style={[styles.resumenValue, { color: colors.success }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{formatCurrency(resumen?.efectivoEnCaja || 0)}</Text>
+                <Text style={[styles.resumenLabel, { color: colors.textSecondary }]}>Efectivo esperado</Text>
               </View>
             </View>
 
@@ -295,16 +294,16 @@ export default function CajaScreen() {
 
               <Pressable
                 onPress={() => setShowCerrarModal(true)}
-                style={[styles.navButton, { backgroundColor: colors.surface, borderColor: '#FCA5A5' }]}
+                style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.error }]}
                 accessibilityRole="button"
                 accessibilityLabel="Cerrar caja"
               >
-                <View style={[styles.navIcon, { backgroundColor: '#FEF2F2' }]}>
-                  <Ionicons name="lock-closed" size={scale(22)} color="#DC2626" />
+                <View style={[styles.navIcon, { backgroundColor: colors.errorLight }]}>
+                  <Ionicons name="lock-closed" size={scale(22)} color={colors.error} />
                 </View>
                 <Text style={[styles.navButtonText, { color: colors.text }]}>Cerrar Caja</Text>
                 <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Finalizar jornada</Text>
-                <Ionicons name="chevron-forward" size={scale(18)} color="#DC2626" />
+                <Ionicons name="chevron-forward" size={scale(18)} color={colors.error} />
               </Pressable>
             </View>
           </>
@@ -354,7 +353,7 @@ export default function CajaScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: '#16A34A' }]}>
+              <View style={[styles.modalHeaderBar, { backgroundColor: colors.success }]}>
                 <Ionicons name="add-circle" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Abrir Caja</Text>
               </View>
@@ -367,6 +366,7 @@ export default function CajaScreen() {
                   value={montoInicial}
                   onChangeText={setMontoInicial}
                   placeholder="0.00"
+                  format="currency"
                   keyboardType="decimal-pad"
                   prefix="RD$"
                 />
@@ -381,78 +381,26 @@ export default function CajaScreen() {
       </Modal>
 
       {/* Modal Cerrar Caja */}
-      <Modal visible={showCerrarModal} transparent animationType="fade" onRequestClose={() => setShowCerrarModal(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
-                <Ionicons name="lock-closed" size={scale(22)} color="#FFFFFF" />
-                <Text style={styles.modalTitle}>Cerrar Caja</Text>
-              </View>
-              <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-                {cajaAbierta && resumen && (
-                  <View style={[styles.summaryBox, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Monto inicial</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text }}>
-                        {formatCurrency(cajaAbierta.montoInicial)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Cobros en efectivo</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text }}>
-                        {formatCurrency(resumen.totalEfectivo)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Desembolsos</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.error }}>
-                        -{formatCurrency(resumen.totalDesembolsado)}
-                      </Text>
-                    </View>
-                    <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.text }}>Efectivo esperado</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.text }}>
-                        {formatCurrency(resumen.efectivoEnCaja)}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-                <AppInput
-                  label="Monto real en caja (RD$)"
-                  value={montoCierre}
-                  onChangeText={setMontoCierre}
-                  placeholder="0.00"
-                  keyboardType="decimal-pad"
-                  prefix="RD$"
-                />
-                <AppInput
-                  label="Observaciones (opcional)"
-                  value={observaciones}
-                  onChangeText={setObservaciones}
-                  placeholder="Notas del cierre..."
-                />
-                <View style={styles.modalActions}>
-                  <AppButton
-                    title="Cancelar"
-                    onPress={() => { setShowCerrarModal(false); setMontoCierre(''); setObservaciones(''); }}
-                    variant="ghost"
-                    style={{ flex: 1 }}
-                  />
-                  <AppButton
-                    title="Cerrar Caja"
-                    onPress={handleCerrarCaja}
-                    loading={cerrando}
-                    disabled={!montoCierre}
-                    variant="danger"
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ModalCerrarCaja
+        visible={showCerrarModal}
+        onClose={() => setShowCerrarModal(false)}
+        onConfirm={handleConfirmCierre}
+        confirmando={cerrando}
+        esperado={resumen?.efectivoEnCaja ?? 0}
+        filas={
+          cajaAbierta && resumen
+            ? [
+                { label: 'Monto inicial', valor: formatCurrency(cajaAbierta.montoInicial) },
+                { label: 'Cobros en efectivo', valor: formatCurrency(resumen.totalEfectivo) },
+                {
+                  label: 'Desembolsos',
+                  valor: `-${formatCurrency(resumen.totalDesembolsado)}`,
+                  color: colors.error,
+                },
+              ]
+            : undefined
+        }
+      />
     </ScreenContainer>
   );
 }
@@ -569,15 +517,4 @@ const styles = {
   modalBody: { padding: Spacing.md },
   modalLabel: { fontSize: FontSize.sm, marginBottom: Spacing.md },
   modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as AppStyles,
-  summaryBox: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  } as AppStyles,
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: scale(2),
-  } as AppStyles,
 };

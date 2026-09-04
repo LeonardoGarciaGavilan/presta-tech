@@ -1,17 +1,17 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { PageHeader } from '@/components/ui/page-header';
-import { AppButton } from '@/components/ui/app-button';
-import { AppInput } from '@/components/ui/app-input';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import DetalleSesionModal from '@/components/caja/detalle-sesion-modal';
+import ModalCerrarCaja from '@/components/caja/cerrar-caja-modal';
 import { useToast } from '@/components/ui/toast';
 import { useCajas, useCerrarCaja } from '@/hooks/use-caja';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { m } from '@/utils/money';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 
@@ -34,25 +34,25 @@ function calcularRiesgo(caja: any): CajaConRiesgo {
   } else if (horasAbierta > 8) {
     razones.push(`Abierta >8h (${Math.round(horasAbierta)}h)`);
   }
-  const ingresos = caja.ingresosCalc ?? 0;
+  const ingresos = m(caja.ingresosCalc);
   if (ingresos === 0 && horasAbierta > 4) {
     razones.push('Sin movimientos >4h');
   }
-  if (ingresos < caja.montoInicial * 0.05 && horasAbierta > 2 && caja.montoInicial > 0) {
+  if (ingresos < m(caja.montoInicial) * 0.05 && horasAbierta > 2 && m(caja.montoInicial) > 0) {
     razones.push('Baja productividad');
   }
   const nivel: RiskLevel = razones.some((r) => r.includes('>12h')) ? 'critico' : razones.length > 0 ? 'alerta' : 'normal';
   return { caja, nivel, razones, horasAbierta };
 }
 
-function riskConfig(nivel: RiskLevel) {
+function riskConfig(nivel: RiskLevel, colors: any) {
   switch (nivel) {
     case 'critico':
-      return { label: 'Crítico', color: '#DC2626', bg: '#FEF2F2', icon: 'alert-circle' as const };
+      return { label: 'Crítico', color: colors.error, bg: colors.errorLight, icon: 'alert-circle' as const };
     case 'alerta':
-      return { label: 'Alerta', color: '#D97706', bg: '#FFFBEB', icon: 'warning-outline' as const };
+      return { label: 'Alerta', color: colors.warning, bg: colors.warningLight, icon: 'warning-outline' as const };
     default:
-      return { label: 'Normal', color: '#16A34A', bg: '#F0FDF4', icon: 'checkmark-circle' as const };
+      return { label: 'Normal', color: colors.success, bg: colors.successLight, icon: 'checkmark-circle' as const };
   }
 }
 
@@ -71,8 +71,6 @@ export default function CajasActivasScreen() {
   const { mutateAsync: cerrarCajaFn, isPending: cerrando } = useCerrarCaja();
   const [selectedCaja, setSelectedCaja] = useState<any>(null);
   const [closeTarget, setCloseTarget] = useState<any>(null);
-  const [montoCierre, setMontoCierre] = useState('');
-  const [observaciones, setObservaciones] = useState('');
 
   const cajasConRiesgo: CajaConRiesgo[] = useMemo(() => {
     if (!cajas) return [];
@@ -83,10 +81,10 @@ export default function CajasActivasScreen() {
 
   const kpis = useMemo(() => {
     if (!cajas || cajas.length === 0) return null;
-    const totalInicial = cajas.reduce((s: number, c: any) => s + (c.montoInicial ?? 0), 0);
-    const totalEsperado = cajas.reduce((s: number, c: any) => s + (c.esperadoCalc ?? 0), 0);
-    const totalIngresos = cajas.reduce((s: number, c: any) => s + (c.ingresosCalc ?? 0), 0);
-    const totalEgresos = cajas.reduce((s: number, c: any) => s + (c.egresosCalc ?? 0), 0);
+    const totalInicial = cajas.reduce((s: number, c: any) => s + m(c.montoInicial), 0);
+    const totalEsperado = cajas.reduce((s: number, c: any) => s + m(c.esperadoCalc), 0);
+    const totalIngresos = cajas.reduce((s: number, c: any) => s + m(c.ingresosCalc), 0);
+    const totalEgresos = cajas.reduce((s: number, c: any) => s + m(c.egresosCalc), 0);
     return { totalInicial, totalEsperado, totalIngresos, totalEgresos, total: cajas.length };
   }, [cajas]);
 
@@ -98,17 +96,14 @@ export default function CajasActivasScreen() {
     setSelectedCaja(null);
   }, []);
 
-  const handleCerrar = useCallback(async () => {
+  const handleCerrar = useCallback(async (datos: { monto: number; observaciones?: string }) => {
     if (!closeTarget) return;
-    const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
     try {
       const result = await cerrarCajaFn({
         id: closeTarget.id,
-        dto: { montoCierre: monto, observaciones: observaciones || undefined },
+        dto: { montoCierre: datos.monto, observaciones: datos.observaciones },
       });
       setCloseTarget(null);
-      setMontoCierre('');
-      setObservaciones('');
       const r = result as any;
       if (r.esOffline) {
         showToast('Cierre encolado — se sincronizará cuando vuelva la conexión', 'info');
@@ -121,24 +116,18 @@ export default function CajasActivasScreen() {
     } catch (err: any) {
       showToast(err?.message || 'Error al cerrar caja', 'error');
     }
-  }, [closeTarget, montoCierre, observaciones, cerrarCajaFn, showToast]);
-
-  function formatHour(iso: string) {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
-  }
+  }, [closeTarget, cerrarCajaFn, showToast]);
 
   const renderCard = useCallback(
     ({ item }: { item: CajaConRiesgo }) => {
       const { caja, nivel, razones, horasAbierta } = item;
-      const cfg = riskConfig(nivel);
+      const cfg = riskConfig(nivel, colors);
       return (
         <Pressable
           onPress={() => handleDetalle(caja)}
           style={[
             styles.card,
-            { backgroundColor: colors.surface, borderColor: nivel === 'critico' ? '#FCA5A5' : colors.border },
+            { backgroundColor: colors.surface, borderColor: nivel === 'critico' ? colors.error : colors.border },
           ]}
         >
           <View style={styles.cardHeader}>
@@ -156,8 +145,8 @@ export default function CajasActivasScreen() {
                 {formatDate(caja.fecha)} · {formatHoras(horasAbierta)}
               </Text>
             </View>
-            <View style={[styles.openBadge, { backgroundColor: '#F0FDF4' }]}>
-              <Text style={styles.openBadgeText}>Abierta</Text>
+            <View style={[styles.openBadge, { backgroundColor: colors.successLight }]}>
+              <Text style={[styles.openBadgeText, { color: colors.success }]}>Abierta</Text>
             </View>
           </View>
 
@@ -216,8 +205,6 @@ export default function CajasActivasScreen() {
               onPress={(e) => {
                 e.stopPropagation?.();
                 setCloseTarget(caja);
-                setMontoCierre('');
-                setObservaciones('');
               }}
               style={[styles.cerrarButton, { borderColor: colors.border }]}
             >
@@ -243,25 +230,25 @@ export default function CajasActivasScreen() {
           <View style={styles.kpiGrid}>
             <View style={styles.kpiItem}>
               <Text style={[styles.kpiValue, { color: colors.primary }]}>{kpis.total}</Text>
-              <Text style={[styles.kpiLabel, { color: colors.textTertiary }]}>Activas</Text>
+              <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>Activas</Text>
             </View>
             <View style={styles.kpiItem}>
               <Text style={[styles.kpiValue, { color: colors.text }]}>
                 {formatCurrency(kpis.totalInicial)}
               </Text>
-              <Text style={[styles.kpiLabel, { color: colors.textTertiary }]}>Inicial total</Text>
+              <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>Inicial total</Text>
             </View>
             <View style={styles.kpiItem}>
-              <Text style={[styles.kpiValue, { color: colors.primary }]}>
+              <Text style={[styles.kpiValue, { color: colors.success }]}>
                 {formatCurrency(kpis.totalIngresos)}
               </Text>
-              <Text style={[styles.kpiLabel, { color: colors.textTertiary }]}>Cobrado total</Text>
+              <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>Cobrado total</Text>
             </View>
           </View>
           <View style={[styles.kpiDivider, { backgroundColor: colors.borderLight }]} />
           <View style={styles.kpiTotals}>
-            <Text style={[styles.kpiTotalLabel, { color: colors.textTertiary }]}>Esperado total</Text>
-            <Text style={[styles.kpiTotalValue, { color: colors.text }]}>
+            <Text style={[styles.kpiTotalLabel, { color: colors.textSecondary }]}>Esperado total</Text>
+            <Text style={[styles.kpiTotalValue, { color: colors.success }]}>
               {formatCurrency(kpis.totalEsperado)}
             </Text>
           </View>
@@ -303,134 +290,32 @@ export default function CajasActivasScreen() {
       />
 
       {/* Modal Cerrar desde supervisión */}
-      <Modal
+      <ModalCerrarCaja
         visible={!!closeTarget}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCloseTarget(null)}
-      >
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
-                <Ionicons name="lock-closed" size={scale(22)} color="#FFFFFF" />
-                <Text style={styles.modalTitle}>Cerrar Caja</Text>
-              </View>
-              <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-                {closeTarget && (
-                  <View style={[styles.summaryBox, { backgroundColor: colors.borderLight, borderColor: colors.border }]}>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Cajero</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text }}>
-                        {closeTarget.usuario?.nombre || '—'}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Monto inicial</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text }}>
-                        {formatCurrency(closeTarget.montoInicial)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Cobrado</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.primary }}>
-                        {formatCurrency(closeTarget.ingresosCalc ?? 0)}
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <Text style={{ fontSize: FontSize.xs, color: colors.textTertiary }}>Egresos</Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.error }}>
-                        -{formatCurrency(closeTarget.egresosCalc ?? 0)}
-                      </Text>
-                    </View>
-                    <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.text }}>
-                        Efectivo esperado
-                      </Text>
-                      <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.text }}>
-                        {formatCurrency(closeTarget.esperadoCalc ?? 0)}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-                <AppInput
-                  label="Monto real en caja (RD$)"
-                  value={montoCierre}
-                  onChangeText={setMontoCierre}
-                  placeholder="0.00"
-                  keyboardType="decimal-pad"
-                  prefix="RD$"
-                />
-                {montoCierre && closeTarget && (
-                  <View style={[styles.diferenciaPreview, {
-                    backgroundColor: (() => {
-                      const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
-                      const esperado = closeTarget.esperadoCalc ?? 0;
-                      const dif = monto - esperado;
-                      return dif === 0 ? '#F0FDF4' : '#FEF2F2';
-                    })(),
-                  }]}>
-                    <Ionicons
-                      name={(() => {
-                        const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
-                        const esperado = closeTarget.esperadoCalc ?? 0;
-                        const dif = monto - esperado;
-                        return dif === 0 ? 'checkmark-circle' : 'alert-circle';
-                      })()}
-                      size={scale(16)}
-                      color={(() => {
-                        const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
-                        const esperado = closeTarget.esperadoCalc ?? 0;
-                        const dif = monto - esperado;
-                        return dif === 0 ? '#16A34A' : '#DC2626';
-                      })()}
-                    />
-                    <Text style={{
-                      fontSize: FontSize.xs,
-                      fontWeight: FontWeight.semibold,
-                      color: (() => {
-                        const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
-                        const esperado = closeTarget.esperadoCalc ?? 0;
-                        const dif = monto - esperado;
-                        return dif === 0 ? '#16A34A' : '#DC2626';
-                      })(),
-                    }}>
-                      {(() => {
-                        const monto = parseFloat(montoCierre.replace(/[^0-9.]/g, '')) || 0;
-                        const esperado = closeTarget.esperadoCalc ?? 0;
-                        const dif = monto - esperado;
-                        return dif === 0 ? '✅ Cuadrada' : `Diferencia: ${formatCurrency(dif)}`;
-                      })()}
-                    </Text>
-                  </View>
-                )}
-                <AppInput
-                  label="Observaciones (opcional)"
-                  value={observaciones}
-                  onChangeText={setObservaciones}
-                  placeholder="Notas del cierre..."
-                />
-                <View style={styles.modalActions}>
-                  <AppButton
-                    title="Cancelar"
-                    onPress={() => { setCloseTarget(null); setMontoCierre(''); setObservaciones(''); }}
-                    variant="ghost"
-                    style={{ flex: 1 }}
-                  />
-                  <AppButton
-                    title="Cerrar Caja"
-                    onPress={handleCerrar}
-                    loading={cerrando}
-                    disabled={!montoCierre}
-                    variant="danger"
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              </ScrollView>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        onClose={() => setCloseTarget(null)}
+        onConfirm={handleCerrar}
+        confirmando={cerrando}
+        cabecera={closeTarget?.usuario?.nombre || undefined}
+        esperado={closeTarget?.esperadoCalc ?? 0}
+        filas={
+          closeTarget
+            ? [
+                { label: 'Cajero', valor: closeTarget.usuario?.nombre || '—' },
+                { label: 'Monto inicial', valor: formatCurrency(closeTarget.montoInicial) },
+                {
+                  label: 'Cobrado',
+                  valor: formatCurrency(closeTarget.ingresosCalc ?? 0),
+                  color: colors.primary,
+                },
+                {
+                  label: 'Egresos',
+                  valor: `-${formatCurrency(closeTarget.egresosCalc ?? 0)}`,
+                  color: colors.error,
+                },
+              ]
+            : undefined
+        }
+      />
     </ScreenContainer>
   );
 }
@@ -463,7 +348,7 @@ const styles = {
     paddingVertical: scale(2),
     borderRadius: BorderRadius.sm,
   } as AppStyles,
-  openBadgeText: { fontSize: scale(10), fontWeight: FontWeight.bold, color: '#16A34A' },
+  openBadgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
   razonesBox: {
     borderRadius: BorderRadius.sm,
     padding: Spacing.xs,
@@ -534,44 +419,4 @@ const styles = {
   } as AppStyles,
   kpiTotalLabel: { fontSize: FontSize.xs },
   kpiTotalValue: { fontSize: FontSize.sm, fontWeight: FontWeight.bold },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  } as AppStyles,
-  modalCard: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-  } as AppStyles,
-  modalHeaderBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-  } as AppStyles,
-  modalTitle: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.bold },
-  modalBody: { padding: Spacing.md },
-  modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as AppStyles,
-  summaryBox: {
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  } as AppStyles,
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: scale(2),
-  } as AppStyles,
-  diferenciaPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    marginBottom: Spacing.md,
-  } as AppStyles,
 } as const;

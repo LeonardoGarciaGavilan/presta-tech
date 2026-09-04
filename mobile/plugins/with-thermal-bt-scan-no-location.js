@@ -3,7 +3,7 @@
  * escaneo de impresoras Bluetooth Classic funcione en Android 12+ sin
  * depender del permiso de ubicación (ACCESS_FINE_LOCATION) ni del GPS.
  */
-const { createRunOncePlugin, withAndroidManifest } = require('@expo/config-plugins');
+const { createRunOncePlugin, withAndroidManifest } = require('expo/config-plugins');
 
 const BLUETOOTH_SCAN = 'android.permission.BLUETOOTH_SCAN';
 

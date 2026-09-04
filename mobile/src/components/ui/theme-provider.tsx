@@ -23,7 +23,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   const effectiveColorScheme =
-    themeMode === 'system' ? (systemScheme ?? 'light') : themeMode;
+    themeMode === 'system'
+      ? systemScheme === 'dark'
+        ? 'dark'
+        : 'light'
+      : themeMode;
 
   const colors = Colors[effectiveColorScheme];
 

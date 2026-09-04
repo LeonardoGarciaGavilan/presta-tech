@@ -15,6 +15,7 @@ import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
+import { totalCuota } from '@/utils/money';
 import type { ClienteVistaDia } from '@/types/rutas.types';
 
 type PagoMetodo = 'EFECTIVO' | 'TRANSFERENCIA' | 'TARJETA' | 'CHEQUE';
@@ -39,8 +40,8 @@ export default function CobroRapidoModal({
   const [pagoRef, setPagoRef] = useState('');
 
   const cuotaACobrar = cliente?.prestamos?.[0]?.proximaCuota ?? null;
-  const totalCuota = cuotaACobrar
-    ? Math.round((cuotaACobrar.monto + (cuotaACobrar.mora || 0)) * 100) / 100
+  const totalCobrar = cuotaACobrar
+    ? totalCuota(cuotaACobrar.monto, cuotaACobrar.mora)
     : 0;
 
   const handleConfirm = () => {
@@ -97,7 +98,7 @@ export default function CobroRapidoModal({
                       </Text>
                       <View>
                         <Text style={[styles.cobroCuotaMonto, { color: colors.text }]}>
-                          RD$ {formatCurrency(totalCuota)}
+                          RD$ {formatCurrency(totalCobrar)}
                         </Text>
                         {cuotaACobrar.mora > 0 && (
                           <Text style={[styles.cobroCuotaMora, { color: colors.error }]}>
@@ -114,7 +115,7 @@ export default function CobroRapidoModal({
                     Total a cobrar
                   </Text>
                   <Text style={[styles.cobroTotalAmount, { color: colors.primary }]}>
-                    RD$ {formatCurrency(totalCuota)}
+                    RD$ {formatCurrency(totalCobrar)}
                   </Text>
                 </View>
 
@@ -176,7 +177,7 @@ export default function CobroRapidoModal({
                   <AppButton
                     title="Cobrar"
                     loading={loading}
-                    disabled={!totalCuota}
+                    disabled={!totalCobrar}
                     onPress={handleConfirm}
                     icon="cash-outline"
                   />

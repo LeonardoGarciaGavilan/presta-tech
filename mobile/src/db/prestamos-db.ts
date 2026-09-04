@@ -2,7 +2,7 @@ import { eq, like, or, sql, inArray } from 'drizzle-orm';
 import { db } from './index';
 import { prestamos, cuotas, clientes } from './schema';
 import { upsertPagos } from './pagos-db';
-import { roundMoney, toCents, fromCents } from '@/utils/money';
+import { roundMoney, toCents, fromCents, m } from '@/utils/money';
 import type { Prestamo, Cuota } from '@/types/prestamo.types';
 
 function rowToPrestamo(
@@ -434,11 +434,11 @@ export function aplicarPagoLocal(
   const actualizadas = [...map.values()].filter((c) => !c.pagada);
   const nuevoSaldo = Math.max(
     0,
-    roundMoney(actualizadas.reduce((s, c) => s + c.capital + c.interes + (c.mora || 0), 0)),
+    roundMoney(actualizadas.reduce((s, c) => s + m(c.capital) + m(c.interes) + m(c.mora), 0)),
   );
   const nuevaMoraAcumulada = Math.max(
     0,
-    roundMoney(actualizadas.reduce((s, c) => s + (c.mora || 0), 0)),
+    roundMoney(actualizadas.reduce((s, c) => s + m(c.mora), 0)),
   );
 
   // Cargamos solo la fila del préstamo (y su cliente) sin las cuotas: evita la

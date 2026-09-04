@@ -38,13 +38,19 @@ const MOVIMIENTO_CONFIG: Record<TipoMovimiento, { label: string; icon: keyof typ
   CORRECCION: { label: 'Corrección', icon: 'swap-horizontal-outline' },
 };
 
-function getTipoColor(tipo: TipoMovimiento): string {
+function getTipoColor(tipo: TipoMovimiento, colors: any): string {
   const ingresos: TipoMovimiento[] = ['PAGO_RECIBIDO', 'INYECCION_CAPITAL', 'AJUSTE_CAJA', 'CORRECCION'];
   const egresos: TipoMovimiento[] = ['DESEMBOLSO', 'GASTO', 'RETIRO_GANANCIAS'];
-  if (tipo === 'APERTURA_CAJA') return '#16A34A';
-  if (ingresos.includes(tipo)) return '#16A34A';
-  if (egresos.includes(tipo)) return '#DC2626';
-  return '#6B7280';
+  if (tipo === 'APERTURA_CAJA') return colors.success;
+  if (ingresos.includes(tipo)) return colors.success;
+  if (egresos.includes(tipo)) return colors.error;
+  return colors.textTertiary;
+}
+
+function getDifColor(diferencia: number | null, colors: any): string {
+  if (diferencia == null) return colors.textTertiary;
+  if (diferencia === 0) return colors.success;
+  return diferencia > 0 ? colors.warning : colors.error;
 }
 
 function formatHour(iso: string) {
@@ -71,7 +77,7 @@ function ReconstruccionCard({
   data: Reconstruccion;
   colors: any;
 }) {
-  const difColor = data.diferencia === 0 ? '#16A34A' : '#DC2626';
+  const difColor = getDifColor(data.diferencia, colors);
   return (
     <View style={[s.reconstruccionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text style={[s.sectionTitle, { color: colors.text }]}>Reconstrucción</Text>
@@ -81,11 +87,11 @@ function ReconstruccionCard({
       </View>
       <View style={s.reconRow}>
         <Text style={[s.reconLabel, { color: colors.textTertiary }]}>+ Ingresos</Text>
-        <Text style={[s.reconValue, { color: '#16A34A' }]}>+{formatCurrency(data.ingresos)}</Text>
+        <Text style={[s.reconValue, { color: colors.success }]}>+{formatCurrency(data.ingresos)}</Text>
       </View>
       <View style={s.reconRow}>
         <Text style={[s.reconLabel, { color: colors.textTertiary }]}>- Egresos</Text>
-        <Text style={[s.reconValue, { color: '#DC2626' }]}>-{formatCurrency(data.egresos)}</Text>
+        <Text style={[s.reconValue, { color: colors.error }]}>-{formatCurrency(data.egresos)}</Text>
       </View>
       <View style={[s.reconDivider, { backgroundColor: colors.border }]} />
       <View style={s.reconRow}>
@@ -149,10 +155,10 @@ export default function DetalleSesionModal({ visible, cajaId, caja, onClose }: P
   );
 
   function getEstadoColor(estado: string) {
-    return estado === 'ABIERTA' ? '#16A34A' : colors.textTertiary;
+    return estado === 'ABIERTA' ? colors.success : colors.textTertiary;
   }
   function getEstadoBg(estado: string) {
-    return estado === 'ABIERTA' ? '#F0FDF4' : colors.borderLight;
+    return estado === 'ABIERTA' ? colors.successLight : colors.borderLight;
   }
 
   return (
@@ -317,14 +323,7 @@ function ResumenTab({
               <Text
                 style={[
                   s.infoValue,
-                  {
-                    color:
-                      caja.diferencia === 0
-                        ? '#16A34A'
-                        : caja.diferencia > 0
-                          ? '#D97706'
-                          : '#DC2626',
-                  },
+                  { color: getDifColor(caja.diferencia, colors) },
                 ]}
               >
                 {caja.diferencia === 0
@@ -347,22 +346,22 @@ function ResumenTab({
       {/* Resumen cards */}
       <View style={s.resumenGrid}>
         <View style={[s.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[s.resumenValue, { color: colors.primary }]}>
+          <Text style={[s.resumenValue, { color: colors.success }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {formatCurrency(resumenData.resumen?.totalCobrado || 0)}
           </Text>
-          <Text style={[s.resumenLabel, { color: colors.textTertiary }]}>Cobrado</Text>
+          <Text style={[s.resumenLabel, { color: colors.textSecondary }]}>Cobrado</Text>
         </View>
         <View style={[s.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[s.resumenValue, { color: colors.text }]}>
+          <Text style={[s.resumenValue, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {resumenData.resumen?.cantidadPagos || 0}
           </Text>
-          <Text style={[s.resumenLabel, { color: colors.textTertiary }]}>Pagos</Text>
+          <Text style={[s.resumenLabel, { color: colors.textSecondary }]}>Pagos</Text>
         </View>
         <View style={[s.resumenCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[s.resumenValue, { color: colors.warning }]}>
+          <Text style={[s.resumenValue, { color: colors.success }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {formatCurrency(resumenData.resumen?.efectivoSistema || 0)}
           </Text>
-          <Text style={[s.resumenLabel, { color: colors.textTertiary }]}>Efectivo sis.</Text>
+          <Text style={[s.resumenLabel, { color: colors.textSecondary }]}>Efectivo sis.</Text>
         </View>
       </View>
 
@@ -469,12 +468,12 @@ function AuditoriaTab({
 
       {/* Alertas */}
       {auditoria.validaciones?.alertas?.length > 0 && (
-        <View style={[s.alertaCard, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
-          <Text style={[s.sectionTitle, { color: '#991B1B' }]}>Alertas</Text>
+        <View style={[s.alertaCard, { backgroundColor: colors.errorLight, borderColor: colors.error }]}>
+          <Text style={[s.sectionTitle, { color: colors.error }]}>Alertas</Text>
           {auditoria.validaciones.alertas.map((alerta: string, i: number) => (
             <View key={i} style={s.alertaRow}>
-              <Ionicons name="alert-circle" size={scale(16)} color="#DC2626" />
-              <Text style={{ fontSize: FontSize.xs, color: '#991B1B', marginLeft: Spacing.xs, flex: 1 }}>
+              <Ionicons name="alert-circle" size={scale(16)} color={colors.error} />
+              <Text style={{ fontSize: FontSize.xs, color: colors.error, marginLeft: Spacing.xs, flex: 1 }}>
                 {alerta}
               </Text>
             </View>
@@ -490,7 +489,7 @@ function AuditoriaTab({
           </Text>
           {auditoria.timeline.map((mov: MovimientoTimeline, i: number) => {
             const config = MOVIMIENTO_CONFIG[mov.tipo] || { label: mov.tipo, icon: 'ellipse-outline' as const };
-            const tipoColor = getTipoColor(mov.tipo);
+            const tipoColor = getTipoColor(mov.tipo, colors);
             const esIngreso = ['PAGO_RECIBIDO', 'INYECCION_CAPITAL', 'AJUSTE_CAJA', 'CORRECCION'].includes(mov.tipo);
             const esEgreso = ['DESEMBOLSO', 'GASTO', 'RETIRO_GANANCIAS'].includes(mov.tipo);
 
@@ -520,7 +519,7 @@ function AuditoriaTab({
                     style={{
                       fontSize: FontSize.xs,
                       fontWeight: FontWeight.bold,
-                      color: esIngreso ? '#16A34A' : esEgreso ? '#DC2626' : colors.text,
+                      color: esIngreso ? colors.success : esEgreso ? colors.error : colors.text,
                       marginLeft: Spacing.sm,
                     }}
                   >
@@ -544,7 +543,7 @@ function AuditoriaTab({
             <Ionicons
               name={auditoria.validaciones.secuenciaValida ? 'checkmark-circle' : 'close-circle'}
               size={scale(18)}
-              color={auditoria.validaciones.secuenciaValida ? '#16A34A' : '#DC2626'}
+              color={auditoria.validaciones.secuenciaValida ? colors.success : colors.error}
             />
           </View>
           <View style={s.metodoRow}>
@@ -554,7 +553,7 @@ function AuditoriaTab({
             <Ionicons
               name={auditoria.validaciones.diferenciaJustificada ? 'checkmark-circle' : 'close-circle'}
               size={scale(18)}
-              color={auditoria.validaciones.diferenciaJustificada ? '#16A34A' : '#DC2626'}
+              color={auditoria.validaciones.diferenciaJustificada ? colors.success : colors.error}
             />
           </View>
         </View>

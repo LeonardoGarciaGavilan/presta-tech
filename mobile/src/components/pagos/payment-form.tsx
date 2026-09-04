@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast';
 import { useRegistrarPago, useSaldarPrestamo } from '@/hooks/use-pagos';
 import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { m, totalCuota } from '@/utils/money';
 import ReciboPagoModal from '@/components/pagos/recibo-modal';
 import type { Cuota, MetodoPago, Prestamo } from '@/types/prestamo.types';
 import { useTheme } from '@/components/ui/theme-provider';
@@ -56,7 +57,7 @@ export default function PaymentForm({
   useEffect(() => {
     const montoInicial = cuotasPendientes[0];
     if (montoInicial) {
-      setMontoPagado(((montoInicial.monto + (montoInicial.mora || 0))).toFixed(2));
+      setMontoPagado(totalCuota(montoInicial.monto, montoInicial.mora).toFixed(2));
       setSelectedCuotaId('PROXIMA');
     }
   }, [prestamo?.id]);
@@ -67,15 +68,15 @@ export default function PaymentForm({
     selectedCuotaId === 'PROXIMA' ? true : c.id === selectedCuotaId,
   );
   const montoCuota = selectedCuota
-    ? Math.round((selectedCuota.monto + (selectedCuota.mora || 0)) * 100) / 100
+    ? totalCuota(selectedCuota.monto, selectedCuota.mora)
     : 0;
 
   const cuotaLabels: Record<string, string> = {};
   cuotasPendientes.forEach((c: Cuota) => {
-    cuotaLabels[c.id] = `Cuota #${c.numero} — ${formatCurrency(c.monto + (c.mora || 0))} (Vence: ${formatDate(c.fechaVencimiento)})`;
+    cuotaLabels[c.id] = `Cuota #${c.numero} — ${formatCurrency(totalCuota(c.monto, c.mora))} (Vence: ${formatDate(c.fechaVencimiento)})`;
   });
   if (cuotasPendientes[0]) {
-    cuotaLabels.PROXIMA = `Próxima: Cuota #${cuotasPendientes[0].numero} — ${formatCurrency(cuotasPendientes[0].monto + (cuotasPendientes[0].mora || 0))}`;
+    cuotaLabels.PROXIMA = `Próxima: Cuota #${cuotasPendientes[0].numero} — ${formatCurrency(totalCuota(cuotasPendientes[0].monto, cuotasPendientes[0].mora))}`;
   }
 
   const montoIngresado = parseFloat(montoPagado.replace(/[^0-9.]/g, '')) || 0;
@@ -84,7 +85,7 @@ export default function PaymentForm({
     : 0;
   const montoMaximo = prestamo?.saldoPendiente ?? 0;
   const totalSaldar = cuotasPendientes.reduce(
-    (sum: number, c: Cuota) => sum + c.capital + c.interes + (c.mora || 0), 0,
+    (sum: number, c: Cuota) => sum + m(c.capital) + m(c.interes) + m(c.mora), 0,
   );
 
   const handleSelectCuota = useCallback((label: string) => {
@@ -94,7 +95,7 @@ export default function PaymentForm({
       id === 'PROXIMA' ? c.id === cuotasPendientes[0]?.id : c.id === id,
     );
     if (cuota) {
-      setMontoPagado((cuota.monto + (cuota.mora || 0)).toFixed(2));
+      setMontoPagado(totalCuota(cuota.monto, cuota.mora).toFixed(2));
     }
   }, [cuotasPendientes, cuotaLabels]);
 
@@ -392,19 +393,19 @@ export default function PaymentForm({
                   <View style={styles.summaryRow}>
                     <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Capital pendiente:</Text>
                     <Text style={[styles.summaryValue, { color: colors.text }]}>
-                      {formatCurrency(cuotasPendientes.reduce((s: number, c: Cuota) => s + c.capital, 0))}
+                      {formatCurrency(cuotasPendientes.reduce((s: number, c: Cuota) => s + m(c.capital), 0))}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
                     <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Interés pendiente:</Text>
                     <Text style={[styles.summaryValue, { color: colors.warning }]}>
-                      {formatCurrency(cuotasPendientes.reduce((s: number, c: Cuota) => s + c.interes, 0))}
+                      {formatCurrency(cuotasPendientes.reduce((s: number, c: Cuota) => s + m(c.interes), 0))}
                     </Text>
                   </View>
                   <View style={styles.summaryRow}>
                     <Text style={[styles.summaryLabel, { color: colors.textTertiary }]}>Mora:</Text>
                     <Text style={[styles.summaryValue, { color: colors.error }]}>
-                      {formatCurrency(cuotasPendientes.reduce((s: number, c: Cuota) => s + (c.mora || 0), 0))}
+                      {formatCurrency(cuotasPendientes.reduce((s: number, c: Cuota) => s + m(c.mora), 0))}
                     </Text>
                   </View>
                   <View style={[styles.summaryRow, styles.saldarTotalRow, { borderTopColor: colors.border, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>

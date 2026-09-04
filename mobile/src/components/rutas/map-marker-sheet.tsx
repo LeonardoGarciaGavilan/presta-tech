@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { formatCurrency } from '@/utils/formatters';
+import { totalCuota } from '@/utils/money';
 import { getCuotaACobrar } from '@/utils/rutas';
 import type { ClienteVistaDia } from '@/types/rutas.types';
 
@@ -34,7 +35,7 @@ function MapMarkerSheet({
   } = cliente;
 
   const cuota = getCuotaACobrar(cliente);
-  const montoCuota = cuota ? Math.round((cuota.monto + (cuota.mora || 0)) * 100) / 100 : 0;
+  const montoCuota = cuota ? totalCuota(cuota.monto, cuota.mora) : 0;
 
   const handleNavigate = useCallback(() => {
     if (info.latitud && info.longitud) {
@@ -159,11 +160,19 @@ function MapMarkerSheet({
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   container: {

@@ -62,7 +62,7 @@ function RootLayout() {
       }),
   );
 
-  const currentColors = Colors[colorScheme ?? 'light'];
+  const currentColors = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
   useAuthBootstrap(queryClient);
 

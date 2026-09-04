@@ -1,6 +1,5 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { CompanyHeader } from '@/components/ui/company-header';
@@ -64,14 +63,12 @@ export default function TabLayout() {
         name="caja"
         listeners={({ navigation }) => ({
           blur: () => {
-            const state = navigation.getState();
-            const cajaRoute = state.routes.find((r: any) => r.name === 'caja');
+            const state = navigation.getState?.();
+            const cajaRoute = state?.routes?.find((r: any) => r.name === 'caja');
             if (cajaRoute?.state?.key) {
-              navigation.dispatch({
-                ...CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'index' }],
-                }),
+              navigation.reset?.({
+                index: 0,
+                routes: [{ name: 'index' }],
                 target: cajaRoute.state.key,
               });
             }

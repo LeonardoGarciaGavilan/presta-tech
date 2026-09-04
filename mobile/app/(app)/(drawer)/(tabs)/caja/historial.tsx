@@ -26,10 +26,10 @@ export default function HistorialScreen() {
   }, []);
 
   function getEstadoColor(estado: string) {
-    return estado === 'ABIERTA' ? '#16A34A' : colors.textTertiary;
+    return estado === 'ABIERTA' ? colors.success : colors.textTertiary;
   }
   function getEstadoBg(estado: string) {
-    return estado === 'ABIERTA' ? '#F0FDF4' : colors.borderLight;
+    return estado === 'ABIERTA' ? colors.successLight : colors.borderLight;
   }
 
   function formatHour(iso: string) {
@@ -46,10 +46,10 @@ export default function HistorialScreen() {
         dif == null
           ? colors.textTertiary
           : dif === 0
-            ? '#16A34A'
+            ? colors.success
             : dif > 0
-              ? '#D97706'
-              : '#DC2626';
+              ? colors.warning
+              : colors.error;
       const difLabel =
         dif == null
           ? '—'
@@ -88,19 +88,19 @@ export default function HistorialScreen() {
 
           <View style={styles.sesionAmounts}>
             <View style={styles.amountItem}>
-              <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>Inicial</Text>
+              <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>Inicial</Text>
               <Text style={[styles.amountValue, { color: colors.text }]}>
                 {formatCurrency(item.montoInicial)}
               </Text>
             </View>
             <View style={styles.amountItem}>
-              <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>Ingresos</Text>
-              <Text style={[styles.amountValue, { color: colors.primary }]}>
+              <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>Ingresos</Text>
+              <Text style={[styles.amountValue, { color: colors.success }]}>
                 {formatCurrency(item.totalIngresos || 0)}
               </Text>
             </View>
             <View style={styles.amountItem}>
-              <Text style={[styles.amountLabel, { color: colors.textTertiary }]}>Egresos</Text>
+              <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>Egresos</Text>
               <Text style={[styles.amountValue, { color: colors.error }]}>
                 {formatCurrency(item.totalEgresos || 0)}
               </Text>

@@ -28,6 +28,7 @@ import type {
   OfflineResult,
 } from "@/types/prestamo.types";
 import { useNetworkContext } from "@/components/providers/network-provider";
+import { m } from "@/utils/money";
 import {
   getPrestamoById,
   upsertPrestamos,
@@ -511,11 +512,11 @@ export function useResumenPrestamos() {
                 cantidad.renovados++;
                 break;
             }
-            montoTotalPrestado += p.monto;
+            montoTotalPrestado += m(p.monto);
             if (p.cuotas) {
               for (const c of p.cuotas) {
                 if (!c.pagada && c.fechaVencimiento <= hoy) cuotasVencidasHoy++;
-                if (!c.pagada) saldoPendienteTotal += c.monto;
+                if (!c.pagada) saldoPendienteTotal += m(c.monto);
               }
             }
           }
