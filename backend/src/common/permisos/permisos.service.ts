@@ -167,12 +167,11 @@ export class PermisosService {
   ): Promise<{ cancelar: boolean; refinanciar: boolean; renovar: boolean }> {
     const key = this.claveAccionesPrestamo(empresaId);
     try {
-      const cached =
-        await this.cacheManager.get<{
-          cancelar: boolean;
-          refinanciar: boolean;
-          renovar: boolean;
-        }>(key);
+      const cached = await this.cacheManager.get<{
+        cancelar: boolean;
+        refinanciar: boolean;
+        renovar: boolean;
+      }>(key);
       if (cached) return cached;
     } catch {
       // cache no disponible → seguir sin caché

@@ -206,7 +206,12 @@ export class PrestamosController {
         'El motivo de la cancelación es obligatorio',
       );
     }
-    return this.prestamosService.cancelar(id, empresaId, usuarioId, body.motivo);
+    return this.prestamosService.cancelar(
+      id,
+      empresaId,
+      usuarioId,
+      body.motivo,
+    );
   }
 
   @Patch(':id/estado')

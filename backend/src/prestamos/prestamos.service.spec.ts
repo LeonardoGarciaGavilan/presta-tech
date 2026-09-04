@@ -435,10 +435,10 @@ describe('PrestamosService — reglas de refinanciamiento parametrizables', () =
   });
 
   it('sin el campo permitirRefinanciamiento en config (cliente/cache antiguo) → permite', async () => {
-    const { service, getHistorial } = buildServiceConConfig(
-      buildPrestamo(2),
-      { cuotasRestantesParaRenovar: 0, maxRefinanciamientosPorPrestamo: 0 },
-    );
+    const { service, getHistorial } = buildServiceConConfig(buildPrestamo(2), {
+      cuotasRestantesParaRenovar: 0,
+      maxRefinanciamientosPorPrestamo: 0,
+    });
 
     await service.refinanciar(
       'p1',
@@ -505,7 +505,9 @@ describe('PrestamosService — reglas de refinanciamiento parametrizables', () =
         'emp1',
         'u1',
       ),
-    ).rejects.toThrow('El total a cobrar debe ser mayor al saldo refinanciado.');
+    ).rejects.toThrow(
+      'El total a cobrar debe ser mayor al saldo refinanciado.',
+    );
   });
 
   it('modo rápido con nuevaTasa > 0 → rechaza (la tasa no aplica en modo rápido)', async () => {
@@ -1321,25 +1323,30 @@ describe('PrestamosService — cancelar (máquina de estados + motivo obligatori
   it('rechaza si no se envía motivo (obligatorio)', async () => {
     const { service, tx } = buildCancelarMocks('ACTIVO');
 
-    await expect(
-      service.cancelar('p1', 'emp1', 'u1'),
-    ).rejects.toThrow('El motivo de la cancelación es obligatorio');
+    await expect(service.cancelar('p1', 'emp1', 'u1')).rejects.toThrow(
+      'El motivo de la cancelación es obligatorio',
+    );
     expect(tx.prestamo.update).not.toHaveBeenCalled();
   });
 
   it('rechaza si el motivo viene solo en espacios en blanco', async () => {
     const { service, tx } = buildCancelarMocks('ACTIVO');
 
-    await expect(
-      service.cancelar('p1', 'emp1', 'u1', '   '),
-    ).rejects.toThrow('El motivo de la cancelación es obligatorio');
+    await expect(service.cancelar('p1', 'emp1', 'u1', '   ')).rejects.toThrow(
+      'El motivo de la cancelación es obligatorio',
+    );
     expect(tx.prestamo.update).not.toHaveBeenCalled();
   });
 
   it('ACTIVO → CANCELADO: permitido, guarda motivoCancelacion recortado y usa lock FOR UPDATE', async () => {
     const { service, tx } = buildCancelarMocks('ACTIVO');
 
-    const res = await service.cancelar('p1', 'emp1', 'u1', '  Cliente se mudó  ');
+    const res = await service.cancelar(
+      'p1',
+      'emp1',
+      'u1',
+      '  Cliente se mudó  ',
+    );
 
     expect(tx.$queryRaw).toHaveBeenCalled();
     expect(res.estado).toBe('CANCELADO');
@@ -1370,19 +1377,25 @@ describe('PrestamosService — cancelar (máquina de estados + motivo obligatori
     'PAGADO',
     'RENOVADO',
     'CANCELADO',
-  ])('%s → CANCELADO: rechazado por máquina de estados sin tocar BD', async (estado) => {
-    const { service, tx } = buildCancelarMocks(estado);
+  ])(
+    '%s → CANCELADO: rechazado por máquina de estados sin tocar BD',
+    async (estado) => {
+      const { service, tx } = buildCancelarMocks(estado);
 
-    await expect(
-      service.cancelar('p1', 'emp1', 'u1', 'motivo válido'),
-    ).rejects.toThrow(
-      `No se puede cancelar un préstamo en estado ${estado}`,
-    );
-    expect(tx.prestamo.update).not.toHaveBeenCalled();
-  });
+      await expect(
+        service.cancelar('p1', 'emp1', 'u1', 'motivo válido'),
+      ).rejects.toThrow(`No se puede cancelar un préstamo en estado ${estado}`);
+      expect(tx.prestamo.update).not.toHaveBeenCalled();
+    },
+  );
 
   it('race condition: lectura inicial ACTIVO pero bajo lock ya está PAGADO → rechaza sin actualizar', async () => {
-    const inicial = { id: 'p1', empresaId: 'emp1', monto: 1000, estado: 'ACTIVO' };
+    const inicial = {
+      id: 'p1',
+      empresaId: 'emp1',
+      monto: 1000,
+      estado: 'ACTIVO',
+    };
     const bajoLock = { ...inicial, estado: 'PAGADO' };
     const tx = {
       $queryRaw: jest.fn().mockResolvedValue([]),
@@ -1458,7 +1471,9 @@ describe('PrestamosService — accionesPrestamo (hard limit del platform)', () =
 
     await expect(
       service.cancelar('p1', 'emp1', 'u1', 'motivo'),
-    ).rejects.toThrow('La cancelación de préstamos no está habilitada para tu empresa.');
+    ).rejects.toThrow(
+      'La cancelación de préstamos no está habilitada para tu empresa.',
+    );
   });
 
   it('cancelar: permite cuando accionesPrestamo.cancelar es true', async () => {
@@ -1485,8 +1500,8 @@ describe('PrestamosService — accionesPrestamo (hard limit del platform)', () =
       renovar: true,
     });
     prisma.prestamo.findFirst.mockResolvedValue(prestamo);
-    prisma.$transaction.mockImplementation(
-      (cb: (tx: unknown) => unknown) => cb(tx),
+    prisma.$transaction.mockImplementation((cb: (tx: unknown) => unknown) =>
+      cb(tx),
     );
 
     const res = await service.cancelar('p1', 'emp1', 'u1', 'motivo');
@@ -1514,11 +1529,18 @@ describe('PrestamosService — accionesPrestamo (hard limit del platform)', () =
     prisma.prestamo.findFirst.mockResolvedValue(prestamo);
 
     await expect(
-      service.refinanciar('p1', {
-        nuevasCuotas: 6,
-        motivo: 'test',
-      } as any, 'emp1', 'u1'),
-    ).rejects.toThrow('El refinanciamiento no está habilitado para tu empresa.');
+      service.refinanciar(
+        'p1',
+        {
+          nuevasCuotas: 6,
+          motivo: 'test',
+        } as any,
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow(
+      'El refinanciamiento no está habilitado para tu empresa.',
+    );
   });
 
   it('renovar: rechaza cuando accionesPrestamo.renovar es false', async () => {
@@ -1541,14 +1563,19 @@ describe('PrestamosService — accionesPrestamo (hard limit del platform)', () =
     prisma.prestamo.findFirst.mockResolvedValue(prestamo);
 
     await expect(
-      service.renovar('p1', {
-        montoNuevo: 10000,
-        tasaInteres: 5,
-        numeroCuotas: 12,
-        frecuenciaPago: 'MENSUAL',
-        fechaInicio: new Date().toISOString(),
-        motivo: 'test',
-      } as any, 'emp1', 'u1'),
+      service.renovar(
+        'p1',
+        {
+          montoNuevo: 10000,
+          tasaInteres: 5,
+          numeroCuotas: 12,
+          frecuenciaPago: 'MENSUAL',
+          fechaInicio: new Date().toISOString(),
+          motivo: 'test',
+        } as any,
+        'emp1',
+        'u1',
+      ),
     ).rejects.toThrow('La renovación no está habilitada para tu empresa.');
   });
 });

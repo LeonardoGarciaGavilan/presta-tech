@@ -25,6 +25,11 @@ describe('AuthService (accesos en /auth/me — F5)', () => {
     const permisosService = {
       permisosEfectivos: jest.fn(),
       modulosDeshabilitados: jest.fn(),
+      accionesPrestamoHabilitadas: jest.fn().mockResolvedValue({
+        cancelar: true,
+        refinanciar: true,
+        renovar: true,
+      }),
     };
     const loginLockoutService = {
       estaBloqueado: jest.fn().mockResolvedValue({
@@ -121,6 +126,11 @@ describe('AuthService (lockout de login — F6)', () => {
     const permisosService = {
       permisosEfectivos: jest.fn().mockResolvedValue([]),
       modulosDeshabilitados: jest.fn().mockResolvedValue([]),
+      accionesPrestamoHabilitadas: jest.fn().mockResolvedValue({
+        cancelar: true,
+        refinanciar: true,
+        renovar: true,
+      }),
     };
     const loginLockoutService = {
       estaBloqueado: jest.fn().mockResolvedValue({

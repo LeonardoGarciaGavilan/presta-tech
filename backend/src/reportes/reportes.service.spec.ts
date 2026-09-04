@@ -16,7 +16,9 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([]),
           count: jest.fn().mockResolvedValue(11),
           groupBy,
-          aggregate: jest.fn().mockResolvedValue({ _sum: { monto: 50_000, saldoPendiente: 30_000 } }),
+          aggregate: jest.fn().mockResolvedValue({
+            _sum: { monto: 50_000, saldoPendiente: 30_000 },
+          }),
         },
       } as unknown as PrismaService);
 
@@ -40,7 +42,9 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([]),
           count: jest.fn().mockResolvedValue(0),
           groupBy: jest.fn().mockResolvedValue([]),
-          aggregate: jest.fn().mockResolvedValue({ _sum: { monto: null, saldoPendiente: null } }),
+          aggregate: jest
+            .fn()
+            .mockResolvedValue({ _sum: { monto: null, saldoPendiente: null } }),
         },
       } as unknown as PrismaService);
 
@@ -54,8 +58,11 @@ describe('ReportesService', () => {
     });
 
     it('totalCartera viene del aggregate, no de la paginación parcial', async () => {
-      const aggregate = jest.fn()
-        .mockResolvedValueOnce({ _sum: { monto: 100_000, saldoPendiente: null } }) // totalesMonto
+      const aggregate = jest
+        .fn()
+        .mockResolvedValueOnce({
+          _sum: { monto: 100_000, saldoPendiente: null },
+        }) // totalesMonto
         .mockResolvedValueOnce({ _sum: { saldoPendiente: 75_000 } }); // totalesCartera
 
       const service = new ReportesService({
@@ -84,8 +91,11 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([]),
           count: jest.fn().mockResolvedValue(0),
           groupBy: jest.fn().mockResolvedValue([]),
-          aggregate: jest.fn()
-            .mockResolvedValueOnce({ _sum: { monto: null, saldoPendiente: null } })
+          aggregate: jest
+            .fn()
+            .mockResolvedValueOnce({
+              _sum: { monto: null, saldoPendiente: null },
+            })
             .mockResolvedValueOnce({ _sum: { saldoPendiente: null } }),
         },
       } as unknown as PrismaService);
@@ -103,7 +113,9 @@ describe('ReportesService', () => {
     it('no hace queries redundantes (solo 3 en paralelo)', async () => {
       const findMany = jest.fn().mockResolvedValue([]);
       const count = jest.fn().mockResolvedValue(0);
-      const aggregate = jest.fn().mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } });
+      const aggregate = jest
+        .fn()
+        .mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } });
 
       const service = new ReportesService({
         prestamo: { findMany, count, aggregate },
@@ -117,7 +129,9 @@ describe('ReportesService', () => {
     });
 
     it('calcula totalMora desde el aggregate (sin query adicional)', async () => {
-      const aggregate = jest.fn().mockResolvedValue({ _sum: { monto: 50_000, moraAcumulada: 3_500 } });
+      const aggregate = jest
+        .fn()
+        .mockResolvedValue({ _sum: { monto: 50_000, moraAcumulada: 3_500 } });
 
       const service = new ReportesService({
         prestamo: {
@@ -127,7 +141,10 @@ describe('ReportesService', () => {
         },
       } as unknown as PrismaService);
 
-      const result = await service.carteraVencida({ rol: 'ADMIN', empresaId: 'emp1' });
+      const result = await service.carteraVencida({
+        rol: 'ADMIN',
+        empresaId: 'emp1',
+      });
 
       expect(result.totalMora).toBe(3_500);
     });
@@ -138,7 +155,9 @@ describe('ReportesService', () => {
         prestamo: {
           findMany,
           count: jest.fn().mockResolvedValue(0),
-          aggregate: jest.fn().mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } }),
+          aggregate: jest
+            .fn()
+            .mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } }),
         },
       } as unknown as PrismaService);
 
@@ -155,7 +174,9 @@ describe('ReportesService', () => {
         prestamo: {
           findMany,
           count: jest.fn().mockResolvedValue(0),
-          aggregate: jest.fn().mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } }),
+          aggregate: jest
+            .fn()
+            .mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } }),
         },
       } as unknown as PrismaService);
 
@@ -249,10 +270,34 @@ describe('ReportesService', () => {
       const service = new ReportesService({
         pago: {
           findMany: jest.fn().mockResolvedValue([
-            { createdAt: new Date(), prestamo: { monto: 10000, cliente: { nombre: 'A', apellido: 'B', cedula: '001', provincia: 'SD', municipio: 'DN' } }, capital: 8000, interes: 1500, mora: 500, montoTotal: 10000, metodo: 'EFECTIVO', referencia: null, usuario: { nombre: 'Cob' } },
+            {
+              createdAt: new Date(),
+              prestamo: {
+                monto: 10000,
+                cliente: {
+                  nombre: 'A',
+                  apellido: 'B',
+                  cedula: '001',
+                  provincia: 'SD',
+                  municipio: 'DN',
+                },
+              },
+              capital: 8000,
+              interes: 1500,
+              mora: 500,
+              montoTotal: 10000,
+              metodo: 'EFECTIVO',
+              referencia: null,
+              usuario: { nombre: 'Cob' },
+            },
           ]),
           aggregate: jest.fn().mockResolvedValue({
-            _sum: { montoTotal: 10000, capital: 8000, interes: 1500, mora: 500 },
+            _sum: {
+              montoTotal: 10000,
+              capital: 8000,
+              interes: 1500,
+              mora: 500,
+            },
           }),
           count: jest.fn().mockResolvedValue(1),
         },
@@ -274,7 +319,8 @@ describe('ReportesService', () => {
 
   describe('reporteCajas', () => {
     it('respeta la paginación de pagos', async () => {
-      const findMany = jest.fn()
+      const findMany = jest
+        .fn()
         .mockResolvedValueOnce([]) // cajas
         .mockResolvedValueOnce([]) // pagos (paginados)
         .mockResolvedValueOnce([]); // allPagos (totales)
@@ -290,7 +336,7 @@ describe('ReportesService', () => {
         '2026-01-01',
         '2026-01-31',
         undefined,
-        2,  // pagina
+        2, // pagina
         50, // porPagina
       );
 
@@ -300,7 +346,8 @@ describe('ReportesService', () => {
     });
 
     it('filtra por usuarioId cuando se proporciona', async () => {
-      const findMany = jest.fn()
+      const findMany = jest
+        .fn()
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -350,13 +397,19 @@ describe('ReportesService', () => {
 
     it('C agrupa porDia por el createdAt del pago, no por la fecha actual', async () => {
       const fechaPago = '2026-03-15T14:30:00.000Z';
-      const findMany = jest.fn()
+      const findMany = jest
+        .fn()
         .mockResolvedValueOnce([]) // cajas
         .mockResolvedValueOnce([]) // pagos paginados
         .mockResolvedValueOnce([
           {
-            montoTotal: 100, capital: 50, interes: 40, mora: 10,
-            metodo: 'EFECTIVO', usuarioId: 'u1', createdAt: fechaPago,
+            montoTotal: 100,
+            capital: 50,
+            interes: 40,
+            mora: 10,
+            metodo: 'EFECTIVO',
+            usuarioId: 'u1',
+            createdAt: fechaPago,
           },
         ]); // allPagos
       const count = jest.fn().mockResolvedValue(1);
@@ -386,19 +439,39 @@ describe('ReportesService', () => {
         movimientoFinanciero: { findMany: jest.fn().mockResolvedValue([]) },
         pago: {
           findMany: jest.fn().mockResolvedValue([
-            { montoTotal: 5000, capital: 4000, interes: 800, mora: 200, metodo: 'EFECTIVO', createdAt: new Date('2026-03-01T10:00:00Z') },
-            { montoTotal: 3000, capital: 2500, interes: 400, mora: 100, metodo: 'TRANSFERENCIA', createdAt: new Date('2026-03-02T14:00:00Z') },
+            {
+              montoTotal: 5000,
+              capital: 4000,
+              interes: 800,
+              mora: 200,
+              metodo: 'EFECTIVO',
+              createdAt: new Date('2026-03-01T10:00:00Z'),
+            },
+            {
+              montoTotal: 3000,
+              capital: 2500,
+              interes: 400,
+              mora: 100,
+              metodo: 'TRANSFERENCIA',
+              createdAt: new Date('2026-03-02T14:00:00Z'),
+            },
           ]),
         },
         gasto: {
           findMany: jest.fn().mockResolvedValue([
-            { monto: 1500, categoria: 'Oficina', fecha: new Date('2026-03-01T12:00:00Z') },
+            {
+              monto: 1500,
+              categoria: 'Oficina',
+              fecha: new Date('2026-03-01T12:00:00Z'),
+            },
           ]),
         },
         desembolsoCaja: {
-          findMany: jest.fn().mockResolvedValue([
-            { monto: 10000, createdAt: new Date('2026-03-01T09:00:00Z') },
-          ]),
+          findMany: jest
+            .fn()
+            .mockResolvedValue([
+              { monto: 10000, createdAt: new Date('2026-03-01T09:00:00Z') },
+            ]),
         },
         inyeccionCapital: { findMany: jest.fn().mockResolvedValue([]) },
         retiroGanancias: { findMany: jest.fn().mockResolvedValue([]) },
@@ -498,9 +571,36 @@ describe('ReportesService', () => {
       const service = new ReportesService({
         pago: {
           findMany: jest.fn().mockResolvedValue([
-            { montoTotal: 5000, capital: 4000, interes: 800, mora: 200, metodo: 'EFECTIVO', createdAt: new Date('2026-03-01T10:00:00Z'), usuarioId: 'u1', usuario: { id: 'u1', nombre: 'Juan' } },
-            { montoTotal: 3000, capital: 2500, interes: 400, mora: 100, metodo: 'TRANSFERENCIA', createdAt: new Date('2026-03-01T14:00:00Z'), usuarioId: 'u1', usuario: { id: 'u1', nombre: 'Juan' } },
-            { montoTotal: 2000, capital: 1800, interes: 200, mora: 0, metodo: 'EFECTIVO', createdAt: new Date('2026-03-02T09:00:00Z'), usuarioId: 'u2', usuario: { id: 'u2', nombre: 'María' } },
+            {
+              montoTotal: 5000,
+              capital: 4000,
+              interes: 800,
+              mora: 200,
+              metodo: 'EFECTIVO',
+              createdAt: new Date('2026-03-01T10:00:00Z'),
+              usuarioId: 'u1',
+              usuario: { id: 'u1', nombre: 'Juan' },
+            },
+            {
+              montoTotal: 3000,
+              capital: 2500,
+              interes: 400,
+              mora: 100,
+              metodo: 'TRANSFERENCIA',
+              createdAt: new Date('2026-03-01T14:00:00Z'),
+              usuarioId: 'u1',
+              usuario: { id: 'u1', nombre: 'Juan' },
+            },
+            {
+              montoTotal: 2000,
+              capital: 1800,
+              interes: 200,
+              mora: 0,
+              metodo: 'EFECTIVO',
+              createdAt: new Date('2026-03-02T09:00:00Z'),
+              usuarioId: 'u2',
+              usuario: { id: 'u2', nombre: 'María' },
+            },
           ]),
         },
       } as unknown as PrismaService);
@@ -528,9 +628,7 @@ describe('ReportesService', () => {
         pago: { findMany: jest.fn().mockResolvedValue([]) },
       } as unknown as PrismaService);
 
-      const result = await service.desempenoPorCobrador(
-        { empresaId: 'emp1' },
-      );
+      const result = await service.desempenoPorCobrador({ empresaId: 'emp1' });
 
       expect(result.cobradores).toEqual([]);
       expect(result.cantidadPagos).toBe(0);
@@ -561,9 +659,36 @@ describe('ReportesService', () => {
       const service = new ReportesService({
         pago: {
           findMany: jest.fn().mockResolvedValue([
-            { montoTotal: 2000, capital: 1500, interes: 400, mora: 100, metodo: 'EFECTIVO', createdAt: new Date('2026-03-01T10:00:00Z'), usuarioId: 'u1', usuario: { id: 'u1', nombre: 'Juan' } },
-            { montoTotal: 4000, capital: 3000, interes: 800, mora: 200, metodo: 'EFECTIVO', createdAt: new Date('2026-03-01T15:00:00Z'), usuarioId: 'u1', usuario: { id: 'u1', nombre: 'Juan' } },
-            { montoTotal: 6000, capital: 5000, interes: 800, mora: 200, metodo: 'TRANSFERENCIA', createdAt: new Date('2026-03-02T10:00:00Z'), usuarioId: 'u1', usuario: { id: 'u1', nombre: 'Juan' } },
+            {
+              montoTotal: 2000,
+              capital: 1500,
+              interes: 400,
+              mora: 100,
+              metodo: 'EFECTIVO',
+              createdAt: new Date('2026-03-01T10:00:00Z'),
+              usuarioId: 'u1',
+              usuario: { id: 'u1', nombre: 'Juan' },
+            },
+            {
+              montoTotal: 4000,
+              capital: 3000,
+              interes: 800,
+              mora: 200,
+              metodo: 'EFECTIVO',
+              createdAt: new Date('2026-03-01T15:00:00Z'),
+              usuarioId: 'u1',
+              usuario: { id: 'u1', nombre: 'Juan' },
+            },
+            {
+              montoTotal: 6000,
+              capital: 5000,
+              interes: 800,
+              mora: 200,
+              metodo: 'TRANSFERENCIA',
+              createdAt: new Date('2026-03-02T10:00:00Z'),
+              usuarioId: 'u1',
+              usuario: { id: 'u1', nombre: 'Juan' },
+            },
           ]),
         },
       } as unknown as PrismaService);
@@ -579,8 +704,14 @@ describe('ReportesService', () => {
       expect(result.cobradores[0].promedioPorPago).toBe(4000);
       expect(result.cobradores[0].diasActivos).toBe(2);
       expect(result.cobradores[0].promedioPorDia).toBe(6000);
-      expect(result.cobradores[0].pagosPorMetodo.EFECTIVO).toEqual({ cantidad: 2, monto: 6000 });
-      expect(result.cobradores[0].pagosPorMetodo.TRANSFERENCIA).toEqual({ cantidad: 1, monto: 6000 });
+      expect(result.cobradores[0].pagosPorMetodo.EFECTIVO).toEqual({
+        cantidad: 2,
+        monto: 6000,
+      });
+      expect(result.cobradores[0].pagosPorMetodo.TRANSFERENCIA).toEqual({
+        cantidad: 1,
+        monto: 6000,
+      });
     });
   });
 
@@ -596,17 +727,48 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([
             {
               id: 'p1',
-              cliente: { nombre: 'Ana', apellido: 'López', cedula: '001', provincia: 'Santo Domingo' },
+              cliente: {
+                nombre: 'Ana',
+                apellido: 'López',
+                cedula: '001',
+                provincia: 'Santo Domingo',
+              },
               cuotas: [
-                { numero: 1, monto: 1000, capital: 800, interes: 150, mora: 50, fechaVencimiento: hace10 },
-                { numero: 2, monto: 1000, capital: 800, interes: 150, mora: 0, fechaVencimiento: dentroDe30 },
+                {
+                  numero: 1,
+                  monto: 1000,
+                  capital: 800,
+                  interes: 150,
+                  mora: 50,
+                  fechaVencimiento: hace10,
+                },
+                {
+                  numero: 2,
+                  monto: 1000,
+                  capital: 800,
+                  interes: 150,
+                  mora: 0,
+                  fechaVencimiento: dentroDe30,
+                },
               ],
             },
             {
               id: 'p2',
-              cliente: { nombre: 'Carlos', apellido: 'Ruiz', cedula: '002', provincia: 'Santiago' },
+              cliente: {
+                nombre: 'Carlos',
+                apellido: 'Ruiz',
+                cedula: '002',
+                provincia: 'Santiago',
+              },
               cuotas: [
-                { numero: 1, monto: 2000, capital: 1600, interes: 300, mora: 100, fechaVencimiento: dentroDe60 },
+                {
+                  numero: 1,
+                  monto: 2000,
+                  capital: 1600,
+                  interes: 300,
+                  mora: 100,
+                  fechaVencimiento: dentroDe60,
+                },
               ],
             },
           ]),
@@ -659,10 +821,29 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([
             {
               id: 'p1',
-              cliente: { nombre: 'A', apellido: 'B', cedula: '001', provincia: 'SD' },
+              cliente: {
+                nombre: 'A',
+                apellido: 'B',
+                cedula: '001',
+                provincia: 'SD',
+              },
               cuotas: [
-                { numero: 1, monto: 5000, capital: 4000, interes: 800, mora: 200, fechaVencimiento: new Date(hoy.getTime() + 30 * 86400000) },
-                { numero: 2, monto: 5000, capital: 4000, interes: 800, mora: 200, fechaVencimiento: new Date(hoy.getTime() + 60 * 86400000) },
+                {
+                  numero: 1,
+                  monto: 5000,
+                  capital: 4000,
+                  interes: 800,
+                  mora: 200,
+                  fechaVencimiento: new Date(hoy.getTime() + 30 * 86400000),
+                },
+                {
+                  numero: 2,
+                  monto: 5000,
+                  capital: 4000,
+                  interes: 800,
+                  mora: 200,
+                  fechaVencimiento: new Date(hoy.getTime() + 60 * 86400000),
+                },
               ],
             },
           ]),

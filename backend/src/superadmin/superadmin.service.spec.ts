@@ -239,7 +239,9 @@ describe('SuperAdminService (límites)', () => {
       where: { empresaId: 'e1' },
       data: { authVersion: { increment: 1 } },
     });
-    expect(permisosService.invalidarAccionesPrestamo).toHaveBeenCalledWith('e1');
+    expect(permisosService.invalidarAccionesPrestamo).toHaveBeenCalledWith(
+      'e1',
+    );
   });
 
   it('actualizarLimites sin cambios en accionesPrestamo ni módulos no invalida nada', async () => {

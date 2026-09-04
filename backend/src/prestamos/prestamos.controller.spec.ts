@@ -61,9 +61,9 @@ describe('PrestamosController — PATCH :id/cancelar (motivo obligatorio)', () =
   it('rechaza cuando el motivo viene vacío o en blanco', () => {
     const { controller, serviceMock } = buildController();
 
-    expect(() => controller.cancelar('p1', { motivo: '' }, 'emp1', user)).toThrow(
-      'El motivo de la cancelación es obligatorio',
-    );
+    expect(() =>
+      controller.cancelar('p1', { motivo: '' }, 'emp1', user),
+    ).toThrow('El motivo de la cancelación es obligatorio');
     expect(() =>
       controller.cancelar('p1', { motivo: '   ' }, 'emp1', user),
     ).toThrow();

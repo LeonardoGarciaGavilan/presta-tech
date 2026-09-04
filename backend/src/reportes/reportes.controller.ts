@@ -16,12 +16,7 @@ import { DesempenoQueryDto } from './dto/desempeno-query.dto';
 import { ProyeccionQueryDto } from './dto/proyeccion-query.dto';
 
 @Controller('reportes')
-@UseGuards(
-  JwtAuthGuard,
-  ModulosGuard,
-  PermisosGuard,
-  SuperAdminGuard,
-)
+@UseGuards(JwtAuthGuard, ModulosGuard, PermisosGuard, SuperAdminGuard)
 @Modulo('REPORTES')
 export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
@@ -29,10 +24,7 @@ export class ReportesController {
   @Get('cobros')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @RequierePermiso('reportes:exportar')
-  cobrosPorPeriodo(
-    @CurrentUser() user: any,
-    @Query() query: CobrosQueryDto,
-  ) {
+  cobrosPorPeriodo(@CurrentUser() user: any, @Query() query: CobrosQueryDto) {
     return this.reportesService.cobrosPorPeriodo(
       user,
       query.desde,
@@ -46,10 +38,7 @@ export class ReportesController {
   @Get('cartera-vencida')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @RequierePermiso('reportes:exportar')
-  carteraVencida(
-    @CurrentUser() user: any,
-    @Query() query: CarteraQueryDto,
-  ) {
+  carteraVencida(@CurrentUser() user: any, @Query() query: CarteraQueryDto) {
     return this.reportesService.carteraVencida(
       user,
       query.provincia,
@@ -61,10 +50,7 @@ export class ReportesController {
   @Get('estado-general')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @RequierePermiso('reportes:exportar')
-  estadoGeneral(
-    @CurrentUser() user: any,
-    @Query() query: EstadoQueryDto,
-  ) {
+  estadoGeneral(@CurrentUser() user: any, @Query() query: EstadoQueryDto) {
     return this.reportesService.estadoGeneral(
       user,
       query.provincia,
@@ -83,10 +69,7 @@ export class ReportesController {
   @Get('cajas')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @RequierePermiso('reportes:exportar')
-  reporteCajas(
-    @CurrentUser() user: any,
-    @Query() query: CajasQueryDto,
-  ) {
+  reporteCajas(@CurrentUser() user: any, @Query() query: CajasQueryDto) {
     return this.reportesService.reporteCajas(
       user,
       query.desde,
@@ -100,10 +83,7 @@ export class ReportesController {
   @Get('flujo-caja')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @RequierePermiso('reportes:exportar')
-  flujoDeCaja(
-    @CurrentUser() user: any,
-    @Query() query: FlujoCajaQueryDto,
-  ) {
+  flujoDeCaja(@CurrentUser() user: any, @Query() query: FlujoCajaQueryDto) {
     return this.reportesService.flujoDeCaja(
       user,
       query.desde,
@@ -134,9 +114,6 @@ export class ReportesController {
     @CurrentUser() user: any,
     @Query() query: ProyeccionQueryDto,
   ) {
-    return this.reportesService.proyeccionCuotas(
-      user,
-      query.provincia,
-    );
+    return this.reportesService.proyeccionCuotas(user, query.provincia);
   }
 }
