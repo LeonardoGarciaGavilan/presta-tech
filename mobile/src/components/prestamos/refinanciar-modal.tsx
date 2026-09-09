@@ -26,6 +26,7 @@ import {
 } from '@/utils/amortizacion';
 import { formatCurrency } from '@/utils/formatters';
 import { m } from '@/utils/money';
+import { humanizeError } from '@/utils/errors';
 import type { FrecuenciaPago, Prestamo } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 
@@ -279,7 +280,7 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
       return;
     }
     try {
-      await refinanciarMutation.mutateAsync({
+      const result = await refinanciarMutation.mutateAsync({
         id: prestamo.id,
         data: modoRapido
           ? {
@@ -299,12 +300,16 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
             },
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      showToast('Préstamo refinanciado exitosamente', 'success');
+      if ((result as any)?.esOffline) {
+        showToast('Refinanciamiento guardado en modo offline — pendiente de sincronizar', 'info');
+      } else {
+        showToast('Préstamo refinanciado exitosamente', 'success');
+      }
       onSuccess?.();
       onClose();
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      showToast(err?.message || 'Error al refinanciar', 'error');
+      showToast(humanizeError(err, 'Error al refinanciar'), 'error');
     }
   }, [
     modoRapido,

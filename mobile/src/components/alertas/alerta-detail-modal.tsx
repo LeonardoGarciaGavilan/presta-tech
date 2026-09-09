@@ -4,10 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
+import { formatCurrency } from '@/utils/formatters';
 import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
 
-const ALERTA_COLORS: Record<TipoAlerta, string> = {
+const ALERTA_COLORS_LIGHT: Record<TipoAlerta, string> = {
   SOLICITUD: '#0EA5E9',
   REFINANCIAMIENTO: '#8B5CF6',
   RENOVACION: '#14B8A6',
@@ -18,6 +19,23 @@ const ALERTA_COLORS: Record<TipoAlerta, string> = {
   CANCELACION: '#EF4444',
   CAMBIO_ESTADO: '#6366F1',
 };
+
+const ALERTA_COLORS_DARK: Record<TipoAlerta, string> = {
+  SOLICITUD: '#38BDF8',
+  REFINANCIAMIENTO: '#A78BFA',
+  RENOVACION: '#2DD4BF',
+  CAMBIO_FRECUENCIA: '#FBBF24',
+  CAMBIO_TASA: '#60A5FA',
+  CAMBIO_CUOTAS: '#34D399',
+  CAMBIO_FECHA_PAGO: '#F472B6',
+  CANCELACION: '#F87171',
+  CAMBIO_ESTADO: '#818CF8',
+};
+
+function alertaTipoColor(tipo: TipoAlerta, colorScheme: 'light' | 'dark'): string {
+  const palette = colorScheme === 'dark' ? ALERTA_COLORS_DARK : ALERTA_COLORS_LIGHT;
+  return palette[tipo];
+}
 
 const ALERTA_ICONS: Record<TipoAlerta, keyof typeof Ionicons.glyphMap> = {
   SOLICITUD: 'document-text-outline',
@@ -69,7 +87,7 @@ function formatDetalleValue(key: string, value: unknown): string {
   if (value == null) return '—';
   if (typeof value === 'number') {
     if (key.toLowerCase().includes('monto') || key.toLowerCase().includes('cuota')) {
-      return `RD$${value.toLocaleString('es-DO')}`;
+      return formatCurrency(value);
     }
     if (key.toLowerCase().includes('tasa')) {
       return `${value}%`;
@@ -121,13 +139,13 @@ export default function AlertaDetailModal({
   onGoToLoan,
   isMarkingRead,
 }: AlertaDetailModalProps) {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [localMarking, setLocalMarking] = useState(false);
 
   if (!alerta) return null;
 
-  const tipoColor = ALERTA_COLORS[alerta.tipo] ?? colors.primary;
+  const tipoColor = alertaTipoColor(alerta.tipo, colorScheme) ?? colors.primary;
   const icon = ALERTA_ICONS[alerta.tipo] ?? 'alert-circle-outline';
   const detalle = parseDetalle(alerta.detalle);
 

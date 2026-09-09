@@ -35,11 +35,6 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
   );
 }
 
-function formatIngresos(value: number | null): string {
-  if (value === null || value === undefined) return 'No disponible';
-  return `RD$ ${new Intl.NumberFormat('es-DO').format(value)}`;
-}
-
 export default function ClienteInfo({ cliente }: ClienteInfoProps) {
   const { colorScheme, colors } = useTheme();
 

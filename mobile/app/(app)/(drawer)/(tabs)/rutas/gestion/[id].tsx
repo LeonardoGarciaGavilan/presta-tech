@@ -200,6 +200,8 @@ export default function GestionRutaScreen() {
           onPress={() => handleReorder(item.id, 'up')}
           disabled={index === 0}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Subir a ${item.cliente.nombre} ${item.cliente.apellido || ''} en la ruta`}
         >
           <Ionicons
             name="chevron-up"
@@ -211,6 +213,8 @@ export default function GestionRutaScreen() {
           onPress={() => handleReorder(item.id, 'down')}
           disabled={index === clientes.length - 1}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Bajar a ${item.cliente.nombre} ${item.cliente.apellido || ''} en la ruta`}
         >
           <Ionicons
             name="chevron-down"
@@ -218,7 +222,12 @@ export default function GestionRutaScreen() {
             color={index === clientes.length - 1 ? colors.disabled : colors.primary}
           />
         </Pressable>
-        <Pressable onPress={() => setRemoveId(item.id)} hitSlop={8}>
+        <Pressable
+          onPress={() => setRemoveId(item.id)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Quitar de la ruta a ${item.cliente.nombre} ${item.cliente.apellido || ''}`}
+        >
           <Ionicons name="trash-outline" size={scale(18)} color={colors.error} />
         </Pressable>
       </View>

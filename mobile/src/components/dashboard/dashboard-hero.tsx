@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { CajaActiva } from '@/types/dashboard.types';
+import { formatCurrency } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface DashboardHeroProps {
@@ -40,7 +41,7 @@ export function DashboardHero({ nombre, caja }: DashboardHeroProps) {
             </Text>
           </View>
           <Text style={[styles.cajaMonto, { color: colors.success }]}>
-            ${caja.totalIngresos.toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(caja.totalIngresos)}
           </Text>
           <Text style={[styles.cajaSubtext, { color: colors.success }]}>
             Ingresos de hoy

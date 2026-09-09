@@ -13,7 +13,7 @@ import EmptyState from '@/components/ui/empty-state';
 import LoadingScreen from '@/components/ui/loading-screen';
 import { useToast } from '@/components/ui/toast';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
-import { dateToISO } from '@/utils/formatters';
+import { dateToISO, formatCurrency } from '@/utils/formatters';
 
 export default function GenerarDiaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -252,7 +252,7 @@ export default function GenerarDiaScreen() {
                   </View>
                   {item.totalACobrar > 0 && (
                     <Text style={[styles.clienteMonto, { color: item.tieneAtrasados ? colors.error : colors.success }]}>
-                      ${item.totalACobrar}
+                      {formatCurrency(item.totalACobrar)}
                     </Text>
                   )}
                 </Pressable>

@@ -64,7 +64,7 @@ function MapMarkerSheet({
               <Text style={[styles.phone, { color: colors.textTertiary }]}>{info.telefono}</Text>
             )}
           </View>
-          <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
+          <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Cerrar detalle de ruta">
             <Ionicons name="close" size={scale(20)} color={colors.textSecondary} />
           </Pressable>
         </View>
@@ -93,7 +93,7 @@ function MapMarkerSheet({
               {cuota ? `Cuota #${cuota.numero}` : 'A cobrar'}
             </Text>
             <Text style={[styles.amountValue, { color: colors.text }]}>
-              RD$ {formatCurrency(montoCuota)}
+              {formatCurrency(montoCuota)}
             </Text>
           </View>
         )}

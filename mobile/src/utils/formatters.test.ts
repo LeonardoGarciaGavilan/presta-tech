@@ -113,66 +113,66 @@ describe('formatDateTime', () => {
 
 describe('formatCurrencyCompact', () => {
   it('formats millions', () => {
-    expect(formatCurrencyCompact(1500000)).toBe('$1.50M');
+    expect(formatCurrencyCompact(1500000)).toBe('RD$ 1.50M');
   });
 
   it('formats thousands', () => {
-    expect(formatCurrencyCompact(25000)).toBe('$25.0K');
+    expect(formatCurrencyCompact(25000)).toBe('RD$ 25.0K');
   });
 
   it('formats small numbers', () => {
-    expect(formatCurrencyCompact(500)).toBe('$500');
+    expect(formatCurrencyCompact(500)).toBe('RD$ 500');
   });
 
   it('formats zero', () => {
-    expect(formatCurrencyCompact(0)).toBe('$0');
+    expect(formatCurrencyCompact(0)).toBe('RD$ 0');
   });
 
   it('handles null gracefully', () => {
-    expect(formatCurrencyCompact(null)).toBe('$0');
+    expect(formatCurrencyCompact(null)).toBe('RD$ 0');
   });
 
   it('handles undefined gracefully', () => {
-    expect(formatCurrencyCompact(undefined)).toBe('$0');
+    expect(formatCurrencyCompact(undefined)).toBe('RD$ 0');
   });
 
   it('handles string values (backend Decimal) gracefully', () => {
-    expect(formatCurrencyCompact('25.00' as any)).toBe('$25');
-    expect(formatCurrencyCompact('1500' as any)).toBe('$1.5K');
+    expect(formatCurrencyCompact('25.00' as any)).toBe('RD$ 25');
+    expect(formatCurrencyCompact('1500' as any)).toBe('RD$ 1.5K');
   });
 
   it('handles NaN gracefully', () => {
-    expect(formatCurrencyCompact(Number.NaN as any)).toBe('$0');
+    expect(formatCurrencyCompact(Number.NaN as any)).toBe('RD$ 0');
   });
 });
 
 describe('formatFullCurrency', () => {
   it('formats with two decimal places', () => {
-    expect(formatFullCurrency(1234.5)).toBe('$1,234.50');
+    expect(formatFullCurrency(1234.5)).toBe('RD$ 1,234.50');
   });
 
   it('formats whole numbers', () => {
-    expect(formatFullCurrency(1000)).toBe('$1,000.00');
+    expect(formatFullCurrency(1000)).toBe('RD$ 1,000.00');
   });
 
   it('formats zero', () => {
-    expect(formatFullCurrency(0)).toBe('$0.00');
+    expect(formatFullCurrency(0)).toBe('RD$ 0.00');
   });
 
   it('handles null gracefully', () => {
-    expect(formatFullCurrency(null)).toBe('$0.00');
+    expect(formatFullCurrency(null)).toBe('RD$ 0.00');
   });
 
   it('handles undefined gracefully', () => {
-    expect(formatFullCurrency(undefined)).toBe('$0.00');
+    expect(formatFullCurrency(undefined)).toBe('RD$ 0.00');
   });
 
   it('handles string values (backend Decimal) gracefully', () => {
-    expect(formatFullCurrency('25.00' as any)).toBe('$25.00');
+    expect(formatFullCurrency('25.00' as any)).toBe('RD$ 25.00');
   });
 
   it('handles NaN gracefully', () => {
-    expect(formatFullCurrency(Number.NaN as any)).toBe('$0.00');
+    expect(formatFullCurrency(Number.NaN as any)).toBe('RD$ 0.00');
   });
 });
 

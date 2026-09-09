@@ -18,6 +18,7 @@ import { guardarReciboPDF, reciboPagoImprimible } from '@/utils/recibo-pdf';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { formatCurrency, formatDateTime, unformatIngresosInput } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useNetworkContext } from '@/components/providers/network-provider';
 
 function hoyStr() {
   const formatter = new Intl.DateTimeFormat('es-DO', {
@@ -37,6 +38,7 @@ export default function CajaScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
   const { imprimir } = useImprimirRecibo();
+  const { network } = useNetworkContext();
 
   const fecha = hoyStr();
   const { data: caja, isLoading, refetch } = useCajaActiva(fecha);
@@ -72,11 +74,15 @@ export default function CajaScreen() {
       await abrirCajaFn({ montoInicial: monto, fecha });
       setShowAbrirModal(false);
       setMontoInicial('');
-      showToast('Caja abierta exitosamente', 'success');
+      if (!network.isOnline) {
+        showToast('Caja abierta en modo offline — pendiente de sincronizar', 'info');
+      } else {
+        showToast('Caja abierta exitosamente', 'success');
+      }
     } catch (err: any) {
       showToast(err?.message || 'Error al abrir caja', 'error');
     }
-  }, [montoInicial, fecha, abrirCajaFn, showToast]);
+  }, [montoInicial, fecha, abrirCajaFn, showToast, network.isOnline]);
 
   const handleConfirmCierre = useCallback(async (datos: { monto: number; observaciones?: string }) => {
     if (!cajaAbierta) return;

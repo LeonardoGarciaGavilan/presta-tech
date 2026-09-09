@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
-import { formatCurrencyCompact, formatTimeAgo } from '@/utils/formatters';
+import { formatCurrency, formatCurrencyCompact, formatTimeAgo } from '@/utils/formatters';
 
 const DISTRIBUTION_COLORS = [
   '#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED',
@@ -38,12 +38,6 @@ function getEstado(ef: number): EstadoEficiencia {
   return 'Riesgoso';
 }
 
-const ESTADO_CONFIG: Record<EstadoEficiencia, { color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  Excelente: { color: '#16A34A', bg: '#F0FDF4', icon: 'checkmark-circle' },
-  Estable: { color: '#D97706', bg: '#FFFBEB', icon: 'alert-circle' },
-  Riesgoso: { color: '#DC2626', bg: '#FEF2F2', icon: 'close-circle' },
-};
-
 interface CobradorData {
   nombre: string;
   rutas: string[];
@@ -60,6 +54,15 @@ function initialAvatar(name: string): string {
 export default function AnalisisRutasScreen() {
   const { colorScheme, colors } = useTheme();
   const { moduloHabilitado, tienePermiso } = usePermisos();
+
+  const ESTADO_CONFIG: Record<EstadoEficiencia, { color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = useMemo(
+    () => ({
+      Excelente: { color: colors.success, bg: colors.successLight, icon: 'checkmark-circle' },
+      Estable: { color: colors.warning, bg: colors.warningLight, icon: 'alert-circle' },
+      Riesgoso: { color: colors.error, bg: colors.errorLight, icon: 'close-circle' },
+    }),
+    [colors],
+  );
 
   const { data, isLoading, refetch, isRefetching } = useResumenRutas();
 
@@ -116,7 +119,7 @@ export default function AnalisisRutasScreen() {
       recs.push(`Invertir más en "${topRoute.nombre}" — eficiencia del ${calcEficiencia(topRoute).toFixed(0)}%`);
     }
     if (worstRoute && calcEficiencia(worstRoute) < 60 && worstRoute.dineroEnCalle > 0) {
-      recs.push(`Reducir exposición en "${worstRoute.nombre}" — riesgo alto con $${worstRoute.dineroEnCalle.toLocaleString()} en calle`);
+      recs.push(`Reducir exposición en "${worstRoute.nombre}" — riesgo alto con ${formatCurrency(worstRoute.dineroEnCalle)} en calle`);
     }
     return recs;
   }, [topRoute, worstRoute]);
@@ -189,7 +192,7 @@ export default function AnalisisRutasScreen() {
         </View>
       );
     },
-    [colors],
+    [colors, ESTADO_CONFIG],
   );
 
   const totalDistribucion = useMemo(

@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import type { TipoAlerta, Alerta } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
+import { formatCurrency } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
-const ALERTA_COLORS: Record<TipoAlerta, string> = {
+const ALERTA_COLORS_LIGHT: Record<TipoAlerta, string> = {
   SOLICITUD: '#0EA5E9',
   REFINANCIAMIENTO: '#8B5CF6',
   RENOVACION: '#14B8A6',
@@ -17,6 +18,23 @@ const ALERTA_COLORS: Record<TipoAlerta, string> = {
   CANCELACION: '#EF4444',
   CAMBIO_ESTADO: '#6366F1',
 };
+
+const ALERTA_COLORS_DARK: Record<TipoAlerta, string> = {
+  SOLICITUD: '#38BDF8',
+  REFINANCIAMIENTO: '#A78BFA',
+  RENOVACION: '#2DD4BF',
+  CAMBIO_FRECUENCIA: '#FBBF24',
+  CAMBIO_TASA: '#60A5FA',
+  CAMBIO_CUOTAS: '#34D399',
+  CAMBIO_FECHA_PAGO: '#F472B6',
+  CANCELACION: '#F87171',
+  CAMBIO_ESTADO: '#818CF8',
+};
+
+function alertaTipoColor(tipo: TipoAlerta, colorScheme: 'light' | 'dark'): string {
+  const palette = colorScheme === 'dark' ? ALERTA_COLORS_DARK : ALERTA_COLORS_LIGHT;
+  return palette[tipo];
+}
 
 const ALERTA_ICONS: Record<TipoAlerta, keyof typeof Ionicons.glyphMap> = {
   SOLICITUD: 'document-text-outline',
@@ -66,8 +84,7 @@ function formatDate(dateStr: string) {
 function extractContext(tipo: TipoAlerta, detalle: Record<string, any> | null): string | null {
   if (!detalle) return null;
 
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 0 }).format(n);
+  const fmt = (n: number) => formatCurrency(n);
 
   switch (tipo) {
     case 'SOLICITUD':
@@ -119,9 +136,9 @@ interface AlertaCardProps {
 }
 
 function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCardProps) {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const isUnread = !alerta.leida;
-  const tipoColor = ALERTA_COLORS[alerta.tipo] ?? colors.primary;
+  const tipoColor = alertaTipoColor(alerta.tipo, colorScheme) ?? colors.primary;
   const icon = ALERTA_ICONS[alerta.tipo] ?? 'alert-circle-outline';
   const context = extractContext(alerta.tipo, alerta.detalle);
 
@@ -201,6 +218,8 @@ function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCard
                 onPress={() => onGoToLoan(alerta.prestamoId)}
                 hitSlop={6}
                 style={styles.linkButton}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver préstamo ${alerta.prestamoId}`}
               >
                 <Ionicons name="open-outline" size={scale(16)} color={colors.primary} />
               </Pressable>

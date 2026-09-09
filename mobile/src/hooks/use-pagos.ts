@@ -16,7 +16,7 @@ import { insertPago, getPagosByPrestamoId, getAllPagos } from '@/db/pagos-db';
 import { aplicarPagoLocal, getPrestamoById, saldarPrestamoLocal } from '@/db/prestamos-db';
 import { getClienteNombre } from '@/db/clientes-db';
 import { useAuthStore } from '@/store/auth.store';
-import { getFechaRD } from '@/utils/formatters';
+import { formatCurrency, getFechaRD } from '@/utils/formatters';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { generateIdempotencyKey } from '@/db/offline-queue-db';
 
@@ -68,7 +68,7 @@ async function encolarPagoOffline(
   const prestamoLocal = getPrestamoById(dto.prestamoId);
   if (validarLocal && prestamoLocal && dto.montoPagado > prestamoLocal.saldoPendiente + 0.001) {
     throw new Error(
-      `El monto del pago ($${dto.montoPagado.toLocaleString()}) excede el saldo pendiente ($${prestamoLocal.saldoPendiente.toLocaleString()}).`,
+      `El monto del pago (${formatCurrency(dto.montoPagado)}) excede el saldo pendiente (${formatCurrency(prestamoLocal.saldoPendiente)}).`,
     );
   }
   const dtoConFecha = { ...dto, fecha: getFechaRD() };

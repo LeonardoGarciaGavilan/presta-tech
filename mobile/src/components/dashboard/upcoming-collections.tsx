@@ -4,6 +4,7 @@ import { router, useNavigation } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { ProximoCobro, Today } from '@/types/dashboard.types';
+import { formatCurrency } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 
@@ -42,7 +43,7 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
           Cobros de hoy
         </Text>
         <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-          ${today.montoEsperadoHoy.toLocaleString('es-DO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} esperados
+          {formatCurrency(today.montoEsperadoHoy)} esperados
         </Text>
       </View>
 
@@ -80,11 +81,11 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
             </View>
             <View style={styles.itemRight}>
               <Text style={[styles.monto, { color: colors.text }]}>
-                ${cobro.monto.toLocaleString('es-DO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                {formatCurrency(cobro.monto)}
               </Text>
               {cobro.mora > 0 && (
                 <Text style={[styles.mora, { color: colors.error }]}>
-                  +${cobro.mora.toLocaleString('es-DO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} mora
+                  +{formatCurrency(cobro.mora)} mora
                 </Text>
               )}
             </View>

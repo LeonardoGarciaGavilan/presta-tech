@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { Portfolio, Today } from '@/types/dashboard.types';
+import { formatCurrency } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface KPIGridProps {
@@ -35,33 +36,35 @@ function KPICard({ icon, iconColor, bgColor, value, label }: KPICardProps) {
 }
 
 export function KPIGrid({ portfolio, today }: KPIGridProps) {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.grid}>
       <KPICard
         icon="briefcase"
-        iconColor="#2563EB"
-        bgColor="#EFF6FF"
+        iconColor={colors.primary}
+        bgColor={colors.primaryLight}
         value={portfolio.activos.toString()}
         label="Cartera activa"
       />
       <KPICard
         icon="warning"
-        iconColor="#D97706"
-        bgColor="#FFFBEB"
+        iconColor={colors.warning}
+        bgColor={colors.warningLight}
         value={today.cuotasPendientesHoy.toString()}
         label="Vencen hoy"
       />
       <KPICard
         icon="trending-up"
-        iconColor="#16A34A"
-        bgColor="#F0FDF4"
-        value={`$${today.cobradoHoy.toLocaleString('es-DO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+        iconColor={colors.success}
+        bgColor={colors.successLight}
+        value={formatCurrency(today.cobradoHoy)}
         label="Cobrado hoy"
       />
       <KPICard
         icon="flame"
-        iconColor="#DC2626"
-        bgColor="#FEF2F2"
+        iconColor={colors.error}
+        bgColor={colors.errorLight}
         value={today.prestamosMoraCritica.toString()}
         label="Mora crítica"
       />

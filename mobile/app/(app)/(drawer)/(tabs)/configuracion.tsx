@@ -446,7 +446,7 @@ export default function ConfiguracionScreen() {
                 onChange={onChange}
                 editable={puedeEditar}
                 error={errors.montoMinimoPrestamo?.message}
-                hint="Dejar vacío = RD$500 por defecto"
+                hint="Dejar vacío = RD$ 500 por defecto"
               />
             )}
           />

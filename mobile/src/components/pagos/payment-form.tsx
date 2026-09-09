@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
+import { HoldToConfirmButton } from '@/components/ui/hold-to-confirm-button';
 import PickerField from '@/components/ui/picker-field';
 import { useToast } from '@/components/ui/toast';
 import { useRegistrarPago, useSaldarPrestamo } from '@/hooks/use-pagos';
@@ -52,7 +53,6 @@ export default function PaymentForm({
   const [showRecibo, setShowRecibo] = useState(false);
   const [reciboData, setReciboData] = useState<any>(null);
   const [showSaldarModal, setShowSaldarModal] = useState(false);
-  const [confirmacionTexto, setConfirmacionTexto] = useState('');
 
   useEffect(() => {
     const montoInicial = cuotasPendientes[0];
@@ -139,7 +139,6 @@ export default function PaymentForm({
         dto: { metodo, referencia: referencia || undefined, observacion: observacion || undefined },
       });
       setShowSaldarModal(false);
-      setConfirmacionTexto('');
       setReciboData(result);
       setShowRecibo(true);
       afterPayment?.();
@@ -169,7 +168,7 @@ export default function PaymentForm({
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable onPress={onBack} hitSlop={8}>
+          <Pressable onPress={onBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Volver al préstamo">
             <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
           </Pressable>
           <View style={styles.headerInfo}>
@@ -257,7 +256,7 @@ export default function PaymentForm({
         )}
 
         {montoIngresado > montoMaximo + 0.01 && (
-          <View style={[styles.badge, { backgroundColor: '#FEF2F2', borderColor: colors.error }]}>
+          <View style={[styles.badge, { backgroundColor: colors.errorLight, borderColor: colors.error }]}>
             <Ionicons name="warning" size={scale(14)} color={colors.error} />
             <Text style={[styles.badgeText, { color: colors.error }]}>
               El monto excede el saldo pendiente ({formatCurrency(montoMaximo)})
@@ -350,7 +349,7 @@ export default function PaymentForm({
         <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: '#16A34A' }]}>
+              <View style={[styles.modalHeaderBar, { backgroundColor: colors.success }]}>
                 <Ionicons name="checkmark-circle" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Confirmar Pago</Text>
               </View>
@@ -359,7 +358,7 @@ export default function PaymentForm({
                   {cliente?.nombre} {cliente?.apellido || ''} — {formatCurrency(montoIngresado)} por {METODO_PAGO_LABELS[metodo]}
                 </Text>
                 {excedente > 0 && (
-                  <Text style={styles.confirmExcedente}>
+                  <Text style={[styles.confirmExcedente, { color: colors.success }]}>
                     Abono a capital de cuotas futuras: {formatCurrency(excedente)}
                   </Text>
                 )}
@@ -381,7 +380,7 @@ export default function PaymentForm({
         >
           <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
             <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: '#DC2626' }]}>
+              <View style={[styles.modalHeaderBar, { backgroundColor: colors.error }]}>
                 <Ionicons name="flash" size={scale(22)} color="#FFFFFF" />
                 <Text style={styles.modalTitle}>Saldar Préstamo</Text>
               </View>
@@ -418,35 +417,24 @@ export default function PaymentForm({
                 <Text style={[styles.saldarLabel, { color: colors.textSecondary, marginTop: Spacing.sm }]}>
                   Método: {METODO_PAGO_LABELS[metodo] || 'EFECTIVO'}
                 </Text>
-                <View style={[styles.saldarWarning, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-                  <Text style={{ color: '#991B1B', fontSize: FontSize.xs }}>
+                <View style={[styles.saldarWarning, { backgroundColor: colors.errorLight, borderColor: colors.error }]}>
+                  <Text style={{ color: colors.error, fontSize: FontSize.xs }}>
                     Esta acción liquidará TODAS las cuotas pendientes. No se puede deshacer.
                   </Text>
                 </View>
-                <Text style={[styles.formLabel, { color: colors.textSecondary }]}>
-                  Escribe <Text style={{ fontWeight: FontWeight.bold }}>CONFIRMAR</Text> para continuar
-                </Text>
-                <TextInput
-                  value={confirmacionTexto}
-                  onChangeText={setConfirmacionTexto}
-                  placeholder="CONFIRMAR"
-                  placeholderTextColor={colors.textTertiary}
-                  style={[styles.confirmInput, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-                />
-                <View style={styles.modalActions}>
-                  <AppButton
-                    title="Cancelar"
-                    onPress={() => { setShowSaldarModal(false); setConfirmacionTexto(''); }}
-                    variant="ghost"
-                    style={{ flex: 1 }}
+                <View style={[styles.modalActions, styles.columnActions]}>
+
+                  <HoldToConfirmButton
+                    title="Saldar"
+                    variant="danger"
+                    loading={isSalding}
+                    onConfirm={handleSaldar}
+                    hint="Mantén presionado para saldar el préstamo"
                   />
                   <AppButton
-                    title="Saldar"
-                    loading={isSalding}
-                    disabled={confirmacionTexto.toUpperCase() !== 'CONFIRMAR'}
-                    onPress={handleSaldar}
-                    variant="danger"
-                    style={{ flex: 1 }}
+                    title="Cancelar"
+                    onPress={() => setShowSaldarModal(false)}
+                    variant="ghost"
                   />
                 </View>
               </ScrollView>
@@ -549,7 +537,7 @@ const styles = StyleSheet.create({
   modalTitle: { color: '#FFFFFF', fontSize: FontSize.md, fontWeight: FontWeight.bold },
   modalBody: { padding: Spacing.md },
   confirmText: { fontSize: FontSize.sm, marginBottom: Spacing.md },
-  confirmExcedente: { fontSize: FontSize.xs, color: '#16A34A', marginBottom: Spacing.sm },
+  confirmExcedente: { fontSize: FontSize.xs, marginBottom: Spacing.sm },
   saldarLabel: { fontSize: FontSize.sm, marginBottom: Spacing.sm },
   saldarWarning: {
     borderRadius: BorderRadius.md,
@@ -558,16 +546,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   saldarTotalRow: { borderTopWidth: 1 },
-  formLabel: { fontSize: FontSize.sm, marginBottom: Spacing.xs },
-  confirmInput: {
-    height: scale(48),
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: FontSize.md,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-    fontWeight: FontWeight.bold,
-  },
   modalActions: { flexDirection: 'row', gap: Spacing.sm },
+  columnActions: { flexDirection: 'column' },
 });

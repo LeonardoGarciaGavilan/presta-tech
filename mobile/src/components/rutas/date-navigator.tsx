@@ -19,15 +19,15 @@ export function DateNavigator({
 }: DateNavigatorProps) {
   return (
     <View style={[styles.dateRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Pressable onPress={() => onNavigate(-1)} hitSlop={8}>
+      <Pressable onPress={() => onNavigate(-1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Día anterior">
         <Ionicons name="chevron-back" size={scale(20)} color={colors.primary} />
       </Pressable>
-      <Pressable onPress={onToday}>
+      <Pressable onPress={onToday} accessibilityRole="button" accessibilityLabel={`Ir a hoy: ${displayDateStr}`}>
         <Text style={[styles.dateText, { color: colors.text }]}>
           {displayDateStr}
         </Text>
       </Pressable>
-      <Pressable onPress={() => onNavigate(1)} hitSlop={8}>
+      <Pressable onPress={() => onNavigate(1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Día siguiente">
         <Ionicons name="chevron-forward" size={scale(20)} color={colors.primary} />
       </Pressable>
     </View>

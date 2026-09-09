@@ -39,7 +39,7 @@ function getButtonStyle(
     case 'primary':
       return { backgroundColor: colors.primary, borderWidth: 0 };
     case 'secondary':
-      return { backgroundColor: colors.secondary, borderWidth: 0 };
+      return { backgroundColor: colors.secondaryDark, borderWidth: 0 };
     case 'danger':
       return { backgroundColor: colors.error, borderWidth: 0 };
     case 'ghost':

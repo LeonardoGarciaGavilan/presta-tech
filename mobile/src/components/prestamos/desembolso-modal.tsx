@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/ui/app-button';
+import { HoldToConfirmButton } from '@/components/ui/hold-to-confirm-button';
 import { useTheme } from '@/components/ui/theme-provider';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
@@ -35,10 +35,8 @@ export default function DesembolsoModal({
   frecuenciaPago,
 }: DesembolsoModalProps) {
   const { colors } = useTheme();
-  const [confirmacionTexto, setConfirmacionTexto] = useState('');
 
   const handleCancelar = () => {
-    setConfirmacionTexto('');
     onClose();
   };
 
@@ -65,29 +63,17 @@ export default function DesembolsoModal({
                   El monto saldrá de tu caja. Asegúrate de tener tu caja abierta antes de continuar.
                 </Text>
               </View>
-              <Text style={[styles.formLabel, { color: colors.textSecondary }]}>
-                Escribe <Text style={{ fontWeight: FontWeight.bold }}>CONFIRMAR</Text> para continuar
-              </Text>
-              <TextInput
-                value={confirmacionTexto}
-                onChangeText={setConfirmacionTexto}
-                placeholder="CONFIRMAR"
-                placeholderTextColor={colors.textTertiary}
-                style={[styles.confirmInput, { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.text }]}
-              />
               <View style={styles.actions}>
+                <HoldToConfirmButton
+                  title="Desembolsar"
+                  loading={loading}
+                  onConfirm={onConfirm}
+                  hint="Mantén presionado para confirmar el desembolso"
+                />
                 <AppButton
                   title="Cancelar"
                   onPress={handleCancelar}
                   variant="ghost"
-                  style={{ flex: 1 }}
-                />
-                <AppButton
-                  title="Desembolsar"
-                  loading={loading}
-                  disabled={confirmacionTexto.toUpperCase() !== 'CONFIRMAR'}
-                  onPress={onConfirm}
-                  style={{ flex: 1 }}
                 />
               </View>
             </ScrollView>
@@ -134,22 +120,7 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  formLabel: {
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.xs,
-  },
-  confirmInput: {
-    height: scale(48),
-    borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: FontSize.md,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-    fontWeight: FontWeight.bold,
-  },
   actions: {
-    flexDirection: 'row',
     gap: Spacing.sm,
     flexShrink: 0,
   },

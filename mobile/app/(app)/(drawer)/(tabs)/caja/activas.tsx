@@ -12,6 +12,7 @@ import { useCajas, useCerrarCaja } from '@/hooks/use-caja';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { m } from '@/utils/money';
+import { humanizeError } from '@/utils/errors';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 
@@ -114,7 +115,7 @@ export default function CajasActivasScreen() {
         showToast(`Caja cerrada con ${tipo} de ${formatCurrency(Math.abs(result.diferencia))}`, 'info');
       }
     } catch (err: any) {
-      showToast(err?.message || 'Error al cerrar caja', 'error');
+      showToast(humanizeError(err, 'Error al cerrar caja'), 'error');
     }
   }, [closeTarget, cerrarCajaFn, showToast]);
 

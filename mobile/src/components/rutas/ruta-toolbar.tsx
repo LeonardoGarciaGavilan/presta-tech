@@ -62,6 +62,9 @@ export function RutaToolbar({
             borderColor: sortByCercania ? colors.primary : colors.border,
           }]}
           onPress={onSortChange}
+          accessibilityRole="button"
+          accessibilityLabel="Ordenar por cercanía"
+          accessibilityState={{ selected: sortByCercania }}
         >
           <Ionicons
             name="navigate-outline"
@@ -75,6 +78,9 @@ export function RutaToolbar({
             borderColor: mapa ? colors.primary : colors.border,
           }]}
           onPress={onToggleMapa}
+          accessibilityRole="button"
+          accessibilityLabel={mapa ? 'Ver lista de ruta' : 'Ver mapa de ruta'}
+          accessibilityState={{ selected: mapa }}
         >
           <Ionicons
             name="map-outline"

@@ -175,7 +175,7 @@ export default function PagosScreen() {
           <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Detalle del Pago</Text>
-              <Pressable onPress={() => setSelectedPagoId(null)} hitSlop={8}>
+              <Pressable onPress={() => setSelectedPagoId(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cerrar detalle del pago">
                 <Ionicons name="close" size={scale(24)} color={colors.text} />
               </Pressable>
             </View>

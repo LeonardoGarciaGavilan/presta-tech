@@ -457,6 +457,7 @@ export default function PrestamosListScreen() {
         icon={cfg?.icon || ''}
         colorAccion={cfg?.color || ''}
         pedirMotivo={cfg?.pedirMotivo || false}
+        confirmacionConHold={accionModal?.accion === 'DESEMBOLSAR'}
         prestamo={accionModal?.prestamo ? { monto: accionModal.prestamo.monto, numeroCuotas: accionModal.prestamo.numeroCuotas, frecuenciaPago: accionModal.prestamo.frecuenciaPago } : null}
         cliente={accionModal?.prestamo?.cliente ? { nombre: accionModal.prestamo.cliente.nombre, apellido: accionModal.prestamo.cliente.apellido } : null}
         loading={accionLoading}

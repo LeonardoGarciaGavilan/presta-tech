@@ -173,10 +173,11 @@ export default function NuevoPrestamoScreen() {
         payload.montoTotal = preview?.montoTotal;
       }
       const result = await crearPrestamo(payload);
-      showToast('Préstamo creado exitosamente', 'success');
       if ((result as any)?.esOffline) {
+        showToast('Préstamo guardado en modo offline — se sincronizará cuando haya conexión', 'info');
         router.replace('/prestamos');
       } else {
+        showToast('Préstamo creado exitosamente', 'success');
         router.replace(`/prestamos/${result.id}`);
       }
     } catch (error) {

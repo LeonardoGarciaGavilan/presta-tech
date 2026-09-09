@@ -71,7 +71,7 @@ export default function CobroRapidoModal({
               <Text style={[styles.cobroModalTitle, { color: colors.text }]}>
                 Cobro Rápido
               </Text>
-              <Pressable onPress={onClose} hitSlop={8}>
+              <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cerrar cobro rápido">
                 <Ionicons name="close" size={scale(22)} color={colors.textSecondary} />
               </Pressable>
             </View>
@@ -98,11 +98,11 @@ export default function CobroRapidoModal({
                       </Text>
                       <View>
                         <Text style={[styles.cobroCuotaMonto, { color: colors.text }]}>
-                          RD$ {formatCurrency(totalCobrar)}
+                          {formatCurrency(totalCobrar)}
                         </Text>
                         {cuotaACobrar.mora > 0 && (
                           <Text style={[styles.cobroCuotaMora, { color: colors.error }]}>
-                            Mora: RD$ {formatCurrency(cuotaACobrar.mora)}
+                            Mora: {formatCurrency(cuotaACobrar.mora)}
                           </Text>
                         )}
                       </View>
@@ -115,7 +115,7 @@ export default function CobroRapidoModal({
                     Total a cobrar
                   </Text>
                   <Text style={[styles.cobroTotalAmount, { color: colors.primary }]}>
-                    RD$ {formatCurrency(totalCobrar)}
+                    {formatCurrency(totalCobrar)}
                   </Text>
                 </View>
 

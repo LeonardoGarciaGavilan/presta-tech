@@ -232,8 +232,8 @@ export default function VistaDiaScreen() {
         longitude: c.cliente.longitud!,
         title: `${c.cliente.nombre} ${c.cliente.apellido || ''}`,
         description: cuota
-          ? `Cuota #${cuota.numero} · RD$ ${formatCurrency(getMontoCuotaACobrar(c))}`
-          : `RD$ ${formatCurrency(c.totalACobrar)}`,
+          ? `Cuota #${cuota.numero} · ${formatCurrency(getMontoCuotaACobrar(c))}`
+          : formatCurrency(c.totalACobrar),
         order: c.orden,
         isVisited: c.visitadoHoy,
         isOverdue: c.tieneAtrasados,
@@ -562,7 +562,7 @@ function ClienteCardItem({
               {cuota ? `Cuota #${cuota.numero}` : 'A cobrar'}
             </Text>
             <Text style={[styles.cobroAmount, { color: colors.text }]}>
-              RD$ {formatCurrency(montoCuota)}
+              {formatCurrency(montoCuota)}
             </Text>
           </View>
           <Pressable
@@ -700,6 +700,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(4),
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,

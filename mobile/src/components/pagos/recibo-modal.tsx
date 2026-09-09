@@ -59,7 +59,7 @@ export default function ReciboPagoModal({
         <View style={[styles.reciboCard, { backgroundColor: colors.surfaceElevated }]}>
           <ScrollView contentContainerStyle={styles.reciboContent}>
             <View style={styles.reciboHeader}>
-              <Ionicons name="checkmark-circle" size={scale(48)} color="#16A34A" />
+              <Ionicons name="checkmark-circle" size={scale(48)} color={colors.success} />
               <Text style={[styles.reciboTitle, { color: colors.text }]}>{title}</Text>
             </View>
 
@@ -124,18 +124,18 @@ export default function ReciboPagoModal({
                 )}
 
                 {(reciboData?.pago?.abonoCapital ?? 0) > 0 && (
-                  <View style={[styles.badge, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC', marginTop: Spacing.sm }]}>
-                    <Ionicons name="arrow-forward" size={scale(14)} color="#16A34A" />
-                    <Text style={[styles.badgeText, { color: '#16A34A' }]}>
+                  <View style={[styles.badge, { backgroundColor: colors.successLight, borderColor: colors.success, marginTop: Spacing.sm }]}>
+                    <Ionicons name="arrow-forward" size={scale(14)} color={colors.success} />
+                    <Text style={[styles.badgeText, { color: colors.success }]}>
                       Abono a capital: {formatCurrency(reciboData?.pago?.abonoCapital ?? 0)}
                     </Text>
                   </View>
                 )}
 
                 {(reciboData?.prestamo?.saldoPendiente ?? 0) <= 0.01 && (
-                  <View style={[styles.badge, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC', marginTop: Spacing.sm }]}>
-                    <Ionicons name="checkmark-done-circle" size={scale(16)} color="#16A34A" />
-                    <Text style={[styles.badgeText, { color: '#16A34A', fontWeight: FontWeight.bold }]}>
+                  <View style={[styles.badge, { backgroundColor: colors.successLight, borderColor: colors.success, marginTop: Spacing.sm }]}>
+                    <Ionicons name="checkmark-done-circle" size={scale(16)} color={colors.success} />
+                    <Text style={[styles.badgeText, { color: colors.success, fontWeight: FontWeight.bold }]}>
                       ¡Préstamo completamente pagado!
                     </Text>
                   </View>

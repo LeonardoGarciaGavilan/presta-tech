@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import { AppButton } from '@/components/ui/app-button';
+import { HoldToConfirmButton } from '@/components/ui/hold-to-confirm-button';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface ActionConfirmModalProps {
@@ -14,6 +15,7 @@ interface ActionConfirmModalProps {
   colorAccion: string;
   pedirMotivo: boolean;
   motivoLabel?: string;
+  confirmacionConHold?: boolean;
   prestamo?: { monto: number; numeroCuotas?: number; frecuenciaPago?: string } | null;
   cliente?: { nombre: string; apellido?: string | null } | null;
   loading?: boolean;
@@ -29,13 +31,14 @@ export default function ActionConfirmModal({
   colorAccion,
   pedirMotivo,
   motivoLabel = 'Motivo del rechazo',
+  confirmacionConHold = false,
   prestamo,
   cliente,
   loading,
   onConfirm,
   onCancel,
 }: ActionConfirmModalProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const [motivo, setMotivo] = useState('');
 
   const handleCancel = () => {
@@ -111,21 +114,33 @@ export default function ActionConfirmModal({
                 </>
               )}
 
-              <View style={styles.actions}>
-                <AppButton
-                  title="Cancelar"
-                  onPress={handleCancel}
-                  variant="ghost"
-                  style={{ flex: 1 }}
-                />
-                <AppButton
-                  title={titulo}
-                  loading={loading}
-                  disabled={pedirMotivo && !motivo.trim()}
-                  onPress={handleConfirm}
-                  style={{ flex: 1 }}
-                />
-              </View>
+              {confirmacionConHold && !pedirMotivo ? (
+                <View style={styles.actionsHold}>
+                  <HoldToConfirmButton
+                    title={titulo}
+                    loading={loading}
+                    onConfirm={handleConfirm}
+                    hint="Mantén presionado para confirmar"
+                  />
+                  <AppButton title="Cancelar" onPress={handleCancel} variant="ghost" />
+                </View>
+              ) : (
+                <View style={styles.actions}>
+                  <AppButton
+                    title="Cancelar"
+                    onPress={handleCancel}
+                    variant="ghost"
+                    style={{ flex: 1 }}
+                  />
+                  <AppButton
+                    title={titulo}
+                    loading={loading}
+                    disabled={pedirMotivo && !motivo.trim()}
+                    onPress={handleConfirm}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
             </ScrollView>
           </View>
       </KeyboardAvoidingView>
@@ -181,6 +196,10 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    gap: Spacing.sm,
+    flexShrink: 0,
+  },
+  actionsHold: {
     gap: Spacing.sm,
     flexShrink: 0,
   },
