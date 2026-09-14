@@ -22,7 +22,7 @@ import { usePerfil,
   useCambiarPassword,
   useActualizarEmpresa } from '@/hooks/use-perfil';
 import { SkeletonCard } from '@/components/ui/skeleton';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { SectionCard } from '@/components/ui/section-card';
 
 export default function PerfilScreen() {
@@ -188,7 +188,7 @@ export default function PerfilScreen() {
             style={[
               styles.heroGradient,
               {
-                backgroundColor: colors.primary,
+                backgroundColor: getSolidFill(colors, colorScheme, 'primary'),
               },
             ]}
           >

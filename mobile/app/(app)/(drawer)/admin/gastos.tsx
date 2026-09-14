@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, getTodayISO, getMonthStart } from '@/utils/formatters';
@@ -307,7 +307,7 @@ export default function GastosScreen() {
             {puedeCrear && (
               <TouchableOpacity
                 onPress={openCreate}
-                style={[styles.newBtn, { backgroundColor: colors.primary }]}
+                style={[styles.newBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
               >
                 <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.newBtnText}>Nuevo gasto</Text>
@@ -317,22 +317,22 @@ export default function GastosScreen() {
             {/* Resumen KPIs */}
             <View style={styles.kpiRow}>
               <View style={[styles.kpiCard, { backgroundColor: colors.primaryLight }]}>
-                <Text style={[styles.kpiValue, { color: colors.primary }]}>
+                <Text style={[styles.kpiValue, { color: colors.primaryDark }]}>
                   {formatCurrencyCompact(resumen?.totalMes ?? 0)}
                 </Text>
-                <Text style={[styles.kpiLabel, { color: colors.primary }]}>Este mes</Text>
+                <Text style={[styles.kpiLabel, { color: colors.primaryDark }]}>Este mes</Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.secondaryLight }]}>
-                <Text style={[styles.kpiValue, { color: colors.secondary }]}>
+                <Text style={[styles.kpiValue, { color: colors.secondaryDark }]}>
                   {formatCurrencyCompact(resumen?.totalAno ?? 0)}
                 </Text>
-                <Text style={[styles.kpiLabel, { color: colors.secondary }]}>Este año</Text>
+                <Text style={[styles.kpiLabel, { color: colors.secondaryDark }]}>Este año</Text>
               </View>
               <View style={[styles.kpiCard, { backgroundColor: colors.warningLight }]}>
-                <Text style={[styles.kpiValue, { color: colors.warning }]}>
+                <Text style={[styles.kpiValue, { color: colors.warningDark }]}>
                   {formatCurrencyCompact(totalGral)}
                 </Text>
-                <Text style={[styles.kpiLabel, { color: colors.warning }]}>Total</Text>
+                <Text style={[styles.kpiLabel, { color: colors.warningDark }]}>Total</Text>
               </View>
             </View>
 
@@ -396,7 +396,7 @@ export default function GastosScreen() {
                     style={[
                       styles.chip,
                       { borderColor: colors.border },
-                      !categoriaFilter && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      !categoriaFilter && { backgroundColor: getSolidFill(colors, colorScheme, 'primary'), borderColor: colors.primary },
                     ]}
                   >
                     <Text
@@ -597,6 +597,7 @@ export default function GastosScreen() {
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         destructive
+        useHold
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={eliminarMutation.isPending}

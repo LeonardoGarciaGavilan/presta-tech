@@ -3,7 +3,7 @@ import { createContext,
   useContext,
   useRef,
   useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,14 @@ import { useTheme } from '@/components/ui/theme-provider';
 
 type ToastType = 'success' | 'error' | 'info';
 
+const ERROR_DURATION = 8000;
+const DEFAULT_DURATION = 3000;
+
+export function getToastDuration(type: ToastType, override?: number): number {
+  if (override !== undefined) return override;
+  return type === 'error' ? ERROR_DURATION : DEFAULT_DURATION;
+}
+
 interface ToastState {
   message: string;
   type: ToastType;
@@ -19,7 +27,7 @@ interface ToastState {
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: string, type?: ToastType, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextValue>({
@@ -39,7 +47,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'success') => {
+    (message: string, type: ToastType = 'success', duration?: number) => {
       if (timerRef.current) clearTimeout(timerRef.current);
 
       setToast({ message, type, visible: true });
@@ -59,7 +67,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         }).start(() => {
           setToast(null);
         });
-      }, 3000);
+      }, getToastDuration(type, duration));
     },
     [opacity],
   );
@@ -107,20 +115,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             },
           ]}
         >
-          <Ionicons
-            name={toastColors[toast.type].icon as IoniconsName}
-            size={scale(20)}
-            color={toastColors[toast.type].iconColor}
-          />
-          <Text
-            style={[
-              styles.toastText,
-              { color: toastColors[toast.type].text },
-            ]}
-            numberOfLines={2}
+          <Pressable
+            style={styles.toastBody}
+            onPress={dismiss}
+            accessible={false}
           >
-            {toast.message}
-          </Text>
+            <Ionicons
+              name={toastColors[toast.type].icon as IoniconsName}
+              size={scale(20)}
+              color={toastColors[toast.type].iconColor}
+            />
+            <Text
+              style={[
+                styles.toastText,
+                { color: toastColors[toast.type].text },
+              ]}
+              numberOfLines={2}
+            >
+              {toast.message}
+            </Text>
+          </Pressable>
           <TouchableOpacity
             onPress={dismiss}
             hitSlop={8}
@@ -154,6 +168,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
+  },
+  toastBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   toastText: {
     flex: 1,

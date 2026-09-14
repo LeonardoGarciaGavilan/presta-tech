@@ -3,7 +3,8 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
+import ClickToCall from '@/components/ui/click-to-call';
 import { formatCurrency } from '@/utils/formatters';
 import { totalCuota } from '@/utils/money';
 import { getCuotaACobrar } from '@/utils/rutas';
@@ -24,7 +25,7 @@ function MapMarkerSheet({
   onVerDetalle,
   onClose,
 }: MapMarkerSheetProps) {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const {
     rutaClienteId,
     visitadoHoy,
@@ -50,7 +51,7 @@ function MapMarkerSheet({
       <Pressable
         style={[styles.container, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
       >
-        <View style={styles.handle} />
+        <View style={[styles.handle, { backgroundColor: colors.skeleton }]} />
 
         <View style={styles.header}>
           <View style={[styles.orderBadge, { backgroundColor: colors.routeBg }]}>
@@ -61,7 +62,12 @@ function MapMarkerSheet({
               {info.nombre} {info.apellido || ''}
             </Text>
             {info.telefono && (
-              <Text style={[styles.phone, { color: colors.textTertiary }]}>{info.telefono}</Text>
+              <ClickToCall
+                compact
+                phone={info.telefono}
+                showIcon={false}
+                textStyle={[styles.phone, { color: colors.textTertiary }]}
+              />
             )}
           </View>
           <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Cerrar detalle de ruta">
@@ -101,7 +107,7 @@ function MapMarkerSheet({
         <View style={styles.actions}>
           {debeVisitar && (
             <Pressable
-              style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+              style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
               onPress={() => onCobrar(cliente)}
             >
               <Ionicons name="cash-outline" size={scale(18)} color="#FFF" />
@@ -193,7 +199,6 @@ const styles = StyleSheet.create({
     width: scale(40),
     height: scale(4),
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
     alignSelf: 'center',
     marginBottom: Spacing.xs,
   },

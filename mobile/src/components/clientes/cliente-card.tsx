@@ -11,7 +11,9 @@ import Animated, {
 import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale } from '@/constants/theme';
 import type { Cliente } from '@/types/cliente.types';
 import ClienteAvatar from './cliente-avatar';
-import { useTheme } from '@/components/ui/theme-provider';
+import Badge from '@/components/ui/badge';
+import ClickToCall from '@/components/ui/click-to-call';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 
 interface ClienteCardProps {
   cliente: Cliente;
@@ -30,7 +32,7 @@ function ClienteCardBase({
   onEdit,
   onToggleStatus,
 }: ClienteCardProps) {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const swipeableRef = useRef<Swipeable>(null);
   const nombreCompleto =
     cliente.nombre + (cliente.apellido ? ` ${cliente.apellido}` : '');
@@ -68,7 +70,7 @@ function ClienteCardBase({
           <RNAnimated.View style={[styles.swipeAction, { transform: [{ translateX }] }]}>
             <Pressable
               onPress={() => { closeSwipe(); onEdit(); }}
-              style={[styles.swipeBtn, { backgroundColor: colors.warning }]}
+              style={[styles.swipeBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'warning') }]}
               accessibilityLabel="Editar cliente"
             >
               <Ionicons name="pencil" size={scale(18)} color="#FFFFFF" />
@@ -81,7 +83,7 @@ function ClienteCardBase({
           <RNAnimated.View style={[styles.swipeAction, { transform: [{ translateX }] }]}>
             <Pressable
               onPress={() => { closeSwipe(); onEstadoCuenta(); }}
-              style={[styles.swipeBtn, { backgroundColor: colors.primary }]}
+              style={[styles.swipeBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
               accessibilityLabel="Estado de cuenta"
             >
               <Ionicons name="document-text" size={scale(18)} color="#FFFFFF" />
@@ -96,7 +98,7 @@ function ClienteCardBase({
               onPress={() => { closeSwipe(); onToggleStatus(); }}
               style={[
                 styles.swipeBtn,
-                { backgroundColor: activo ? colors.error : colors.success },
+                { backgroundColor: activo ? getSolidFill(colors, colorScheme, 'error') : getSolidFill(colors, colorScheme, 'success') },
               ]}
               accessibilityLabel={activo ? 'Deshabilitar cliente' : 'Reactivar cliente'}
             >
@@ -137,7 +139,12 @@ function ClienteCardBase({
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           accessibilityRole="button"
-          accessibilityLabel={`Cliente ${nombreCompleto}`}
+          accessibilityLabel={`Cliente ${nombreCompleto}, ${activo ? 'activo' : 'inactivo'}`}
+          accessibilityHint={
+            onEdit || onEstadoCuenta || onToggleStatus
+              ? 'Toca para ver el detalle. Desliza a la izquierda para ver más acciones.'
+              : undefined
+          }
           style={animatedStyle}
         >
           <View style={styles.contentRow}>
@@ -150,11 +157,11 @@ function ClienteCardBase({
                 {nombreCompleto}
               </Text>
               <View style={styles.detailLine}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    { backgroundColor: activo ? colors.badgeActive : colors.badgeInactive },
-                  ]}
+                <Badge
+                  icon={activo ? 'checkmark-circle' : 'ban'}
+                  label={activo ? 'Activo' : 'Inactivo'}
+                  color={activo ? (colorScheme === 'dark' ? colors.badgeActive : colors.successDark) : colors.badgeInactive}
+                  bg={activo ? colors.badgeActiveBg : colors.badgeInactiveBg}
                 />
                 <Text
                   style={[styles.detailText, { color: colors.textSecondary }]}
@@ -165,17 +172,12 @@ function ClienteCardBase({
                 {telefono && (
                   <>
                     <Text style={[styles.detailSeparator, { color: colors.textTertiary }]}>·</Text>
-                    <Ionicons
-                      name="call-outline"
-                      size={scale(11)}
-                      color={colors.textTertiary}
+                    <ClickToCall
+                      compact
+                      phone={telefono}
+                      textStyle={[styles.detailText, { color: colors.textSecondary }]}
+                      iconColor={colors.textTertiary}
                     />
-                    <Text
-                      style={[styles.detailText, { color: colors.textSecondary }]}
-                      numberOfLines={1}
-                    >
-                      {telefono}
-                    </Text>
                   </>
                 )}
               </View>
@@ -221,11 +223,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(4),
-  },
-  statusDot: {
-    width: scale(6),
-    height: scale(6),
-    borderRadius: scale(3),
   },
   detailText: {
     fontSize: FontSize.xs,

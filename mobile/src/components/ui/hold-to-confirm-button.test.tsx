@@ -100,6 +100,21 @@ describe('HoldToConfirmButton', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it('cancela el hold si el dedo sale del área del botón', async () => {
+    const onConfirm = jest.fn();
+    const { getByRole } = await renderWithTheme(
+      <HoldToConfirmButton title="Desembolsar" onConfirm={onConfirm} durationMs={200} />,
+    );
+
+    fireEvent(getByRole('button'), 'pressIn');
+    await sleep(80);
+    // Al salir del área (pressRetentionOffset=0) Pressable dispara onPressOut.
+    fireEvent(getByRole('button'), 'pressOut');
+    await sleep(400);
+
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it('expone el estado busy cuando está cargando', async () => {
     const { getByRole } = await renderWithTheme(
       <HoldToConfirmButton title="Desembolsar" onConfirm={jest.fn()} loading />,

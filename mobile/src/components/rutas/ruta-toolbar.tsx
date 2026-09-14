@@ -1,6 +1,7 @@
-import { Pressable, Text, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
+import { Spacing, BorderRadius, scale } from '@/constants/theme';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 type FilterType = 'todos' | 'pendientes' | 'visitados';
 
@@ -14,11 +15,11 @@ interface RutaToolbarProps {
   onSortChange: () => void;
 }
 
-const FILTER_LABELS: Record<FilterType, string> = {
-  todos: 'Todos',
-  pendientes: 'Pendientes',
-  visitados: 'Visitados',
-};
+const FILTER_OPTIONS: { label: string; value: FilterType }[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Pendientes', value: 'pendientes' },
+  { label: 'Visitados', value: 'visitados' },
+];
 
 export function RutaToolbar({
   filter,
@@ -31,30 +32,13 @@ export function RutaToolbar({
 }: RutaToolbarProps) {
   return (
     <View style={styles.toolbar}>
-      <View style={styles.filterRow}>
-        {(['todos', 'pendientes', 'visitados'] as const).map((f) => (
-          <Pressable
-            key={f}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: filter === f ? colors.primaryLight : colors.surface,
-                borderColor: filter === f ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={() => onFilterChange(f)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: filter === f ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              {FILTER_LABELS[f]}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedControl
+        options={FILTER_OPTIONS}
+        value={filter}
+        onChange={onFilterChange}
+        accessibilityLabel="Filtrar clientes de la ruta"
+        style={styles.filterRow}
+      />
       <View style={styles.toolRight}>
         <Pressable
           style={[styles.viewToggle, {
@@ -102,19 +86,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   filterRow: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
     flex: 1,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.medium,
+    flexShrink: 1,
   },
   viewToggle: {
     width: scale(36),
@@ -127,5 +100,6 @@ const styles = StyleSheet.create({
   toolRight: {
     flexDirection: 'row',
     gap: Spacing.xs,
+    flexShrink: 0,
   },
 });

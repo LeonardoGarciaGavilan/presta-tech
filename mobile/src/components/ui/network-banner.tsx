@@ -2,10 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
-  SlideInDown,
-  SlideOutUp,
-  useSharedValue,
   useAnimatedStyle,
+  useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
@@ -30,40 +28,36 @@ type PrevState = BannerState | 'online' | null;
 
 function getBannerColors(
   state: BannerState,
-  colorScheme: 'light' | 'dark',
+  colors: ReturnType<typeof useTheme>['colors'],
 ) {
-  const isDark = colorScheme === 'dark';
+  const isDark = colors.background !== '#FFFFFF';
   switch (state) {
     case 'offline':
       return isDark
-        ? { bg: '#7F1D1D', text: '#FCA5A5', icon: '#FCA5A5' }
-        : { bg: '#EF4444', text: '#FFFFFF', icon: '#FFFFFF' };
+        ? { bg: colors.errorLight, text: colors.error, icon: colors.error }
+        : { bg: colors.error, text: '#FFFFFF', icon: '#FFFFFF' };
     case 'syncing':
       return isDark
-        ? { bg: '#78350F', text: '#FCD34D', icon: '#FCD34D' }
-        : { bg: '#F59E0B', text: '#FFFFFF', icon: '#FFFFFF' };
+        ? { bg: colors.warningLight, text: colors.warning, icon: colors.warning }
+        : { bg: colors.warning, text: '#FFFFFF', icon: '#FFFFFF' };
     case 'synced':
-      return isDark
-        ? { bg: '#064E3B', text: '#6EE7B7', icon: '#6EE7B7' }
-        : { bg: '#10B981', text: '#FFFFFF', icon: '#FFFFFF' };
     case 'restored':
-      return isDark
-        ? { bg: '#064E3B', text: '#6EE7B7', icon: '#6EE7B7' }
-        : { bg: '#10B981', text: '#FFFFFF', icon: '#FFFFFF' };
     default:
       return isDark
-        ? { bg: '#064E3B', text: '#6EE7B7', icon: '#6EE7B7' }
-        : { bg: '#10B981', text: '#FFFFFF', icon: '#FFFFFF' };
+        ? { bg: colors.successLight, text: colors.success, icon: colors.success }
+        : { bg: colors.success, text: '#FFFFFF', icon: '#FFFFFF' };
   }
 }
 
 export function NetworkBanner() {
-  const { colorScheme } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { network, pendingCount, isSyncing, triggerSync, setBannerVisible } = useNetworkContext();
   const [bannerState, setBannerState] = useState<BannerState>('idle');
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevStateRef = useRef<PrevState>(null);
+  const bannerOffset = useSharedValue(-100);
+  const bannerOpacity = useSharedValue(0);
 
   useEffect(() => {
     return () => {
@@ -160,6 +154,19 @@ export function NetworkBanner() {
     setBannerVisible(bannerState !== 'idle');
   }, [bannerState, setBannerVisible]);
 
+  // Animación de entrada controlada por shared values al montar: el nodo se
+  // desmonta cuando no hay banner (return null abajo), así la entrada siempre se
+  // ejecuta sin depender de la persistencia del nodo ni ocupar espacio en idle.
+  useEffect(() => {
+    bannerOffset.value = withTiming(0, { duration: 120 });
+    bannerOpacity.value = withTiming(1, { duration: 180 });
+  }, [bannerOffset, bannerOpacity]);
+
+  const bannerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: bannerOffset.value }],
+    opacity: bannerOpacity.value,
+  }));
+
   const handleRetry = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     triggerSync();
@@ -208,13 +215,11 @@ export function NetworkBanner() {
   };
 
   const config = getBannerConfig();
-  const bannerColors = getBannerColors(bannerState, colorScheme);
+  const bannerColors = getBannerColors(bannerState, colors);
 
   return (
     <Animated.View
-      entering={SlideInDown.duration(300).springify()}
-      exiting={SlideOutUp.duration(200)}
-      style={[styles.banner, { backgroundColor: bannerColors.bg, paddingTop: insets.top }, Shadows.md]}
+      style={[styles.banner, bannerStyle, { backgroundColor: getBannerColors(bannerState, colors).bg, paddingTop: insets.top }, Shadows.md]}
       accessible
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
@@ -235,7 +240,7 @@ export function NetworkBanner() {
         {config.showRetry && (
           <TouchableOpacity
             onPress={handleRetry}
-            style={[styles.retryButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+            style={[styles.retryButton, { backgroundColor: bannerColors.text + '26' }]}
             accessibilityRole="button"
             accessibilityLabel="Reintentar conexión"
           >

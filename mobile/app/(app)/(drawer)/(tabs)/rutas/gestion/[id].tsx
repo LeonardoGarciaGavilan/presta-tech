@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -142,7 +142,7 @@ export default function GestionRutaScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Información</Text>
           {dirty && (
             <Pressable
-              style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+              style={[styles.saveBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
               onPress={handleSave}
               disabled={actualizando}
             >
@@ -181,7 +181,7 @@ export default function GestionRutaScreen() {
         </View>
       </View>
     </>
-  ), [colors, nombre, dirty, actualizando, handleSave, clientes.length]);
+  ), [colors, colorScheme, nombre, dirty, actualizando, handleSave, clientes.length]);
 
   const renderItem = useCallback(({ item, index }: { item: any; index: number }) => (
     <View

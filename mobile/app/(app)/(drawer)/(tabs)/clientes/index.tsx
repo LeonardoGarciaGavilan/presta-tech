@@ -14,7 +14,7 @@ import SearchBar from '@/components/ui/search-bar';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { useEliminarCliente, useReactivarCliente } from '@/hooks/use-clientes';
 import { getNetworkStatus, useNetworkStatus } from '@/hooks/use-network-status';
 import { getClientesOffline } from '@/services/offline-data';
@@ -307,6 +307,7 @@ export default function ClientesListScreen() {
         message={`¿Estás seguro de deshabilitar a ${dialogClient?.nombre}?`}
         confirmLabel="Deshabilitar"
         destructive
+        useHold
         onConfirm={async () => {
           if (!dialogClient) return;
           try {
@@ -352,7 +353,7 @@ export default function ClientesListScreen() {
 
       {puedeCrear && (
         <Pressable
-          style={[styles.fab, { backgroundColor: colors.primary }]}
+          style={[styles.fab, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
           onPress={() => router.push('/clientes/crear')}
           accessibilityRole="button"
           accessibilityLabel="Crear cliente"

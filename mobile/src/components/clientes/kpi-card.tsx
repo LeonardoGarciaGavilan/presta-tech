@@ -16,6 +16,7 @@ interface KpiCardProps {
   label: string;
   accent?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
   delay?: number;
+  width?: number | `${number}%`;
 }
 
 const ACCENT_MAP = {
@@ -32,6 +33,7 @@ function KpiCardBase({
   label,
   accent = 'primary',
   delay = 0,
+  width,
 }: KpiCardProps) {
   const { colors } = useTheme();
   const animScale = useSharedValue(0.8);
@@ -56,6 +58,9 @@ function KpiCardBase({
     <Animated.View
       style={[
         styles.card,
+        width != null
+          ? { width, maxWidth: width, flexGrow: 0, flexShrink: 0 }
+          : { flex: 1 },
         {
           backgroundColor: colors.surface,
           borderColor: colors.border,
@@ -76,7 +81,15 @@ function KpiCardBase({
           color={getColor(colors, accentColors.icon)}
         />
       </View>
-      <Text style={[styles.value, { color: colors.text }]} accessibilityRole="text">{value}</Text>
+      <Text
+        style={[styles.value, { color: colors.text }]}
+        accessibilityRole="text"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
+        {value}
+      </Text>
       <Text style={[styles.label, { color: colors.textSecondary }]} accessibilityRole="text">
         {label}
       </Text>

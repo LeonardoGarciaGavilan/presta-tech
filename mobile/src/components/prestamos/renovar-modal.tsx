@@ -1,8 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,7 +17,9 @@ import { AppButton } from "@/components/ui/app-button";
 import { AppInput } from "@/components/ui/app-input";
 import PickerField from "@/components/ui/picker-field";
 import DatePickerField from "@/components/ui/date-picker-field";
-import { useTheme } from "@/components/ui/theme-provider";
+import { useTheme, getSolidFill } from "@/components/ui/theme-provider";
+import AnimatedModal from "@/components/ui/animated-modal";
+import ModalHeader from "@/components/ui/modal-header";
 import { useToast } from "@/components/ui/toast";
 import { getConfiguracion } from "@/db/config-db";
 import { calcularRenovacionLocal } from "@/utils/amortizacion";
@@ -37,6 +36,11 @@ import {
   BorderRadius,
   scale,
 } from "@/constants/theme";
+import {
+  FREQ_LABEL,
+  DURACION_LABEL,
+} from "@/constants/prestamos.constants";
+import { humanizeError } from "@/utils/errors";
 
 interface RenovarModalProps {
   visible: boolean;
@@ -51,20 +55,6 @@ const FRECUENCIAS: FrecuenciaPago[] = [
   "QUINCENAL",
   "MENSUAL",
 ];
-
-const FREQ_LABEL: Record<string, string> = {
-  DIARIO: "diario",
-  SEMANAL: "semanal",
-  QUINCENAL: "quincenal",
-  MENSUAL: "mensual",
-};
-
-const DURACION_LABEL: Record<string, string> = {
-  DIARIO: "días",
-  SEMANAL: "semanas",
-  QUINCENAL: "quincenas",
-  MENSUAL: "meses",
-};
 
 // ── Sanitización numérica ───────────────────────────────────────────
 // Normaliza coma decimal (teclados es-DO / Android) y filtra caracteres
@@ -157,7 +147,7 @@ const RenovarModal = ({
   prestamo,
   onSuccess,
 }: RenovarModalProps) => {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { network } = useNetworkContext();
@@ -528,7 +518,7 @@ const RenovarModal = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(
         () => {},
       );
-      showToast(err?.message || "Error al renovar el préstamo", "error");
+      showToast(humanizeError(err, "Error al renovar el préstamo"), "error");
     }
   }, [
     montoNuevo,
@@ -566,40 +556,19 @@ const RenovarModal = ({
   const liquidacion = preview?.liquidacion;
 
   return (
-    <Modal
+    <AnimatedModal
       visible={visible}
-      transparent
-      animationType="fade"
       onRequestClose={handleClose}
+      avoidKeyboard
+      cardStyle={styles.card}
     >
-      <KeyboardAvoidingView
-        style={[styles.overlay, { backgroundColor: colors.overlay }]}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View
-          style={[styles.card, { backgroundColor: colors.surfaceElevated }]}
-        >
-          <View style={[styles.headerBar, { backgroundColor: colors.primary }]}>
-            <Ionicons name="refresh-circle" size={scale(22)} color="#FFFFFF" />
-            <Text
-              style={[styles.title, { color: "#FFFFFF" }]}
-              accessibilityRole="header"
-            >
-              Renovar Préstamo
-            </Text>
-            <Pressable
-              onPress={handleClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar"
-              accessibilityHint="Cierra el modal sin renovar"
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={scale(22)} color="#FFFFFF" />
-            </Pressable>
-          </View>
-          <ScrollView
+      <ModalHeader
+        icon="refresh-circle"
+        title="Renovar Préstamo"
+        subtitle={`Préstamo #${prestamo.id.slice(0, 8)}`}
+        onClose={handleClose}
+      />
+      <ScrollView
             style={styles.body}
             keyboardShouldPersistTaps="handled"
             bounces={false}
@@ -721,13 +690,11 @@ const RenovarModal = ({
                     title="Atrás"
                     onPress={() => setConfirmarPaso(false)}
                     variant="ghost"
-                    style={{ flex: 1 }}
                   />
                   <AppButton
                     title="Confirmar renovación"
                     onPress={handleRenovar}
                     loading={renovarMutation.isPending}
-                    style={{ flex: 1 }}
                   />
                 </View>
               </>
@@ -856,7 +823,7 @@ const RenovarModal = ({
                     onPress={() => cambiarModoRapido(false)}
                     style={[
                       styles.modeBtn,
-                      !modoRapido && { backgroundColor: colors.primary },
+                      !modoRapido && { backgroundColor: getSolidFill(colors, colorScheme, "primary") },
                     ]}
                     accessibilityRole="button"
                     accessibilityLabel="Modo de cálculo normal"
@@ -877,7 +844,7 @@ const RenovarModal = ({
                     onPress={() => cambiarModoRapido(true)}
                     style={[
                       styles.modeBtn,
-                      modoRapido && { backgroundColor: colors.primary },
+                      modoRapido && { backgroundColor: getSolidFill(colors, colorScheme, "primary") },
                     ]}
                     accessibilityRole="button"
                     accessibilityLabel="Modo de cálculo rápido"
@@ -912,7 +879,7 @@ const RenovarModal = ({
                           styles.subBtn,
                           { borderColor: colors.border },
                           modoCalculo === "PAGO" && {
-                            backgroundColor: colors.primary,
+                            backgroundColor: getSolidFill(colors, colorScheme, "primary"),
                           },
                         ]}
                         accessibilityRole="button"
@@ -939,7 +906,7 @@ const RenovarModal = ({
                           styles.subBtn,
                           { borderColor: colors.border },
                           modoCalculo === "GANANCIA" && {
-                            backgroundColor: colors.primary,
+                            backgroundColor: getSolidFill(colors, colorScheme, "primary"),
                           },
                         ]}
                         accessibilityRole="button"
@@ -1205,7 +1172,6 @@ const RenovarModal = ({
                     title="Cancelar"
                     onPress={handleClose}
                     variant="ghost"
-                    style={{ flex: 1 }}
                   />
                   <AppButton
                     title="Continuar"
@@ -1217,41 +1183,22 @@ const RenovarModal = ({
                       !!preview?.error ||
                       !preview
                     }
-                    style={{ flex: 1 }}
                   />
                 </View>
               </>
             )}
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </AnimatedModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: Spacing.xl,
-  },
   card: {
     width: "100%",
     maxWidth: 380,
     maxHeight: "90%",
     borderRadius: BorderRadius.lg,
     overflow: "hidden",
-  },
-  headerBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    padding: Spacing.md,
-  },
-  title: { fontSize: FontSize.md, fontWeight: FontWeight.bold, flex: 1 },
-  closeButton: {
-    marginLeft: "auto",
   },
   body: { padding: Spacing.md },
   modeToggle: {
@@ -1374,7 +1321,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     textAlign: "right",
   },
-  actions: { flexDirection: "row", gap: Spacing.sm, flexShrink: 0 },
+  actions: { gap: Spacing.sm, flexShrink: 0 },
 });
 
 export default RenovarModal;

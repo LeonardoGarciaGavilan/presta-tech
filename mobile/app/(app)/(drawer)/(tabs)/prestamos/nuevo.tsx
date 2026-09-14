@@ -17,9 +17,10 @@ import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/t
 import { formatCurrency, formatDate, getFechaRD } from '@/utils/formatters';
 import type { FrecuenciaPago } from '@/types/prestamo.types';
 import type { ApiError } from '@/types/api.types';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { PermisoGate } from '@/components/permisos/permiso-gate';
 import { getPrestamosByClienteId } from '@/db/prestamos-db';
+import { FREQ_LABEL, DURACION_LABEL } from '@/constants/prestamos.constants';
 
 const FRECUENCIA_OPTIONS: { label: string; value: FrecuenciaPago }[] = [
   { label: 'Diario', value: 'DIARIO' },
@@ -28,22 +29,8 @@ const FRECUENCIA_OPTIONS: { label: string; value: FrecuenciaPago }[] = [
   { label: 'Mensual', value: 'MENSUAL' },
 ];
 
-const FREQ_LABEL: Record<string, string> = {
-  DIARIO: 'diario',
-  SEMANAL: 'semanal',
-  QUINCENAL: 'quincenal',
-  MENSUAL: 'mensual',
-};
-
-const DURACION_LABEL: Record<string, string> = {
-  DIARIO: 'días',
-  SEMANAL: 'semanas',
-  QUINCENAL: 'quincenas',
-  MENSUAL: 'meses',
-};
-
 export default function NuevoPrestamoScreen() {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const { mutateAsync: crearPrestamo, isPending: isCreando } = useCrearPrestamo();
   const { showToast } = useToast();
   const { data: configuracion } = useConfiguracion();
@@ -210,7 +197,7 @@ export default function NuevoPrestamoScreen() {
             <View style={[styles.modeToggle, { backgroundColor: colors.surface }]}>
               <Pressable
                 onPress={() => setModoRapido(false)}
-                style={[styles.modeBtn, !modoRapido && { backgroundColor: colors.primary }]}
+                style={[styles.modeBtn, !modoRapido && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: !modoRapido }}
                 accessibilityLabel="Modo normal"
@@ -219,7 +206,7 @@ export default function NuevoPrestamoScreen() {
               </Pressable>
               <Pressable
                 onPress={() => setModoRapido(true)}
-                style={[styles.modeBtn, modoRapido && { backgroundColor: colors.primary }]}
+                style={[styles.modeBtn, modoRapido && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: modoRapido }}
                 accessibilityLabel="Modo rápido"
@@ -305,7 +292,7 @@ export default function NuevoPrestamoScreen() {
                 <View style={styles.subToggle}>
                   <Pressable
                     onPress={() => setModoCalculo('PAGO')}
-                    style={[styles.subBtn, { borderColor: colors.border }, modoCalculo === 'PAGO' && { backgroundColor: colors.primary }]}
+                    style={[styles.subBtn, { borderColor: colors.border }, modoCalculo === 'PAGO' && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                   >
                     <Text style={[styles.subBtnText, { color: modoCalculo === 'PAGO' ? '#FFFFFF' : colors.textSecondary }]}>
                       Pago por período
@@ -313,7 +300,7 @@ export default function NuevoPrestamoScreen() {
                   </Pressable>
                   <Pressable
                     onPress={() => setModoCalculo('GANANCIA')}
-                    style={[styles.subBtn, { borderColor: colors.border }, modoCalculo === 'GANANCIA' && { backgroundColor: colors.primary }]}
+                    style={[styles.subBtn, { borderColor: colors.border }, modoCalculo === 'GANANCIA' && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                   >
                     <Text style={[styles.subBtnText, { color: modoCalculo === 'GANANCIA' ? '#FFFFFF' : colors.textSecondary }]}>
                       Ganancia deseada
@@ -432,7 +419,7 @@ export default function NuevoPrestamoScreen() {
                       styles.freqBtn,
                       {
                         borderColor: frecuenciaPago === opt.value ? colors.primary : colors.border,
-                        backgroundColor: frecuenciaPago === opt.value ? colors.primary : colors.surface,
+                        backgroundColor: frecuenciaPago === opt.value ? getSolidFill(colors, colorScheme, 'primary') : colors.surface,
                       },
                     ]}
                   >

@@ -24,7 +24,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/t
 import { formatCurrency, dateToISO } from '@/utils/formatters';
 import type { ReciboData } from '@/utils/recibo-pdf';
 import type { ClienteVistaDia, ResumenVistaDia } from '@/types/rutas.types';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { getCuotaACobrar, getMontoCuotaACobrar } from '@/utils/rutas';
 import CobroRapidoModal from '@/components/rutas/cobro-rapido-modal';
 import ReciboPagoModal from '@/components/pagos/recibo-modal';
@@ -287,6 +287,18 @@ export default function VistaDiaScreen() {
     <ScreenContainer>
       <PageHeader title={ruta.nombre} />
 
+      <View style={styles.toolbarWrap}>
+        <RutaToolbar
+          filter={filter}
+          mapa={mapa}
+          sortByCercania={sortByCercania}
+          colors={colors}
+          onFilterChange={setFilter}
+          onToggleMapa={() => setMapa((p) => !p)}
+          onSortChange={() => setSortByCercania((p) => !p)}
+        />
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -336,16 +348,6 @@ export default function VistaDiaScreen() {
           </View>
         )}
 
-        <RutaToolbar
-          filter={filter}
-          mapa={mapa}
-          sortByCercania={sortByCercania}
-          colors={colors}
-          onFilterChange={setFilter}
-          onToggleMapa={() => setMapa((p) => !p)}
-          onSortChange={() => setSortByCercania((p) => !p)}
-        />
-
         {/* Map — inside ScrollView, like the web */}
         {showMap && (
           <View
@@ -388,6 +390,7 @@ export default function VistaDiaScreen() {
                 key={item.rutaClienteId}
                 item={item}
                 colors={colors}
+                colorScheme={colorScheme}
                 onToggleVisita={handleToggleVisita}
                 onCobroRapido={handleCobroRapido}
                 marcando={marcando}
@@ -466,12 +469,14 @@ export default function VistaDiaScreen() {
 function ClienteCardItem({
   item,
   colors,
+  colorScheme,
   onToggleVisita,
   onCobroRapido,
   marcando,
 }: {
   item: ClienteVistaDia;
   colors: any;
+  colorScheme: 'light' | 'dark';
   onToggleVisita: (rcId: string, visitadoHoy: boolean) => void;
   onCobroRapido: (item: ClienteVistaDia) => void;
   marcando: boolean;
@@ -566,7 +571,7 @@ function ClienteCardItem({
             </Text>
           </View>
           <Pressable
-            style={[styles.cobrarBtn, { backgroundColor: colors.primary }]}
+            style={[styles.cobrarBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
             onPress={() => onCobroRapido(item)}
             accessibilityRole="button"
             accessibilityLabel={`Cobrar ${formatCurrency(montoCuota)} a ${cliente.nombre}`}
@@ -586,6 +591,11 @@ ClienteCardItemMemo.displayName = 'ClienteCardItem';
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
+  },
+  toolbarWrap: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.sm,
   },
   content: {
     padding: Spacing.md,

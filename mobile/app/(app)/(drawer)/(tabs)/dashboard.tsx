@@ -83,8 +83,8 @@ export default function DashboardScreen() {
       >
         <DashboardHero nombre={user?.nombre ?? 'Usuario'} caja={data.caja} />
         <KPIGrid portfolio={data.portfolio} today={data.today} />
-        <UpcomingCollections cobros={data.proximosCobros} today={data.today} />
         <QuickActions />
+        <UpcomingCollections cobros={data.proximosCobros} today={data.today} />
       </ScrollView>
     </ScreenContainer>
   );

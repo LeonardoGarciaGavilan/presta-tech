@@ -44,16 +44,21 @@ export const Colors = {
     textTertiary: '#64748B',
     border: '#E5E7EB',
     borderLight: '#F3F4F6',
-    error: '#DC2626',
-    errorLight: '#FEF2F2',
     success: '#16A34A',
     successLight: '#F0FDF4',
+    successDark: '#15803D',
     warning: '#D97706',
     warningLight: '#FFFBEB',
+    warningDark: '#B45309',
+    error: '#DC2626',
+    errorLight: '#FEF2F2',
+    errorDark: '#B91C1C',
     info: '#0284C7',
     infoLight: '#F0F9FF',
+    infoDark: '#0369A1',
     teal: '#0F766E',
     tealLight: '#CCFBF1',
+    tealDark: '#115E59',
     disabled: '#D1D5DB',
     disabledBackground: '#F3F4F6',
     overlay: 'rgba(0, 0, 0, 0.5)',
@@ -69,7 +74,7 @@ export const Colors = {
     kpiBackground: '#FFFFFF',
     badgeActive: '#16A34A',
     badgeActiveBg: '#F0FDF4',
-    badgeInactive: '#94A3B8',
+    badgeInactive: '#4B5563',
     badgeInactiveBg: '#F1F5F9',
     chartLine: '#2563EB',
     chartGradient: 'rgba(37, 99, 235, 0.1)',
@@ -77,6 +82,7 @@ export const Colors = {
     phone: '#3B82F6',
     route: '#0891B2',
     routeBg: '#ECFEFF',
+    routeDark: '#0E7490',
   },
   dark: {
     primary: '#60A5FA',
@@ -95,14 +101,19 @@ export const Colors = {
     borderLight: '#1E293B',
     error: '#EF4444',
     errorLight: '#450A0A',
+    errorDark: '#EF4444',
     success: '#22C55E',
     successLight: '#052E16',
+    successDark: '#22C55E',
     warning: '#F59E0B',
     warningLight: '#451A03',
+    warningDark: '#F59E0B',
     info: '#38BDF8',
     infoLight: '#0C4A6E',
+    infoDark: '#38BDF8',
     teal: '#14B8A6',
     tealLight: '#042F2E',
+    tealDark: '#14B8A6',
     disabled: '#475569',
     disabledBackground: '#1E293B',
     overlay: 'rgba(0, 0, 0, 0.7)',
@@ -118,7 +129,7 @@ export const Colors = {
     kpiBackground: '#1E293B',
     badgeActive: '#22C55E',
     badgeActiveBg: '#052E16',
-    badgeInactive: '#64748B',
+    badgeInactive: '#94A3B8',
     badgeInactiveBg: '#1E293B',
     chartLine: '#60A5FA',
     chartGradient: 'rgba(96, 165, 250, 0.1)',
@@ -126,6 +137,7 @@ export const Colors = {
     phone: '#60A5FA',
     route: '#22D3EE',
     routeBg: '#164E63',
+    routeDark: '#22D3EE',
   },
 };
 
@@ -230,6 +242,8 @@ export const Shadows = {
 };
 
 export type IoniconsName = keyof typeof Ionicons.glyphMap;
+
+export type ThemeColors = typeof Colors.light;
 
 export type AppStyles = Record<string, any>;
 

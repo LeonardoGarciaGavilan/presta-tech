@@ -6,6 +6,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/
 import type { ProximoCobro, Today } from '@/types/dashboard.types';
 import { formatCurrency } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
+import ClickToCall from '@/components/ui/click-to-call';
 import { usePermisos } from '@/permisos/use-permisos';
 
 interface UpcomingCollectionsProps {
@@ -14,7 +15,7 @@ interface UpcomingCollectionsProps {
 }
 
 export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const navigation = useNavigation();
   const { tienePermiso } = usePermisos();
   const puedeVerPagos = tienePermiso('pagos:ver');
@@ -64,12 +65,12 @@ export function UpcomingCollections({ cobros, today }: UpcomingCollectionsProps)
               </Text>
               <View style={styles.itemMeta}>
                 {cobro.telefono && (
-                  <View style={styles.metaRow}>
-                    <Ionicons name="call-outline" size={scale(12)} color={colors.textTertiary} />
-                    <Text style={[styles.metaText, { color: colors.textTertiary }]}>
-                      {cobro.telefono}
-                    </Text>
-                  </View>
+                  <ClickToCall
+                    compact
+                    phone={cobro.telefono}
+                    textStyle={[styles.metaText, { color: colors.textTertiary }]}
+                    iconColor={colors.textTertiary}
+                  />
                 )}
                 <View style={styles.metaRow}>
                   <Ionicons name="receipt-outline" size={scale(12)} color={colors.textTertiary} />

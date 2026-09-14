@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
+import ClickToCall from '@/components/ui/click-to-call';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
 import { totalCuota } from '@/utils/money';
@@ -82,9 +83,12 @@ export default function CobroRapidoModal({
                   {cliente.cliente.nombre} {cliente.cliente.apellido || ''}
                 </Text>
                 {cliente.cliente.telefono && (
-                  <Text style={[styles.cobroClientePhone, { color: colors.textTertiary }]}>
-                    {cliente.cliente.telefono}
-                  </Text>
+                  <ClickToCall
+                    compact
+                    phone={cliente.cliente.telefono}
+                    showIcon={false}
+                    textStyle={[styles.cobroClientePhone, { color: colors.textTertiary }]}
+                  />
                 )}
 
                 {cuotaACobrar && (

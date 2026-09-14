@@ -6,7 +6,7 @@ import { useNavigation, useRouter } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { ThemeSelectorModal } from '@/components/ui/theme-selector-modal';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { usePermisos } from '@/permisos/use-permisos';
@@ -16,7 +16,7 @@ import { Routes } from '@/constants/routes';
 export function CompanyHeader() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const insets = useSafeAreaInsets();
-  const { colors, themeMode } = useTheme();
+  const { colorScheme, colors, themeMode } = useTheme();
   const companyName = useAuthStore((s) => s.user?.empresa);
   const userNombre = useAuthStore((s) => s.user?.nombre);
   const userEmail = useAuthStore((s) => s.user?.email);
@@ -146,7 +146,7 @@ export function CompanyHeader() {
             width: scale(34),
             height: scale(34),
             borderRadius: scale(17),
-            backgroundColor: colors.primary,
+            backgroundColor: getSolidFill(colors, colorScheme, 'primary'),
             justifyContent: 'center',
             alignItems: 'center',
           }}

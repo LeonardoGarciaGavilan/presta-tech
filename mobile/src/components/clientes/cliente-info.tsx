@@ -1,9 +1,10 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import type { Cliente } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
+import ClickToCall from '@/components/ui/click-to-call';
 
 interface ClienteInfoProps {
   cliente: Cliente;
@@ -13,14 +14,14 @@ interface InfoRowProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string | number | null;
+  phone?: boolean;
 }
 
-function InfoRow({ icon, label, value }: InfoRowProps) {
-  const { colorScheme, colors } = useTheme();
-  const display =
-    value === null || value === undefined || value === ''
-      ? 'No disponible'
-      : String(value);
+function InfoRow({ icon, label, value, phone }: InfoRowProps) {
+  const { colors } = useTheme();
+  const isEmpty =
+    value === null || value === undefined || value === '';
+  const display = isEmpty ? 'No disponible' : String(value);
 
   return (
     <View style={styles.infoRow}>
@@ -29,14 +30,22 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
         <Text style={[styles.label, { color: colors.textTertiary }]}>
           {label}
         </Text>
-        <Text style={[styles.value, { color: colors.text }]}>{display}</Text>
+        {phone && !isEmpty ? (
+          <ClickToCall
+            phone={display}
+            showIcon={false}
+            textStyle={[styles.value, { color: colors.text }]}
+          />
+        ) : (
+          <Text style={[styles.value, { color: colors.text }]}>{display}</Text>
+        )}
       </View>
     </View>
   );
 }
 
 export default function ClienteInfo({ cliente }: ClienteInfoProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.wrapper}>
@@ -72,9 +81,9 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
         </Text>
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         {cliente.telefono && (
-          <InfoRow icon="call-outline" label="Teléfono" value={cliente.telefono} />
+          <InfoRow icon="call-outline" label="Teléfono" value={cliente.telefono} phone />
         )}
-          <InfoRow icon="phone-portrait-outline" label="Celular" value={cliente.celular} />
+          <InfoRow icon="phone-portrait-outline" label="Celular" value={cliente.celular} phone />
         <InfoRow icon="mail-outline" label="Correo" value={cliente.email} />
       </View>
 

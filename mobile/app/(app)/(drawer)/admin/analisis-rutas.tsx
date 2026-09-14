@@ -6,7 +6,7 @@ import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/co
 import { useResumenRutas } from '@/hooks/use-rutas';
 import type { ResumenRuta } from '@/types/rutas.types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrency, formatCurrencyCompact, formatTimeAgo } from '@/utils/formatters';
@@ -406,7 +406,7 @@ export default function AnalisisRutasScreen() {
                   </Text>
                 </View>
                 <View style={styles.topRouteBody}>
-                  <View style={[styles.topRouteAvatar, { backgroundColor: colors.success }]}>
+                  <View style={[styles.topRouteAvatar, { backgroundColor: getSolidFill(colors, colorScheme, 'success') }]}>
                     <Text style={styles.topRouteAvatarText}>{initialAvatar(topRoute.cobrador)}</Text>
                   </View>
                   <View style={styles.topRouteInfo}>

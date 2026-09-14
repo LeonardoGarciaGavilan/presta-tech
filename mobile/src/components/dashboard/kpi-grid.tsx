@@ -1,10 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import type { Portfolio, Today } from '@/types/dashboard.types';
 import { formatCurrency } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useResponsiveColumns } from '@/hooks/use-responsive';
 
 interface KPIGridProps {
   portfolio: Portfolio;
@@ -17,13 +18,14 @@ interface KPICardProps {
   bgColor: string;
   value: string;
   label: string;
+  width: DimensionValue;
 }
 
-function KPICard({ icon, iconColor, bgColor, value, label }: KPICardProps) {
+function KPICard({ icon, iconColor, bgColor, value, label, width }: KPICardProps) {
   const { colorScheme, colors } = useTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.kpiBackground }]}>
+    <View style={[styles.card, { width, backgroundColor: colors.kpiBackground }]}>
       <View style={[styles.iconWrap, { backgroundColor: bgColor }]}>
         <Ionicons name={icon} size={scale(20)} color={iconColor} />
       </View>
@@ -37,6 +39,8 @@ function KPICard({ icon, iconColor, bgColor, value, label }: KPICardProps) {
 
 export function KPIGrid({ portfolio, today }: KPIGridProps) {
   const { colors } = useTheme();
+  const { columns } = useResponsiveColumns();
+  const cardWidth = columns === 1 ? '100%' : columns === 4 ? '22%' : columns === 3 ? '30%' : '47%';
 
   return (
     <View style={styles.grid}>
@@ -46,6 +50,7 @@ export function KPIGrid({ portfolio, today }: KPIGridProps) {
         bgColor={colors.primaryLight}
         value={portfolio.activos.toString()}
         label="Cartera activa"
+        width={cardWidth}
       />
       <KPICard
         icon="warning"
@@ -53,6 +58,7 @@ export function KPIGrid({ portfolio, today }: KPIGridProps) {
         bgColor={colors.warningLight}
         value={today.cuotasPendientesHoy.toString()}
         label="Vencen hoy"
+        width={cardWidth}
       />
       <KPICard
         icon="trending-up"
@@ -60,6 +66,7 @@ export function KPIGrid({ portfolio, today }: KPIGridProps) {
         bgColor={colors.successLight}
         value={formatCurrency(today.cobradoHoy)}
         label="Cobrado hoy"
+        width={cardWidth}
       />
       <KPICard
         icon="flame"
@@ -67,6 +74,7 @@ export function KPIGrid({ portfolio, today }: KPIGridProps) {
         bgColor={colors.errorLight}
         value={today.prestamosMoraCritica.toString()}
         label="Mora crítica"
+        width={cardWidth}
       />
     </View>
   );
@@ -81,7 +89,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   card: {
-    width: '47%',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     alignItems: 'center',

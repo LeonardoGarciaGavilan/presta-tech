@@ -10,6 +10,7 @@ import Animated, {
 
 import { BorderRadius, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useResponsiveColumns } from '@/hooks/use-responsive';
 
 interface SkeletonProps {
   width?: number | string;
@@ -85,10 +86,13 @@ export function SkeletonCard({
 }
 
 export function SkeletonKPIGrid() {
+  const { columns } = useResponsiveColumns();
+  const cardWidth = columns === 1 ? '100%' : columns === 4 ? '22%' : columns === 3 ? '30%' : '47%';
+
   return (
     <View style={styles.kpiGrid}>
       {[1, 2, 3, 4].map((i) => (
-        <View key={i} style={styles.kpiItem}>
+        <View key={i} style={[styles.kpiItem, { width: cardWidth }]}>
           <Skeleton width={scale(36)} height={scale(36)} borderRadius={BorderRadius.md} />
           <Skeleton width="70%" height={scale(24)} style={{ marginTop: scale(8) }} />
           <Skeleton width="50%" height={scale(12)} style={{ marginTop: scale(4) }} />
@@ -119,7 +123,6 @@ const styles = StyleSheet.create({
     gap: scale(12),
   },
   kpiItem: {
-    width: '47%',
     padding: scale(16),
     borderRadius: BorderRadius.lg,
     alignItems: 'center',

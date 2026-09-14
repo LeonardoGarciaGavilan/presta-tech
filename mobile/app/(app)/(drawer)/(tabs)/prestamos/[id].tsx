@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,7 +20,6 @@ import {
 } from "@/hooks/use-prestamos";
 import { usePagosPendientesPrestamo } from "@/hooks/use-offline-queue";
 import { useConfiguracion } from "@/hooks/use-configuracion";
-import { AppButton } from "@/components/ui/app-button";
 import ActionConfirmModal from "@/components/ui/action-confirm-modal";
 import EmptyState from "@/components/ui/empty-state";
 import LoadingScreen from "@/components/ui/loading-screen";
@@ -39,38 +38,54 @@ import {
   scale,
 } from "@/constants/theme";
 import {
-  ESTADO_CONFIG,
   ACCIONES_FLOW_CONFIG,
+  FREQ_LABEL,
 } from "@/constants/prestamos.constants";
 import { formatCurrency, formatDate, formatDateTime } from "@/utils/formatters";
 import { totalCuota } from "@/utils/money";
+import { humanizeError } from "@/utils/errors";
 import type { ApiError } from "@/types/api.types";
 import type {
   EstadoPrestamo,
   Cuota,
   Pago,
-  FrecuenciaPago,
 } from "@/types/prestamo.types";
 import type { OfflineQueueItem } from "@/types/offline.types";
-import { useTheme } from "@/components/ui/theme-provider";
+import { useTheme, getSolidFill } from "@/components/ui/theme-provider";
+import ClickToCall from "@/components/ui/click-to-call";
 import DesembolsoModal from "@/components/prestamos/desembolso-modal";
 import RefinanciarModal from "@/components/prestamos/refinanciar-modal";
 import RenovarModal from "@/components/prestamos/renovar-modal";
 import HistorialRenovacion from "@/components/prestamos/historial-renovacion";
 import HistorialRefinanciamiento from "@/components/prestamos/historial-refinanciamiento";
+import { useAccionesFlow, usePrestamoEstados } from "@/hooks/use-prestamo-estados";
 
-const FLOW_ACCION_CONFIG = ACCIONES_FLOW_CONFIG;
-
-const InfoItemBase = ({ label, value }: { label: string; value: string }) => {
+const InfoItemBase = ({
+  label,
+  value,
+  phone,
+}: {
+  label: string;
+  value: string;
+  phone?: boolean;
+}) => {
   const { colors } = useTheme();
   return (
     <View style={infoStyles.item}>
       <Text style={[infoStyles.label, { color: colors.textTertiary }]}>
         {label}
       </Text>
-      <Text style={infoStyles.value} numberOfLines={2}>
-        {value || "—"}
-      </Text>
+      {phone ? (
+        <ClickToCall
+          phone={value}
+          numberOfLines={2}
+          textStyle={infoStyles.value}
+        />
+      ) : (
+        <Text style={infoStyles.value} numberOfLines={2}>
+          {value || "—"}
+        </Text>
+      )}
     </View>
   );
 };
@@ -92,6 +107,54 @@ const infoStyles = StyleSheet.create({
     marginTop: scale(1),
   },
 });
+
+interface AccionChip {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  esPrimaria: boolean;
+  onPress: () => void;
+}
+
+const AccionChipBtn = ({
+  chip,
+  fluid,
+}: {
+  chip: AccionChip;
+  fluid?: boolean;
+}) => {
+  return (
+    <Pressable
+      onPress={chip.onPress}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={chip.label}
+      style={({ pressed }) => [
+        styles.chip,
+        chip.esPrimaria
+          ? { backgroundColor: chip.color, borderColor: chip.color }
+          : { backgroundColor: "transparent", borderColor: `${chip.color}66` },
+        fluid && styles.chipFluid,
+        pressed && { opacity: 0.75 },
+      ]}
+    >
+      <Ionicons
+        name={chip.icon}
+        size={scale(15)}
+        color={chip.esPrimaria ? "#FFFFFF" : chip.color}
+      />
+      <Text
+        style={[
+          styles.chipLabel,
+          { color: chip.esPrimaria ? "#FFFFFF" : chip.color },
+        ]}
+      >
+        {chip.label}
+      </Text>
+    </Pressable>
+  );
+};
 
 const CuotaBadgeBase = ({
   pagada,
@@ -171,7 +234,7 @@ const SyncPagoBanner = ({
   pendientes: OfflineQueueItem[];
   fallidos: OfflineQueueItem[];
 }) => {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   if (pendientes.length === 0 && fallidos.length === 0) return null;
 
   if (fallidos.length > 0) {
@@ -180,7 +243,7 @@ const SyncPagoBanner = ({
       <View
         style={[
           bannerStyles.banner,
-          { backgroundColor: colors.error, borderColor: colors.error },
+          { backgroundColor: getSolidFill(colors, colorScheme, "error"), borderColor: colors.error },
         ]}
         accessibilityRole="alert"
       >
@@ -202,7 +265,7 @@ const SyncPagoBanner = ({
     <View
       style={[
         bannerStyles.banner,
-        { backgroundColor: colors.warning, borderColor: colors.warning },
+        { backgroundColor: getSolidFill(colors, colorScheme, "warning"), borderColor: colors.warning },
       ]}
       accessibilityRole="alert"
     >
@@ -242,6 +305,8 @@ export default function PrestamoDetalleScreen() {
   const { data: configuracion } = useConfiguracion();
   const puedeRevisar = tienePermiso("prestamos:revisar");
   const puedeAprobar = tienePermiso("prestamos:aprobar");
+  const ACCION_CONFIG = useAccionesFlow();
+  const ESTADOS = usePrestamoEstados();
   const { showToast } = useToast();
 
   const {
@@ -282,6 +347,7 @@ export default function PrestamoDetalleScreen() {
   const cuotasVencidas = cuotasPendientes.filter(
     (c) => new Date(c.fechaVencimiento) < new Date(),
   );
+
   const proximaCuota = [...cuotasPendientes].sort(
     (a, b) =>
       new Date(a.fechaVencimiento).getTime() -
@@ -333,6 +399,132 @@ export default function PrestamoDetalleScreen() {
     if (filtroCuotas === "pagadas") return cuotasPagadas;
     return cuotas;
   }, [filtroCuotas, cuotas, cuotasPendientes, cuotasVencidas, cuotasPagadas]);
+
+  const abrirFlow = useCallback((accion: string, estado: string) => {
+    setFlowAccion({ accion, estado });
+    setShowFlowModal(true);
+  }, []);
+
+  const flowChips = useMemo<AccionChip[]>(() => {
+    const acciones: AccionChip[] = [];
+    if (!prestamo) return acciones;
+
+    if (prestamo.estado === "SOLICITADO" && puedeRevisar) {
+      acciones.push(
+        {
+          id: "rechazar-solicitado",
+          label: "Rechazar",
+          icon: "close-circle-outline",
+          color: colors.error,
+          esPrimaria: false,
+          onPress: () => abrirFlow("RECHAZADO", "RECHAZADO"),
+        },
+        {
+          id: "revisar",
+          label: "Revisar",
+          icon: "search-outline",
+          color: colors.info,
+          esPrimaria: true,
+          onPress: () => abrirFlow("EN_REVISION", "EN_REVISION"),
+        },
+      );
+    } else if (
+      prestamo.estado === "EN_REVISION" &&
+      (puedeRevisar || puedeAprobar)
+    ) {
+      if (puedeRevisar) {
+        acciones.push({
+          id: "rechazar-en-revision",
+          label: "Rechazar",
+          icon: "close-circle-outline",
+          color: colors.error,
+          esPrimaria: false,
+          onPress: () => abrirFlow("RECHAZADO", "RECHAZADO"),
+        });
+      }
+      if (puedeAprobar) {
+        acciones.push({
+          id: "aprobar",
+          label: "Aprobar",
+          icon: "checkmark-circle-outline",
+          color: colors.success,
+          esPrimaria: true,
+          onPress: () => abrirFlow("APROBADO", "APROBADO"),
+        });
+      }
+    } else if (
+      prestamo.estado === "APROBADO" &&
+      (puedeRevisar || puedeDesembolsar)
+    ) {
+      if (puedeRevisar) {
+        acciones.push({
+          id: "rechazar-aprobado",
+          label: "Rechazar",
+          icon: "close-circle-outline",
+          color: colors.error,
+          esPrimaria: false,
+          onPress: () => abrirFlow("RECHAZADO", "RECHAZADO"),
+        });
+      }
+      if (puedeDesembolsar) {
+        acciones.push({
+          id: "desembolsar",
+          label: "Desembolsar",
+          icon: "cash",
+          color: colors.primary,
+          esPrimaria: true,
+          onPress: () => setShowDesembolsoModal(true),
+        });
+      }
+    }
+
+    return acciones;
+  }, [
+    prestamo,
+    puedeRevisar,
+    puedeAprobar,
+    puedeDesembolsar,
+    abrirFlow,
+    colors,
+  ]);
+
+  const especialesChips = useMemo<AccionChip[]>(() => {
+    const chips: AccionChip[] = [];
+    if (!prestamo) return chips;
+
+    if (puedeRefinanciar) {
+      chips.push({
+        id: "refinanciar",
+        label: "Refinanciar",
+        icon: "refresh",
+        color: colors.info,
+        esPrimaria: false,
+        onPress: () => setShowRefinanciarModal(true),
+      });
+    }
+    if (puedeRenovar) {
+      chips.push({
+        id: "renovar",
+        label: "Renovar",
+        icon: "refresh-circle",
+        color: colors.teal,
+        esPrimaria: false,
+        onPress: () => setShowRenovarModal(true),
+      });
+    }
+    if (puedeCancelar) {
+      chips.push({
+        id: "cancelar",
+        label: "Cancelar",
+        icon: "close",
+        color: colors.error,
+        esPrimaria: false,
+        onPress: () => setShowCancelarConfirm(true),
+      });
+    }
+
+    return chips;
+  }, [prestamo, puedeRefinanciar, puedeRenovar, puedeCancelar, colors]);
 
   const FILTROS_CUOTAS = [
     { id: "todas", label: "Todas", count: cuotas.length },
@@ -397,7 +589,7 @@ export default function PrestamoDetalleScreen() {
       } catch (err: any) {
         setShowFlowModal(false);
         setFlowAccion(null);
-        showToast(err?.message || "Error al cambiar estado", "error");
+        showToast(humanizeError(err, "Error al cambiar estado"), "error");
       }
     },
     [flowAccion, prestamo, cambiarEstadoMutation, showToast, refetch],
@@ -425,11 +617,7 @@ export default function PrestamoDetalleScreen() {
         <EmptyState
           icon="alert-circle-outline"
           title="Préstamo no encontrado"
-          subtitle={
-            queryError instanceof Error
-              ? queryError.message
-              : "Error al cargar el préstamo"
-          }
+          subtitle={humanizeError(queryError, "Error al cargar el préstamo")}
           actionLabel="Volver"
           onAction={() => router.back()}
         />
@@ -440,9 +628,9 @@ export default function PrestamoDetalleScreen() {
   if (!prestamo) return null;
 
   const cliente = prestamo.cliente;
-  const estadoCfg = ESTADO_CONFIG[prestamo.estado] || ESTADO_CONFIG.ACTIVO;
-  const flowCfg = flowAccion ? FLOW_ACCION_CONFIG[flowAccion.accion] : null;
-  const cancelarCfg = FLOW_ACCION_CONFIG["CANCELADO"];
+  const estadoCfg = ESTADOS[prestamo.estado] || ESTADOS.ACTIVO;
+  const flowCfg = flowAccion ? ACCION_CONFIG[flowAccion.accion] : null;
+  const cancelarCfg = ACCIONES_FLOW_CONFIG["CANCELADO"];
 
   return (
     <ScreenContainer
@@ -533,187 +721,24 @@ export default function PrestamoDetalleScreen() {
           pendientes={pagosPorSincronizar}
           fallidos={pagosFallidos}
         />
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
-          {/* Flow actions: Revisar / Aprobar / Rechazar */}
-          {prestamo.estado === "SOLICITADO" && puedeRevisar && (
-            <>
-              <Pressable
-                onPress={() => {
-                  setFlowAccion({
-                    accion: "EN_REVISION",
-                    estado: "EN_REVISION",
-                  });
-                  setShowFlowModal(true);
-                }}
-                style={[styles.actionButton, { backgroundColor: colors.info }]}
-                accessibilityRole="button"
-                accessibilityLabel="Revisar préstamo"
-              >
-                <Ionicons
-                  name="search-outline"
-                  size={scale(16)}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.actionButtonText}>Revisar</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setFlowAccion({ accion: "RECHAZADO", estado: "RECHAZADO" });
-                  setShowFlowModal(true);
-                }}
-                style={[styles.actionButton, { backgroundColor: colors.error }]}
-                accessibilityRole="button"
-                accessibilityLabel="Rechazar préstamo"
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={scale(16)}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.actionButtonText}>Rechazar</Text>
-              </Pressable>
-            </>
-          )}
-          {prestamo.estado === "EN_REVISION" &&
-            (puedeRevisar || puedeAprobar) && (
-              <>
-                {puedeAprobar && (
-                  <Pressable
-                    onPress={() => {
-                      setFlowAccion({ accion: "APROBADO", estado: "APROBADO" });
-                      setShowFlowModal(true);
-                    }}
-                    style={[
-                      styles.actionButton,
-                      { backgroundColor: colors.success },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Aprobar préstamo"
-                  >
-                    <Ionicons
-                      name="checkmark-circle-outline"
-                      size={scale(16)}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.actionButtonText}>Aprobar</Text>
-                  </Pressable>
-                )}
-                {puedeRevisar && (
-                  <Pressable
-                    onPress={() => {
-                      setFlowAccion({
-                        accion: "RECHAZADO",
-                        estado: "RECHAZADO",
-                      });
-                      setShowFlowModal(true);
-                    }}
-                    style={[
-                      styles.actionButton,
-                      { backgroundColor: colors.error },
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Rechazar préstamo"
-                  >
-                    <Ionicons
-                      name="close-circle-outline"
-                      size={scale(16)}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.actionButtonText}>Rechazar</Text>
-                  </Pressable>
-                )}
-              </>
-            )}
-          {prestamo.estado === "APROBADO" && puedeRevisar && (
-            <>
-              <Pressable
-                onPress={() => {
-                  setFlowAccion({ accion: "RECHAZADO", estado: "RECHAZADO" });
-                  setShowFlowModal(true);
-                }}
-                style={[styles.actionButton, { backgroundColor: colors.error }]}
-                accessibilityRole="button"
-                accessibilityLabel="Rechazar préstamo"
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={scale(16)}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.actionButtonText}>Rechazar</Text>
-              </Pressable>
-            </>
-          )}
 
-          {/* Registrar Pago */}
-          {puedePagar && (
-            <Pressable
-              onPress={() =>
-                router.push(`/caja/pago?prestamoId=${prestamo.id}`)
-              }
-              style={[styles.actionButton, { backgroundColor: colors.success }]}
-              accessibilityRole="button"
-              accessibilityLabel="Cobrar préstamo"
-            >
-              <Ionicons name="cash" size={scale(16)} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Cobrar</Text>
-            </Pressable>
-          )}
+        {/* Decisiones de flujo al inicio */}
+        {flowChips.length > 0 && (
+          <View style={styles.topActions}>
+            {flowChips.map((chip) => (
+              <AccionChipBtn key={chip.id} chip={chip} fluid={chip.esPrimaria} />
+            ))}
+          </View>
+        )}
 
-          {/* Existing actions */}
-          {puedeDesembolsar && (
-            <Pressable
-              onPress={() => setShowDesembolsoModal(true)}
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              accessibilityRole="button"
-              accessibilityLabel="Desembolsar préstamo"
-            >
-              <Ionicons name="cash" size={scale(16)} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Desembolsar</Text>
-            </Pressable>
-          )}
-          {puedeRefinanciar && (
-            <Pressable
-              onPress={() => setShowRefinanciarModal(true)}
-              style={[styles.actionButton, { backgroundColor: colors.info }]}
-              accessibilityRole="button"
-              accessibilityLabel="Refinanciar préstamo"
-            >
-              <Ionicons name="refresh" size={scale(16)} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>Refinanciar</Text>
-            </Pressable>
-          )}
-          {puedeRenovar && (
-            <Pressable
-              onPress={() => setShowRenovarModal(true)}
-              style={[styles.actionButton, { backgroundColor: colors.teal }]}
-              accessibilityRole="button"
-              accessibilityLabel="Renovar préstamo"
-            >
-              <Ionicons
-                name="refresh-circle"
-                size={scale(16)}
-                color="#FFFFFF"
-              />
-              <Text style={styles.actionButtonText}>Renovar</Text>
-            </Pressable>
-          )}
-          {puedeCancelar && (
-            <Pressable
-              onPress={() => setShowCancelarConfirm(true)}
-              disabled={isCancelando}
-              style={[styles.actionButton, { backgroundColor: colors.error }]}
-              accessibilityRole="button"
-              accessibilityLabel="Cancelar préstamo"
-            >
-              <Ionicons name="close" size={scale(16)} color="#FFFFFF" />
-              <Text style={styles.actionButtonText}>
-                {isCancelando ? "..." : "Cancelar"}
-              </Text>
-            </Pressable>
-          )}
-        </View>
+        {/* Especiales (refinanciar/renovar/cancelar) */}
+        {especialesChips.length > 0 && (
+          <View style={styles.topActionsWrap}>
+            {especialesChips.map((chip) => (
+              <AccionChipBtn key={chip.id} chip={chip} />
+            ))}
+          </View>
+        )}
 
         {/* Info Grid */}
         <View style={styles.infoGrid}>
@@ -752,6 +777,7 @@ export default function PrestamoDetalleScreen() {
               <InfoItem
                 label="Teléfono"
                 value={cliente.telefono || cliente.celular || "—"}
+                phone
               />
             </Pressable>
           )}
@@ -791,6 +817,7 @@ export default function PrestamoDetalleScreen() {
                 value={
                   prestamo.garante.telefono || prestamo.garante.celular || "—"
                 }
+                phone
               />
             </Pressable>
           )}
@@ -824,7 +851,10 @@ export default function PrestamoDetalleScreen() {
               }
             />
             <InfoItem label="Plazo" value={`${prestamo.numeroCuotas} cuotas`} />
-            <InfoItem label="Frecuencia" value={prestamo.frecuenciaPago} />
+            <InfoItem
+              label="Frecuencia"
+              value={FREQ_LABEL[prestamo.frecuenciaPago] ?? prestamo.frecuenciaPago}
+            />
             <InfoItem label="Inicio" value={formatDate(prestamo.fechaInicio)} />
             <InfoItem
               label="Vencimiento"
@@ -832,7 +862,7 @@ export default function PrestamoDetalleScreen() {
             />
           </View>
 
-          {/* Estado actual */}
+          {/* Progreso del préstamo */}
           <View
             style={[
               styles.infoCard,
@@ -842,7 +872,7 @@ export default function PrestamoDetalleScreen() {
             <Text
               style={[styles.infoCardTitle, { color: colors.textTertiary }]}
             >
-              Estado actual
+              Progreso del préstamo
             </Text>
             <InfoItem
               label="Saldo pendiente"
@@ -984,7 +1014,7 @@ export default function PrestamoDetalleScreen() {
                       {
                         backgroundColor:
                           filtroCuotas === f.id
-                            ? colors.primary
+                            ? getSolidFill(colors, colorScheme, "primary")
                             : colors.borderLight,
                         borderColor:
                           filtroCuotas === f.id
@@ -1060,7 +1090,9 @@ export default function PrestamoDetalleScreen() {
                               {formatDate(c.fechaVencimiento)}
                             </Text>
                           </View>
-                          <CuotaBadge pagada={c.pagada} vencida={vencida} />
+                          <View style={styles.cuotaHeaderRight}>
+                            <CuotaBadge pagada={c.pagada} vencida={vencida} />
+                          </View>
                         </View>
                         <View style={styles.cuotaCardAmounts}>
                           <View style={styles.cuotaCardAmt}>
@@ -1073,10 +1105,7 @@ export default function PrestamoDetalleScreen() {
                               Capital
                             </Text>
                             <Text
-                              style={[
-                                styles.cuotaAmtVal,
-                                { color: colors.text },
-                              ]}
+                              style={[styles.cuotaAmtVal, { color: colors.text }]}
                             >
                               {formatCurrency(c.capital)}
                             </Text>
@@ -1123,19 +1152,32 @@ export default function PrestamoDetalleScreen() {
                             </Text>
                           </View>
                         </View>
-                        <View style={styles.cuotaCardTotal}>
+                        <View
+                          style={[
+                            styles.cuotaCardTotal,
+                            {
+                              borderTopWidth: 1,
+                              borderTopColor: colors.borderLight,
+                              marginTop: Spacing.xs,
+                              paddingTop: Spacing.xs,
+                            },
+                          ]}
+                        >
                           <Text
                             style={[
                               styles.cuotaAmtLabel,
                               { color: colors.textTertiary },
                             ]}
                           >
-                            Total
+                            {c.pagada ? "Total pagado" : "Total a pagar"}
                           </Text>
                           <Text
                             style={[
                               styles.cuotaAmtVal,
-                              { fontWeight: FontWeight.bold },
+                              {
+                                fontWeight: FontWeight.bold,
+                                fontSize: FontSize.md,
+                              },
                             ]}
                           >
                             {formatCurrency(totalCuota(c.monto, c.mora))}
@@ -1336,6 +1378,24 @@ export default function PrestamoDetalleScreen() {
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
 
+      {/* Cobrar flotante (siempre visible cuando hay capital por cobrar) */}
+      {puedePagar && (
+        <Pressable
+          onPress={() => router.push(`/caja/pago?prestamoId=${prestamo.id}`)}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Cobrar"
+          style={({ pressed }) => [
+            styles.cobrarFab,
+            { backgroundColor: getSolidFill(colors, colorScheme, "primary") },
+            pressed && styles.cobrarFabPressed,
+          ]}
+        >
+          <Ionicons name="cash" size={scale(18)} color="#FFFFFF" />
+          <Text style={styles.cobrarFabText}>Cobrar</Text>
+        </Pressable>
+      )}
+
       {/* Desembolso Modal */}
       <DesembolsoModal
         visible={showDesembolsoModal}
@@ -1356,6 +1416,11 @@ export default function PrestamoDetalleScreen() {
         icon={cancelarCfg.icon}
         colorAccion={colors.error}
         pedirMotivo={true}
+        confirmacionConHold
+        danger
+        subtitle={`Préstamo #${prestamo.id.slice(0, 8)}`}
+        estadoActual={prestamo.estado}
+        estadoNuevo="CANCELADO"
         motivoLabel="Motivo de la cancelación"
         prestamo={
           prestamo
@@ -1405,6 +1470,11 @@ export default function PrestamoDetalleScreen() {
         icon={flowCfg?.icon || ""}
         colorAccion={flowCfg?.color || ""}
         pedirMotivo={flowCfg?.pedirMotivo || false}
+        confirmacionConHold={flowCfg?.pedirMotivo || false}
+        danger={flowCfg?.pedirMotivo || false}
+        subtitle={`Préstamo #${prestamo.id.slice(0, 8)}`}
+        estadoActual={prestamo.estado}
+        estadoNuevo={flowAccion?.accion}
         prestamo={
           prestamo
             ? {
@@ -1440,7 +1510,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
   },
-  headerInfo: { flex: 1, marginHorizontal: Spacing.sm },
+  headerInfo: { flex: 1, flexShrink: 1, marginHorizontal: Spacing.sm },
   headerTitle: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },
   headerSub: {
     fontSize: FontSize.xs,
@@ -1458,7 +1528,10 @@ const styles = StyleSheet.create({
   estadoBadgeText: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   headerBadges: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
+    justifyContent: "flex-end",
+    rowGap: Spacing.xs,
     gap: scale(6),
     flexShrink: 0,
   },
@@ -1471,25 +1544,59 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   refinanciadoBadgeText: { fontSize: scale(10), fontWeight: FontWeight.bold },
-  scrollContent: { padding: Spacing.md, paddingBottom: Spacing.xxl },
-  actionRow: {
+  scrollContent: { padding: Spacing.md, paddingBottom: Spacing.xxl + scale(48) },
+  topActions: {
     flexDirection: "row",
     gap: Spacing.sm,
     marginBottom: Spacing.md,
-    flexWrap: "wrap",
   },
-  actionButton: {
+  topActionsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.xs,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.md,
+    gap: scale(5),
+    minHeight: scale(40),
+    paddingHorizontal: Spacing.sm + 2,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
-  actionButtonText: {
-    color: "#FFFFFF",
-    fontSize: FontSize.xs,
+  chipFluid: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  chipLabel: {
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
+  },
+  cobrarFab: {
+    position: "absolute",
+    right: Spacing.md,
+    bottom: Spacing.md,
+    zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(6),
+    minHeight: scale(44),
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  cobrarFabPressed: {
+    opacity: 0.85,
+  },
+  cobrarFabText: {
+    color: "#FFFFFF",
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.bold,
   },
   infoGrid: {
     gap: Spacing.sm,
@@ -1558,7 +1665,9 @@ const styles = StyleSheet.create({
   },
   cuotaFilterChip: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    minHeight: scale(40),
+    justifyContent: "center",
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
@@ -1595,6 +1704,12 @@ const styles = StyleSheet.create({
   },
   cuotaCardDate: {
     fontSize: FontSize.xs,
+  },
+  cuotaHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    flexShrink: 1,
   },
   cuotaCardAmounts: {
     flexDirection: "row",

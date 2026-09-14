@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BorderRadius, Colors, FontSize, FontWeight, scale, Spacing } from '@/constants/theme';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 
@@ -26,6 +26,7 @@ function getButtonStyle(
   variant: ButtonVariant,
   isDisabled: boolean,
   colors: typeof Colors.light,
+  colorScheme: 'light' | 'dark',
 ): ViewStyle {
   if (isDisabled) {
     return {
@@ -37,11 +38,11 @@ function getButtonStyle(
 
   switch (variant) {
     case 'primary':
-      return { backgroundColor: colors.primary, borderWidth: 0 };
+      return { backgroundColor: getSolidFill(colors, colorScheme, 'primary'), borderWidth: 0 };
     case 'secondary':
-      return { backgroundColor: colors.secondaryDark, borderWidth: 0 };
+      return { backgroundColor: getSolidFill(colors, colorScheme, 'secondary'), borderWidth: 0 };
     case 'danger':
-      return { backgroundColor: colors.error, borderWidth: 0 };
+      return { backgroundColor: getSolidFill(colors, colorScheme, 'error'), borderWidth: 0 };
     case 'ghost':
       return {
         backgroundColor: 'transparent',
@@ -55,18 +56,24 @@ function getButtonStyle(
         borderColor: colors.primary,
       };
     default:
-      return { backgroundColor: colors.primary, borderWidth: 0 };
+      return { backgroundColor: getSolidFill(colors, colorScheme, 'primary'), borderWidth: 0 };
   }
 }
 
 function getTextColor(variant: ButtonVariant, isDisabled: boolean, colors: typeof Colors.light): string {
-  if (isDisabled) return '#FFFFFF';
+  if (isDisabled) return colors.textTertiary;
   if (variant === 'ghost') {
     return colors.textSecondary;
   }
   if (variant === 'outline') {
     return colors.primary;
   }
+  return '#FFFFFF';
+}
+
+function getSpinnerColor(variant: ButtonVariant, colors: typeof Colors.light): string {
+  if (variant === 'ghost') return colors.textSecondary;
+  if (variant === 'outline') return colors.primary;
   return '#FFFFFF';
 }
 
@@ -101,7 +108,7 @@ export function AppButton({
     <AnimatedTouchable
       style={[
         styles.button,
-        getButtonStyle(variant, isDisabled, colors),
+        getButtonStyle(variant, isDisabled, colors, colorScheme),
         animatedStyle,
         style,
       ]}
@@ -117,7 +124,7 @@ export function AppButton({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator size="small" color="#FFFFFF" />
+        <ActivityIndicator size="small" color={getSpinnerColor(variant, colors)} />
       ) : (
         <>
           {icon && (

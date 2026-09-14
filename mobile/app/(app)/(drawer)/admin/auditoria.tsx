@@ -18,7 +18,7 @@ import PickerField from '@/components/ui/picker-field';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/ui/empty-state';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
 
@@ -447,7 +447,7 @@ export default function AuditoriaScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={applyAdvanced}
-                    style={[styles.filterBtn, { backgroundColor: colors.primary }]}
+                    style={[styles.filterBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                   >
                     <Text style={[styles.filterBtnText, { color: '#FFFFFF' }]}>
                       Aplicar

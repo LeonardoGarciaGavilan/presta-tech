@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import PaymentForm from '@/components/pagos/payment-form';
@@ -8,6 +8,7 @@ import { PermisoGate } from '@/components/permisos/permiso-gate';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { PageHeader } from '@/components/ui/page-header';
 import { AppButton } from '@/components/ui/app-button';
+import SearchBar from '@/components/ui/search-bar';
 import LoadingScreen from '@/components/ui/loading-screen';
 import EmptyState from '@/components/ui/empty-state';
 import { usePrestamos, usePrestamo } from '@/hooks/use-prestamos';
@@ -94,21 +95,7 @@ function SearchPaymentMode() {
   const { data: cajaActiva, isLoading: loadingCaja } = useCajaActiva();
 
   // Search state
-  const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleSearch = useCallback((text: string) => {
-    setSearch(text);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setDebouncedSearch(text), 400);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
 
   // Loans query
   const { data: prestamosData, isLoading: loadingPrestamos } = usePrestamos(
@@ -238,7 +225,7 @@ function SearchPaymentMode() {
     );
   }
 
-  // Search screen
+// Search screen
   return (
     <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
       <PageHeader title="Nuevo Pago" />
@@ -250,38 +237,18 @@ function SearchPaymentMode() {
         data={prestamos}
         keyExtractor={(item: any) => item.id}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
+        contentContainerStyle={{ padding: Spacing.md }}
         ListHeaderComponent={
-          <View style={{ marginBottom: Spacing.md }}>
-            <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.text, marginBottom: Spacing.sm }}>
-              Buscar cliente
+          <View>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+              Busca un cliente para cobrar su cuota
             </Text>
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: Spacing.sm,
-              borderRadius: BorderRadius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.surfaceElevated,
-              paddingHorizontal: Spacing.md,
-            }}>
-              <Ionicons name="search" size={scale(18)} color={colors.textTertiary} />
-              <TextInput
-                value={search}
-                onChangeText={handleSearch}
-                placeholder="Nombre o cédula del cliente..."
-                placeholderTextColor={colors.textTertiary}
-                style={{ flex: 1, fontSize: FontSize.md, color: colors.text, paddingVertical: Spacing.sm }}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {search ? (
-                <Pressable onPress={() => { setSearch(''); setDebouncedSearch(''); }} hitSlop={8}>
-                  <Ionicons name="close-circle" size={scale(18)} color={colors.textTertiary} />
-                </Pressable>
-              ) : null}
-            </View>
+            <SearchBar
+              value={debouncedSearch}
+              onSearch={setDebouncedSearch}
+              placeholder="Nombre o cédula del cliente..."
+              autoFocus
+            />
           </View>
         }
         ListEmptyComponent={
@@ -317,5 +284,9 @@ const styles = {
     fontSize: FontSize.sm,
     textAlign: 'center',
     marginBottom: Spacing.md,
+  } as AppStyles,
+  headerSubtitle: {
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.sm,
   } as AppStyles,
 };

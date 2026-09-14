@@ -117,7 +117,7 @@ export default function DatePickerField({ label, value, onChange, error }: DateP
                     Cancelar
                   </Text>
                 </Pressable>
-                <Text style={[modalStyles.title, { color: colors.text }]}>
+                <Text style={[modalStyles.title, { color: colors.text }]} numberOfLines={1}>
                   {label}
                 </Text>
                 <Pressable onPress={handleConfirm}>
@@ -202,13 +202,19 @@ const modalStyles = StyleSheet.create({
   cancel: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.medium,
+    minWidth: scale(72),
   },
   title: {
-    fontSize: FontSize.md,
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: Spacing.xs,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
   },
   confirm: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
+    minWidth: scale(72),
+    textAlign: 'right',
   },
 });

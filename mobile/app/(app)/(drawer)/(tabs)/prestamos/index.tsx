@@ -11,19 +11,26 @@ import ScrollToTopButton from '@/components/ui/scroll-to-top';
 import SearchBar from '@/components/ui/search-bar';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import ActionConfirmModal from '@/components/ui/action-confirm-modal';
+import { ActionBottomSheet } from '@/components/ui/action-bottom-sheet';
+import DesembolsoModal from '@/components/prestamos/desembolso-modal';
 import { useToast } from '@/components/ui/toast';
 import { useAuthStore } from '@/store/auth.store';
 import { usePermisos } from '@/permisos/use-permisos';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
-import { usePrestamoEstados, useAccionesFlow } from '@/hooks/use-prestamo-estados';
+import {
+  usePrestamoEstados,
+  useAccionesFlow,
+  obtenerAccionesPorEstado,
+  type AccionPrestamo,
+} from '@/hooks/use-prestamo-estados';
 import { getNetworkStatus, useNetworkStatus } from '@/hooks/use-network-status';
 import { getPrestamosOffline } from '@/services/offline-data';
-import { formatCurrency } from '@/utils/formatters';
 import { useCambiarEstadoPrestamo,
   useDesembolsarPrestamo,
   useCancelarPrestamo } from '@/hooks/use-prestamos';
 import type { EstadoPrestamo } from '@/types/prestamo.types';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
+import { humanizeError } from '@/utils/errors';
 
 const PAGE_SIZE = 20;
 
@@ -79,7 +86,9 @@ export default function PrestamosListScreen() {
 
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoPrestamo | ''>('');
+  const [filtroOpen, setFiltroOpen] = useState(false);
   const [accionModal, setAccionModal] = useState<{ prestamo: any; accion: string; estado: string } | null>(null);
+  const [desembolsoPrestamo, setDesembolsoPrestamo] = useState<any | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const listRef = useRef<FlatList<any>>(null);
 
@@ -131,10 +140,7 @@ export default function PrestamosListScreen() {
     if (!accionModal) return;
     const { prestamo, accion, estado } = accionModal;
     try {
-      if (accion === 'DESEMBOLSAR') {
-        const result = await desembolsarMutation.mutateAsync(prestamo.id);
-        showToast(result?.esOffline ? 'Desembolso encolado — se sincronizará cuando vuelva la conexión' : 'Préstamo desembolsado correctamente', result?.esOffline ? 'info' : 'success');
-      } else if (accion === 'CANCELAR') {
+      if (accion === 'CANCELAR') {
         const result = await cancelarMutation.mutateAsync(prestamo.id);
         showToast(result?.esOffline ? 'Cancelación encolada — se sincronizará cuando vuelva la conexión' : 'Préstamo cancelado correctamente', result?.esOffline ? 'info' : 'success');
       } else {
@@ -147,13 +153,35 @@ export default function PrestamosListScreen() {
       setAccionModal(null);
     } catch (err: any) {
       setAccionModal(null);
-      showToast(err?.message || 'Error al ejecutar acción', 'error');
+      showToast(humanizeError(err, 'Error al ejecutar acción'), 'error');
     }
-  }, [accionModal, cambiarEstadoMutation, desembolsarMutation, cancelarMutation, showToast]);
+  }, [accionModal, cambiarEstadoMutation, cancelarMutation, showToast]);
 
-  const abrirModal = useCallback((prestamo: any, accion: string, estado: string) => {
-    setAccionModal({ prestamo, accion, estado });
+  const abrirAccion = useCallback((prestamo: any, tipo: AccionPrestamo['tipo']) => {
+    if (tipo === 'desembolsar') {
+      setDesembolsoPrestamo(prestamo);
+      return;
+    }
+    const map: Record<string, { accion: string; estado: string }> = {
+      revisar: { accion: 'EN_REVISION', estado: 'EN_REVISION' },
+      aprobar: { accion: 'APROBADO', estado: 'APROBADO' },
+      rechazar: { accion: 'RECHAZADO', estado: 'RECHAZADO' },
+    };
+    const m = map[tipo];
+    if (m) setAccionModal({ prestamo, accion: m.accion, estado: m.estado });
   }, []);
+
+  const confirmarDesembolso = useCallback(async () => {
+    if (!desembolsoPrestamo) return;
+    try {
+      const result = await desembolsarMutation.mutateAsync(desembolsoPrestamo.id);
+      showToast(result?.esOffline ? 'Desembolso encolado — se sincronizará cuando vuelva la conexión' : 'Préstamo desembolsado correctamente', result?.esOffline ? 'info' : 'success');
+      setDesembolsoPrestamo(null);
+    } catch (err: any) {
+      setDesembolsoPrestamo(null);
+      showToast(humanizeError(err, 'Error al desembolsar'), 'error');
+    }
+  }, [desembolsoPrestamo, desembolsarMutation, showToast]);
 
   const cerrarModal = useCallback(() => {
     setAccionModal(null);
@@ -162,93 +190,32 @@ export default function PrestamosListScreen() {
   const renderItem = useCallback(
     ({ item }: any) => {
       const puedeDesembolsar = item.estado === 'APROBADO' && (puedeDesembolsarPermiso || item.solicitadoPor === userId);
-      const enFlujo = (item.estado === 'SOLICITADO' && puedeRevisar)
-        || (item.estado === 'EN_REVISION' && (puedeRevisar || puedeAprobar))
-        || (item.estado === 'APROBADO' && (puedeDesembolsar || puedeRevisar));
+
+      const acciones = obtenerAccionesPorEstado({
+        estado: item.estado,
+        puedeRevisar,
+        puedeAprobar,
+        puedeDesembolsar,
+        colores: { info: colors.info, success: colors.success, error: colors.error, primary: colors.primary },
+      });
 
       return (
-        <View key={item.id}>
-          <PrestamoCard
-            prestamo={item}
-            onPress={() => router.push(`/prestamos/${item.id}`)}
-          />
-          {enFlujo && (
-            <View style={[styles.cardActions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {item.estado === 'SOLICITADO' && puedeRevisar && (
-                <>
-                  <Pressable
-                    onPress={() => abrirModal(item, 'EN_REVISION', 'EN_REVISION')}
-                    style={[styles.actionBtn, { backgroundColor: colors.infoLight, borderColor: colors.info }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Revisar préstamo"
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.info }]}>Revisar</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
-                    style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Rechazar préstamo"
-                  >
-                    <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
-                  </Pressable>
-                </>
-              )}
-              {item.estado === 'EN_REVISION' && (puedeRevisar || puedeAprobar) && (
-                <>
-                  {puedeAprobar && (
-                    <Pressable
-                      onPress={() => abrirModal(item, 'APROBADO', 'APROBADO')}
-                      style={[styles.actionBtn, { backgroundColor: colors.successLight, borderColor: colors.success }]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Aprobar préstamo"
-                    >
-                      <Text style={[styles.actionBtnText, { color: colors.success }]}>Aprobar</Text>
-                    </Pressable>
-                  )}
-                  {puedeRevisar && (
-                    <Pressable
-                      onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
-                      style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Rechazar préstamo"
-                    >
-                      <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
-                    </Pressable>
-                  )}
-                </>
-              )}
-              {item.estado === 'APROBADO' && (puedeDesembolsar || puedeRevisar) && (
-                <>
-                  {puedeDesembolsar && (
-                    <Pressable
-                      onPress={() => abrirModal(item, 'DESEMBOLSAR', 'ACTIVO')}
-                      style={[styles.actionBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Desembolsar préstamo"
-                    >
-                      <Ionicons name="cash" size={scale(14)} color={colors.primary} />
-                      <Text style={[styles.actionBtnText, { color: colors.primary }]}>Desembolsar</Text>
-                    </Pressable>
-                  )}
-                  {puedeRevisar && (
-                    <Pressable
-                      onPress={() => abrirModal(item, 'RECHAZADO', 'RECHAZADO')}
-                      style={[styles.actionBtn, { backgroundColor: colors.errorLight, borderColor: colors.error }]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Rechazar préstamo"
-                    >
-                      <Text style={[styles.actionBtnText, { color: colors.error }]}>Rechazar</Text>
-                    </Pressable>
-                  )}
-                </>
-              )}
-            </View>
-          )}
-        </View>
+        <PrestamoCard
+          prestamo={item}
+          onPress={() => router.push(`/prestamos/${item.id}`)}
+          acciones={acciones.map((a) => ({
+            id: a.id,
+            label: a.label,
+            icon: a.icon as any,
+            color: a.color,
+            esPrimaria: a.esPrimaria,
+            onPress: () => abrirAccion(item, a.tipo),
+            accessibilityLabel: a.tipo === 'desembolsar' ? 'Desembolsar préstamo' : undefined,
+          }))}
+        />
       );
     },
-    [colors, puedeRevisar, puedeAprobar, puedeDesembolsarPermiso, userId, abrirModal],
+    [colors, puedeRevisar, puedeAprobar, puedeDesembolsarPermiso, userId, abrirAccion],
   );
 
   const renderSeparator = useCallback(
@@ -256,12 +223,11 @@ export default function PrestamosListScreen() {
     [],
   );
 
-  const accionesFlow = useAccionesFlow();
-  const ACCION_CONFIG: Record<string, { titulo: string; desc: string; icon: string; color: string; pedirMotivo: boolean }> = useMemo(() => ({
-    ...accionesFlow,
-    DESEMBOLSAR: { titulo: 'Desembolsar Préstamo', desc: 'Se generarán las cuotas, el monto saldrá de tu caja.', icon: 'cash-outline', color: colors.primary, pedirMotivo: false },
-  }), [accionesFlow, colors.primary]);
+  const ACCION_CONFIG = useAccionesFlow();
   const ESTADO_CONFIG = usePrestamoEstados();
+  const estadoFiltroActual = ESTADOS_FILTRO.find((e) => e.value === filtroEstado);
+  const estadoLabel = estadoFiltroActual?.label ?? 'Todos';
+  const estadoCfgFiltro = filtroEstado ? ESTADO_CONFIG[filtroEstado] : null;
 
   if (isLoading && !data) {
     return (
@@ -295,7 +261,7 @@ export default function PrestamosListScreen() {
         <EmptyState
           icon="alert-circle-outline"
           title="Error al cargar préstamos"
-          subtitle={error instanceof Error ? error.message : 'Error al cargar préstamos'}
+          subtitle={humanizeError(error, 'Error al cargar préstamos')}
           actionLabel="Reintentar"
           onAction={() => refetch()}
         />
@@ -304,8 +270,7 @@ export default function PrestamosListScreen() {
   }
 
   const cfg = accionModal ? ACCION_CONFIG[accionModal.accion] : null;
-  const accionLoading = accionModal?.accion === 'DESEMBOLSAR' ? desembolsarMutation.isPending
-    : accionModal?.accion === 'CANCELAR' ? cancelarMutation.isPending
+  const accionLoading = accionModal?.accion === 'CANCELAR' ? cancelarMutation.isPending
     : cambiarEstadoMutation.isPending;
 
   return (
@@ -319,54 +284,42 @@ export default function PrestamosListScreen() {
       </View>
 
       <View style={styles.filterRow}>
-        <Text style={[styles.filterTitle, { color: colors.text }]}>
-          Préstamos
-        </Text>
-        <Text style={[styles.filterCount, { color: colors.textTertiary }]}>
-          {totalPrestamos} en total
-        </Text>
-      </View>
-
-      <View style={{ height: scale(36) }}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={ESTADOS_FILTRO}
-          keyExtractor={(item) => item.value}
-          contentContainerStyle={styles.chipsContainer}
-          renderItem={({ item }) => {
-          const active = filtroEstado === item.value;
-          const c = item.value ? ESTADO_CONFIG[item.value] : null;
-          return (
-            <Pressable
-              onPress={() => setFiltroEstado(item.value)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              style={[
-                styles.chip,
-                active
-                  ? c
-                    ? { backgroundColor: c.bg, borderColor: c.border }
-                    : { backgroundColor: colors.primary, borderColor: colors.primary }
-                  : { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  active
-                    ? c
-                      ? { color: c.text }
-                      : { color: '#FFFFFF' }
-                    : { color: colors.textSecondary },
-                ]}
-              >
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        }}
-      />
+        <View>
+          <Text style={[styles.filterTitle, { color: colors.text }]}>
+            Préstamos
+          </Text>
+          <Text style={[styles.filterCount, { color: colors.textTertiary }]}>
+            {totalPrestamos} en total
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => setFiltroOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Filtrar por estado. Actual: ${estadoLabel}`}
+          accessibilityState={{ expanded: filtroOpen }}
+          style={({ pressed }) => [
+            styles.filterTrigger,
+            {
+              backgroundColor: colors.surface,
+              borderColor: filtroEstado ? colors.primary : colors.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.filterTriggerText,
+              {
+                color: filtroEstado
+                  ? (estadoCfgFiltro?.text ?? colors.primary)
+                  : colors.textSecondary,
+              },
+            ]}
+          >
+            {estadoLabel}
+          </Text>
+          <Ionicons name="chevron-down" size={scale(16)} color={colors.textSecondary} />
+        </Pressable>
       </View>
 
       <View style={{ flex: 1 }}>
@@ -441,7 +394,7 @@ export default function PrestamosListScreen() {
 
       {puedeCrear && (
         <Pressable
-          style={[styles.fab, { backgroundColor: colors.primary }]}
+          style={[styles.fab, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
           onPress={() => router.push('/prestamos/nuevo')}
           accessibilityRole="button"
           accessibilityLabel="Solicitar préstamo"
@@ -457,12 +410,45 @@ export default function PrestamosListScreen() {
         icon={cfg?.icon || ''}
         colorAccion={cfg?.color || ''}
         pedirMotivo={cfg?.pedirMotivo || false}
-        confirmacionConHold={accionModal?.accion === 'DESEMBOLSAR'}
+        confirmacionConHold={accionModal?.accion === 'RECHAZADO' || accionModal?.accion === 'CANCELAR'}
+        danger={accionModal?.accion === 'RECHAZADO' || accionModal?.accion === 'CANCELAR'}
+        subtitle={accionModal?.prestamo ? `Préstamo #${accionModal.prestamo.id.slice(0, 8)}` : undefined}
+        estadoActual={accionModal?.prestamo?.estado}
+        estadoNuevo={accionModal?.accion}
         prestamo={accionModal?.prestamo ? { monto: accionModal.prestamo.monto, numeroCuotas: accionModal.prestamo.numeroCuotas, frecuenciaPago: accionModal.prestamo.frecuenciaPago } : null}
         cliente={accionModal?.prestamo?.cliente ? { nombre: accionModal.prestamo.cliente.nombre, apellido: accionModal.prestamo.cliente.apellido } : null}
         loading={accionLoading}
         onConfirm={ejecutarAccion}
         onCancel={cerrarModal}
+      />
+
+      <DesembolsoModal
+        visible={!!desembolsoPrestamo}
+        onClose={() => setDesembolsoPrestamo(null)}
+        onConfirm={confirmarDesembolso}
+        loading={desembolsarMutation.isPending}
+        monto={desembolsoPrestamo?.monto ?? 0}
+        numeroCuotas={desembolsoPrestamo?.numeroCuotas ?? 0}
+        tasaInteres={desembolsoPrestamo?.tasaInteres ?? 0}
+        frecuenciaPago={desembolsoPrestamo?.frecuenciaPago ?? ''}
+      />
+
+      <ActionBottomSheet
+        visible={filtroOpen}
+        onClose={() => setFiltroOpen(false)}
+        title="Filtrar por estado"
+        subtitle="Selecciona un estado para filtrar los préstamos"
+        groups={[
+          {
+            key: 'estados',
+            actions: ESTADOS_FILTRO.map((e) => ({
+              id: e.value,
+              label: e.label,
+              selected: filtroEstado === e.value,
+              onPress: () => setFiltroEstado(e.value),
+            })),
+          },
+        ]}
       />
     </View>
   );
@@ -492,49 +478,22 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     marginTop: scale(1),
   },
-  chipsContainer: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.xs,
-  },
-  chip: {
+  filterTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    minHeight: scale(44),
     paddingHorizontal: Spacing.sm + 4,
-    paddingVertical: Spacing.xs + 2,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  chipText: {
+  filterTriggerText: {
     fontSize: FontSize.xs,
     fontWeight: FontWeight.semibold,
   },
   list: {
     padding: Spacing.md,
     paddingBottom: scale(100),
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderRadius: BorderRadius.lg,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: scale(4),
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-  },
-  actionBtnText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
   },
   footerLoader: {
     paddingVertical: Spacing.md,

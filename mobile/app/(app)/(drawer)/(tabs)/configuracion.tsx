@@ -34,7 +34,7 @@ import { AppInput } from "@/components/ui/app-input";
 import { AppButton } from "@/components/ui/app-button";
 import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { useTheme } from "@/components/ui/theme-provider";
+import { useTheme, getSolidFill } from "@/components/ui/theme-provider";
 import { usePermisos } from "@/permisos/use-permisos";
 import SinAcceso from "@/components/permisos/sin-acceso";
 import { SectionCard } from "@/components/ui/section-card";
@@ -133,7 +133,7 @@ function NumericField({
 }
 
 export default function ConfiguracionScreen() {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { moduloHabilitado, tienePermiso } = usePermisos();
@@ -319,7 +319,7 @@ export default function ConfiguracionScreen() {
         <View
           style={[
             styles.summaryCard,
-            { backgroundColor: colors.primary, ...Shadows.md },
+            { backgroundColor: getSolidFill(colors, colorScheme, "primary"), ...Shadows.md },
           ]}
         >
           <Text style={styles.summaryTitle}>Resumen de configuración</Text>

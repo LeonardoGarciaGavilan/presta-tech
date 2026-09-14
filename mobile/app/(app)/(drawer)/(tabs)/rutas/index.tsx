@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '@/components/ui/theme-provider';
-import { router } from 'expo-router';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRutas, useEliminarRuta, useCrearRuta, useUsuarios, useAsignarUsuarioRuta } from '@/hooks/use-rutas';
 import { usePermisos } from '@/permisos/use-permisos';
+import RutaCard from '@/components/rutas/ruta-card';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import EmptyState from '@/components/ui/empty-state';
 import { ScreenContainer } from '@/components/ui/screen-container';
@@ -71,81 +71,18 @@ export default function RutasListScreen() {
 
   const renderRuta = useCallback(
     ({ item }: { item: any }) => (
-      <Pressable
-        style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={() => router.push(`/rutas/${item.id}`)}
-        onLongPress={() => puedeEliminar && setDeleteId(item.id)}
-        accessibilityRole="button"
-        accessibilityLabel={`Ruta ${item.nombre}, ${item.clientes?.length ?? 0} clientes`}
-      >
-        <View style={styles.cardHeader}>
-          <View style={[styles.cardIcon, { backgroundColor: colors.routeBg }]}>
-            <Ionicons name="map-outline" size={scale(20)} color={colors.route} />
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
-              {item.nombre}
-            </Text>
-            {item.descripcion && (
-              <Text style={[styles.cardDesc, { color: colors.textSecondary }]} numberOfLines={1}>
-                {item.descripcion}
-              </Text>
-            )}
-          </View>
-          {!item.activa && (
-            <View style={[styles.inactiveBadge, { backgroundColor: colors.errorLight }]}>
-              <Text style={[styles.inactiveText, { color: colors.error }]}>Inactiva</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.cardFooter}>
-          <View style={styles.footerLeft}>
-            {item.usuario && (
-              <Pressable
-                style={styles.cobradorRow}
-                onPress={() => {
-                  if (puedeAsignar) {
-                    setAsignarRutaId(item.id);
-                    setAsignarUsuarioId(item.usuario?.id || '');
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Cobrador: ${item.usuario.nombre}`}
-              >
-                <Ionicons name="person-outline" size={scale(12)} color={puedeAsignar ? colors.primary : colors.textTertiary} />
-                <Text style={[styles.cobradorText, { color: puedeAsignar ? colors.primary : colors.textTertiary }]}>
-                  {item.usuario.nombre}
-                </Text>
-                {puedeAsignar && <Ionicons name="chevron-forward" size={scale(12)} color={colors.primary} />}
-              </Pressable>
-            )}
-            {puedeAsignar && !item.usuario && (
-              <Pressable
-                style={styles.cobradorRow}
-                onPress={() => {
-                  setAsignarRutaId(item.id);
-                  setAsignarUsuarioId('');
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Asignar cobrador"
-              >
-                <Ionicons name="person-add-outline" size={scale(12)} color={colors.primary} />
-                <Text style={[styles.cobradorText, { color: colors.primary }]}>
-                  Asignar cobrador
-                </Text>
-              </Pressable>
-            )}
-          </View>
-          <View style={styles.clientCount}>
-            <Ionicons name="people-outline" size={scale(12)} color={colors.textTertiary} />
-            <Text style={[styles.clientCountText, { color: colors.textTertiary }]}>
-              {item.clientes?.length ?? 0} clientes
-            </Text>
-          </View>
-        </View>
-      </Pressable>
+      <RutaCard
+        ruta={item}
+        puedeAsignar={puedeAsignar}
+        puedeEliminar={puedeEliminar}
+        onAsignar={(rutaId, usuarioId) => {
+          setAsignarRutaId(rutaId);
+          setAsignarUsuarioId(usuarioId ?? '');
+        }}
+        onDesactivar={(rutaId) => setDeleteId(rutaId)}
+      />
     ),
-    [colors, puedeAsignar],
+    [puedeAsignar, puedeEliminar],
   );
 
   if (isLoading) {
@@ -250,6 +187,7 @@ export default function RutasListScreen() {
         message="¿Estás seguro de desactivar esta ruta?"
         confirmLabel="Eliminar"
         destructive
+        useHold
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
@@ -288,7 +226,7 @@ export default function RutasListScreen() {
 
       {puedeCrear && (
         <Pressable
-          style={[styles.fab, { backgroundColor: colors.primary }]}
+          style={[styles.fab, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
           onPress={() => setShowCreate(true)}
           accessibilityRole="button"
           accessibilityLabel="Crear ruta"
@@ -304,71 +242,6 @@ const styles = StyleSheet.create({
   list: {
     padding: Spacing.md,
     paddingBottom: scale(100),
-  },
-  card: {
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    padding: Spacing.md,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  cardIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semibold,
-  },
-  cardDesc: {
-    fontSize: FontSize.sm,
-    marginTop: scale(1),
-  },
-  inactiveBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: scale(2),
-    borderRadius: BorderRadius.sm,
-  },
-  inactiveText: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'transparent',
-  },
-  footerLeft: {
-    flex: 1,
-  },
-  cobradorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(4),
-  },
-  cobradorText: {
-    fontSize: FontSize.xs,
-  },
-  clientCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(4),
-  },
-  clientCountText: {
-    fontSize: FontSize.xs,
   },
   overlay: {
     position: 'absolute',

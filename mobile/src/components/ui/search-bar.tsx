@@ -10,6 +10,10 @@ interface SearchBarProps {
   onSearch: (value: string) => void;
   placeholder?: string;
   debounceMs?: number;
+  autoFocus?: boolean;
+  inputRef?: React.RefObject<TextInput>;
+  onFocus?: () => void;
+  onClear?: () => void;
 }
 
 export default function SearchBar({
@@ -17,8 +21,12 @@ export default function SearchBar({
   onSearch,
   placeholder = 'Buscar...',
   debounceMs = 400,
+  autoFocus = false,
+  inputRef,
+  onFocus,
+  onClear,
 }: SearchBarProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRef = useRef(onSearch);
   const [localValue, setLocalValue] = useState(value);
@@ -59,6 +67,7 @@ export default function SearchBar({
     }
 
     callbackRef.current('');
+    onClear?.();
   };
 
   return (
@@ -75,12 +84,15 @@ export default function SearchBar({
         style={styles.icon}
       />
       <TextInput
+        ref={inputRef}
         style={[styles.input, { color: colors.text }]}
         value={localValue}
         onChangeText={handleChange}
         placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         returnKeyType="search"
+        autoFocus={autoFocus}
+        onFocus={onFocus}
         accessibilityRole="search"
         accessibilityLabel={placeholder}
       />

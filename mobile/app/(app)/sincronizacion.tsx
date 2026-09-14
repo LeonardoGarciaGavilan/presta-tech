@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { getQueue, clearFailedItems } from '@/db/offline-queue-db';
 import type { OfflineQueueItem } from '@/types/offline.types';
@@ -116,35 +116,34 @@ function getDisplayText(item: OfflineQueueItem): string {
 
 function getStatusConfig(
   status: OfflineQueueItem['status'],
-  colorScheme: 'light' | 'dark',
+  colors: ReturnType<typeof useTheme>['colors'],
 ) {
-  const isDark = colorScheme === 'dark';
   switch (status) {
     case 'pending':
       return {
-        color: isDark ? '#FCD34D' : '#D97706',
-        bgColor: isDark ? '#78350F' : '#FEF3C7',
+        color: colors.warningDark,
+        bgColor: colors.warningLight,
         label: 'Pendiente',
         icon: 'time-outline' as const,
       };
     case 'syncing':
       return {
-        color: isDark ? '#93C5FD' : '#2563EB',
-        bgColor: isDark ? '#1E3A5F' : '#DBEAFE',
+        color: colors.infoDark,
+        bgColor: colors.infoLight,
         label: 'Sincronizando',
         icon: 'sync-outline' as const,
       };
     case 'failed':
       return {
-        color: isDark ? '#FCA5A5' : '#DC2626',
-        bgColor: isDark ? '#7F1D1D' : '#FEE2E2',
+        color: colors.errorDark,
+        bgColor: colors.errorLight,
         label: 'Fallido',
         icon: 'alert-circle-outline' as const,
       };
     default:
       return {
-        color: isDark ? '#CBD5E1' : '#6B7280',
-        bgColor: isDark ? '#334155' : '#F3F4F6',
+        color: colors.textSecondary,
+        bgColor: colors.surface,
         label: 'Desconocido',
         icon: 'help-circle-outline' as const,
       };
@@ -373,6 +372,7 @@ function buildItemDetails(item: OfflineQueueItem): ItemDetails {
 }
 
 function ConnectionDot({ isOnline }: { isOnline: boolean }) {
+  const { colors } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -404,7 +404,7 @@ function ConnectionDot({ isOnline }: { isOnline: boolean }) {
         style={[
           styles.dotPulse,
           {
-            backgroundColor: isOnline ? '#10B981' : '#EF4444',
+            backgroundColor: isOnline ? colors.success : colors.error,
             opacity: pulseAnim,
             transform: [{ scale: pulseAnim.interpolate({ inputRange: [0.4, 1], outputRange: [1.3, 1] }) }],
           },
@@ -413,7 +413,7 @@ function ConnectionDot({ isOnline }: { isOnline: boolean }) {
       <View
         style={[
           styles.dotCore,
-          { backgroundColor: isOnline ? '#10B981' : '#EF4444' },
+          { backgroundColor: isOnline ? colors.success : colors.error },
         ]}
       />
     </View>
@@ -424,16 +424,14 @@ function AnimatedQueueItem({
   item,
   details,
   colors,
-  colorScheme,
   index,
 }: {
   item: OfflineQueueItem;
   details: ItemDetails;
   colors: ReturnType<typeof useTheme>['colors'];
-  colorScheme: 'light' | 'dark';
   index: number;
 }) {
-  const statusConfig = getStatusConfig(item.status, colorScheme);
+  const statusConfig = getStatusConfig(item.status, colors);
 
   return (
     <View
@@ -708,7 +706,16 @@ export default function SincronizacionScreen() {
               Shadows.sm,
             ]}
             accessible
+            accessibilityRole="progressbar"
             accessibilityLabel={`Sincronizando ${Math.min(syncProgress.processed + 1, syncProgress.total)} de ${syncProgress.total} operaciones`}
+            accessibilityValue={{
+              min: 0,
+              max: 100,
+              now: Math.min(
+                Math.round((syncProgress.processed / syncProgress.total) * 100),
+                100,
+              ),
+            }}
           >
             <View style={styles.progressHeader}>
               <ActivityIndicator size="small" color={colors.primary} />
@@ -744,8 +751,8 @@ export default function SincronizacionScreen() {
             style={[
               styles.summaryCard,
               {
-                backgroundColor: colorScheme === 'dark' ? '#78350F' : '#FEF3C7',
-                borderColor: colorScheme === 'dark' ? '#92400E' : '#F59E0B',
+                backgroundColor: colors.warningLight,
+                borderColor: colors.warning,
               },
             ]}
             accessible
@@ -755,12 +762,12 @@ export default function SincronizacionScreen() {
             <Ionicons
               name="time-outline"
               size={scale(22)}
-              color={colorScheme === 'dark' ? '#FCD34D' : '#D97706'}
+              color={colors.warningDark}
             />
             <Text
               style={[
                 styles.summaryNumber,
-                { color: colorScheme === 'dark' ? '#FCD34D' : '#92400E' },
+                { color: colors.warningDark },
               ]}
             >
               {pendingCount}
@@ -768,7 +775,7 @@ export default function SincronizacionScreen() {
             <Text
               style={[
                 styles.summaryLabel,
-                { color: colorScheme === 'dark' ? '#FCD34D' : '#92400E' },
+                { color: colors.warningDark },
               ]}
             >
               Pendientes
@@ -779,8 +786,8 @@ export default function SincronizacionScreen() {
             style={[
               styles.summaryCard,
               {
-                backgroundColor: colorScheme === 'dark' ? '#7F1D1D' : '#FEE2E2',
-                borderColor: colorScheme === 'dark' ? '#991B1B' : '#EF4444',
+                backgroundColor: colors.errorLight,
+                borderColor: colors.error,
               },
             ]}
             accessible
@@ -790,12 +797,12 @@ export default function SincronizacionScreen() {
             <Ionicons
               name="alert-circle-outline"
               size={scale(22)}
-              color={colorScheme === 'dark' ? '#FCA5A5' : '#DC2626'}
+              color={colors.errorDark}
             />
             <Text
               style={[
                 styles.summaryNumber,
-                { color: colorScheme === 'dark' ? '#FCA5A5' : '#991B1B' },
+                { color: colors.errorDark },
               ]}
             >
               {failedCount}
@@ -803,7 +810,7 @@ export default function SincronizacionScreen() {
             <Text
               style={[
                 styles.summaryLabel,
-                { color: colorScheme === 'dark' ? '#FCA5A5' : '#991B1B' },
+                { color: colors.errorDark },
               ]}
             >
               Fallidos
@@ -816,7 +823,7 @@ export default function SincronizacionScreen() {
           <TouchableOpacity
             style={[
               styles.actionButton,
-              { backgroundColor: colors.primary },
+              { backgroundColor: getSolidFill(colors, colorScheme, 'primary') },
               Shadows.sm,
             ]}
             onPress={handleSync}
@@ -875,7 +882,7 @@ export default function SincronizacionScreen() {
         {/* Reintentar fallidos */}
         {failedCount > 0 && (
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.error }]}
+            style={[styles.retryButton, { backgroundColor: getSolidFill(colors, colorScheme, 'error') }]}
             onPress={handleRetryFailed}
             disabled={isSyncing}
             activeOpacity={0.7}
@@ -935,7 +942,6 @@ export default function SincronizacionScreen() {
                       item={item}
                       details={detailsMap.get(item.id) ?? { summary: '', rows: [] }}
                       colors={colors}
-                      colorScheme={colorScheme}
                       index={index}
                     />
                   ))}
@@ -964,7 +970,6 @@ export default function SincronizacionScreen() {
                       item={item}
                       details={detailsMap.get(item.id) ?? { summary: '', rows: [] }}
                       colors={colors}
-                      colorScheme={colorScheme}
                       index={index}
                     />
                   ))}
@@ -982,6 +987,7 @@ export default function SincronizacionScreen() {
         confirmLabel="Limpiar fallidos"
         cancelLabel="Cancelar"
         destructive
+        useHold
         onConfirm={handleClear}
         onCancel={() => setShowClearConfirm(false)}
       />

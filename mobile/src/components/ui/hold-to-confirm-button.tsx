@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, {
@@ -71,8 +71,9 @@ export function HoldToConfirmButton({
     // eslint-disable-next-line react-hooks/immutability
     progress.value = withTiming(1, { duration: 100 });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    AccessibilityInfo.announceForAccessibility(`Confirmado: ${title}`);
     onConfirm();
-  }, [clearHold, onConfirm, progress]);
+  }, [clearHold, onConfirm, progress, title]);
 
   const handlePressIn = useCallback(
     () => {
@@ -143,6 +144,7 @@ export function HoldToConfirmButton({
         ]}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        pressRetentionOffset={{ top: 0, bottom: 0, left: 0, right: 0 }}
         disabled={isDisabled}
         accessible
         accessibilityRole="button"

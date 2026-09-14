@@ -159,6 +159,11 @@ function AlertaCardInner({ alerta, onPress, onMarkRead, onGoToLoan }: AlertaCard
     <Swipeable renderRightActions={renderRightActions} overshootRight={false}>
       <Pressable
         onPress={() => onPress(alerta)}
+        accessibilityHint={
+          isUnread && onMarkRead
+            ? 'Desliza a la izquierda para marcarla como leída.'
+            : undefined
+        }
         style={({ pressed }) => [
           styles.card,
           {

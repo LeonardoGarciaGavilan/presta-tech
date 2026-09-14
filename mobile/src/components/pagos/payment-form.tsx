@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { AppButton } from '@/components/ui/app-button';
@@ -12,8 +12,9 @@ import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from 
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { m, totalCuota } from '@/utils/money';
 import ReciboPagoModal from '@/components/pagos/recibo-modal';
+import AnimatedModal from '@/components/ui/animated-modal';
 import type { Cuota, MetodoPago, Prestamo } from '@/types/prestamo.types';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { METODO_PAGO_LABELS, METODO_PAGO_ICONS, METODO_PAGO_OPTIONS } from '@/constants/pagos.constants';
 
 interface PaymentFormProps {
@@ -37,7 +38,7 @@ export default function PaymentForm({
   reciboCloseLabel = 'Cerrar',
   onReciboClose,
 }: PaymentFormProps) {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
 
   const { mutateAsync: registrarPago, isPending: isPaying } = useRegistrarPago();
@@ -346,45 +347,44 @@ export default function PaymentForm({
 
       {/* Confirm payment modal */}
       {showConfirmStep && (
-        <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: colors.success }]}>
-                <Ionicons name="checkmark-circle" size={scale(22)} color="#FFFFFF" />
-                <Text style={styles.modalTitle}>Confirmar Pago</Text>
-              </View>
-              <View style={styles.modalBody}>
-                <Text style={[styles.confirmText, { color: colors.textSecondary }]}>
-                  {cliente?.nombre} {cliente?.apellido || ''} — {formatCurrency(montoIngresado)} por {METODO_PAGO_LABELS[metodo]}
-                </Text>
-                {excedente > 0 && (
-                  <Text style={[styles.confirmExcedente, { color: colors.success }]}>
-                    Abono a capital de cuotas futuras: {formatCurrency(excedente)}
-                  </Text>
-                )}
-                <View style={styles.modalActions}>
-                  <AppButton title="Cancelar" onPress={() => setShowConfirmModal(false)} variant="ghost" style={{ flex: 1 }} />
-                  <AppButton title="Confirmar" onPress={handleSubmit} loading={isPaying} style={{ flex: 1 }} />
-                </View>
-              </View>
+        <AnimatedModal
+          visible={showConfirmModal}
+          onRequestClose={() => setShowConfirmModal(false)}
+          cardStyle={styles.modalCard}
+        >
+          <View style={[styles.modalHeaderBar, { backgroundColor: getSolidFill(colors, colorScheme, 'success') }]}>
+            <Ionicons name="checkmark-circle" size={scale(22)} color="#FFFFFF" />
+            <Text style={styles.modalTitle}>Confirmar Pago</Text>
+          </View>
+          <View style={styles.modalBody}>
+            <Text style={[styles.confirmText, { color: colors.textSecondary }]}>
+              {cliente?.nombre} {cliente?.apellido || ''} — {formatCurrency(montoIngresado)} por {METODO_PAGO_LABELS[metodo]}
+            </Text>
+            {excedente > 0 && (
+              <Text style={[styles.confirmExcedente, { color: colors.success }]}>
+                Abono a capital de cuotas futuras: {formatCurrency(excedente)}
+              </Text>
+            )}
+            <View style={styles.modalActions}>
+              <AppButton title="Cancelar" onPress={() => setShowConfirmModal(false)} variant="ghost" style={{ flex: 1 }} />
+              <AppButton title="Confirmar" onPress={handleSubmit} loading={isPaying} style={{ flex: 1 }} />
             </View>
           </View>
-        </Modal>
+        </AnimatedModal>
       )}
 
       {/* Saldar Modal */}
-      <Modal visible={showSaldarModal} transparent animationType="fade" onRequestClose={() => setShowSaldarModal(false)}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <View style={[styles.modalCard, { backgroundColor: colors.surfaceElevated }]}>
-              <View style={[styles.modalHeaderBar, { backgroundColor: colors.error }]}>
-                <Ionicons name="flash" size={scale(22)} color="#FFFFFF" />
-                <Text style={styles.modalTitle}>Saldar Préstamo</Text>
-              </View>
-              <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+      <AnimatedModal
+        visible={showSaldarModal}
+        onRequestClose={() => setShowSaldarModal(false)}
+        avoidKeyboard
+        cardStyle={styles.modalCard}
+      >
+        <View style={[styles.modalHeaderBar, { backgroundColor: getSolidFill(colors, colorScheme, 'error') }]}>
+          <Ionicons name="flash" size={scale(22)} color="#FFFFFF" />
+          <Text style={styles.modalTitle}>Saldar Préstamo</Text>
+        </View>
+        <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
                 <Text style={[styles.saldarLabel, { color: colors.textSecondary }]}>
                   Se pagarán todas las cuotas pendientes ({cuotasPendientes.length}):
                 </Text>
@@ -438,10 +438,7 @@ export default function PaymentForm({
                   />
                 </View>
               </ScrollView>
-            </View>
-          </View>
-      </KeyboardAvoidingView>
-      </Modal>
+      </AnimatedModal>
 
       {/* Recibo Modal */}
       <ReciboPagoModal
@@ -516,12 +513,6 @@ const styles = StyleSheet.create({
   },
   metodoText: { fontSize: FontSize.sm, fontWeight: FontWeight.medium },
   actionButtons: { gap: Spacing.sm, marginTop: Spacing.lg },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
   modalCard: {
     width: '100%',
     maxWidth: 380,

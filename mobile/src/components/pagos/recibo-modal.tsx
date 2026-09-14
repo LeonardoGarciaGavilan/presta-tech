@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
+import AnimatedModal from '@/components/ui/animated-modal';
 import { useToast } from '@/components/ui/toast';
 import { useImprimirRecibo } from '@/hooks/use-imprimir-recibo';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
@@ -54,10 +55,8 @@ export default function ReciboPagoModal({
   }, [reciboData, showToast]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-        <View style={[styles.reciboCard, { backgroundColor: colors.surfaceElevated }]}>
-          <ScrollView contentContainerStyle={styles.reciboContent}>
+    <AnimatedModal visible={visible} onRequestClose={onClose} cardStyle={styles.reciboCard}>
+      <ScrollView contentContainerStyle={styles.reciboContent}>
             <View style={styles.reciboHeader}>
               <Ionicons name="checkmark-circle" size={scale(48)} color={colors.success} />
               <Text style={[styles.reciboTitle, { color: colors.text }]}>{title}</Text>
@@ -178,9 +177,7 @@ export default function ReciboPagoModal({
               />
             </View>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </AnimatedModal>
   );
 }
 
@@ -192,12 +189,6 @@ const ReciboField = ({ label, value, colors }: { label: string; value?: string; 
 );
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
   reciboCard: {
     width: '100%',
     maxWidth: 380,

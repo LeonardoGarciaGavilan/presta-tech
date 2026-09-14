@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,7 @@ import { useCliente,
 import ClienteForm from '@/components/clientes/cliente-form';
 import { obtenerRutaCliente, asignarRuta } from '@/api/rutas.api';
 import { getNetworkStatus } from '@/hooks/use-network-status';
+import { useResponsiveColumns } from '@/hooks/use-responsive';
 import { getRutaClienteByClienteId } from '@/db/rutas-db';
 import ClienteInfo from '@/components/clientes/cliente-info';
 import ClienteAvatar from '@/components/clientes/cliente-avatar';
@@ -130,6 +131,38 @@ export default function ClienteDetalleScreen() {
     (sum, p) => sum + calcularSaldoReal(p),
     0,
   );
+
+  const kpis = useMemo(
+    () => [
+      {
+        icon: 'documents-outline' as const,
+        value: String(totalPrestamos),
+        label: 'Total préstamos',
+        accent: 'primary' as const,
+      },
+      {
+        icon: 'checkmark-circle-outline' as const,
+        value: String(prestamosActivos.length),
+        label: 'Préstamos activos',
+        accent: 'success' as const,
+      },
+      {
+        icon: 'cash-outline' as const,
+        value: formatCurrency(saldoPendienteTotal),
+        label: 'Saldo pendiente',
+        accent: 'info' as const,
+      },
+      {
+        icon: 'ribbon-outline' as const,
+        value: String(prestamosPagados.length),
+        label: 'Pagados',
+        accent: 'warning' as const,
+      },
+    ],
+    [totalPrestamos, prestamosActivos.length, prestamosPagados.length, saldoPendienteTotal],
+  );
+
+  const { columns } = useResponsiveColumns();
 
   const handleUpdate = useCallback(
     async (data: ClienteFormData) => {
@@ -410,38 +443,17 @@ export default function ClienteDetalleScreen() {
         {/* KPIs Financieros */}
         {cliente.activo && totalPrestamos > 0 && (
           <View style={styles.kpiGrid}>
-            <View style={styles.kpiRow}>
+            {kpis.map((kpi, i) => (
               <KpiCard
-                icon="documents-outline"
-                value={String(totalPrestamos)}
-                label="Total préstamos"
-                accent="primary"
-                delay={0}
+                key={kpi.label}
+                icon={kpi.icon}
+                value={kpi.value}
+                label={kpi.label}
+                accent={kpi.accent}
+                delay={i * 50}
+                width={columns === 1 ? '100%' : `${Math.floor(100 / columns) - 4}%`}
               />
-              <KpiCard
-                icon="checkmark-circle-outline"
-                value={String(prestamosActivos.length)}
-                label="Préstamos activos"
-                accent="success"
-                delay={50}
-              />
-            </View>
-            <View style={styles.kpiRow}>
-              <KpiCard
-                icon="cash-outline"
-                value={formatCurrency(saldoPendienteTotal)}
-                label="Saldo pendiente"
-                accent="info"
-                delay={100}
-              />
-              <KpiCard
-                icon="ribbon-outline"
-                value={String(prestamosPagados.length)}
-                label="Pagados"
-                accent="warning"
-                delay={150}
-              />
-            </View>
+            ))}
           </View>
         )}
 
@@ -655,6 +667,7 @@ export default function ClienteDetalleScreen() {
         onCancel={() => setDialogAction(null)}
         loading={isEliminando}
         destructive
+        useHold
       />
 
       <ConfirmDialog
@@ -758,8 +771,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   kpiGrid: {
-    marginBottom: Spacing.md,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   kpiRow: {
     flexDirection: 'row',

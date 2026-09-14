@@ -72,7 +72,13 @@ export default function PrestamoEstadoCuentaCard({ prestamo }: PrestamoEstadoCue
           </Text>
           <Text style={[styles.progressPct, { color: colors.primary }]}>{progress}%</Text>
         </View>
-        <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel={`Progreso de pago del préstamo ${prestamo.id.slice(0, 8)}`}
+          accessibilityValue={{ min: 0, max: 100, now: progress }}
+          style={[styles.progressBar, { backgroundColor: colors.border }]}
+        >
           <View
             style={[
               styles.progressFill,

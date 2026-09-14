@@ -1,8 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +14,9 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
 import PickerField from '@/components/ui/picker-field';
 import DatePickerField from '@/components/ui/date-picker-field';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
+import AnimatedModal from '@/components/ui/animated-modal';
+import ModalHeader from '@/components/ui/modal-header';
 import { useToast } from '@/components/ui/toast';
 import { getConfiguracion } from '@/db/config-db';
 import {
@@ -29,6 +28,7 @@ import { m } from '@/utils/money';
 import { humanizeError } from '@/utils/errors';
 import type { FrecuenciaPago, Prestamo } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
+import { FREQ_LABEL, DURACION_LABEL } from '@/constants/prestamos.constants';
 
 interface RefinanciarModalProps {
   visible: boolean;
@@ -38,20 +38,6 @@ interface RefinanciarModalProps {
 }
 
 const FRECUENCIAS: FrecuenciaPago[] = ['DIARIO', 'SEMANAL', 'QUINCENAL', 'MENSUAL'];
-
-const FREQ_LABEL: Record<string, string> = {
-  DIARIO: 'diario',
-  SEMANAL: 'semanal',
-  QUINCENAL: 'quincenal',
-  MENSUAL: 'mensual',
-};
-
-const DURACION_LABEL: Record<string, string> = {
-  DIARIO: 'días',
-  SEMANAL: 'semanas',
-  QUINCENAL: 'quincenas',
-  MENSUAL: 'meses',
-};
 
 // ── Sanitización numérica ───────────────────────────────────────────
 // Normaliza coma decimal (teclados es-DO / Android) y filtra caracteres
@@ -80,7 +66,7 @@ interface PreviewRefinanciamiento {
 }
 
 const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: RefinanciarModalProps) => {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const refinanciarMutation = useRefinanciarPrestamo();
@@ -337,30 +323,19 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
   }, []);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={[styles.overlay, { backgroundColor: colors.overlay }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
-          <View style={[styles.headerBar, { backgroundColor: colors.primary }]}>
-            <Ionicons name="refresh" size={scale(22)} color="#FFFFFF" />
-            <Text style={[styles.title, { color: '#FFFFFF' }]} accessibilityRole="header">
-              Refinanciar Préstamo
-            </Text>
-            <Pressable
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar"
-              accessibilityHint="Cierra el modal sin refinanciar"
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={scale(22)} color="#FFFFFF" />
-            </Pressable>
-          </View>
-          <ScrollView
+    <AnimatedModal
+      visible={visible}
+      onRequestClose={onClose}
+      avoidKeyboard
+      cardStyle={styles.card}
+    >
+      <ModalHeader
+        icon="refresh"
+        title="Refinanciar Préstamo"
+        subtitle={`Préstamo #${prestamo.id.slice(0, 8)}`}
+        onClose={onClose}
+      />
+      <ScrollView
             style={styles.body}
             keyboardShouldPersistTaps="handled"
             bounces={false}
@@ -392,7 +367,7 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
               <View style={[styles.modeToggle, { backgroundColor: colors.surface }]}>
                 <Pressable
                   onPress={() => cambiarModoRapido(false)}
-                  style={[styles.modeBtn, !modoRapido && { backgroundColor: colors.primary }]}
+                  style={[styles.modeBtn, !modoRapido && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                   accessibilityRole="button"
                   accessibilityLabel="Modo de cálculo normal"
                   accessibilityState={{ selected: !modoRapido }}
@@ -403,7 +378,7 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
                 </Pressable>
                 <Pressable
                   onPress={() => cambiarModoRapido(true)}
-                  style={[styles.modeBtn, modoRapido && { backgroundColor: colors.primary }]}
+                  style={[styles.modeBtn, modoRapido && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                   accessibilityRole="button"
                   accessibilityLabel="Modo de cálculo rápido"
                   accessibilityState={{ selected: modoRapido }}
@@ -427,7 +402,7 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
                       style={[
                         styles.subBtn,
                         { borderColor: colors.border },
-                        modoCalculo === 'PAGO' && { backgroundColor: colors.primary },
+                        modoCalculo === 'PAGO' && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') },
                       ]}
                       accessibilityRole="button"
                       accessibilityLabel="Calcular desde pago por período"
@@ -447,7 +422,7 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
                       style={[
                         styles.subBtn,
                         { borderColor: colors.border },
-                        modoCalculo === 'GANANCIA' && { backgroundColor: colors.primary },
+                        modoCalculo === 'GANANCIA' && { backgroundColor: getSolidFill(colors, colorScheme, 'primary') },
                       ]}
                       accessibilityRole="button"
                       accessibilityLabel="Calcular desde ganancia deseada"
@@ -583,45 +558,26 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
                 )}
 
               <View style={styles.actions}>
-                <AppButton title="Cancelar" onPress={onClose} variant="ghost" style={{ flex: 1 }} />
+                <AppButton title="Cancelar" onPress={onClose} variant="ghost" />
                 <AppButton
                   title="Refinanciar"
                   onPress={handleRefinanciar}
                   loading={refinanciarMutation.isPending}
                   disabled={!inputsValidos || !!bloqueoRegla || !!preview?.error}
-                  style={{ flex: 1 }}
                 />
               </View>
             </ScrollView>
-          </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </AnimatedModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
   card: {
     width: '100%',
     maxWidth: 380,
     maxHeight: '90%',
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
-  },
-  headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    padding: Spacing.md,
-  },
-  title: { fontSize: FontSize.md, fontWeight: FontWeight.bold, flex: 1 },
-  closeButton: {
-    marginLeft: 'auto',
   },
   body: { padding: Spacing.md },
   modeToggle: {
@@ -702,7 +658,7 @@ const styles = StyleSheet.create({
   },
   previewTitle: { fontSize: FontSize.xs, fontWeight: FontWeight.bold },
   previewText: { fontSize: FontSize.xs },
-  actions: { flexDirection: 'row', gap: Spacing.sm, flexShrink: 0 },
+  actions: { gap: Spacing.sm, flexShrink: 0 },
 });
 
 export default RefinanciarModal;

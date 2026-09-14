@@ -13,7 +13,7 @@ import { Skeleton, SkeletonKPIGrid } from '@/components/ui/skeleton';
 import { AppInput } from '@/components/ui/app-input';
 import DatePickerField from '@/components/ui/date-picker-field';
 import { useToast } from '@/components/ui/toast';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
 import EmptyState from '@/components/ui/empty-state';
@@ -39,21 +39,21 @@ function formatFechaCorta(dateStr: string): string {
 
 function getMetodoColor(metodo: string, colors: Record<string, string>) {
   switch (metodo) {
-    case 'EFECTIVO': return { color: colors.success, bg: colors.successLight };
-    case 'TARJETA': return { color: colors.info, bg: colors.infoLight };
-    case 'TRANSFERENCIA': return { color: colors.warning, bg: colors.warningLight };
+    case 'EFECTIVO': return { color: colors.successDark, bg: colors.successLight };
+    case 'TARJETA': return { color: colors.infoDark, bg: colors.infoLight };
+    case 'TRANSFERENCIA': return { color: colors.warningDark, bg: colors.warningLight };
     default: return { color: colors.textSecondary, bg: colors.surface };
   }
 }
 
 function getEstadoColor(estado: string, colors: Record<string, string>) {
   switch (estado) {
-    case 'ACTIVO': return { color: colors.success, bg: colors.successLight };
-    case 'ATRASADO': return { color: colors.error, bg: colors.errorLight };
-    case 'PAGADO': return { color: colors.info, bg: colors.infoLight };
+    case 'ACTIVO': return { color: colors.successDark, bg: colors.successLight };
+    case 'ATRASADO': return { color: colors.errorDark, bg: colors.errorLight };
+    case 'PAGADO': return { color: colors.infoDark, bg: colors.infoLight };
     case 'CANCELADO': return { color: colors.textTertiary, bg: colors.surface };
-    case 'SOLICITADO': return { color: colors.warning, bg: colors.warningLight };
-    case 'RENOVADO': return { color: colors.warning, bg: colors.warningLight };
+    case 'SOLICITADO': return { color: colors.warningDark, bg: colors.warningLight };
+    case 'RENOVADO': return { color: colors.warningDark, bg: colors.warningLight };
     default: return { color: colors.textSecondary, bg: colors.surface };
   }
 }
@@ -517,7 +517,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]} numberOfLines={1}>{item.cliente}</Text>
-              <Badge label={`${item.diasMaxAtraso}d`} color={item.diasMaxAtraso > 30 ? colors.error : colors.warning} bg={item.diasMaxAtraso > 30 ? colors.errorLight : colors.warningLight} />
+              <Badge label={`${item.diasMaxAtraso}d`} color={item.diasMaxAtraso > 30 ? colors.errorDark : colors.warningDark} bg={item.diasMaxAtraso > 30 ? colors.errorLight : colors.warningLight} />
             </View>
             <Text style={[styles.itemSub, { color: colors.textSecondary }]}>
               {item.cedula} · {item.telefono}
@@ -750,7 +750,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]}>{formatFecha(d.fecha)}</Text>
-              <Badge label={d.neto >= 0 ? 'Positivo' : 'Negativo'} color={d.neto >= 0 ? colors.success : colors.error} bg={d.neto >= 0 ? colors.successLight : colors.errorLight} />
+              <Badge label={d.neto >= 0 ? 'Positivo' : 'Negativo'} color={d.neto >= 0 ? colors.successDark : colors.errorDark} bg={d.neto >= 0 ? colors.successLight : colors.errorLight} />
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.success }]}>+{formatCurrencyCompact(d.entradas ?? 0)}</Text>
@@ -784,7 +784,7 @@ export default function ReportesScreen() {
           <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.itemTop}>
               <Text style={[styles.itemTitle, { color: colors.text }]}>{c.nombre}</Text>
-              <Badge label={`${c.cantidadPagos} pagos`} color={colors.primary} bg={colors.primaryLight} />
+              <Badge label={`${c.cantidadPagos} pagos`} color={colors.primaryDark} bg={colors.primaryLight} />
             </View>
             <View style={styles.itemBreakdown}>
               <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cobrado:</Text>
@@ -826,7 +826,7 @@ export default function ReportesScreen() {
             <View key={i} style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.itemTop}>
                 <Text style={[styles.itemTitle, { color: colors.text }]}>{mesLabel}</Text>
-                {m.vencidas > 0 && <Badge label={`${m.vencidas} venc.`} color={colors.error} bg={colors.errorLight} />}
+                {m.vencidas > 0 && <Badge label={`${m.vencidas} venc.`} color={colors.errorDark} bg={colors.errorLight} />}
               </View>
               <View style={styles.itemBreakdown}>
                 <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Cuotas:</Text>
@@ -906,7 +906,7 @@ export default function ReportesScreen() {
             {/* Generate button */}
             <TouchableOpacity
               onPress={handleGenerate}
-              style={[styles.generateBtn, { backgroundColor: colors.primary }]}
+              style={[styles.generateBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
             >
               <Ionicons name="refresh-outline" size={scale(18)} color="#FFFFFF" />
               <Text style={styles.generateBtnText}>Generar reporte</Text>
@@ -952,7 +952,7 @@ export default function ReportesScreen() {
                       style={[
                         styles.tab,
                         { borderColor: colors.border },
-                        active && { backgroundColor: colors.primary, borderColor: colors.primary },
+                        active && { backgroundColor: getSolidFill(colors, colorScheme, 'primary'), borderColor: colors.primary },
                       ]}
                     >
                       <Ionicons

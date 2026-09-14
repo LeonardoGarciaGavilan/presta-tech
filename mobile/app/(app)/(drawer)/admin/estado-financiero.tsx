@@ -12,8 +12,9 @@ import { AppInput } from '@/components/ui/app-input';
 import { AppButton } from '@/components/ui/app-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
+import { useResponsiveColumns } from '@/hooks/use-responsive';
 import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, formatTimeAgo } from '@/utils/formatters';
 import { m } from '@/utils/money';
@@ -64,6 +65,8 @@ export default function EstadoFinancieroScreen() {
   const { colorScheme, colors } = useTheme();
   const { showToast } = useToast();
   const { moduloHabilitado, tienePermiso } = usePermisos();
+  const { columns } = useResponsiveColumns();
+  const cardWidth = columns === 1 ? '100%' : columns === 4 ? '22%' : columns === 3 ? '30%' : '47%';
 
   const { data: dash, isLoading: dashLoading, refetch, isRefetching } = useDashboard();
   const { data: movimientos } = useMovimientos(15);
@@ -199,7 +202,7 @@ export default function EstadoFinancieroScreen() {
               {puedeInyectar && (
                 <TouchableOpacity
                   onPress={() => setShowInyectar(true)}
-                  style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                  style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}
                 >
                   <Ionicons name="add-circle-outline" size={scale(18)} color="#FFFFFF" />
                   <Text style={styles.actionBtnText}>Inyectar</Text>
@@ -208,7 +211,7 @@ export default function EstadoFinancieroScreen() {
               {puedeRetirar && (
                 <TouchableOpacity
                   onPress={() => setShowRetirar('ganancias')}
-                  style={[styles.actionBtn, { backgroundColor: colors.success }]}
+                  style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'success') }]}
                 >
                   <Ionicons name="arrow-down-circle-outline" size={scale(18)} color="#FFFFFF" />
                   <Text style={styles.actionBtnText}>Ganancias</Text>
@@ -217,7 +220,7 @@ export default function EstadoFinancieroScreen() {
               {puedeRetirar && (
                 <TouchableOpacity
                   onPress={() => setShowRetirar('capital')}
-                  style={[styles.actionBtn, { backgroundColor: colors.error }]}
+                  style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'error') }]}
                 >
                   <Ionicons name="remove-circle-outline" size={scale(18)} color="#FFFFFF" />
                   <Text style={styles.actionBtnText}>Capital</Text>
@@ -225,29 +228,29 @@ export default function EstadoFinancieroScreen() {
               )}
             </View>
 
-            {/* KPI Grid 2x2 */}
+            {/* KPI Grid responsive */}
             <View style={styles.kpiGrid}>
-              <View style={[styles.kpiCard, { backgroundColor: colors.primaryLight }]}>
-                <Text style={[styles.kpiLabel, { color: colors.primary }]}>Capital</Text>
-                <Text style={[styles.kpiValue, { color: colors.primary }]}>
+              <View style={[styles.kpiCard, { width: cardWidth, backgroundColor: colors.primaryLight }]}>
+                <Text style={[styles.kpiLabel, { color: colors.primaryDark }]}>Capital</Text>
+                <Text style={[styles.kpiValue, { color: colors.primaryDark }]}>
                   {formatCurrencyCompact(dash?.capital.total ?? 0)}
                 </Text>
               </View>
-              <View style={[styles.kpiCard, { backgroundColor: colors.secondaryLight }]}>
-                <Text style={[styles.kpiLabel, { color: colors.secondary }]}>Ganancias</Text>
-                <Text style={[styles.kpiValue, { color: colors.secondary }]}>
+              <View style={[styles.kpiCard, { width: cardWidth, backgroundColor: colors.secondaryLight }]}>
+                <Text style={[styles.kpiLabel, { color: colors.secondaryDark }]}>Ganancias</Text>
+                <Text style={[styles.kpiValue, { color: colors.secondaryDark }]}>
                   {formatCurrencyCompact(dash?.ganancias.brutas ?? 0)}
                 </Text>
               </View>
-              <View style={[styles.kpiCard, { backgroundColor: colors.warningLight }]}>
-                <Text style={[styles.kpiLabel, { color: colors.warning }]}>En caja</Text>
-                <Text style={[styles.kpiValue, { color: colors.warning }]}>
+              <View style={[styles.kpiCard, { width: cardWidth, backgroundColor: colors.warningLight }]}>
+                <Text style={[styles.kpiLabel, { color: colors.warningDark }]}>En caja</Text>
+                <Text style={[styles.kpiValue, { color: colors.warningDark }]}>
                   {formatCurrencyCompact(dash?.dinero.enCaja ?? 0)}
                 </Text>
               </View>
-              <View style={[styles.kpiCard, { backgroundColor: colors.errorLight }]}>
-                <Text style={[styles.kpiLabel, { color: colors.error }]}>En calle</Text>
-                <Text style={[styles.kpiValue, { color: colors.error }]}>
+              <View style={[styles.kpiCard, { width: cardWidth, backgroundColor: colors.errorLight }]}>
+                <Text style={[styles.kpiLabel, { color: colors.errorDark }]}>En calle</Text>
+                <Text style={[styles.kpiValue, { color: colors.errorDark }]}>
                   {formatCurrencyCompact(dash?.dinero.enCalle ?? 0)}
                 </Text>
               </View>
@@ -484,11 +487,11 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { color: '#FFFFFF', fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.md },
-  kpiCard: {
-    width: '48%',
+kpiCard: {
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   kpiLabel: { fontSize: FontSize.xs, fontWeight: FontWeight.medium, marginBottom: scale(2) },
   kpiValue: { fontSize: FontSize.lg, fontWeight: FontWeight.bold },

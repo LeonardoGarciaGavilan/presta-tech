@@ -34,7 +34,7 @@ export default function ModalCerrarCaja({
   cabecera,
   umbralDiferencia = 100,
 }: Props) {
-  const { colors } = useTheme();
+  const { colorScheme, colors } = useTheme();
   const [montoCierre, setMontoCierre] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
@@ -72,7 +72,7 @@ export default function ModalCerrarCaja({
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.card, { backgroundColor: colors.surfaceElevated }]}>
-            <View style={[styles.headerBar, { backgroundColor: colors.error }]}>
+            <View style={[styles.headerBar, { backgroundColor: colorScheme === 'dark' ? colors.errorLight : colors.error }]}>
               <Ionicons name="lock-closed" size={scale(22)} color="#FFFFFF" />
               <Text style={styles.title}>Cerrar Caja{cabecera ? ` — ${cabecera}` : ''}</Text>
             </View>

@@ -11,7 +11,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { logout, clearPushToken } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { useContarAlertas } from '@/hooks/use-alertas';
 import { usePermisos } from '@/permisos/use-permisos';
 import { MODULO_POR_PANTALLA, PERMISO_POR_PANTALLA } from '@/permisos/permisos';
@@ -21,12 +21,14 @@ function DrawerItem({
   icon,
   onPress,
   colors,
+  colorScheme,
   badge,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   colors: typeof Colors.light;
+  colorScheme: 'light' | 'dark';
   badge?: number;
 }) {
   return (
@@ -50,7 +52,7 @@ function DrawerItem({
               position: 'absolute',
               top: -4,
               right: -2,
-              backgroundColor: colors.error,
+              backgroundColor: getSolidFill(colors, colorScheme, 'error'),
               borderRadius: scale(8),
               minWidth: scale(16),
               height: scale(16),
@@ -132,7 +134,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             width: scale(52),
             height: scale(52),
             borderRadius: scale(26),
-            backgroundColor: colors.primary,
+            backgroundColor: getSolidFill(colors, colorScheme, 'primary'),
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -175,6 +177,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           icon="home-outline"
           onPress={() => props.navigation.navigate('(tabs)')}
           colors={colors}
+          colorScheme={colorScheme}
         />
 
         <DrawerItem
@@ -182,6 +185,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           icon="print-outline"
           onPress={() => props.navigation.navigate('impresora')}
           colors={colors}
+          colorScheme={colorScheme}
         />
 
         {adminItems.length > 0 && (
@@ -212,6 +216,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
                 icon={item.icon}
                 onPress={() => props.navigation.navigate(item.name)}
                 colors={colors}
+                colorScheme={colorScheme}
                 badge={item.badge}
               />
             ))}
@@ -255,6 +260,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         confirmLabel="Cerrar sesión"
         cancelLabel="Cancelar"
         destructive
+        useHold
         loading={isLoggingOut}
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutConfirm(false)}

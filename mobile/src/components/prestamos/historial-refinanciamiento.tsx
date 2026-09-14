@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/components/ui/theme-provider';
 import { formatCurrency, formatDate, formatDateTime } from '@/utils/formatters';
 import { BorderRadius, FontSize, FontWeight, Spacing, scale } from '@/constants/theme';
+import { FREQ_LABEL } from '@/constants/prestamos.constants';
 
 export interface RegistroRefinanciamiento {
   fecha?: string;
@@ -32,14 +33,11 @@ function esArrayHistorial(h: any): h is RegistroRefinanciamiento[] {
   return Array.isArray(h) && h.length > 0;
 }
 
-const FREQ_LABEL: Record<string, string> = {
-  DIARIO: 'Diario',
-  SEMANAL: 'Semanal',
-  QUINCENAL: 'Quincenal',
-  MENSUAL: 'Mensual',
+const freqLabel = (f?: string) => {
+  if (!f) return '—';
+  const label = FREQ_LABEL[f] ?? f;
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : '—';
 };
-
-const freqLabel = (f?: string) => (f ? FREQ_LABEL[f] ?? f : '—');
 
 const HistorialRefinanciamientoBase = ({ historial }: HistorialRefinanciamientoProps) => {
   const { colors } = useTheme();

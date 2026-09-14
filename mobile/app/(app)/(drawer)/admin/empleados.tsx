@@ -32,7 +32,7 @@ import DatePickerField from '@/components/ui/date-picker-field';
 import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 import SinAcceso from '@/components/permisos/sin-acceso';
 import { formatCurrencyCompact, formatFullCurrency, getTodayISO } from '@/utils/formatters';
@@ -398,7 +398,7 @@ export default function EmpleadosScreen() {
         ListHeaderComponent={
           <View>
             {puedeGestionar && (
-              <TouchableOpacity onPress={openCreate} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
+              <TouchableOpacity onPress={openCreate} style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}>
                 <Ionicons name="person-add-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Nuevo empleado</Text>
               </TouchableOpacity>
@@ -440,11 +440,11 @@ export default function EmpleadosScreen() {
             </View>
             <View style={styles.filterRow}>
               <TouchableOpacity onPress={() => setMostrarInactivos(false)}
-                style={[styles.filterChip, { borderColor: colors.border }, !mostrarInactivos && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                style={[styles.filterChip, { borderColor: colors.border }, !mostrarInactivos && { backgroundColor: getSolidFill(colors, colorScheme, 'primary'), borderColor: colors.primary }]}>
                 <Text style={[styles.filterChipText, { color: !mostrarInactivos ? '#FFFFFF' : colors.textSecondary }]}>Activos</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setMostrarInactivos(true)}
-                style={[styles.filterChip, { borderColor: colors.border }, mostrarInactivos && { backgroundColor: colors.error, borderColor: colors.error }]}>
+                style={[styles.filterChip, { borderColor: colors.border }, mostrarInactivos && { backgroundColor: getSolidFill(colors, colorScheme, 'error'), borderColor: colors.error }]}>
                 <Text style={[styles.filterChipText, { color: mostrarInactivos ? '#FFFFFF' : colors.textSecondary }]}>Inactivos</Text>
               </TouchableOpacity>
               <Text style={[styles.countText, { color: colors.textTertiary }]}>{filtered.length} empleado{filtered.length !== 1 ? 's' : ''}</Text>
@@ -524,7 +524,7 @@ export default function EmpleadosScreen() {
               <View style={{ flex: 1 }}>
                 <DatePickerField label="Fecha" value={asiFecha} onChange={setAsiFecha} />
               </View>
-              <TouchableOpacity onPress={() => setAsiFecha(getTodayISO())} style={[styles.asiHoyBtn, { backgroundColor: colors.primary }]}>
+              <TouchableOpacity onPress={() => setAsiFecha(getTodayISO())} style={[styles.asiHoyBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}>
                 <Text style={styles.asiHoyText}>Hoy</Text>
               </TouchableOpacity>
             </View>
@@ -593,7 +593,7 @@ export default function EmpleadosScreen() {
         ListHeaderComponent={
           <View>
             {empleados && empleados.length > 0 && puedePagarSalario && (
-              <TouchableOpacity onPress={openPagoForm} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
+              <TouchableOpacity onPress={openPagoForm} style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}>
                 <Ionicons name="cash-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Registrar pago</Text>
               </TouchableOpacity>
@@ -643,7 +643,7 @@ export default function EmpleadosScreen() {
               </View>
             )}
             {descEmpId && puedePagarSalario ? (
-              <TouchableOpacity onPress={openDescForm} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
+              <TouchableOpacity onPress={openDescForm} style={[styles.actionBtn, { backgroundColor: getSolidFill(colors, colorScheme, 'primary') }]}>
                 <Ionicons name="pricetag-outline" size={scale(18)} color="#FFFFFF" />
                 <Text style={styles.actionBtnText}>Nuevo descuento</Text>
               </TouchableOpacity>
@@ -893,7 +893,7 @@ export default function EmpleadosScreen() {
         visible={!!deleteDescTarget}
         title="Eliminar descuento"
         message="¿Eliminar este descuento pendiente?"
-        confirmLabel="Eliminar" cancelLabel="Cancelar" destructive
+        confirmLabel="Eliminar" cancelLabel="Cancelar" destructive useHold
         onConfirm={handleEliminarDesc} onCancel={() => setDeleteDescTarget(null)}
         loading={eliminarDescMutation.isPending}
       />

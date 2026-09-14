@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, View, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenContainer } from '@/components/ui/screen-container';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
@@ -17,7 +18,7 @@ import { useImprimirRecibo } from '@/hooks/use-imprimir-recibo';
 import { guardarReciboPDF, reciboPagoImprimible } from '@/utils/recibo-pdf';
 import { AppStyles, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
 import { formatCurrency, formatDateTime, unformatIngresosInput } from '@/utils/formatters';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { useNetworkContext } from '@/components/providers/network-provider';
 
 function hoyStr() {
@@ -36,6 +37,7 @@ function hoyStr() {
 
 export default function CajaScreen() {
   const { colorScheme, colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const { imprimir } = useImprimirRecibo();
   const { network } = useNetworkContext();
@@ -143,7 +145,7 @@ export default function CajaScreen() {
   return (
     <ScreenContainer style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
-        contentContainerStyle={{ padding: Spacing.md, paddingBottom: Spacing.xxl }}
+        contentContainerStyle={{ padding: Spacing.md, paddingBottom: scale(140) }}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.primary} />}
       >
         {/* Header */}
@@ -164,14 +166,9 @@ export default function CajaScreen() {
               <Text style={{ fontSize: FontSize.lg, fontWeight: FontWeight.semibold, color: colors.text, marginTop: Spacing.md }}>
                 Sin caja abierta
               </Text>
-              <Text style={{ fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg }}>
+              <Text style={{ fontSize: FontSize.sm, color: colors.textTertiary, textAlign: 'center', marginTop: Spacing.xs }}>
                 Abre tu caja para comenzar a registrar pagos
               </Text>
-              <AppButton
-                title="Abrir Caja"
-                onPress={() => setShowAbrirModal(true)}
-                icon="add-circle"
-              />
             </View>
           </View>
         )}
@@ -251,21 +248,24 @@ export default function CajaScreen() {
               </View>
             )}
 
-            {/* Últimos 10 pagos */}
+            {/* Últimos 5 pagos */}
             {resumen?.pagos && resumen.pagos.length > 0 && (
               <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Últimos 5 pagos</Text>
-                {resumen.pagos.slice(0, 5).map((p: any) => (
-                  <View key={p.id} style={[styles.pagoRow, { borderBottomColor: colors.borderLight }]}>
-                    <Pressable
-                      onPress={() => handleReimprimir(p.id)}
-                      hitSlop={8}
-                      style={styles.reprintIcon}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Reimprimir recibo de ${p.prestamo?.cliente?.nombre}`}
-                    >
+                {resumen.pagos.slice(0, 5).map((p) => (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => handleReimprimir(p.id)}
+                    style={({ pressed }) => [
+                      styles.pagoRow,
+                      { borderBottomColor: colors.borderLight, opacity: pressed ? 0.7 : 1 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pago de ${p.prestamo?.cliente?.nombre} ${p.prestamo?.cliente?.apellido || ''}, ${formatCurrency(p.montoTotal)}. Toca para reimprimir recibo.`}
+                  >
+                    <View style={styles.reprintIcon}>
                       <Ionicons name="print-outline" size={scale(18)} color={colors.primary} />
-                    </Pressable>
+                    </View>
                     <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                       <Text style={{ fontSize: FontSize.xs, fontWeight: FontWeight.semibold, color: colors.text }}>
                         {p.prestamo?.cliente?.nombre} {p.prestamo?.cliente?.apellido || ''}
@@ -277,41 +277,10 @@ export default function CajaScreen() {
                     <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.bold, color: colors.text }}>
                       {formatCurrency(p.montoTotal)}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             )}
-
-            {/* Action buttons */}
-            <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
-              <Pressable
-                onPress={() => router.push('/caja/pago')}
-                style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.primary }]}
-                accessibilityRole="button"
-                accessibilityLabel="Registrar nuevo pago"
-              >
-                <View style={[styles.navIcon, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="cash" size={scale(22)} color={colors.primary} />
-                </View>
-                <Text style={[styles.navButtonText, { color: colors.text }]}>Nuevo Pago</Text>
-                <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Registrar un cobro</Text>
-                <Ionicons name="chevron-forward" size={scale(18)} color={colors.primary} />
-              </Pressable>
-
-              <Pressable
-                onPress={() => setShowCerrarModal(true)}
-                style={[styles.navButton, { backgroundColor: colors.surface, borderColor: colors.error }]}
-                accessibilityRole="button"
-                accessibilityLabel="Cerrar caja"
-              >
-                <View style={[styles.navIcon, { backgroundColor: colors.errorLight }]}>
-                  <Ionicons name="lock-closed" size={scale(22)} color={colors.error} />
-                </View>
-                <Text style={[styles.navButtonText, { color: colors.text }]}>Cerrar Caja</Text>
-                <Text style={[styles.navButtonSub, { color: colors.textTertiary }]}>Finalizar jornada</Text>
-                <Ionicons name="chevron-forward" size={scale(18)} color={colors.error} />
-              </Pressable>
-            </View>
           </>
         )}
 
@@ -353,6 +322,62 @@ export default function CajaScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Sticky bottom action bar */}
+      {(cajaAbierta || !caja) && (
+        <View
+          style={[
+            styles.stickyBar,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.border,
+              paddingBottom: insets.bottom,
+            },
+          ]}
+        >
+          {cajaAbierta ? (
+            <View style={styles.stickyRow}>
+              <Pressable
+                onPress={() => router.push('/caja/pago')}
+                style={({ pressed }) => [
+                  styles.stickyPrimary,
+                  { backgroundColor: getSolidFill(colors, colorScheme, 'primary'), opacity: pressed ? 0.85 : 1 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Registrar nuevo pago"
+              >
+                <Ionicons name="cash" size={scale(20)} color="#FFFFFF" />
+                <Text style={styles.stickyBtnText}>Nuevo Pago</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowCerrarModal(true)}
+                style={({ pressed }) => [
+                  styles.stickyDanger,
+                  { backgroundColor: colors.surface, borderColor: colors.error, opacity: pressed ? 0.85 : 1 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar caja"
+              >
+                <Ionicons name="lock-closed" size={scale(20)} color={colors.error} />
+                <Text style={[styles.stickyBtnText, { color: colors.error }]}>Cerrar Caja</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setShowAbrirModal(true)}
+              style={({ pressed }) => [
+                styles.stickyFull,
+                { backgroundColor: getSolidFill(colors, colorScheme, 'success'), opacity: pressed ? 0.85 : 1 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir caja"
+            >
+              <Ionicons name="add-circle" size={scale(20)} color="#FFFFFF" />
+              <Text style={styles.stickyBtnText}>Abrir Caja</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* Modal Abrir Caja */}
       <Modal visible={showAbrirModal} transparent animationType="fade" onRequestClose={() => setShowAbrirModal(false)}>
@@ -454,7 +479,8 @@ const styles = {
   pagoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.xs,
+    minHeight: 44,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
   } as AppStyles,
   reprintIcon: {
@@ -523,4 +549,55 @@ const styles = {
   modalBody: { padding: Spacing.md },
   modalLabel: { fontSize: FontSize.sm, marginBottom: Spacing.md },
   modalActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm } as AppStyles,
+  stickyBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  } as AppStyles,
+  stickyRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  } as AppStyles,
+  stickyPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    height: scale(54),
+    borderRadius: BorderRadius.md,
+  } as AppStyles,
+  stickyDanger: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    height: scale(54),
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+  } as AppStyles,
+  stickyFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    height: scale(54),
+    borderRadius: BorderRadius.md,
+  } as AppStyles,
+  stickyBtnText: {
+    color: '#FFFFFF',
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    flexShrink: 1,
+  } as AppStyles,
 };

@@ -5,6 +5,7 @@ import { router, useNavigation } from 'expo-router';
 import { FontSize, FontWeight, Spacing, BorderRadius, Colors, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { usePermisos } from '@/permisos/use-permisos';
+import { useResponsiveColumns } from '@/hooks/use-responsive';
 
 interface ActionItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -32,6 +33,9 @@ export function QuickActions() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { tienePermiso } = usePermisos();
+  const { columns } = useResponsiveColumns();
+
+  const cardWidth = columns === 1 ? '100%' : columns === 3 ? '30%' : '47%';
 
   const visibleActions = ACTIONS.filter((a) => (a.permiso ? tienePermiso(a.permiso) : true));
 
@@ -56,7 +60,7 @@ export function QuickActions() {
         {visibleActions.map((action) => (
           <TouchableOpacity
             key={action.route}
-            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.borderLight }]}
+            style={[styles.card, { width: cardWidth, backgroundColor: colors.card, borderColor: colors.borderLight }]}
             activeOpacity={0.6}
             onPress={() => handleNavigate(action.route)}
             accessibilityRole="button"
@@ -90,7 +94,6 @@ const styles = StyleSheet.create({
     gap: scale(12),
   },
   card: {
-    width: '47%',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     padding: Spacing.md,

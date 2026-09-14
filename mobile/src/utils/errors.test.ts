@@ -33,4 +33,26 @@ describe('humanizeError', () => {
     expect(humanizeError(42)).toBe('Ocurrió un error inesperado');
     expect(humanizeError(true)).toBe('Ocurrió un error inesperado');
   });
+
+  it('oculta mensajes técnicos internos con el fallback', () => {
+    expect(
+      humanizeError(new Error("Cannot read properties of undefined (reading 'x')"), 'Error'),
+    ).toBe('Error');
+    expect(
+      humanizeError({ message: 'TypeError: x is not a function', statusCode: 500 }, 'Fallback'),
+    ).toBe('Fallback');
+    expect(humanizeError(new Error('Internal server error'), 'Fallo')).toBe('Fallo');
+    expect(
+      humanizeError('stack\n  at something (file.ts:1:2)', 'Fallo'),
+    ).toBe('Fallo');
+  });
+
+  it('conserva mensajes de negocio del servidor', () => {
+    expect(
+      humanizeError({ message: 'Saldo insuficiente en caja', statusCode: 400 }, 'Error'),
+    ).toBe('Saldo insuficiente en caja');
+    expect(
+      humanizeError(new Error('La renovación requiere conexión a internet.'), 'Error'),
+    ).toBe('La renovación requiere conexión a internet.');
+  });
 });
