@@ -2,7 +2,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Spacing, scale } from '@/constants/theme';
+import { BorderRadius, Shadows, Spacing, scale } from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
 
@@ -19,25 +19,51 @@ export interface StickyActionBarProps {
   primaryAction: Omit<StickyAction, 'variant'> & { color?: string };
   secondaryActions?: StickyAction[];
   style?: StyleProp<ViewStyle>;
+  variant?: 'bar' | 'floating';
 }
 
 export function StickyActionBar({
   primaryAction,
   secondaryActions = [],
   style,
+  variant = 'bar',
 }: StickyActionBarProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+
+  const floating = variant === 'floating';
+
+  if (floating && secondaryActions.length === 0) {
+    return (
+      <View style={[styles.fabWrap, { bottom: insets.bottom + Spacing.xs }, style]} pointerEvents="box-none">
+        <AppButton
+          title={primaryAction.label}
+          icon={primaryAction.icon}
+          onPress={primaryAction.onPress}
+          loading={primaryAction.loading}
+          disabled={primaryAction.disabled}
+          style={[
+            styles.fabBtn,
+            Shadows.lg,
+            primaryAction.color ? { backgroundColor: primaryAction.color } : null,
+          ]}
+        />
+      </View>
+    );
+  }
 
   return (
     <View
       style={[
         styles.container,
+        floating ? styles.containerFloating : styles.containerBar,
         {
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          paddingBottom: insets.bottom,
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
         },
+        floating ? { bottom: insets.bottom + Spacing.sm } : { paddingBottom: insets.bottom },
+        { borderTopColor: colors.border },
+        floating && Shadows.lg,
         style,
       ]}
     >
@@ -63,7 +89,10 @@ export function StickyActionBar({
         onPress={primaryAction.onPress}
         loading={primaryAction.loading}
         disabled={primaryAction.disabled}
-        style={[styles.primaryBtn, { backgroundColor: primaryAction.color }]}
+        style={[
+          styles.primaryBtn,
+          primaryAction.color ? { backgroundColor: primaryAction.color } : null,
+        ]}
       />
     </View>
   );
@@ -75,14 +104,24 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    elevation: 8,
+  },
+  containerBar: {
     borderTopWidth: 1,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
-    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+  },
+  containerFloating: {
+    left: Spacing.md,
+    right: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
   },
   secondaryRow: {
     flexDirection: 'row',
@@ -97,5 +136,16 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: '100%',
     height: scale(54),
+  },
+  fabWrap: {
+    position: 'absolute',
+    left: Spacing.md,
+    right: Spacing.md,
+    alignItems: 'center',
+  },
+  fabBtn: {
+    height: scale(44),
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.full,
   },
 });

@@ -36,9 +36,14 @@ function ClienteCardBase({
   const swipeableRef = useRef<Swipeable>(null);
   const nombreCompleto =
     cliente.nombre + (cliente.apellido ? ` ${cliente.apellido}` : '');
-  const telefono = cliente.celular ?? cliente.telefono;
+  const numero = cliente.celular ?? cliente.telefono;
   const activo = cliente.activo;
   const animScale = useSharedValue(1);
+
+  const partesZona = [cliente.provincia, cliente.municipio].filter(Boolean);
+  const zona = partesZona.length
+    ? partesZona.join(' · ')
+    : cliente.sector || null;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: animScale.value }],
@@ -145,49 +150,64 @@ function ClienteCardBase({
               ? 'Toca para ver el detalle. Desliza a la izquierda para ver más acciones.'
               : undefined
           }
-          style={animatedStyle}
+          style={[styles.contentRow, animatedStyle]}
         >
-          <View style={styles.contentRow}>
-            <ClienteAvatar nombre={cliente.nombre} activo={activo} size={36} />
-            <View style={styles.infoBlock}>
+          <ClienteAvatar nombre={cliente.nombre} activo={activo} size={36} />
+          <View style={styles.infoBlock}>
+            <View style={styles.titleLine}>
               <Text
                 style={[styles.nombre, { color: colors.text }]}
                 numberOfLines={1}
               >
                 {nombreCompleto}
               </Text>
-              <View style={styles.detailLine}>
-                <Badge
-                  icon={activo ? 'checkmark-circle' : 'ban'}
-                  label={activo ? 'Activo' : 'Inactivo'}
-                  color={activo ? (colorScheme === 'dark' ? colors.badgeActive : colors.successDark) : colors.badgeInactive}
-                  bg={activo ? colors.badgeActiveBg : colors.badgeInactiveBg}
+              <Badge
+                icon={activo ? 'checkmark-circle' : 'ban'}
+                label={activo ? 'Activo' : 'Inactivo'}
+                color={activo ? (colorScheme === 'dark' ? colors.badgeActive : colors.successDark) : colors.badgeInactive}
+                bg={activo ? colors.badgeActiveBg : colors.badgeInactiveBg}
+              />
+            </View>
+            <View style={styles.metaLine}>
+              <Text
+                style={[styles.metaText, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {cliente.cedula || 'Sin cédula'}
+              </Text>
+              {numero ? (
+                <>
+                  <Text style={[styles.metaSeparator, { color: colors.textTertiary }]}>·</Text>
+                  <ClickToCall
+                    compact
+                    showIcon={false}
+                    phone={numero}
+                    textStyle={[styles.numeroText, { color: colors.primary }]}
+                  />
+                </>
+              ) : null}
+            </View>
+            {zona && (
+              <View style={styles.zonaLine}>
+                <Ionicons
+                  name="location-outline"
+                  size={scale(12)}
+                  color={colors.textTertiary}
                 />
                 <Text
-                  style={[styles.detailText, { color: colors.textSecondary }]}
+                  style={[styles.zonaText, { color: colors.textTertiary }]}
                   numberOfLines={1}
                 >
-                  {cliente.cedula || 'Sin cédula'}
+                  {zona}
                 </Text>
-                {telefono && (
-                  <>
-                    <Text style={[styles.detailSeparator, { color: colors.textTertiary }]}>·</Text>
-                    <ClickToCall
-                      compact
-                      phone={telefono}
-                      textStyle={[styles.detailText, { color: colors.textSecondary }]}
-                      iconColor={colors.textTertiary}
-                    />
-                  </>
-                )}
               </View>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={scale(16)}
-              color={colors.textTertiary}
-            />
+            )}
           </View>
+          <Ionicons
+            name="chevron-forward"
+            size={scale(16)}
+            color={colors.textTertiary}
+          />
         </AnimatedPressable>
       </View>
     </Swipeable>
@@ -215,21 +235,42 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: scale(2),
   },
-  nombre: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
-  },
-  detailLine: {
+  titleLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(4),
   },
-  detailText: {
-    fontSize: FontSize.xs,
+  nombre: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    flexShrink: 1,
   },
-  detailSeparator: {
+  metaLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(4),
+  },
+  metaText: {
+    fontSize: FontSize.xs,
+    flexShrink: 1,
+  },
+  numeroText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  metaSeparator: {
     fontSize: FontSize.xs,
     marginHorizontal: scale(1),
+  },
+  zonaLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(3),
+    marginTop: scale(1),
+  },
+  zonaText: {
+    fontSize: FontSize.xs,
+    flex: 1,
   },
   swipeActions: {
     flexDirection: 'row',

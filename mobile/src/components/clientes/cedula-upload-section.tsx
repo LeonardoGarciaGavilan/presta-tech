@@ -18,6 +18,7 @@ interface CedulaUploadSectionProps {
   existingFrontalUrl?: string | null;
   existingTraseraUrl?: string | null;
   onUploadComplete?: () => void;
+  hideHeader?: boolean;
 }
 
 interface CedulaSideProps {
@@ -102,7 +103,7 @@ function CedulaSide({
           onImagePicked(compressedUri);
         }
       }
-    } catch (err) {
+    } catch {
       setUploadError('Ocurrió un error inesperado al procesar la imagen');
     } finally {
       setIsProcessing(false);
@@ -211,21 +212,24 @@ export default function CedulaUploadSection({
   existingFrontalUrl,
   existingTraseraUrl,
   onUploadComplete,
+  hideHeader = false,
 }: CedulaUploadSectionProps) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.title, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
-        <Ionicons name="document-outline" size={scale(14)} color={colors.textSecondary} />
-        <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
-          Documentos
-          <Text style={[styles.optional, { color: colors.textTertiary }]}>
-            {' '}
-            (Opcional)
+    <View style={hideHeader ? styles.embedded : styles.container}>
+      {!hideHeader && (
+        <View style={[styles.title, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
+          <Ionicons name="document-outline" size={scale(14)} color={colors.textSecondary} />
+          <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
+            Documentos
+            <Text style={[styles.optional, { color: colors.textTertiary }]}>
+              {' '}
+              (Opcional)
+            </Text>
           </Text>
-        </Text>
-      </View>
+        </View>
+      )}
 
       <View style={styles.grid}>
         <CedulaSide
@@ -257,6 +261,7 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: Spacing.lg,
   },
+  embedded: {},
   title: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,

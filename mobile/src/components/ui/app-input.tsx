@@ -8,6 +8,7 @@ import { useTheme } from '@/components/ui/theme-provider';
 
 interface AppInputProps extends TextInputProps {
   label?: string;
+  required?: boolean;
   error?: string;
   prefix?: string;
   format?: 'cedula' | 'phone' | 'currency' | 'none';
@@ -17,6 +18,7 @@ interface AppInputProps extends TextInputProps {
 
 export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput({
   label,
+  required = false,
   error,
   prefix,
   format = 'none',
@@ -29,7 +31,7 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput({
   secureTextEntry,
   ...props
 }: AppInputProps, ref) {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isSecure, setIsSecure] = useState(!!secureTextEntry);
 
@@ -52,7 +54,10 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(function AppInput({
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>
+          {label}
+          {required && <Text style={{ color: colors.error }}> *</Text>}
+        </Text>
       )}
       <View
         style={[

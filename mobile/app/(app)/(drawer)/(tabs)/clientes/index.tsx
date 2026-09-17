@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Keyboard, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
 import { listar } from '@/api/clientes.api';
 import ClienteCard from '@/components/clientes/cliente-card';
@@ -47,6 +47,7 @@ function useClientesInfinite(search: string, verInactivos: boolean) {
       return undefined;
     },
     initialPageParam: 1,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -119,16 +120,21 @@ export default function ClientesListScreen() {
     router.push(`/clientes/${id}?edit=true`);
   }, []);
 
-  const handleEstadoCuenta = useCallback((id: string) => {
-    router.push(`/clientes/estado-cuenta?id=${id}`);
-  }, []);
+  const handleEstadoCuenta = useCallback(
+    (c: { id: string; nombre: string; cedula?: string }) => {
+      router.push(
+        `/clientes/estado-cuenta?id=${c.id}&nombre=${encodeURIComponent(c.nombre)}&cedula=${c.cedula ?? ''}`,
+      );
+    },
+    [],
+  );
 
   const renderItem = useCallback(
     ({ item }: any) => (
       <ClienteCard
         cliente={item}
         onPress={() => router.push(`/clientes/${item.id}`)}
-        onEstadoCuenta={() => handleEstadoCuenta(item.id)}
+        onEstadoCuenta={() => handleEstadoCuenta(item)}
         onEdit={() => handleEdit(item.id)}
         onToggleStatus={() => {
           const c = item as { id: string; nombre: string; activo: boolean };
@@ -304,7 +310,7 @@ export default function ClientesListScreen() {
       <ConfirmDialog
         visible={dialogAction === 'deshabilitar'}
         title="Deshabilitar cliente"
-        message={`¿Estás seguro de deshabilitar a ${dialogClient?.nombre}?`}
+        message={`¿Deshabilitar a ${dialogClient?.nombre}?\n\nQuedará inactivo: no podrá recibir préstamos ni pagos hasta ser reactivado. Su historial se conserva.`}
         confirmLabel="Deshabilitar"
         destructive
         useHold
@@ -322,9 +328,9 @@ export default function ClientesListScreen() {
       />
       <ConfirmDialog
         visible={dialogAction === 'habilitar'}
-        title="Habilitar cliente"
-        message={`¿Estás seguro de habilitar a ${dialogClient?.nombre}?`}
-        confirmLabel="Habilitar"
+        title="Reactivar cliente"
+        message={`¿Habilitar a ${dialogClient?.nombre}?\n\nVolverá a poder recibir préstamos y pagos. Su historial se conserva.`}
+        confirmLabel="Reactivar"
         onConfirm={async () => {
           if (!dialogClient) return;
           try {

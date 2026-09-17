@@ -5,6 +5,7 @@ import { BorderRadius, FontSize, FontWeight, Spacing, scale} from '@/constants/t
 import type { Cliente } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
 import ClickToCall from '@/components/ui/click-to-call';
+import { formatCurrency } from '@/utils/formatters';
 
 interface ClienteInfoProps {
   cliente: Cliente;
@@ -19,9 +20,9 @@ interface InfoRowProps {
 
 function InfoRow({ icon, label, value, phone }: InfoRowProps) {
   const { colors } = useTheme();
-  const isEmpty =
-    value === null || value === undefined || value === '';
-  const display = isEmpty ? 'No disponible' : String(value);
+  const isEmpty = value === null || value === undefined || value === '';
+
+  if (isEmpty) return null;
 
   return (
     <View style={styles.infoRow}>
@@ -30,16 +31,27 @@ function InfoRow({ icon, label, value, phone }: InfoRowProps) {
         <Text style={[styles.label, { color: colors.textTertiary }]}>
           {label}
         </Text>
-        {phone && !isEmpty ? (
+        {phone ? (
           <ClickToCall
-            phone={display}
+            phone={String(value)}
             showIcon={false}
             textStyle={[styles.value, { color: colors.text }]}
           />
         ) : (
-          <Text style={[styles.value, { color: colors.text }]}>{display}</Text>
+          <Text style={[styles.value, { color: colors.text }]}>{String(value)}</Text>
         )}
       </View>
+    </View>
+  );
+}
+
+function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.sectionHeader}>
+      <Ionicons name={icon} size={scale(16)} color={colors.primary} />
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
     </View>
   );
 }
@@ -49,25 +61,6 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
 
   return (
     <View style={styles.wrapper}>
-      {/* Información General */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          <Ionicons name="person-outline" size={scale(16)} color={colors.primary} />{' '}
-          Información General
-        </Text>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <InfoRow icon="person-outline" label="Nombre" value={cliente.nombre} />
-        {cliente.apellido && (
-          <InfoRow icon="person-outline" label="Apellido" value={cliente.apellido} />
-        )}
-        <InfoRow icon="card-outline" label="Cédula" value={cliente.cedula} />
-      </View>
-
       {/* Información de Contacto */}
       <View
         style={[
@@ -75,55 +68,55 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
           { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
       >
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          <Ionicons name="call-outline" size={scale(16)} color={colors.primary} />{' '}
-          Contacto
-        </Text>
+        <SectionHeader icon="call-outline" title="Contacto" />
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
         {cliente.telefono && (
           <InfoRow icon="call-outline" label="Teléfono" value={cliente.telefono} phone />
         )}
+        {cliente.celular && (
           <InfoRow icon="phone-portrait-outline" label="Celular" value={cliente.celular} phone />
-        <InfoRow icon="mail-outline" label="Correo" value={cliente.email} />
+        )}
+        {cliente.email && (
+          <InfoRow icon="mail-outline" label="Correo" value={cliente.email} />
+        )}
       </View>
 
       {/* Dirección */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          <Ionicons name="location-outline" size={scale(16)} color={colors.primary} />{' '}
-          Dirección
-        </Text>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <InfoRow icon="map-outline" label="Provincia" value={cliente.provincia} />
-        <InfoRow icon="map-outline" label="Municipio" value={cliente.municipio} />
-        <InfoRow icon="map-outline" label="Sector" value={cliente.sector} />
-        <InfoRow icon="home-outline" label="Dirección" value={cliente.direccion} />
-      </View>
-
-      {/* Información Laboral */}
-      {(cliente.ocupacion || cliente.empresaLaboral) && (
+      {(cliente.provincia || cliente.municipio || cliente.sector || cliente.direccion) && (
         <View
           style={[
             styles.card,
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            <Ionicons name="briefcase-outline" size={scale(16)} color={colors.primary} />{' '}
-            Laboral
-          </Text>
+          <SectionHeader icon="location-outline" title="Dirección" />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <InfoRow icon="map-outline" label="Provincia" value={cliente.provincia} />
+          <InfoRow icon="map-outline" label="Municipio" value={cliente.municipio} />
+          <InfoRow icon="map-outline" label="Sector" value={cliente.sector} />
+          <InfoRow icon="home-outline" label="Dirección" value={cliente.direccion} />
+        </View>
+      )}
+
+      {/* Información Laboral */}
+      {(cliente.ocupacion || cliente.empresaLaboral || cliente.ingresos != null) && (
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <SectionHeader icon="briefcase-outline" title="Laboral" />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <InfoRow icon="briefcase-outline" label="Ocupación" value={cliente.ocupacion} />
-          <InfoRow
-            icon="business-outline"
-            label="Empresa"
-            value={cliente.empresaLaboral}
-          />
+          <InfoRow icon="business-outline" label="Empresa" value={cliente.empresaLaboral} />
+          {cliente.ingresos != null && (
+            <InfoRow
+              icon="trending-up-outline"
+              label="Ingresos mensuales"
+              value={`${formatCurrency(cliente.ingresos)}`}
+            />
+          )}
         </View>
       )}
 
@@ -135,10 +128,7 @@ export default function ClienteInfo({ cliente }: ClienteInfoProps) {
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            <Ionicons name="document-text-outline" size={scale(16)} color={colors.primary} />{' '}
-            Observaciones
-          </Text>
+          <SectionHeader icon="document-text-outline" title="Observaciones" />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <Text style={[styles.observations, { color: colors.text }]}>
             {cliente.observaciones}
@@ -159,14 +149,19 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+  },
   sectionTitle: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
-    marginBottom: Spacing.xs,
   },
   divider: {
     height: scale(1),
     marginBottom: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   infoRow: {
     flexDirection: 'row',

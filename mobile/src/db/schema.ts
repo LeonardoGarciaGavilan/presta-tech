@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
 
 // ─── Clientes ─────────────────────────────────────────────────
 export const clientes = sqliteTable('clientes', {
@@ -12,6 +12,10 @@ export const clientes = sqliteTable('clientes', {
   provincia: text('provincia'),
   municipio: text('municipio'),
   sector: text('sector'),
+  // Ids del catálogo RD (Fase 2); coexisten con los nombres legacy.
+  provinciaId: text('provincia_id'),
+  municipioId: text('municipio_id'),
+  sectorId: text('sector_id'),
   direccion: text('direccion'),
   ocupacion: text('ocupacion'),
   empresaLaboral: text('empresa_laboral'),
@@ -28,6 +32,31 @@ export const clientes = sqliteTable('clientes', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+// ─── Ubicaciones (catálogo RD, Fase 2) ────────────────────────
+// Espejo de `Ubicacion` del backend. Se sincroniza vía GET /ubicaciones/catalogo
+// (20,6k nodos) para el picker en cascada. Contenido estático versionado; no se
+// sincroniza por /sync/cambios.
+export const ubicaciones = sqliteTable(
+  'ubicaciones',
+  {
+    id: text('id').primaryKey(),
+    codigoOrigen: integer('codigo_origen').notNull(),
+    nombre: text('nombre').notNull(),
+    tipo: text('tipo').notNull(),
+    padreId: text('padre_id'),
+    unidadPadreId: text('unidad_padre_id'),
+    provinciaId: text('provincia_id'),
+    municipioId: text('municipio_id'),
+    municipioNombre: text('municipio_nombre'),
+    orden: integer('orden').notNull().default(0),
+  },
+  (t) => [
+    index('idx_ubicaciones_tipo').on(t.tipo),
+    index('idx_ubicaciones_unidad_padre_id').on(t.unidadPadreId),
+    index('idx_ubicaciones_provincia_id').on(t.provinciaId),
+  ],
+);
 
 // ─── Préstamos ────────────────────────────────────────────────
 export const prestamos = sqliteTable('prestamos', {

@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 // Inicializa el esquema de la base y aplica las migraciones incrementales de
 // forma tolerante: cada ALTER solo se intenta si la columna no existe y, si
@@ -608,6 +608,55 @@ export async function initializeDatabase(database: SQLiteDatabase): Promise<void
         FROM configuracion_v9;
       `);
       await txn.execAsync('DROP TABLE configuracion_v9;');
+    }
+
+    // Migración v10 → v11 (Fase 2): catálogo de ubicaciones RD y columnas de
+    // referencia en clientes. CREATE TABLE es idempotente; los ALTER de
+    // clientes siguen el patrón tolerante del resto (si la columna ya existe
+    // no se toca y si falla la app arranca igual, sin ids en SQLite).
+    if (currentVersion < 11) {
+      await txn.execAsync(`
+        CREATE TABLE IF NOT EXISTS ubicaciones (
+          id TEXT PRIMARY KEY NOT NULL,
+          codigo_origen INTEGER NOT NULL,
+          nombre TEXT NOT NULL,
+          tipo TEXT NOT NULL,
+          padre_id TEXT,
+          unidad_padre_id TEXT,
+          provincia_id TEXT,
+          municipio_id TEXT,
+          municipio_nombre TEXT,
+          orden INTEGER DEFAULT 0
+        );
+      `);
+      await txn.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_ubicaciones_tipo ON ubicaciones(tipo);',
+      );
+      await txn.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_ubicaciones_unidad_padre_id ON ubicaciones(unidad_padre_id);',
+      );
+      await txn.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_ubicaciones_provincia_id ON ubicaciones(provincia_id);',
+      );
+      try {
+        const colsClientes = await txn.getAllAsync<{ name: string }>(
+          'PRAGMA table_info(clientes)',
+        );
+        if (!colsClientes.some((c) => c.name === 'provincia_id')) {
+          await txn.execAsync('ALTER TABLE clientes ADD COLUMN provincia_id TEXT;');
+        }
+        if (!colsClientes.some((c) => c.name === 'municipio_id')) {
+          await txn.execAsync('ALTER TABLE clientes ADD COLUMN municipio_id TEXT;');
+        }
+        if (!colsClientes.some((c) => c.name === 'sector_id')) {
+          await txn.execAsync('ALTER TABLE clientes ADD COLUMN sector_id TEXT;');
+        }
+      } catch (error) {
+        console.warn(
+          '[DB] No se pudieron migrar las columnas de ubicación en clientes.',
+          error,
+        );
+      }
     }
 
     await txn.execAsync(`CREATE INDEX IF NOT EXISTS idx_prestamos_cliente_id ON prestamos(cliente_id);`);

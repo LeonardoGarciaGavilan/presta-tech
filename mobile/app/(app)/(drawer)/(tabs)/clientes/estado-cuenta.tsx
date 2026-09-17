@@ -8,15 +8,17 @@ import KpiCard from '@/components/clientes/kpi-card';
 import PrestamoEstadoCuentaCard from '@/components/clientes/prestamo-estado-cuenta-card';
 import EmptyState from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
-import LoadingScreen from '@/components/ui/loading-screen';
-import { BorderRadius, FontSize, FontWeight, Spacing } from '@/constants/theme';
+import { SkeletonCard, SkeletonKPIGrid } from '@/components/ui/skeleton';
+import { FontSize, Spacing, scale } from '@/constants/theme';
 import { formatCurrency, formatDateShort } from '@/utils/formatters';
 import type { EstadoCuentaResponse } from '@/types/cliente.types';
 import { useTheme } from '@/components/ui/theme-provider';
+import { useNetworkStatus } from '@/hooks/use-network-status';
 
 export default function EstadoCuentaScreen() {
-  const { id, nombre, cedula } = useLocalSearchParams<{ id: string; nombre?: string; cedula?: string }>();
-  const { colorScheme, colors } = useTheme();
+  const { id } = useLocalSearchParams<{ id: string; nombre?: string; cedula?: string }>();
+  const { colors } = useTheme();
+  const { isOnline } = useNetworkStatus();
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<EstadoCuentaResponse>({
     queryKey: ['estado-cuenta', id],
@@ -28,7 +30,12 @@ export default function EstadoCuentaScreen() {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
         <PageHeader title="Estado de Cuenta" />
-        <LoadingScreen />
+        <ScrollView contentContainerStyle={styles.content}>
+          <SkeletonCard lines={2} />
+          <SkeletonKPIGrid />
+          <SkeletonCard lines={6} style={{ marginTop: scale(16) }} />
+          <SkeletonCard lines={6} style={{ marginTop: scale(16) }} />
+        </ScrollView>
       </View>
     );
 
@@ -37,13 +44,23 @@ export default function EstadoCuentaScreen() {
       <View style={[styles.screen, { backgroundColor: colors.background }]}>
         <PageHeader title="Estado de Cuenta" />
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <EmptyState
-            icon="alert-circle-outline"
-            title="Error al cargar"
-            subtitle={error instanceof Error ? error.message : 'No se pudo obtener el estado de cuenta'}
-            actionLabel="Reintentar"
-            onAction={() => refetch()}
-          />
+          {!isOnline ? (
+            <EmptyState
+              icon="cloud-offline-outline"
+              title="Sin conexión"
+              subtitle="El estado de cuenta se genera en línea. Conéctate e inténtalo de nuevo."
+              actionLabel="Volver"
+              onAction={() => router.back()}
+            />
+          ) : (
+            <EmptyState
+              icon="alert-circle-outline"
+              title="Error al cargar"
+              subtitle="No pudimos cargar el estado de cuenta. Intenta de nuevo."
+              actionLabel="Reintentar"
+              onAction={() => refetch()}
+            />
+          )}
         </View>
       </View>
     );
@@ -80,9 +97,9 @@ export default function EstadoCuentaScreen() {
           />
         }
       >
-        <ClienteSummary data={data} colors={colors} />
-        <GeneratedDate date={data.fechaGenerado} colors={colors} />
-        <KpiGrid data={data} colors={colors} />
+        <ClienteSummary data={data} />
+        <GeneratedDate date={data.fechaGenerado} />
+        <KpiGrid data={data} />
         {data.prestamos.map((p) => (
           <PrestamoEstadoCuentaCard key={p.id} prestamo={p} />
         ))}
@@ -92,7 +109,8 @@ export default function EstadoCuentaScreen() {
   );
 }
 
-function GeneratedDate({ date, colors }: { date: string; colors: any }) {
+function GeneratedDate({ date }: { date: string }) {
+  const { colors } = useTheme();
   return (
     <Text style={[styles.generatedDate, { color: colors.textTertiary }]}>
       Generado: {formatDateShort(date)}
@@ -100,58 +118,49 @@ function GeneratedDate({ date, colors }: { date: string; colors: any }) {
   );
 }
 
-function KpiGrid({ data, colors }: { data: EstadoCuentaResponse; colors: any }) {
+function KpiGrid({ data }: { data: EstadoCuentaResponse }) {
   return (
-    <View style={styles.kpiSection}>
-      <View style={styles.kpiRow}>
-        <View style={styles.kpiCol}>
-          <KpiCard
-            icon="documents-outline"
-            value={String(data.totalPrestamos)}
-            label="Total préstamos"
-            accent="primary"
-            delay={0}
-          />
-        </View>
-        <View style={styles.kpiCol}>
-          <KpiCard
-            icon="checkmark-circle-outline"
-            value={String(data.prestamosActivos)}
-            label="Préstamos activos"
-            accent="success"
-            delay={50}
-          />
-        </View>
-        <View style={styles.kpiCol}>
-          <KpiCard
-            icon="cash-outline"
-            value={formatCurrency(data.totalPagado)}
-            label="Total pagado"
-            accent="info"
-            delay={100}
-          />
-        </View>
-      </View>
-      <View style={styles.kpiRow}>
-        <View style={[styles.kpiCol, { flex: 1 }]}>
-          <KpiCard
-            icon="trending-up-outline"
-            value={formatCurrency(data.totalSaldo)}
-            label="Saldo pendiente"
-            accent="warning"
-            delay={150}
-          />
-        </View>
-        <View style={[styles.kpiCol, { flex: 1 }]}>
-          <KpiCard
-            icon="alert-circle-outline"
-            value={formatCurrency(data.totalMora)}
-            label="Mora acumulada"
-            accent="danger"
-            delay={200}
-          />
-        </View>
-      </View>
+    <View style={styles.kpiGrid}>
+      <KpiCard
+        icon="documents-outline"
+        value={String(data.totalPrestamos)}
+        label="Total préstamos"
+        accent="primary"
+        delay={0}
+        width="47%"
+      />
+      <KpiCard
+        icon="checkmark-circle-outline"
+        value={String(data.prestamosActivos)}
+        label="Préstamos activos"
+        accent="success"
+        delay={50}
+        width="47%"
+      />
+      <KpiCard
+        icon="cash-outline"
+        value={formatCurrency(data.totalPagado)}
+        label="Total pagado"
+        accent="info"
+        delay={100}
+        width="47%"
+      />
+      <KpiCard
+        icon="trending-up-outline"
+        value={formatCurrency(data.totalSaldo)}
+        label="Saldo pendiente"
+        accent="primary"
+        delay={150}
+        width="47%"
+      />
+      <KpiCard
+        icon="alert-circle-outline"
+        value={formatCurrency(data.totalMora)}
+        label="Mora acumulada"
+        accent="danger"
+        delay={200}
+        width="100%"
+      />
     </View>
   );
 }
@@ -169,15 +178,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
     marginBottom: Spacing.md,
   },
-  kpiSection: {
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     marginBottom: Spacing.md,
-  },
-  kpiRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  kpiCol: {
-    flex: 1,
   },
 });

@@ -3,9 +3,11 @@ import { QueryClient } from '@tanstack/react-query';
 import { getCambios } from '@/api/sync.api';
 import { getSyncCursor } from '@/db/sync-meta-db';
 import { deleteRutaClientesExcept, deleteRutas } from '@/db/rutas-db';
-import { forceReloadAll, prefetchIncremental } from '@/services/prefetch-manager';
+import { forceReloadAll, prefetchIncremental, prefetchCritical } from '@/services/prefetch-manager';
 import { syncClientesToDb, syncPrestamosToDb } from '@/services/data-sync';
 import { getEntitiesWithPendingMutations } from '@/services/sync-manager';
+import { getUbicacionesVersion, getUbicacionesCatalogo } from '@/api/ubicaciones.api';
+import { getUbicacionesVersion as getUbicacionesVersionLocal, syncUbicacionesToDb } from '@/db/ubicaciones-db';
 
 jest.mock('@/hooks/use-network-status', () => ({
   getNetworkStatus: jest.fn(() => ({ isOnline: true, isOffline: false })),
@@ -46,6 +48,38 @@ jest.mock('@/db/rutas-db', () => ({
 
 jest.mock('@/db/purge', () => ({
   purgeAllTables: jest.fn(),
+}));
+
+jest.mock('@/api/ubicaciones.api', () => ({
+  getUbicacionesVersion: jest.fn(),
+  getUbicacionesCatalogo: jest.fn(),
+}));
+
+jest.mock('@/db/ubicaciones-db', () => ({
+  getUbicacionesVersion: jest.fn(),
+  syncUbicacionesToDb: jest.fn(),
+}));
+
+jest.mock('@/api/caja.api', () => ({
+  obtenerCajaActiva: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('@/api/rutas.api', () => ({
+  listarRutas: jest.fn().mockResolvedValue([]),
+  listarUsuarios: jest.fn().mockResolvedValue([]),
+  obtenerVistaDia: jest.fn().mockResolvedValue({ rutaClientes: [] }),
+}));
+
+jest.mock('@/api/pagos.api', () => ({
+  obtenerResumenPagos: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('@/api/dashboard.api', () => ({
+  getDashboardMobile: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('@/api/configuracion.api', () => ({
+  obtenerConfiguracion: jest.fn().mockResolvedValue(null),
 }));
 
 const snapshot = {
@@ -184,5 +218,32 @@ describe('1.5: pull no sobrescribe cambios locales pendientes', () => {
     });
     await prefetchIncremental();
     expect(syncPrestamosToDb).not.toHaveBeenCalled();
+  });
+});
+
+describe('prefetchUbicaciones (Fase 2)', () => {
+  it('versión del servidor = local: NO descarga ni resincroniza el catálogo', async () => {
+    (getUbicacionesVersion as jest.Mock).mockResolvedValue({ version: 'abc123' });
+    (getUbicacionesVersionLocal as jest.Mock).mockReturnValue('abc123');
+
+    const queryClient = new QueryClient();
+    const res = await prefetchCritical(queryClient);
+
+    expect(getUbicacionesCatalogo).not.toHaveBeenCalled();
+    expect(syncUbicacionesToDb).not.toHaveBeenCalled();
+    expect(res.success).toBeGreaterThan(0);
+  });
+
+  it('versión del servidor ≠ local: descarga el catálogo y lo persiste', async () => {
+    (getUbicacionesVersion as jest.Mock).mockResolvedValue({ version: 'abc123' });
+    (getUbicacionesVersionLocal as jest.Mock).mockReturnValue('old');
+    (getUbicacionesCatalogo as jest.Mock).mockResolvedValue({ version: 'abc123', conteos: {}, provincias: [], municipios: [], distritos: [], secciones: [], barrios: [], subBarrios: [] });
+
+    const queryClient = new QueryClient();
+    const res = await prefetchCritical(queryClient);
+
+    expect(getUbicacionesCatalogo).toHaveBeenCalled();
+    expect(syncUbicacionesToDb).toHaveBeenCalled();
+    expect(res.success).toBeGreaterThan(0);
   });
 });

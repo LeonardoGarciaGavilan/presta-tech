@@ -34,6 +34,7 @@ interface PrestamoCardProps {
   onPress: () => void;
   swipeActions?: SwipeAction[];
   acciones?: PrestamoAccion[];
+  hideCliente?: boolean;
 }
 
 function calcularSaldoReal(prestamo: Prestamo): number {
@@ -83,7 +84,7 @@ function nombreCliente(prestamo: Prestamo): string {
   return `${c.nombre}${c.apellido ? ` ${c.apellido}` : ''}`;
 }
 
-function PrestamoCardBase({ prestamo, onPress, swipeActions = [], acciones = [] }: PrestamoCardProps) {
+function PrestamoCardBase({ prestamo, onPress, swipeActions = [], acciones = [], hideCliente = false }: PrestamoCardProps) {
   const { colors } = useTheme();
   const estados = usePrestamoEstados();
   const config = estados[prestamo.estado] || estados.ACTIVO;
@@ -172,7 +173,7 @@ function PrestamoCardBase({ prestamo, onPress, swipeActions = [], acciones = [] 
         </Text>
       </View>
 
-      {prestamo.cliente && (
+      {!hideCliente && prestamo.cliente && (
         <View style={styles.clientRow}>
           <View style={styles.clientInfo}>
             <Ionicons name="person-outline" size={scale(13)} color={colors.textSecondary} />

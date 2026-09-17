@@ -26,9 +26,18 @@ import {
   getSyncCursor,
   setSyncCursor,
 } from '@/db/sync-meta-db';
+import {
+  getUbicacionesVersion as getUbicacionesVersionApi,
+  getUbicacionesCatalogo,
+} from '@/api/ubicaciones.api';
+import {
+  getUbicacionesVersion as getUbicacionesVersionLocal,
+  syncUbicacionesToDb,
+} from '@/db/ubicaciones-db';
 import { dateToISO } from '@/utils/formatters';
 
 const PREFETCH_INTERVAL_MS = 30 * 60 * 1000;
+const UBICACIONES_STALE_MS = 24 * 60 * 60 * 1000;
 
 async function safeFetch<T>(
   queryClient: QueryClient,
@@ -69,6 +78,34 @@ async function safeFetch<T>(
   }
 }
 
+// Catálogo RD: descarga completa solo si la versión del servidor difiere de la
+// local (evita volver a traer ~20,6k nodos sin cambios). El catálogo no viaja
+// por /sync/cambios; es contenido estático versionado.
+async function prefetchUbicaciones(
+  queryClient: QueryClient,
+): Promise<boolean> {
+  try {
+    const { version } = await getUbicacionesVersionApi();
+    if (version && version === getUbicacionesVersionLocal()) {
+      return true;
+    }
+    return safeFetch(
+      queryClient,
+      ['ubicaciones', 'catalogo'],
+      () => getUbicacionesCatalogo(),
+      {
+        staleTime: UBICACIONES_STALE_MS,
+        persistFn: (data) => syncUbicacionesToDb(data as any),
+      },
+    );
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[Prefetch] Error en ubicaciones:', error);
+    }
+    return false;
+  }
+}
+
 export async function prefetchCritical(
   queryClient: QueryClient,
 ): Promise<{ success: number; failed: number }> {
@@ -96,6 +133,7 @@ export async function prefetchCritical(
       staleTime: 30 * 60 * 1000,
       persistFn: (data) => syncConfigToDb(data as any),
     }),
+    prefetchUbicaciones(queryClient),
   ]);
 
   results.forEach((r) => (r.status === 'fulfilled' && r.value ? success++ : failed++));

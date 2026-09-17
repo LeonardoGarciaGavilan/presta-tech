@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { BorderRadius, FontSize, FontWeight, IoniconsName, Shadows, Spacing, getColor, scale} from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, getColor, scale} from '@/constants/theme';
 import { formatCurrency, formatDateShort } from '@/utils/formatters';
 import type { PrestamoEstadoCuenta } from '@/types/cliente.types';
 import InfoRow from '@/components/ui/info-row';
@@ -13,6 +13,7 @@ const ESTADO_LABEL: Record<string, string> = {
   ATRASADO: 'Atrasado',
   PAGADO: 'Pagado',
   CANCELADO: 'Cancelado',
+  RENOVADO: 'Renovado',
 };
 
 const ESTADO_ACCENT: Record<string, 'success' | 'danger' | 'info' | 'warning'> = {
@@ -20,6 +21,14 @@ const ESTADO_ACCENT: Record<string, 'success' | 'danger' | 'info' | 'warning'> =
   ATRASADO: 'danger',
   PAGADO: 'info',
   CANCELADO: 'warning',
+  RENOVADO: 'info',
+};
+
+const ACCENT_THEME: Record<'success' | 'danger' | 'info' | 'warning', { bg: string; text: string }> = {
+  success: { bg: 'secondaryLight', text: 'secondary' },
+  danger: { bg: 'errorLight', text: 'error' },
+  info: { bg: 'infoLight', text: 'info' },
+  warning: { bg: 'warningLight', text: 'warning' },
 };
 
 interface PrestamoEstadoCuentaCardProps {
@@ -44,8 +53,8 @@ export default function PrestamoEstadoCuentaCard({ prestamo }: PrestamoEstadoCue
         <Text style={[styles.id, { color: colors.textTertiary }]}>
           #{prestamo.id.slice(0, 8)}
         </Text>
-        <View style={[styles.badge, { backgroundColor: getColor(colors, `${accent}Light`) }]}>
-          <Text style={[styles.badgeText, { color: getColor(colors, accent) }]}>{label}</Text>
+        <View style={[styles.badge, { backgroundColor: getColor(colors, ACCENT_THEME[accent].bg) }]}>
+          <Text style={[styles.badgeText, { color: getColor(colors, ACCENT_THEME[accent].text) }]}>{label}</Text>
         </View>
       </View>
 
@@ -130,7 +139,12 @@ export default function PrestamoEstadoCuentaCard({ prestamo }: PrestamoEstadoCue
               <Text style={[styles.tableCell, styles.colDate, { color: colors.textSecondary, fontSize: FontSize.xs }]}>
                 {formatDateShort(c.fechaVencimiento)}
               </Text>
-              <Text style={[styles.tableCell, styles.colMonto, { color: colors.text, fontSize: FontSize.xs }]}>
+              <Text
+                style={[styles.tableCell, styles.colMonto, { color: colors.text, fontSize: FontSize.xs }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {formatCurrency(c.monto)}
               </Text>
               <View style={[styles.tableCell, styles.colStatus]}>
@@ -321,7 +335,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   colMonto: {
-    width: scale(80),
+    width: scale(92),
     textAlign: 'right',
   },
   colStatus: {

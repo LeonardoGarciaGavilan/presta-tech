@@ -15,12 +15,6 @@ export interface Prestamo {
   cliente?: { id: string; nombre: string; apellido?: string | null; cedula?: string };
 }
 
-export interface Garantia {
-  id: string;
-  monto: number;
-  estado: string;
-}
-
 export interface RutaCliente {
   rutaId?: string;
   ruta: {
@@ -39,6 +33,10 @@ export interface Cliente {
   provincia: string | null;
   municipio: string | null;
   sector: string | null;
+  // Ids del catálogo RD (Fase 2); null/undefined para clientes legacy.
+  provinciaId: string | null;
+  municipioId: string | null;
+  sectorId: string | null;
   direccion: string | null;
   ocupacion: string | null;
   empresaLaboral: string | null;
@@ -54,7 +52,7 @@ export interface Cliente {
   cedulaFrontalPath: string | null;
   cedulaTraseraPath: string | null;
   prestamos?: Prestamo[];
-  garantias?: Garantia[];
+  garantias?: Prestamo[];
   rutaClientes?: RutaCliente[];
 }
 
@@ -68,6 +66,9 @@ export interface CreateClienteRequest {
   provincia?: string;
   municipio?: string;
   sector?: string;
+  provinciaId?: string;
+  municipioId?: string;
+  sectorId?: string;
   direccion?: string;
   ocupacion?: string;
   empresaLaboral?: string;

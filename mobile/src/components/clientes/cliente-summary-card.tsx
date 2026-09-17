@@ -3,13 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale} from '@/constants/theme';
 import type { EstadoCuentaResponse } from '@/types/cliente.types';
+import { useTheme } from '@/components/ui/theme-provider';
 
 interface ClienteSummaryProps {
   data: EstadoCuentaResponse;
-  colors: any;
 }
 
-export default function ClienteSummary({ data, colors }: ClienteSummaryProps) {
+export default function ClienteSummary({ data }: ClienteSummaryProps) {
+  const { colors } = useTheme();
   const c = data.cliente;
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, Shadows.sm]}>

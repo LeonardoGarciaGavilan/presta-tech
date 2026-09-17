@@ -10,6 +10,7 @@ interface FakeDb {
     ruta_clientes: string[];
     configuracion: string[];
     prestamos: string[];
+    clientes: string[];
   };
   calls: string[];
 }
@@ -18,6 +19,32 @@ function createFakeDb(options: { userVersion?: number } = {}): FakeDb {
   const { userVersion = 0 } = options;
   const calls: string[] = [];
   const columns: FakeDb['columns'] = {
+    clientes: [
+      'id',
+      'nombre',
+      'apellido',
+      'cedula',
+      'telefono',
+      'celular',
+      'email',
+      'provincia',
+      'municipio',
+      'sector',
+      'direccion',
+      'ocupacion',
+      'empresa_laboral',
+      'ingresos',
+      'observaciones',
+      'activo',
+      'empresa_id',
+      'latitud',
+      'longitud',
+      'coords_aproximadas',
+      'cedula_frontal_path',
+      'cedula_trasera_path',
+      'created_at',
+      'updated_at',
+    ],
     prestamos: [
       'id',
       'monto',
@@ -165,11 +192,20 @@ function createFakeDb(options: { userVersion?: number } = {}): FakeDb {
       )
     ) {
       columns.configuracion.push('max_renovaciones_consecutivas');
+    } else if (sql.includes('ALTER TABLE clientes ADD COLUMN provincia_id')) {
+      columns.clientes.push('provincia_id');
+    } else if (sql.includes('ALTER TABLE clientes ADD COLUMN municipio_id')) {
+      columns.clientes.push('municipio_id');
+    } else if (sql.includes('ALTER TABLE clientes ADD COLUMN sector_id')) {
+      columns.clientes.push('sector_id');
     }
     return [] as unknown as any[];
   });
 
   const getAllAsync = jest.fn(async (sql: string) => {
+    if (sql.includes('PRAGMA table_info(clientes)')) {
+      return columns.clientes.map((name) => ({ name }));
+    }
     if (sql.includes('PRAGMA table_info(offline_queue)')) {
       return columns.offline_queue.map((name) => ({ name }));
     }
@@ -218,11 +254,19 @@ describe('initializeDatabase', () => {
       'offline_queue',
       'sync_meta',
       'caja_activa',
+      'ubicaciones',
     ]) {
       expect(sqls).toContain(`CREATE TABLE IF NOT EXISTS ${tabla}`);
     }
     expect(sqls).toContain('CREATE INDEX IF NOT EXISTS idx_prestamos_cliente_id');
+    expect(sqls).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_ubicaciones_tipo ON ubicaciones(tipo)',
+    );
     expect(sqls).toContain(`PRAGMA user_version = ${SCHEMA_VERSION};`);
+    // v11 (Fase 2): columnas de ids del catálogo RD en clientes.
+    expect(db.columns.clientes).toContain('provincia_id');
+    expect(db.columns.clientes).toContain('municipio_id');
+    expect(db.columns.clientes).toContain('sector_id');
     // v0 migra todas las columnas incrementales.
     expect(db.columns.offline_queue).toContain('retryable');
     expect(db.columns.offline_queue).toContain('snapshot');
@@ -402,6 +446,23 @@ describe('initializeDatabase', () => {
     expect(sqls).not.toContain('ALTER TABLE offline_queue RENAME');
   });
 
+  it('v10 → v11 (Fase 2): crea la tabla de ubicaciones y agrega los ids en clientes', async () => {
+    const db = createFakeDb({ userVersion: 10 });
+    await initializeDatabase(db as any);
+
+    const sqls = db.calls.join('\n');
+    expect(sqls).toContain('CREATE TABLE IF NOT EXISTS ubicaciones');
+    expect(sqls).toContain(
+      'CREATE INDEX IF NOT EXISTS idx_ubicaciones_tipo ON ubicaciones(tipo)',
+    );
+    expect(sqls).toContain('ALTER TABLE clientes ADD COLUMN provincia_id TEXT;');
+    expect(sqls).toContain('ALTER TABLE clientes ADD COLUMN municipio_id TEXT;');
+    expect(sqls).toContain('ALTER TABLE clientes ADD COLUMN sector_id TEXT;');
+    expect(db.columns.clientes).toContain('provincia_id');
+    expect(db.columns.clientes).toContain('municipio_id');
+    expect(db.columns.clientes).toContain('sector_id');
+  });
+
   it(`v${SCHEMA_VERSION}: no hace nada (early return)`, async () => {
     const db = createFakeDb({ userVersion: SCHEMA_VERSION });
     await initializeDatabase(db as any);
@@ -433,6 +494,7 @@ describe('initializeDatabase', () => {
       'max_renovaciones_consecutivas',
       'permitir_refinanciamiento',
     );
+    db.columns.clientes.push('provincia_id', 'municipio_id', 'sector_id');
     await initializeDatabase(db as any);
 
     // Las columnas ya existen: no se ejecuta ningún ADD COLUMN. El rebuild
@@ -453,7 +515,7 @@ describe('initializeDatabase', () => {
     warnSpy.mockRestore();
   });
 
-  it('exporta SCHEMA_VERSION = 10', () => {
-    expect(SCHEMA_VERSION).toBe(10);
+  it('exporta SCHEMA_VERSION = 11', () => {
+    expect(SCHEMA_VERSION).toBe(11);
   });
 });

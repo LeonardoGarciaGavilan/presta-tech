@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenContainer } from '@/components/ui/screen-container';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useCliente,
@@ -31,7 +31,7 @@ import type { ClienteFormData } from '@/schemas/cliente.schema';
 import { usePermisos } from '@/permisos/use-permisos';
 import type { ApiError } from '@/types/api.types';
 import type { Prestamo } from '@/types/cliente.types';
-import { FontSize, FontWeight, Fonts, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
+import { FontSize, FontWeight, Spacing, BorderRadius, Shadows, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { useTheme } from '@/components/ui/theme-provider';
 
@@ -81,12 +81,37 @@ export default function ClienteDetalleScreen() {
     useReactivarCliente();
 
   const { showToast } = useToast();
+  const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
   const [dialogAction, setDialogAction] = useState<DialogAction>(null);
   const [currentRutaId, setCurrentRutaId] = useState<string | null | undefined>(undefined);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showDiscard, setShowDiscard] = useState(false);
+  const allowLeaveRef = useRef(false);
+  const pendingActionRef = useRef<{ type: string; payload?: unknown } | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!isEditing || !isDirty || allowLeaveRef.current) return;
+      e.preventDefault();
+      pendingActionRef.current = e.data.action as { type: string; payload?: unknown };
+      setShowDiscard(true);
+    });
+    return unsubscribe;
+  }, [navigation, isEditing, isDirty]);
+
+  const handleDiscardEdit = useCallback(() => {
+    setShowDiscard(false);
+    allowLeaveRef.current = true;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    if (action) {
+      navigation.dispatch(action as never);
+    }
+  }, [navigation]);
 
   useEffect(() => {
     if (edit === 'true') {
@@ -135,10 +160,10 @@ export default function ClienteDetalleScreen() {
   const kpis = useMemo(
     () => [
       {
-        icon: 'documents-outline' as const,
-        value: String(totalPrestamos),
-        label: 'Total préstamos',
-        accent: 'primary' as const,
+        icon: 'cash-outline' as const,
+        value: formatCurrency(saldoPendienteTotal),
+        label: 'Saldo pendiente',
+        accent: 'info' as const,
       },
       {
         icon: 'checkmark-circle-outline' as const,
@@ -147,16 +172,16 @@ export default function ClienteDetalleScreen() {
         accent: 'success' as const,
       },
       {
-        icon: 'cash-outline' as const,
-        value: formatCurrency(saldoPendienteTotal),
-        label: 'Saldo pendiente',
-        accent: 'info' as const,
+        icon: 'documents-outline' as const,
+        value: String(totalPrestamos),
+        label: 'Total préstamos',
+        accent: 'primary' as const,
       },
       {
         icon: 'ribbon-outline' as const,
         value: String(prestamosPagados.length),
         label: 'Pagados',
-        accent: 'warning' as const,
+        accent: 'info' as const,
       },
     ],
     [totalPrestamos, prestamosActivos.length, prestamosPagados.length, saldoPendienteTotal],
@@ -171,6 +196,8 @@ export default function ClienteDetalleScreen() {
         if (currentRutaId !== undefined) {
           await asignarRuta(id, currentRutaId).catch(() => {});
         }
+        allowLeaveRef.current = true;
+        setIsDirty(false);
         setIsEditing(false);
         showToast('Cliente actualizado exitosamente', 'success');
       } catch (err) {
@@ -247,18 +274,18 @@ export default function ClienteDetalleScreen() {
   const initialData: Partial<ClienteFormData> = {
     nombre: cliente.nombre,
     cedula: cliente.cedula,
-    apellido: cliente.apellido ?? undefined,
-    telefono: cliente.telefono ?? undefined,
-    celular: cliente.celular ?? undefined,
-    email: cliente.email ?? undefined,
-    provincia: cliente.provincia ?? undefined,
-    municipio: cliente.municipio ?? undefined,
-    sector: cliente.sector ?? undefined,
-    direccion: cliente.direccion ?? undefined,
-    ocupacion: cliente.ocupacion ?? undefined,
-    empresaLaboral: cliente.empresaLaboral ?? undefined,
+    apellido: cliente.apellido ?? '',
+    telefono: cliente.telefono ?? '',
+    celular: cliente.celular ?? '',
+    email: cliente.email ?? '',
+    provincia: cliente.provincia ?? '',
+    municipio: cliente.municipio ?? '',
+    sector: cliente.sector ?? '',
+    direccion: cliente.direccion ?? '',
+    ocupacion: cliente.ocupacion ?? '',
+    empresaLaboral: cliente.empresaLaboral ?? '',
     ingresos: cliente.ingresos ?? undefined,
-    observaciones: cliente.observaciones ?? undefined,
+    observaciones: cliente.observaciones ?? '',
   };
 
   if (isEditing) {
@@ -267,7 +294,14 @@ export default function ClienteDetalleScreen() {
         style={[styles.screen, { backgroundColor: colors.background }]}
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Pressable onPress={goBack} hitSlop={8}>
+          <Pressable
+            onPress={goBack}
+            hitSlop={{ top: scale(10), bottom: scale(10), left: scale(10), right: scale(10) }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar y volver"
+            accessibilityHint="Descarta la edición y vuelve al detalle del cliente"
+          >
             <Ionicons name="close" size={scale(24)} color={colors.text} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.text }]}>
@@ -290,6 +324,19 @@ export default function ClienteDetalleScreen() {
           onUploadComplete={() => {
             refetch();
           }}
+          onDirtyChange={setIsDirty}
+          stickySubmit
+        />
+
+        <ConfirmDialog
+          visible={showDiscard}
+          title="¿Descartar cambios?"
+          message="Los cambios que has hecho aún no se guardan. Si sales, se perderán."
+          confirmLabel="Descartar"
+          cancelLabel="Seguir editando"
+          onConfirm={handleDiscardEdit}
+          onCancel={() => setShowDiscard(false)}
+          destructive
         />
       </ScreenContainer>
     );
@@ -300,7 +347,14 @@ export default function ClienteDetalleScreen() {
       style={[styles.screen, { backgroundColor: colors.background }]}
     >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={goBack} hitSlop={8}>
+        <Pressable
+          onPress={goBack}
+          hitSlop={{ top: scale(10), bottom: scale(10), left: scale(10), right: scale(10) }}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          accessibilityHint="Regresa a la lista de clientes"
+        >
           <Ionicons name="arrow-back" size={scale(24)} color={colors.text} />
         </Pressable>
         <View style={styles.headerInfo}>
@@ -451,7 +505,7 @@ export default function ClienteDetalleScreen() {
                 label={kpi.label}
                 accent={kpi.accent}
                 delay={i * 50}
-                width={columns === 1 ? '100%' : `${Math.floor(100 / columns) - 4}%`}
+                width={columns === 1 ? '47%' : `${Math.floor(100 / columns) - 4}%`}
               />
             ))}
           </View>
@@ -472,6 +526,7 @@ export default function ClienteDetalleScreen() {
                   `/clientes/estado-cuenta?id=${cliente.id}&nombre=${encodeURIComponent(cliente.nombre)}&cedula=${cliente.cedula}`,
                 )
               }
+              accessibilityRole="button"
             >
               <Ionicons name="document-text-outline" size={scale(20)} color={colors.primary} />
               <View style={styles.estadoCuentaText}>
@@ -485,6 +540,27 @@ export default function ClienteDetalleScreen() {
               <Ionicons name="chevron-forward" size={scale(18)} color={colors.primary} />
             </Pressable>
           </View>
+        )}
+
+        {/* Préstamos */}
+        {prestamos.length > 0 && (
+          <>
+            <Text
+              style={[styles.sectionTitle, { color: colors.textSecondary }]}
+            >
+              Préstamos ({totalPrestamos})
+            </Text>
+            <View style={styles.prestamosList}>
+              {prestamos.map((p) => (
+                <PrestamoCard
+                  key={p.id}
+                  prestamo={p}
+                  hideCliente
+                  onPress={() => router.push(`/prestamos/${p.id}`)}
+                />
+              ))}
+            </View>
+          </>
         )}
 
         {/* Documentos */}
@@ -526,64 +602,9 @@ export default function ClienteDetalleScreen() {
           </View>
         )}
 
-        {/* Información Financiera */}
-        {cliente.ingresos != null && (
-          <View
-            style={[
-              styles.sectionCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={[styles.sectionTitle, { flexDirection: 'row', alignItems: 'center', gap: scale(6) }]}>
-              <Ionicons name="briefcase-outline" size={scale(16)} color={colors.textSecondary} />
-              <Text style={{ fontSize: FontSize.sm, fontWeight: FontWeight.semibold, color: colors.textSecondary }}>
-                Información Financiera
-              </Text>
-            </View>
-            <View style={styles.finRow}>
-              <Ionicons
-                name="trending-up-outline"
-                size={scale(16)}
-                color={colors.textSecondary}
-              />
-              <Text style={[styles.finLabel, { color: colors.textSecondary }]}>
-                Ingresos declarados:
-              </Text>
-              <Text style={[styles.finValue, { color: colors.text }]} numberOfLines={1}>
-                {formatCurrency(cliente.ingresos)}/mes
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Préstamos */}
-        {prestamos.length > 0 && (
-          <>
-            <Text
-              style={[styles.sectionTitle, { color: colors.textSecondary }]}
-            >
-              Préstamos ({totalPrestamos})
-            </Text>
-            <View style={styles.prestamosList}>
-              {prestamos.map((p) => (
-                <PrestamoCard
-                  key={p.id}
-                  prestamo={p}
-                  onPress={() => router.push(`/prestamos/${p.id}`)}
-                />
-              ))}
-            </View>
-          </>
-        )}
-
         {/* Garantías */}
         {garantias.length > 0 && (
-          <View
-            style={[
-              styles.sectionCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
+          <>
             <Text
               style={[
                 styles.sectionTitle,
@@ -592,23 +613,16 @@ export default function ClienteDetalleScreen() {
             >
               Garante en {garantias.length} préstamo(s)
             </Text>
-            {garantias.map((g) => (
-              <View
-                key={g.id}
-                style={[
-                  styles.garantiaRow,
-                  { borderBottomColor: colors.borderLight },
-                ]}
-              >
-                <Text style={[styles.garantiaId, { color: colors.textTertiary }]}>
-                  #{g.id.slice(0, 8)}
-                </Text>
-                <Text style={[styles.garantiaMonto, { color: colors.text }]}>
-                  {formatCurrency(g.monto)}
-                </Text>
-              </View>
-            ))}
-          </View>
+            <View style={styles.prestamosList}>
+              {garantias.map((g) => (
+                <PrestamoCard
+                  key={g.id}
+                  prestamo={g}
+                  onPress={() => router.push(`/prestamos/${g.id}`)}
+                />
+              ))}
+            </View>
+          </>
         )}
 
         {/* Admin Actions */}
@@ -661,7 +675,7 @@ export default function ClienteDetalleScreen() {
       <ConfirmDialog
         visible={dialogAction === 'eliminar'}
         title="Deshabilitar cliente"
-        message="¿Está seguro de deshabilitar este cliente?"
+        message="Quedará inactivo y no podrá recibir préstamos. Su historial se conserva."
         confirmLabel="Deshabilitar"
         onConfirm={handleEliminar}
         onCancel={() => setDialogAction(null)}
@@ -673,7 +687,7 @@ export default function ClienteDetalleScreen() {
       <ConfirmDialog
         visible={dialogAction === 'reactivar'}
         title="Reactivar cliente"
-        message="¿Desea reactivar este cliente?"
+        message="Restaurará su acceso como cliente activo."
         confirmLabel="Reactivar"
         onConfirm={handleReactivar}
         onCancel={() => setDialogAction(null)}
@@ -776,40 +790,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  kpiRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  finRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  finLabel: {
-    fontSize: FontSize.xs,
-  },
-  finValue: {
-    fontSize: FontSize.xs,
-    fontWeight: FontWeight.semibold,
-    flexShrink: 1,
-  },
   prestamosList: {
     gap: Spacing.sm,
-  },
-  garantiaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-  },
-  garantiaId: {
-    fontSize: FontSize.sm,
-    fontFamily: Fonts.mono,
-  },
-  garantiaMonto: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semibold,
+    marginBottom: Spacing.md,
   },
   estadoCuentaBtn: {
     flexDirection: 'row',

@@ -7,7 +7,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 
-import { BorderRadius, Colors, FontSize, FontWeight, Spacing, Shadows, getColor, scale} from '@/constants/theme';
+import { BorderRadius, FontSize, FontWeight, Spacing, Shadows, getColor, scale} from '@/constants/theme';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface KpiCardProps {
@@ -58,9 +58,7 @@ function KpiCardBase({
     <Animated.View
       style={[
         styles.card,
-        width != null
-          ? { width, maxWidth: width, flexGrow: 0, flexShrink: 0 }
-          : { flex: 1 },
+        width != null ? { width, maxWidth: width } : { flex: 1 },
         {
           backgroundColor: colors.surface,
           borderColor: colors.border,
@@ -77,51 +75,61 @@ function KpiCardBase({
       >
         <Ionicons
           name={icon}
-          size={scale(20)}
+          size={scale(17)}
           color={getColor(colors, accentColors.icon)}
         />
       </View>
-      <Text
-        style={[styles.value, { color: colors.text }]}
-        accessibilityRole="text"
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-      >
-        {value}
-      </Text>
-      <Text style={[styles.label, { color: colors.textSecondary }]} accessibilityRole="text">
-        {label}
-      </Text>
+      <View style={styles.textWrap}>
+        <Text
+          style={[styles.value, { color: colors.text }]}
+          accessibilityRole="text"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
+          {value}
+        </Text>
+        <Text
+          style={[styles.label, { color: colors.textSecondary }]}
+          accessibilityRole="text"
+          numberOfLines={2}
+        >
+          {label}
+        </Text>
+      </View>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
   },
   iconWrap: {
-    width: scale(36),
-    height: scale(36),
+    width: scale(32),
+    height: scale(32),
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+  },
+  textWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   value: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: FontWeight.bold,
-    marginBottom: scale(2),
   },
   label: {
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
-    textAlign: 'center',
+    marginTop: scale(1),
   },
 });
 

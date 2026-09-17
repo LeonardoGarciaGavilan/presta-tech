@@ -87,7 +87,7 @@ export function SkeletonCard({
 
 export function SkeletonKPIGrid() {
   const { columns } = useResponsiveColumns();
-  const cardWidth = columns === 1 ? '100%' : columns === 4 ? '22%' : columns === 3 ? '30%' : '47%';
+  const cardWidth = columns === 1 ? '47%' : columns === 4 ? '22%' : columns === 3 ? '30%' : '47%';
 
   return (
     <View style={styles.kpiGrid}>
