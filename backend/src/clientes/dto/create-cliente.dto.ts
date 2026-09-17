@@ -45,6 +45,18 @@ export class CreateClienteDto {
 
   @IsOptional()
   @IsString()
+  provinciaId?: string;
+
+  @IsOptional()
+  @IsString()
+  municipioId?: string;
+
+  @IsOptional()
+  @IsString()
+  sectorId?: string;
+
+  @IsOptional()
+  @IsString()
   direccion?: string;
 
   @IsOptional()

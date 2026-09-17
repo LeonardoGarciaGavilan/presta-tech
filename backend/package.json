@@ -18,7 +18,11 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "build:ubicaciones": "ts-node src/scripts/build-ubicaciones-dataset.ts",
+    "validate:ubicaciones": "ts-node src/scripts/validate-ubicaciones-ogtic.ts",
+    "seed:ubicaciones": "ts-node src/scripts/seed-ubicaciones.ts",
+    "backfill:ubicaciones": "ts-node src/scripts/backfill-ubicaciones.ts"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.6",

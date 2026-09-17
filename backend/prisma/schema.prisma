@@ -62,25 +62,25 @@ model Usuario {
 }
 
 model LimiteEmpresa {
-  id                    String    @id @default(uuid())
-  empresaId             String    @unique
-  plan                  String?
-  maxUsuarios           Int?
-  maxClientes           Int?
-  maxPrestamos          Int?
-  maxPrestamosActivos   Int?
-  maxRutas              Int?
-  maxEmpleados          Int?
-  maxMontoPorPrestamo   Decimal? @db.Decimal(14,2)
+  id                               String    @id @default(uuid())
+  empresaId                        String    @unique
+  plan                             String?
+  maxUsuarios                      Int?
+  maxClientes                      Int?
+  maxPrestamos                     Int?
+  maxPrestamosActivos              Int?
+  maxRutas                         Int?
+  maxEmpleados                     Int?
+  maxMontoPorPrestamo              Decimal?  @db.Decimal(14, 2)
   modulosDeshabilitados            String[]  @default([])
   accionesPrestamoCancelacion      Boolean   @default(true)
   accionesPrestamoRefinanciamiento Boolean   @default(true)
   accionesPrestamoRenovacion       Boolean   @default(true)
   venceEn                          DateTime?
-  activo                Boolean   @default(true)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  empresa               Empresa   @relation(fields: [empresaId], references: [id])
+  activo                           Boolean   @default(true)
+  createdAt                        DateTime  @default(now())
+  updatedAt                        DateTime  @updatedAt
+  empresa                          Empresa   @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
 }
@@ -102,34 +102,40 @@ model RefreshToken {
 }
 
 model Cliente {
-  id                String        @id @default(uuid())
-  nombre            String
-  apellido          String?
-  cedula            String        @unique
-  telefono          String?
-  celular           String?
-  email             String?
-  provincia         String?
-  municipio         String?
-  sector            String?
-  direccion         String?
-  ocupacion         String?
-  empresaLaboral    String?
-  ingresos          Decimal?  @db.Decimal(14,2)
-  observaciones     String?
-  activo            Boolean       @default(true)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  empresaId         String
-  latitud           Float?
-  longitud          Float?
-  coordsAproximadas Boolean       @default(false)
-  cedulaFrontalPath String?
-  cedulaTraseraPath String?
-  empresa           Empresa       @relation(fields: [empresaId], references: [id])
-  prestamos         Prestamo[]
-  garantias         Prestamo[]    @relation("GarantePrestamos")
-  rutaClientes      RutaCliente[]
+  id                 String        @id @default(uuid())
+  nombre             String
+  apellido           String?
+  cedula             String        @unique
+  telefono           String?
+  celular            String?
+  email              String?
+  provincia          String?
+  municipio          String?
+  sector             String?
+  direccion          String?
+  ocupacion          String?
+  empresaLaboral     String?
+  ingresos           Decimal?      @db.Decimal(14, 2)
+  observaciones      String?
+  activo             Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  empresaId          String
+  latitud            Float?
+  longitud           Float?
+  coordsAproximadas  Boolean       @default(false)
+  cedulaFrontalPath  String?
+  cedulaTraseraPath  String?
+  provinciaId        String?
+  municipioId        String?
+  sectorId           String?
+  empresa            Empresa       @relation(fields: [empresaId], references: [id])
+  ubicacionProvincia Ubicacion?    @relation("ClienteProvincia", fields: [provinciaId], references: [id], onDelete: SetNull)
+  ubicacionMunicipio Ubicacion?    @relation("ClienteMunicipio", fields: [municipioId], references: [id], onDelete: SetNull)
+  ubicacionSector    Ubicacion?    @relation("ClienteSector", fields: [sectorId], references: [id], onDelete: SetNull)
+  prestamos          Prestamo[]
+  garantias          Prestamo[]    @relation("GarantePrestamos")
+  rutaClientes       RutaCliente[]
 
   @@index([empresaId])
   @@index([empresaId, activo])
@@ -138,27 +144,30 @@ model Cliente {
   @@index([telefono])
   @@index([provincia, municipio])
   @@index([empresaId, updatedAt])
+  @@index([provinciaId])
+  @@index([municipioId])
+  @@index([sectorId])
 }
 
 model Prestamo {
-  id                        String          @id @default(uuid())
-  monto                     Decimal         @db.Decimal(14,2)
+  id                        String             @id @default(uuid())
+  monto                     Decimal            @db.Decimal(14, 2)
   tasaInteres               Float
   numeroCuotas              Int
-  montoTotal                Decimal         @db.Decimal(14,2)
-  saldoPendiente            Decimal         @default(0) @db.Decimal(14,2)
-  cuotaMensual              Decimal         @db.Decimal(14,2)
-  frecuenciaPago            FrecuenciaPago  @default(MENSUAL)
-  fechaInicio               DateTime        @default(now())
+  montoTotal                Decimal            @db.Decimal(14, 2)
+  saldoPendiente            Decimal            @default(0) @db.Decimal(14, 2)
+  cuotaMensual              Decimal            @db.Decimal(14, 2)
+  frecuenciaPago            FrecuenciaPago     @default(MENSUAL)
+  fechaInicio               DateTime           @default(now())
   fechaVencimiento          DateTime
-  moraAcumulada             Decimal         @default(0) @db.Decimal(14,2)
-  estado                    EstadoPrestamo  @default(SOLICITADO)
-  refinanciado              Boolean         @default(false)
-  vecesRefinanciado         Int             @default(0)
+  moraAcumulada             Decimal            @default(0) @db.Decimal(14, 2)
+  estado                    EstadoPrestamo     @default(SOLICITADO)
+  refinanciado              Boolean            @default(false)
+  vecesRefinanciado         Int                @default(0)
   historialRefinanciamiento Json?
   origen                    TipoOrigenPrestamo @default(NORMAL)
   renovacionDeId            String?
-  cadenaRenovaciones        Int             @default(0)
+  cadenaRenovaciones        Int                @default(0)
   historialRenovacion       Json?
   motivoRechazo             String?
   motivoCancelacion         String?
@@ -166,21 +175,21 @@ model Prestamo {
   aprobadoPor               String?
   fechaAprobacion           DateTime?
   fechaDesembolso           DateTime?
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @default(now()) @updatedAt
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @default(now()) @updatedAt
   empresaId                 String
   clienteId                 String
   garanteId                 String?
-  modoRapido                Boolean         @default(false)
+  modoRapido                Boolean            @default(false)
   alertas                   Alerta[]
   cuotas                    Cuota[]
   desembolso                DesembolsoCaja?
   pagos                     Pago[]
-  cliente                   Cliente         @relation(fields: [clienteId], references: [id])
-  empresa                   Empresa         @relation(fields: [empresaId], references: [id])
-  garante                   Cliente?        @relation("GarantePrestamos", fields: [garanteId], references: [id])
-  renovacionDe              Prestamo?       @relation("PrestamoRenovaciones", fields: [renovacionDeId], references: [id])
-  renovaciones              Prestamo[]      @relation("PrestamoRenovaciones")
+  cliente                   Cliente            @relation(fields: [clienteId], references: [id])
+  empresa                   Empresa            @relation(fields: [empresaId], references: [id])
+  garante                   Cliente?           @relation("GarantePrestamos", fields: [garanteId], references: [id])
+  renovacionDe              Prestamo?          @relation("PrestamoRenovaciones", fields: [renovacionDeId], references: [id])
+  renovaciones              Prestamo[]         @relation("PrestamoRenovaciones")
 
   @@index([empresaId])
   @@index([empresaId, estado])
@@ -195,10 +204,10 @@ model Prestamo {
 model Cuota {
   id               String    @id @default(uuid())
   numero           Int
-  monto            Decimal @db.Decimal(14,2)
-  capital          Decimal @db.Decimal(14,2)
-  interes          Decimal @db.Decimal(14,2)
-  mora             Decimal @default(0) @db.Decimal(14,2)
+  monto            Decimal   @db.Decimal(14, 2)
+  capital          Decimal   @db.Decimal(14, 2)
+  interes          Decimal   @db.Decimal(14, 2)
+  mora             Decimal   @default(0) @db.Decimal(14, 2)
   fechaVencimiento DateTime
   pagada           Boolean   @default(false)
   fechaPago        DateTime?
@@ -215,10 +224,10 @@ model Cuota {
 
 model Pago {
   id             String      @id @default(uuid())
-  montoTotal     Decimal @db.Decimal(14,2)
-  capital        Decimal @db.Decimal(14,2)
-  interes        Decimal @db.Decimal(14,2)
-  mora           Decimal @default(0) @db.Decimal(14,2)
+  montoTotal     Decimal     @db.Decimal(14, 2)
+  capital        Decimal     @db.Decimal(14, 2)
+  interes        Decimal     @db.Decimal(14, 2)
+  mora           Decimal     @default(0) @db.Decimal(14, 2)
   metodo         MetodoPago
   referencia     String?
   observacion    String?
@@ -241,26 +250,26 @@ model Pago {
 }
 
 model Configuracion {
-  id                            String   @id @default(uuid())
-  tasaInteresBase               Float
-  moraPorcentajeMensual         Float
-  diasGracia                    Int      @default(0)
-  permitirAbonoCapital          Boolean  @default(true)
-  createdAt                     DateTime @default(now())
-  empresaId                     String   @unique
-  montoMaximoPago               Decimal? @db.Decimal(14,2)
-  montoMaximoPrestamo           Decimal? @db.Decimal(14,2)
-  montoMinimoPrestamo           Decimal  @default(500) @db.Decimal(14,2)
-  cuotasRestantesParaRenovar    Int      @default(0)
-  maxRefinanciamientosPorPrestamo Int    @default(0)
-  maxPrestamosActivosPorCliente Int      @default(0)
-  permitirRenovacion            Boolean  @default(false)
-  permitirRefinanciamiento      Boolean  @default(true)
-  maxCuotasRestantesParaRenovacion Int   @default(0)
-  incluirInteresEnRenovacion    Boolean  @default(true)
-  porcentajeMaximoSaldoAplicado Int      @default(100)
-  maxRenovacionesConsecutivas   Int      @default(0)
-  empresa                       Empresa  @relation(fields: [empresaId], references: [id])
+  id                               String   @id @default(uuid())
+  tasaInteresBase                  Float
+  moraPorcentajeMensual            Float
+  diasGracia                       Int      @default(0)
+  permitirAbonoCapital             Boolean  @default(true)
+  createdAt                        DateTime @default(now())
+  empresaId                        String   @unique
+  montoMaximoPago                  Decimal? @db.Decimal(14, 2)
+  montoMaximoPrestamo              Decimal? @db.Decimal(14, 2)
+  montoMinimoPrestamo              Decimal  @default(500) @db.Decimal(14, 2)
+  cuotasRestantesParaRenovar       Int      @default(0)
+  maxRefinanciamientosPorPrestamo  Int      @default(0)
+  maxPrestamosActivosPorCliente    Int      @default(0)
+  permitirRenovacion               Boolean  @default(false)
+  permitirRefinanciamiento         Boolean  @default(true)
+  maxCuotasRestantesParaRenovacion Int      @default(0)
+  incluirInteresEnRenovacion       Boolean  @default(true)
+  porcentajeMaximoSaldoAplicado    Int      @default(100)
+  maxRenovacionesConsecutivas      Int      @default(0)
+  empresa                          Empresa  @relation(fields: [empresaId], references: [id])
 }
 
 model Auditoria {
@@ -272,7 +281,7 @@ model Auditoria {
   datosAnteriores Json?
   datosNuevos     Json?
   ip              String?
-  monto           Decimal? @db.Decimal(14,2)
+  monto           Decimal? @db.Decimal(14, 2)
   nivel           String?
   referenciaId    String?
   referenciaTipo  String?
@@ -292,7 +301,7 @@ model Gasto {
   id            String   @id @default(cuid())
   categoria     String
   descripcion   String
-  monto         Decimal @db.Decimal(14,2)
+  monto         Decimal  @db.Decimal(14, 2)
   fecha         DateTime
   proveedor     String?
   referencia    String?
@@ -311,19 +320,19 @@ model Gasto {
 model CajaSesion {
   id              String           @id @default(uuid())
   fecha           String
-  montoInicial    Decimal         @db.Decimal(14,2)
-  estado          EstadoCaja      @default(ABIERTA)
-  montoCierre     Decimal?        @db.Decimal(14,2)
-  diferencia      Decimal?        @db.Decimal(14,2)
+  montoInicial    Decimal          @db.Decimal(14, 2)
+  estado          EstadoCaja       @default(ABIERTA)
+  montoCierre     Decimal?         @db.Decimal(14, 2)
+  diferencia      Decimal?         @db.Decimal(14, 2)
   observaciones   String?
   fechaCierre     DateTime?
-  createdAt       DateTime        @default(now())
+  createdAt       DateTime         @default(now())
   empresaId       String
   usuarioId       String
-  efectivoReal    Decimal?        @db.Decimal(14,2)
-  efectivoSistema Decimal?        @db.Decimal(14,2)
-  totalEgresos    Decimal         @default(0) @db.Decimal(14,2)
-  totalIngresos   Decimal         @default(0) @db.Decimal(14,2)
+  efectivoReal    Decimal?         @db.Decimal(14, 2)
+  efectivoSistema Decimal?         @db.Decimal(14, 2)
+  totalEgresos    Decimal          @default(0) @db.Decimal(14, 2)
+  totalIngresos   Decimal          @default(0) @db.Decimal(14, 2)
   empresa         Empresa          @relation(fields: [empresaId], references: [id])
   usuario         Usuario          @relation(fields: [usuarioId], references: [id])
   desembolsos     DesembolsoCaja[]
@@ -335,7 +344,7 @@ model CajaSesion {
 
 model DesembolsoCaja {
   id         String     @id @default(uuid())
-  monto      Decimal @db.Decimal(14,2)
+  monto      Decimal    @db.Decimal(14, 2)
   concepto   String
   createdAt  DateTime   @default(now())
   cajaId     String
@@ -419,7 +428,7 @@ model Empleado {
   email          String?
   cargo          String
   departamento   String?
-  salario        Decimal @db.Decimal(14,2)
+  salario        Decimal                @db.Decimal(14, 2)
   frecuenciaPago FrecuenciaPagoEmpleado @default(QUINCENAL)
   fechaIngreso   DateTime
   activo         Boolean                @default(true)
@@ -457,9 +466,9 @@ model PagoSalario {
   empresaId       String
   periodo         String
   descripcion     String?
-  salarioBruto    Decimal             @db.Decimal(14,2)
-  totalDescuentos Decimal             @default(0) @db.Decimal(14,2)
-  salarioNeto     Decimal             @db.Decimal(14,2)
+  salarioBruto    Decimal            @db.Decimal(14, 2)
+  totalDescuentos Decimal            @default(0) @db.Decimal(14, 2)
+  salarioNeto     Decimal            @db.Decimal(14, 2)
   metodoPago      MetodoPagoEmpleado @default(EFECTIVO)
   referencia      String?
   fechaPago       DateTime           @default(now())
@@ -477,7 +486,7 @@ model DescuentoEmpleado {
   empresaId   String
   tipo        TipoDescuento
   descripcion String
-  monto       Decimal @db.Decimal(14,2)
+  monto       Decimal       @db.Decimal(14, 2)
   fecha       DateTime      @default(now())
   aplicado    Boolean       @default(false)
   createdAt   DateTime      @default(now())
@@ -490,7 +499,7 @@ model DescuentoEmpleado {
 model CapitalEmpresa {
   id             String   @id @default(uuid())
   empresaId      String   @unique
-  capitalInicial Decimal @db.Decimal(14,2)
+  capitalInicial Decimal  @db.Decimal(14, 2)
   fechaRegistro  DateTime @default(now())
   observaciones  String?
   activo         Boolean  @default(true)
@@ -503,7 +512,7 @@ model CapitalEmpresa {
 model InyeccionCapital {
   id        String   @id @default(uuid())
   empresaId String
-  monto     Decimal @db.Decimal(14,2)
+  monto     Decimal  @db.Decimal(14, 2)
   fecha     DateTime @default(now())
   concepto  String
   usuarioId String
@@ -519,7 +528,7 @@ model InyeccionCapital {
 model RetiroGanancias {
   id        String   @id @default(uuid())
   empresaId String
-  monto     Decimal @db.Decimal(14,2)
+  monto     Decimal  @db.Decimal(14, 2)
   fecha     DateTime @default(now())
   concepto  String
   usuarioId String
@@ -536,10 +545,10 @@ model MovimientoFinanciero {
   id             String                   @id @default(uuid())
   empresaId      String
   tipo           MovimientoFinancieroTipo
-  monto          Decimal @db.Decimal(14,2)
-  capital        Decimal @default(0) @db.Decimal(14,2)
-  interes        Decimal @default(0) @db.Decimal(14,2)
-  mora           Decimal @default(0) @db.Decimal(14,2)
+  monto          Decimal                  @db.Decimal(14, 2)
+  capital        Decimal                  @default(0) @db.Decimal(14, 2)
+  interes        Decimal                  @default(0) @db.Decimal(14, 2)
+  mora           Decimal                  @default(0) @db.Decimal(14, 2)
   fecha          DateTime                 @default(now())
   descripcion    String?
   referenciaTipo ReferenciaTipo?
@@ -662,4 +671,42 @@ enum ReferenciaTipo {
   INYECCION
   RETIRO
   CAJA
+}
+
+enum TipoUbicacion {
+  PROVINCIA
+  MUNICIPIO
+  DISTRITO_MUNICIPAL
+  SECCION
+  BARRIO
+  SUB_BARRIO
+}
+
+model Ubicacion {
+  id              String        @id
+  codigoOrigen    Int
+  nombre          String
+  tipo            TipoUbicacion
+  padreId         String?
+  unidadPadreId   String?
+  provinciaId     String?
+  municipioId     String?
+  municipioNombre String?
+  orden           Int           @default(0)
+
+  padre        Ubicacion?  @relation("Jerarquia", fields: [padreId], references: [id])
+  hijos        Ubicacion[] @relation("Jerarquia")
+  clientesProv Cliente[]   @relation("ClienteProvincia")
+  clientesMun  Cliente[]   @relation("ClienteMunicipio")
+  clientesSec  Cliente[]   @relation("ClienteSector")
+
+  @@unique([tipo, codigoOrigen])
+  @@index([tipo, provinciaId])
+  @@index([tipo, unidadPadreId])
+  @@index([padreId])
+}
+
+model UbicacionVersion {
+  id      Int    @id @default(1)
+  version String
 }

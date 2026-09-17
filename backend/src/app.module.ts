@@ -30,6 +30,7 @@ import { EmpleadosModule } from './empleados/empleados.module';
 import { AuditoriaModule } from './auditoria/auditoria.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SyncModule } from './sync/sync.module';
+import { UbicacionesModule } from './ubicaciones/ubicaciones.module';
 import jwtConfig from './config/jwt.config';
 import supabaseConfig from './config/supabase.config';
 import { SupabaseModule } from './supabase/supabase.module';
@@ -45,9 +46,9 @@ import { QuotaModule } from './common/quota/quota.module';
     }),
 
     // ─── Caché global con Redis (opcional) ───────────────────────────────────
-    CacheModule.registerAsync({
+    CacheModule.registerAsync<Record<string, any>>({
       isGlobal: true,
-      useFactory: async () => {
+      useFactory: () => {
         const redisUrl = process.env.REDIS_URL;
         const redisHost = process.env.REDIS_HOST;
         const redisPort = process.env.REDIS_PORT || 6379;
@@ -97,6 +98,7 @@ import { QuotaModule } from './common/quota/quota.module';
     AuditoriaModule,
     DashboardModule,
     SyncModule,
+    UbicacionesModule,
   ],
   controllers: [AppController],
   providers: [
