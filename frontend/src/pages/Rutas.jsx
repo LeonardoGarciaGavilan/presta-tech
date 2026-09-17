@@ -6,7 +6,9 @@ import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { formatCurrency, formatDate, formatCedula } from "../utils/prestamosUtils";
 import { tienePermiso } from "../utils/permisos";
-import { PROVINCIAS, PROVINCIAS_MUNICIPIOS } from "../utils/provincias-municipios";
+import { PROVINCIAS_MUNICIPIOS } from "../utils/provincias-municipios";
+import useUbicaciones from "../hooks/useUbicaciones";
+import { igualNormalizado } from "../utils/texto";
 import ReciboPago from "./recibopago";
 import { usePago } from "../hooks/usePago";
 
@@ -502,6 +504,8 @@ const ModalMasa = ({ rutaId, yaEnRuta, onDone, onClose }) => {
   const [rangoVenc, setRangoVenc] = useState({ desde: "", hasta: "" });
   const PP = 20;
 
+  const { provincias, obtenerUnidades, municipioLabel } = useUbicaciones();
+
   useEffect(() => {
     Promise.all([
       api.get("/clientes?activo=true&limit=1000"),
@@ -531,9 +535,10 @@ const ModalMasa = ({ rutaId, yaEnRuta, onDone, onClose }) => {
 
   useEffect(() => {
     if (!provincia) { setMunis([]); setMun(""); return; }
-    setMunis(PROVINCIAS_MUNICIPIOS[provincia] ?? []);
+    const provId = provincias.find((p) => igualNormalizado(p.nombre, provincia))?.id;
+    setMunis(obtenerUnidades(provId, provincia));
     setMun("");
-  }, [provincia]);
+  }, [provincia, provincias, obtenerUnidades]);
 
   const filtrados = useMemo(() => todos.filter(c => {
     const q = busqueda.toLowerCase().trim();
@@ -652,16 +657,24 @@ const ModalMasa = ({ rutaId, yaEnRuta, onDone, onClose }) => {
             </div>
 
             <div className="flex gap-2">
-              <select value={provincia} onChange={e => setProv(e.target.value)}
+              <select value={provincia} onChange={e => {
+                const v = e.target.value;
+                const item = provincias.find((p) => (p.id ?? p.nombre) === v);
+                setProv(item?.nombre ?? v);
+              }}
                 className="input-field flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-700 transition-all">
                 <option value="">Todas las provincias</option>
-                {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
+                {provincias.map(p => <option key={p.id ?? p.nombre} value={p.id ?? p.nombre}>{p.nombre}</option>)}
               </select>
               {munis.length > 0 && (
-                <select value={municipio} onChange={e => setMun(e.target.value)}
+                <select value={municipio} onChange={e => {
+                  const v = e.target.value;
+                  const item = munis.find((m) => (m.id ?? m.nombre) === v);
+                  setMun(item?.nombre ?? v);
+                }}
                   className="input-field flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 text-gray-700 transition-all">
                   <option value="">Todos los municipios</option>
-                  {munis.map(m => <option key={m} value={m}>{m}</option>)}
+                  {munis.map(m => <option key={m.id ?? m.nombre} value={m.id ?? m.nombre}>{municipioLabel(m)}</option>)}
                 </select>
               )}
             </div>

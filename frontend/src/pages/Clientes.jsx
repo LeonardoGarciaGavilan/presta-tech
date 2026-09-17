@@ -6,8 +6,8 @@ import MiniMapa from "../components/MiniMapa";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { tienePermiso } from "../utils/permisos";
-import { PROVINCIAS_MUNICIPIOS, PROVINCIAS } from "../utils/provincias-municipios";
-import { getSectores } from "../utils/sectores-municipios";
+import useUbicaciones from "../hooks/useUbicaciones";
+import { igualNormalizado } from "../utils/texto";
 import CedulaUploader from "../components/clientes/CedulaUploader";
 import compressImage from "../utils/compressImage";
 
@@ -20,7 +20,8 @@ const validateTel = (v) => { const d = v.replace(/[^\d]/g, ""); if (!d) return t
 
 const INITIAL_FORM = {
   nombre: "", apellido: "", cedula: "", telefono: "", celular: "", email: "",
-  provincia: "", municipio: "", sector: "", direccion: "",
+  provincia: "", provinciaId: "", municipio: "", municipioId: "",
+  sector: "", sectorId: "", direccion: "",
   ocupacion: "", empresaLaboral: "", ingresos: "", observaciones: "",
   latitud: null, longitud: null, rutaId: "",
 };
@@ -263,13 +264,36 @@ export default function Clientes() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Catálogo de ubicaciones (backend + caché + fallback estático) ────────
+  const {
+    provincias,
+    obtenerUnidades,
+    obtenerSectores,
+    municipioLabel,
+    resolverPorNombre,
+  } = useUbicaciones();
+
   // Debounce del search para no disparar una petición por cada tecla
   const searchDebounced = useDebounce(search, 400);
 
   const municipiosDisponibles = useMemo(() =>
-    form.provincia ? (PROVINCIAS_MUNICIPIOS[form.provincia] ?? []) : [], [form.provincia]);
+    obtenerUnidades(form.provinciaId || undefined, form.provincia),
+    [obtenerUnidades, form.provincia, form.provinciaId]);
   const sectoresDisponibles = useMemo(() =>
-    form.municipio ? getSectores(form.municipio) : [], [form.municipio]);
+    obtenerSectores(form.municipioId || undefined, form.municipio),
+    [obtenerSectores, form.municipio, form.municipioId]);
+
+  // Valor efectivo de los <select> (id del catálogo, o nombre en modo estático).
+  const provinciaSelVal = useMemo(() =>
+    form.provinciaId
+    || provincias.find((p) => igualNormalizado(p.nombre, form.provincia))?.id
+    || form.provincia,
+  [provincias, form.provinciaId, form.provincia]);
+  const municipioSelVal = useMemo(() =>
+    form.municipioId
+    || resolverPorNombre(municipiosDisponibles, form.municipio)?.id
+    || form.municipio,
+  [form.municipioId, resolverPorNombre, municipiosDisponibles, form.municipio]);
 
   const showToast = useCallback((message, type = "success") => setToast({ message, type }), []);
 
@@ -385,21 +409,37 @@ export default function Clientes() {
     if (name === "telefono" || name === "celular") v = formatTelefono(value);
     if (name === "ingresos") v = formatIngresos(value);
     if (name === "provincia") {
-      setForm(p => ({ ...p, provincia: value, municipio: "", sector: "", latitud: null, longitud: null }));
+      const item = provincias.find((p) => (p.id ?? p.nombre) === value);
+      setForm(p => ({
+        ...p,
+        provincia: item?.nombre ?? value,
+        provinciaId: item?.id ?? "",
+        municipio: "", municipioId: "", sector: "", sectorId: "",
+        latitud: null, longitud: null,
+      }));
+      setSectorLibre(""); setSectorSelect("");
       if (errors.provincia) setErrors(p => ({ ...p, provincia: null }));
       return;
     }
     if (name === "municipio") {
-      setForm(p => ({ ...p, municipio: value, sector: "", latitud: null, longitud: null }));
+      const item = municipiosDisponibles.find((m) => (m.id ?? m.nombre) === value);
+      setForm(p => ({
+        ...p,
+        municipio: item?.nombre ?? value,
+        municipioId: item?.id ?? "",
+        sector: "", sectorId: "",
+        latitud: null, longitud: null,
+      }));
       setSectorLibre(""); setSectorSelect(""); return;
     }
     if (name === "sector") {
+      const item = sectoresDisponibles.find((s) => (s.id ?? s.nombre) === value);
       setSectorSelect(value);
       if (value !== "__otro__") {
-        setForm(p => ({ ...p, sector: value, latitud: null, longitud: null }));
+        setForm(p => ({ ...p, sector: item?.nombre ?? value, sectorId: item?.id ?? "", latitud: null, longitud: null }));
         setSectorLibre("");
       } else {
-        setForm(p => ({ ...p, sector: "", latitud: null, longitud: null }));
+        setForm(p => ({ ...p, sector: "", sectorId: "", latitud: null, longitud: null }));
       }
       return;
     }
@@ -429,13 +469,41 @@ export default function Clientes() {
 
   const handleEdit = (c) => {
     setIsEditing(true); setClienteSeleccionado(c); setErrors({});
+
+    // ── Resolver ids del catálogo (o mantener los guardados en el cliente) ──
+    const provId = c.provinciaId
+      || provincias.find((p) => igualNormalizado(p.nombre, c.provincia || ""))?.id
+      || "";
+    const muns = obtenerUnidades(provId || undefined, c.provincia || "");
+    const munResuelto = c.municipioId
+      ? muns.find((m) => m.id === c.municipioId) ?? null
+      : resolverPorNombre(muns, c.municipio || "");
+    const munId = c.municipioId || munResuelto?.id || "";
+    const sects = obtenerSectores(munId || undefined, c.municipio || "");
+
+    let sectorSel = "";
+    let sectorLibreVal = "";
+    if (c.sector) {
+      const sectorResuelto = c.sectorId
+        ? sects.find((s) => s.id === c.sectorId) ?? null
+        : sects.find((s) => igualNormalizado(s.nombre, c.sector)) ?? null;
+      if (sectorResuelto) {
+        sectorSel = sectorResuelto.id ?? sectorResuelto.nombre;
+      } else {
+        sectorSel = "__otro__";
+        sectorLibreVal = c.sector;
+      }
+    }
+
     setForm({
       nombre: c.nombre || "", apellido: c.apellido || "",
       cedula: c.cedula ? formatCedula(c.cedula) : "",
       telefono: c.telefono ? formatTelefono(c.telefono) : "",
       celular: c.celular ? formatTelefono(c.celular) : "",
-      email: c.email || "", provincia: c.provincia || "", municipio: c.municipio || "",
-      sector: c.sector || "", direccion: c.direccion || "", ocupacion: c.ocupacion || "",
+      email: c.email || "", provincia: c.provincia || "", provinciaId: provId,
+      municipio: c.municipio || "", municipioId: munId,
+      sector: c.sector || "", sectorId: sectorSel === "__otro__" ? "" : sectorSel,
+      direccion: c.direccion || "", ocupacion: c.ocupacion || "",
       empresaLaboral: c.empresaLaboral || "",
       ingresos: c.ingresos ? formatIngresos(c.ingresos.toString()) : "",
       observaciones: c.observaciones || "",
@@ -447,11 +515,8 @@ export default function Clientes() {
       .then(r => setForm(p => ({ ...p, rutaId: r.data?.rutaId ?? "" })))
       .catch(() => {});
     setMostrarMapa(!!(c.latitud && c.longitud));
-    setSectorLibre("");
-    const sectsGuardados = c.municipio ? (getSectores(c.municipio) ?? []) : [];
-    const esSectorLista = c.sector && sectsGuardados.includes(c.sector);
-    setSectorSelect(esSectorLista ? (c.sector || "") : (c.sector ? "__otro__" : ""));
-    if (!esSectorLista && c.sector) setSectorLibre(c.sector);
+    setSectorLibre(sectorLibreVal);
+    setSectorSelect(sectorSel);
     setShowModal(true);
   };
 
@@ -497,6 +562,9 @@ export default function Clientes() {
       const { rutaId, ...formSinRuta } = form;
       const payload = {
         ...formSinRuta,
+        provinciaId: form.provinciaId || undefined,
+        municipioId: form.municipioId || undefined,
+        sectorId: form.sectorId || undefined,
         email: form.email?.trim() || undefined,
         cedula: form.cedula.replace(/\D/g, ""),
         telefono: form.telefono.replace(/[^\d+]/g, ""),
@@ -761,45 +829,45 @@ export default function Clientes() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Provincia</label>
-                    <select name="provincia" value={form.provincia} onChange={handleChange}
-                      className={`${iBase} ${!form.provincia ? "text-gray-400" : "text-gray-800"}`}>
+                    <select name="provincia" value={provinciaSelVal} onChange={handleChange}
+                      className={`${iBase} ${!provinciaSelVal ? "text-gray-400" : "text-gray-800"}`}>
                       <option value="">Selecciona una provincia</option>
-                      {PROVINCIAS.map(p => <option key={p} value={p}>{p}</option>)}
+                      {provincias.map(p => <option key={p.id ?? p.nombre} value={p.id ?? p.nombre}>{p.nombre}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Municipio</label>
-                    <select name="municipio" value={form.municipio} onChange={handleChange}
-                      disabled={!form.provincia}
-                      className={`${iBase} ${!form.municipio ? "text-gray-400" : "text-gray-800"} disabled:opacity-50`}>
-                      <option value="">{form.provincia ? "Selecciona un municipio" : "Primero elige provincia"}</option>
-                      {municipiosDisponibles.map(m => <option key={m} value={m}>{m}</option>)}
+                    <select name="municipio" value={municipioSelVal} onChange={handleChange}
+                      disabled={!provinciaSelVal}
+                      className={`${iBase} ${!municipioSelVal ? "text-gray-400" : "text-gray-800"} disabled:opacity-50`}>
+                      <option value="">{provinciaSelVal ? "Selecciona un municipio" : "Primero elige provincia"}</option>
+                      {municipiosDisponibles.map(m => <option key={m.id ?? m.nombre} value={m.id ?? m.nombre}>{municipioLabel(m)}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">
                       Sector / Barrio
-                      {sectoresDisponibles.length === 0 && form.municipio && (
+                      {sectoresDisponibles.length === 0 && municipioSelVal && (
                         <span className="text-gray-400 font-normal ml-1">(escribe libremente)</span>
                       )}
                     </label>
                     {sectoresDisponibles.length > 0 ? (
                       <select name="sector" value={sectorSelect} onChange={handleChange}
-                        disabled={!form.municipio}
+                        disabled={!municipioSelVal}
                         className={`${iBase} ${!sectorSelect ? "text-gray-400" : "text-gray-800"} disabled:opacity-50`}>
                         <option value="">Selecciona un sector</option>
-                        {sectoresDisponibles.map(s => <option key={s} value={s}>{s}</option>)}
+                        {sectoresDisponibles.map(s => <option key={s.id ?? s.nombre} value={s.id ?? s.nombre}>{s.nombre}</option>)}
                         <option value="__otro__">Otro (escribir)</option>
                       </select>
                     ) : (
                       <input name="sector" value={form.sector} onChange={handleChange}
-                        placeholder={form.municipio ? "Sector o barrio…" : "Primero elige municipio"}
-                        disabled={!form.municipio}
+                        placeholder={municipioSelVal ? "Sector o barrio…" : "Primero elige municipio"}
+                        disabled={!municipioSelVal}
                         className={`${iBase} disabled:opacity-50`} />
                     )}
                     {sectorSelect === "__otro__" && (
                       <input value={sectorLibre}
-                        onChange={e => { const v = e.target.value; setSectorLibre(v); setForm(p => ({ ...p, sector: v })); }}
+                        onChange={e => { const v = e.target.value; setSectorLibre(v); setForm(p => ({ ...p, sector: v, sectorId: "" })); }}
                         placeholder="Escribe el sector o barrio…"
                         className={`${iBase} mt-2`} autoFocus />
                     )}
