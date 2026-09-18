@@ -253,6 +253,24 @@ export function getPrestamosByClienteId(clienteId: string): Prestamo[] {
   return rows.map((row) => rowToPrestamo(row, clienteRow ?? undefined));
 }
 
+// Préstamos donde el cliente actúa como garante (relación "GarantePrestamos").
+// El nombre del garante (si está en cache) se lee en una sola consulta.
+export function getPrestamosByGaranteId(garanteId: string): Prestamo[] {
+  const rows = db
+    .select()
+    .from(prestamos)
+    .where(eq(prestamos.garanteId, garanteId))
+    .all();
+  const clientesMap = new Map(
+    db
+      .select()
+      .from(clientes)
+      .all()
+      .map((c) => [c.id, c]),
+  );
+  return rows.map((row) => rowToPrestamo(row, clientesMap.get(row.clienteId)));
+}
+
 export function upsertCuotas(list: Cuota[]): void {
   if (list.length === 0) return;
   for (const c of list) {

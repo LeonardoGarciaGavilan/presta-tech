@@ -2,6 +2,11 @@ import { eq, like, or, sql, inArray, and } from 'drizzle-orm';
 import { db } from './index';
 import { clientes, rutaClientes, rutas } from './schema';
 import { toCents, fromCents } from '@/utils/money';
+import {
+  getPrestamosByClienteId,
+  getPrestamosByGaranteId,
+  getCuotasByPrestamoId,
+} from './prestamos-db';
 import type { Cliente } from '@/types/cliente.types';
 
 function rowToCliente(row: typeof clientes.$inferSelect): Cliente {
@@ -102,6 +107,21 @@ export function getClienteById(id: string): Cliente | null {
       ruta: { nombre: rc.rutaNombre },
     }));
   }
+
+  // Detalle offline equivalente al endpoint GET /clientes/:id: adjunta los
+  // préstamos del cliente, los que garantiza y sus cuotas pendientes.
+  const prestamos = getPrestamosByClienteId(id).map((p) => ({
+    ...p,
+    cuotas: getCuotasByPrestamoId(p.id),
+  }));
+  if (prestamos.length > 0) cliente.prestamos = prestamos;
+
+  const garantias = getPrestamosByGaranteId(id).map((p) => ({
+    ...p,
+    cuotas: getCuotasByPrestamoId(p.id),
+  }));
+  if (garantias.length > 0) cliente.garantias = garantias;
+
   return cliente;
 }
 

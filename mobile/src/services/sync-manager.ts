@@ -104,10 +104,11 @@ function isRetryableError(error: any): boolean {
 // la caja (cuyos datos no contienen el `tempId`) marcadas como frescas y sin
 // refetch tras el sync. Este helper solo escribe cuando hay un cambio real.
 function setQueryDataIfChanged(
-  queryClient: QueryClient,
+  queryClient: QueryClient | undefined,
   queryKey: readonly unknown[],
   updater: (old: any) => any,
 ): void {
+  if (!queryClient) return;
   const old = queryClient.getQueryData(queryKey);
   if (old === undefined) return;
   const next = updater(old);
@@ -225,6 +226,25 @@ export async function processItem(
     ) {
       const parsed = typeof body === 'string' ? JSON.parse(body) : { ...body };
       body = { ...parsed, idempotencyKey: item.idempotencyKey };
+    }
+
+    // Upload de cédula offline: el endpoint exige multipart/form-data, no JSON.
+    // Se reconstruye el FormData igual que uploadCedula() online (file + tipo).
+    if (item.method === 'POST' && /^\/clientes\/[^/]+\/cedula$/.test(item.endpoint)) {
+      const parsed =
+        typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+      const uri = parsed?.uri as string | undefined;
+      const tipo = parsed?.tipo as 'cedula-frontal' | 'cedula-trasera' | undefined;
+      if (uri && tipo) {
+        const formData = new FormData();
+        formData.append('file', {
+          uri,
+          type: 'image/jpeg',
+          name: `${tipo}.jpg`,
+        } as any);
+        formData.append('tipo', tipo);
+        body = formData;
+      }
     }
 
     const response = await client({
@@ -380,6 +400,31 @@ export async function processItem(
         // caja ya cerrada en el servidor. Se matchea sobre el endpoint crudo
         // porque la normalización de arriba no toca ids con UUID.
         saveCajaActiva(null);
+      } else if (
+        /^\/clientes\/[^/]+$/.test(item.endpoint) &&
+        (item.method === 'PATCH' || item.method === 'DELETE')
+      ) {
+        // Mutaciones de cliente offline (editar/deshabilitar): persistir la
+        // respuesta del servidor en SQLite para que el arranque en frío no
+        // revierta el cambio, y mergear el detalle cacheado (no truncarlo).
+        const sp = Array.isArray(response.data) ? response.data[0] : response.data;
+        if (sp?.id) {
+          upsertClientes([sp]);
+          setQueryDataIfChanged(queryClient, ['clientes', sp.id], (old: any) =>
+            old ? { ...old, ...sp } : sp,
+          );
+        }
+      } else if (
+        /^\/clientes\/[^/]+\/reactivar$/.test(item.endpoint) &&
+        item.method === 'PATCH'
+      ) {
+        const sp = Array.isArray(response.data) ? response.data[0] : response.data;
+        if (sp?.id) {
+          upsertClientes([sp]);
+          setQueryDataIfChanged(queryClient, ['clientes', sp.id], (old: any) =>
+            old ? { ...old, ...sp } : sp,
+          );
+        }
       }
 
       if (item.tempId) {

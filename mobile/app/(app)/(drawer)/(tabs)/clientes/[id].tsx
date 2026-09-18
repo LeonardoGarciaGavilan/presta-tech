@@ -11,6 +11,7 @@ import { useCliente,
 import ClienteForm from '@/components/clientes/cliente-form';
 import { obtenerRutaCliente, asignarRuta } from '@/api/rutas.api';
 import { getNetworkStatus } from '@/hooks/use-network-status';
+import { useNetworkContext } from '@/components/providers/network-provider';
 import { useResponsiveColumns } from '@/hooks/use-responsive';
 import { getRutaClienteByClienteId } from '@/db/rutas-db';
 import ClienteInfo from '@/components/clientes/cliente-info';
@@ -82,6 +83,7 @@ export default function ClienteDetalleScreen() {
 
   const { showToast } = useToast();
   const navigation = useNavigation();
+  const { addToOfflineQueue } = useNetworkContext();
   const [isEditing, setIsEditing] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
@@ -194,7 +196,21 @@ export default function ClienteDetalleScreen() {
       try {
         await actualizarMutation({ id, data });
         if (currentRutaId !== undefined) {
-          await asignarRuta(id, currentRutaId).catch(() => {});
+          const network = getNetworkStatus();
+          if (!network.isOnline) {
+            // Offline: la asignación de ruta se encola para sincronizar igual
+            // que en la creación (previamente se perdía silenciosamente).
+            await addToOfflineQueue({
+              endpoint: `/rutas/cliente/${id}/asignar`,
+              method: 'PATCH',
+              data: { rutaId: currentRutaId },
+              queryKeys: [['clientes', id], ['clientes'], ['rutas']],
+              tempId: `asignar_ruta_temp_${Date.now()}`,
+              tempDisplay: { clienteId: id, rutaId: currentRutaId },
+            });
+          } else {
+            await asignarRuta(id, currentRutaId).catch(() => {});
+          }
         }
         allowLeaveRef.current = true;
         setIsDirty(false);
@@ -205,7 +221,7 @@ export default function ClienteDetalleScreen() {
         throw new Error(message || 'Error al actualizar el cliente.');
       }
     },
-    [id, actualizarMutation, currentRutaId, showToast],
+    [id, actualizarMutation, currentRutaId, showToast, addToOfflineQueue],
   );
 
   const goBack = useCallback(() => {
@@ -365,9 +381,11 @@ export default function ClienteDetalleScreen() {
             {nombreCompleto}
           </Text>
         </View>
-        <Pressable onPress={() => setIsEditing(true)} hitSlop={8}>
-          <Ionicons name="pencil" size={scale(22)} color={colors.primary} />
-        </Pressable>
+        {tienePermiso('clientes:editar') && (
+          <Pressable onPress={() => setIsEditing(true)} hitSlop={8}>
+            <Ionicons name="pencil" size={scale(22)} color={colors.primary} />
+          </Pressable>
+        )}
       </View>
 
       <ScrollView
@@ -512,7 +530,7 @@ export default function ClienteDetalleScreen() {
         )}
 
         {/* Estado de Cuenta */}
-        {cliente.activo && (
+        {cliente.activo && tienePermiso('pagos:ver') && (
           <View
             style={[
               styles.sectionCard,

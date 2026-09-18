@@ -13,6 +13,7 @@ const mockGetClienteNombre = jest.fn();
 const mockUpsertClientes = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
 const mockSetQueryData = jest.fn();
+const mockFindDuplicate = jest.fn();
 
 jest.mock('@/api/clientes.api', () => ({
   listar: (...args: any[]) => mockListar(...args),
@@ -30,6 +31,10 @@ jest.mock('@/db/clientes-db', () => ({
   getClienteById: (...args: any[]) => mockGetClienteById(...args),
   getClienteNombre: (...args: any[]) => mockGetClienteNombre(...args),
   upsertClientes: (...args: any[]) => mockUpsertClientes(...args),
+}));
+
+jest.mock('@/db/offline-queue-db', () => ({
+  findDuplicate: (...args: any[]) => mockFindDuplicate(...args),
 }));
 
 jest.mock('@/components/providers/network-provider', () => ({

@@ -64,6 +64,9 @@ export default function ClientesListScreen() {
   const { showToast } = useToast();
   const { tienePermiso } = usePermisos();
   const puedeCrear = tienePermiso('clientes:crear');
+  const puedeEditar = tienePermiso('clientes:editar');
+  const puedeDesactivar = tienePermiso('clientes:desactivar');
+  const puedeVerPagos = tienePermiso('pagos:ver');
   const { mutateAsync: eliminarMutation } = useEliminarCliente();
   const { mutateAsync: reactivarMutation } = useReactivarCliente();
 
@@ -134,16 +137,20 @@ export default function ClientesListScreen() {
       <ClienteCard
         cliente={item}
         onPress={() => router.push(`/clientes/${item.id}`)}
-        onEstadoCuenta={() => handleEstadoCuenta(item)}
-        onEdit={() => handleEdit(item.id)}
-        onToggleStatus={() => {
-          const c = item as { id: string; nombre: string; activo: boolean };
-          setDialogClient({ id: c.id, nombre: c.nombre });
-          setDialogAction(c.activo ? 'deshabilitar' : 'habilitar');
-        }}
+        onEstadoCuenta={puedeVerPagos ? () => handleEstadoCuenta(item) : undefined}
+        onEdit={puedeEditar ? () => handleEdit(item.id) : undefined}
+        onToggleStatus={
+          puedeDesactivar
+            ? () => {
+                const c = item as { id: string; nombre: string; activo: boolean };
+                setDialogClient({ id: c.id, nombre: c.nombre });
+                setDialogAction(c.activo ? 'deshabilitar' : 'habilitar');
+              }
+            : undefined
+        }
       />
     ),
-    [handleEdit, handleEstadoCuenta],
+    [handleEdit, handleEstadoCuenta, puedeEditar, puedeDesactivar, puedeVerPagos],
   );
 
   const renderSeparator = useCallback(

@@ -14,6 +14,8 @@ import type {
 } from '@/types/cliente.types';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { getClienteById, getClienteNombre, upsertClientes, getAllCachedClientes } from '@/db/clientes-db';
+import { findDuplicate } from '@/db/offline-queue-db';
+import { unformatCedula } from '@/utils/formatters';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -67,6 +69,34 @@ export function useCrearCliente() {
   return useMutation({
     mutationFn: async (data: CreateClienteRequest) => {
       if (!network.isOnline) {
+        // Cédula normalizada (sin guiones) para el check local de duplicado y
+        // para que el payload que sincroniza coincida con backend//form.
+        const normalizedData = data.cedula
+          ? { ...data, cedula: unformatCedula(data.cedula) }
+          : data;
+
+        // Si ya hay una creación pendiente/failed con la misma cédula, se
+        // reutiliza el registro local en lugar de crear una fila fantasma.
+        const duplicated = findDuplicate('/clientes', 'POST', normalizedData);
+        if (duplicated?.tempId) {
+          const existing = getClienteById(duplicated.tempId);
+          if (existing) {
+            queryClient.invalidateQueries({ queryKey: ['clientes'] });
+            return existing;
+          }
+        }
+
+        // Duplicado contra la caché local (cédula normalizada). El backend es
+        // única por empresa y la app opera una sola, así que un cliente ya
+        // cacheado con la misma cédula siempre será un conflicto.
+        const cedulaNormalizada = normalizedData.cedula ?? '';
+        const duplicadoLocal = (getAllCachedClientes() ?? []).find(
+          (c) => unformatCedula(c.cedula ?? '') === cedulaNormalizada,
+        );
+        if (duplicadoLocal) {
+          throw new Error('Ya existe un cliente con esta cédula en esta empresa.');
+        }
+
         const tempId = `cliente_temp_${Date.now()}`;
         const empresaId = useAuthStore.getState().user?.empresaId || '';
         const now = new Date().toISOString();
@@ -74,7 +104,7 @@ export function useCrearCliente() {
           id: tempId,
           nombre: data.nombre,
           apellido: data.apellido || '',
-          cedula: data.cedula,
+          cedula: normalizedData.cedula || data.cedula,
           telefono: data.telefono || '',
           celular: data.celular || null,
           email: data.email || null,
@@ -87,7 +117,7 @@ export function useCrearCliente() {
           direccion: data.direccion || null,
           ocupacion: data.ocupacion || null,
           empresaLaboral: data.empresaLaboral || null,
-          ingresos: data.ingresos || 0,
+          ingresos: data.ingresos ?? null,
           observaciones: data.observaciones || null,
           latitud: data.latitud || null,
           longitud: data.longitud || null,
@@ -103,13 +133,13 @@ export function useCrearCliente() {
         await addToOfflineQueue({
           endpoint: '/clientes',
           method: 'POST',
-          data,
+          data: normalizedData,
           queryKeys: [['clientes'], ['rutas']],
           tempId,
           tempDisplay: {
             nombre: data.nombre,
             apellido: data.apellido,
-            cedula: data.cedula,
+            cedula: normalizedData.cedula || data.cedula,
           },
         });
         upsertClientes([syntheticCliente]);
@@ -141,16 +171,26 @@ export function useActualizarCliente() {
             clienteNombre: getClienteNombre(id),
           },
         });
-        queryClient.setQueryData(['clientes', id], (old: any) => ({
-          ...old,
+        // Merge sobre el detalle cacheado (no truncar préstamos/garantías) y
+        // persistir la mutación a SQLite para que sobreviva al arranque.
+        const merged = {
+          ...(queryClient.getQueryData(['clientes', id]) ?? {}),
           ...data,
-        }));
-        return { id, ...data, esOffline: true } as any;
+          esOffline: true,
+        } as any;
+        queryClient.setQueryData(['clientes', id], merged);
+        const local = getClienteById(id);
+        if (local) {
+          upsertClientes([{ ...local, ...data, updatedAt: new Date().toISOString() } as any]);
+        }
+        return merged;
       }
       return actualizar(id, data);
     },
     onSuccess: (data, { id }) => {
-      queryClient.setQueryData(['clientes', id], data);
+      queryClient.setQueryData(['clientes', id], (old: any) =>
+        old ? { ...old, ...data } : data,
+      );
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
   });
@@ -166,7 +206,7 @@ export function useEliminarCliente() {
           endpoint: `/clientes/${id}`,
           method: 'DELETE',
           data: {},
-          queryKeys: [['clientes']],
+          queryKeys: [['clientes'], ['clientes', id]],
           tempId: `eliminar_cliente_temp_${Date.now()}`,
           tempDisplay: { clienteId: id, clienteNombre: getClienteNombre(id) },
         });
@@ -174,6 +214,10 @@ export function useEliminarCliente() {
           ...old,
           activo: false,
         }));
+        const local = getClienteById(id);
+        if (local) {
+          upsertClientes([{ ...local, activo: false, updatedAt: new Date().toISOString() } as any]);
+        }
         return { id, esOffline: true } as any;
       }
       return eliminar(id);
@@ -202,12 +246,18 @@ export function useReactivarCliente() {
           ...old,
           activo: true,
         }));
+        const local = getClienteById(id);
+        if (local) {
+          upsertClientes([{ ...local, activo: true, updatedAt: new Date().toISOString() } as any]);
+        }
         return { id, esOffline: true } as any;
       }
       return reactivar(id);
     },
     onSuccess: (data, id) => {
-      queryClient.setQueryData(['clientes', id], data);
+      queryClient.setQueryData(['clientes', id], (old: any) =>
+        old ? { ...old, ...data } : data,
+      );
       queryClient.invalidateQueries({ queryKey: ['clientes'] });
     },
   });

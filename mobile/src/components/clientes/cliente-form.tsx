@@ -10,7 +10,7 @@ import PickerField from '@/components/ui/picker-field';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import { clienteSchema, type ClienteFormData } from '@/schemas/cliente.schema';
 import { BorderRadius, FontSize, FontWeight, Shadows, Spacing, scale } from '@/constants/theme';
-import { unformatIngresosInput } from '@/utils/formatters';
+import { unformatIngresosInput, unformatCedula } from '@/utils/formatters';
 import { useCedulaSignedUrl } from '@/hooks/use-clientes';
 import { useRutas } from '@/hooks/use-rutas';
 import { useQueryClient } from '@tanstack/react-query';
@@ -251,6 +251,9 @@ export default function ClienteForm({
           payload.latitud = latitud;
           payload.longitud = longitud;
           payload.coordsAproximadas = true;
+        }
+        if (payload.cedula) {
+          payload.cedula = unformatCedula(String(payload.cedula));
         }
         await onSubmit(payload);
       } catch (error) {
