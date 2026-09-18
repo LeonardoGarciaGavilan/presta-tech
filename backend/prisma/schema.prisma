@@ -105,7 +105,7 @@ model Cliente {
   id                 String        @id @default(uuid())
   nombre             String
   apellido           String?
-  cedula             String        @unique
+  cedula             String
   telefono           String?
   celular            String?
   email              String?
@@ -138,6 +138,7 @@ model Cliente {
   rutaClientes       RutaCliente[]
 
   @@index([empresaId])
+  @@unique([empresaId, cedula])
   @@index([empresaId, activo])
   @@index([nombre])
   @@index([cedula])

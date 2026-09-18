@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { QuotaService } from '../common/quota/quota.service';
+import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 
@@ -33,17 +39,49 @@ export class ClientesService {
     return cliente;
   }
 
+  private normalizarCedula(cedula: string): string {
+    return cedula.replace(/[^0-9]/g, '');
+  }
+
+  private nombreCompleto(cliente: {
+    nombre: string;
+    apellido?: string | null;
+  }) {
+    return `${cliente.nombre} ${cliente.apellido ?? ''}`.trim();
+  }
+
+  private esCedulaDuplicada(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002' &&
+      Array.isArray(error.meta?.target) &&
+      error.meta.target.some((t) => String(t).toLowerCase().includes('cedula'))
+    );
+  }
+
   // ─── CRUD ───────────────────────────────────────────────────────────────────
 
   async create(createClienteDto: CreateClienteDto, empresaId: string) {
     const cuota = await this.quotaService.verificar(empresaId, 'clientes');
-    const cliente = await this.prisma.cliente.create({
-      data: { ...createClienteDto, empresaId },
-    });
-    if (cuota.advertencia) {
-      return { ...cliente, advertenciaCuota: cuota };
+    const data: Prisma.ClienteCreateInput = {
+      ...createClienteDto,
+      cedula: this.normalizarCedula(createClienteDto.cedula),
+      empresa: { connect: { id: empresaId } },
+    };
+    try {
+      const cliente = await this.prisma.cliente.create({ data });
+      if (cuota.advertencia) {
+        return { ...cliente, advertenciaCuota: cuota };
+      }
+      return cliente;
+    } catch (error) {
+      if (this.esCedulaDuplicada(error)) {
+        throw new ConflictException(
+          `Ya existe un cliente con esta cédula en esta empresa. Verifique los datos o restrúyelo desde la lista de inactivos.`,
+        );
+      }
+      throw error;
     }
-    return cliente;
   }
 
   async findAll(
@@ -54,7 +92,7 @@ export class ClientesService {
     ids?: string[],
   ): Promise<PaginatedResult<any>> {
     const skip = (pagina - 1) * porPagina;
-    const where: any = { empresaId, activo: true };
+    const where: Prisma.ClienteWhereInput = { empresaId, activo: true };
 
     if (ids && ids.length > 0) {
       where.id = { in: ids };
@@ -71,6 +109,10 @@ export class ClientesService {
         { provincia: { contains: q, mode: 'insensitive' } },
         { municipio: { contains: q, mode: 'insensitive' } },
       ];
+      // Fila legacy con guiones en BD: "402-0001001-7" se busca también por su forma cruda
+      if (qSinGuiones !== q) {
+        where.OR.push({ cedula: { contains: q, mode: 'insensitive' } });
+      }
     }
 
     const [data, total] = await this.prisma.$transaction([
@@ -99,7 +141,7 @@ export class ClientesService {
     search = '',
   ): Promise<PaginatedResult<any>> {
     const skip = (pagina - 1) * porPagina;
-    const where: any = { empresaId, activo: false };
+    const where: Prisma.ClienteWhereInput = { empresaId, activo: false };
 
     if (search?.trim()) {
       const q = search.trim();
@@ -112,6 +154,10 @@ export class ClientesService {
         { provincia: { contains: q, mode: 'insensitive' } },
         { municipio: { contains: q, mode: 'insensitive' } },
       ];
+      // Fila legacy con guiones en BD: "402-0001001-7" se busca también por su forma cruda
+      if (qSinGuiones !== q) {
+        where.OR.push({ cedula: { contains: q, mode: 'insensitive' } });
+      }
     }
 
     const [data, total] = await this.prisma.$transaction([
@@ -170,26 +216,72 @@ export class ClientesService {
     empresaId: string,
   ) {
     await this.assertExists(id, empresaId);
-    return this.prisma.cliente.update({
-      where: { id },
-      data: updateClienteDto,
-    });
+    const data: Prisma.ClienteUpdateInput = {
+      ...updateClienteDto,
+      ...(updateClienteDto.cedula
+        ? { cedula: this.normalizarCedula(updateClienteDto.cedula) }
+        : {}),
+    };
+    try {
+      return await this.prisma.cliente.update({ where: { id }, data });
+    } catch (error) {
+      if (this.esCedulaDuplicada(error)) {
+        throw new ConflictException(
+          `Ya existe un cliente con esta cédula en esta empresa.`,
+        );
+      }
+      throw error;
+    }
   }
 
-  async remove(id: string, empresaId: string) {
-    await this.assertExists(id, empresaId);
-    return this.prisma.cliente.update({
+  async remove(id: string, empresaId: string, usuarioId?: string) {
+    const anterior = await this.assertExists(id, empresaId);
+    const cliente = await this.prisma.cliente.update({
       where: { id },
       data: { activo: false },
     });
+    await registrarAuditoria(this.prisma, {
+      empresaId,
+      usuarioId,
+      tipo: 'CLIENTE',
+      accion: 'DESHABILITAR',
+      descripcion: `Cliente ${this.nombreCompleto(cliente)} deshabilitado`,
+      referenciaId: id,
+      referenciaTipo: 'Cliente',
+      datosAnteriores: {
+        activo: anterior.activo,
+        nombre: anterior.nombre,
+        apellido: anterior.apellido,
+        cedula: anterior.cedula,
+      },
+      datosNuevos: { activo: false },
+    });
+    return cliente;
   }
 
-  async reactivar(id: string, empresaId: string) {
-    await this.assertExists(id, empresaId);
-    return this.prisma.cliente.update({
+  async reactivar(id: string, empresaId: string, usuarioId?: string) {
+    const anterior = await this.assertExists(id, empresaId);
+    const cliente = await this.prisma.cliente.update({
       where: { id },
       data: { activo: true },
     });
+    await registrarAuditoria(this.prisma, {
+      empresaId,
+      usuarioId,
+      tipo: 'CLIENTE',
+      accion: 'REACTIVAR',
+      descripcion: `Cliente ${this.nombreCompleto(cliente)} reactivado`,
+      referenciaId: id,
+      referenciaTipo: 'Cliente',
+      datosAnteriores: {
+        activo: anterior.activo,
+        nombre: anterior.nombre,
+        apellido: anterior.apellido,
+        cedula: anterior.cedula,
+      },
+      datosNuevos: { activo: true },
+    });
+    return cliente;
   }
 
   // ─── Documentos ─────────────────────────────────────────────────────────────

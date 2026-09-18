@@ -4,43 +4,56 @@ import {
   IsEmail,
   IsNumber,
   IsBoolean,
+  IsNotEmpty,
+  MaxLength,
   Min,
   Max,
 } from 'class-validator';
 
 export class CreateClienteDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
   nombre: string;
 
-  @IsOptional()
   @IsString()
-  apellido?: string;
+  @IsNotEmpty()
+  @MaxLength(120)
+  apellido: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(16)
   cedula: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(30)
   telefono?: string;
 
-  @IsOptional()
   @IsString()
-  celular?: string;
+  @IsNotEmpty()
+  @MaxLength(30)
+  celular: string;
 
   @IsOptional()
   @IsEmail()
+  @MaxLength(120)
   email?: string;
 
-  @IsOptional()
   @IsString()
-  provincia?: string;
+  @IsNotEmpty()
+  @MaxLength(60)
+  provincia: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  municipio: string;
 
   @IsOptional()
   @IsString()
-  municipio?: string;
-
-  @IsOptional()
-  @IsString()
+  @MaxLength(120)
   sector?: string;
 
   @IsOptional()
@@ -55,24 +68,28 @@ export class CreateClienteDto {
   @IsString()
   sectorId?: string;
 
-  @IsOptional()
   @IsString()
-  direccion?: string;
+  @IsNotEmpty()
+  @MaxLength(255)
+  direccion: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   ocupacion?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   empresaLaboral?: string;
 
-  @IsOptional()
   @IsNumber()
-  ingresos?: number;
+  @Min(0)
+  ingresos: number;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   observaciones?: string;
 
   @IsOptional()

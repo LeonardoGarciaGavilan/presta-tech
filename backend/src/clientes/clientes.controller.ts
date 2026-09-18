@@ -8,7 +8,6 @@ import {
   Delete,
   UseGuards,
   Query,
-  ParseIntPipe,
   DefaultValuePipe,
   UseInterceptors,
   UploadedFile,
@@ -26,7 +25,9 @@ import { ModulosGuard } from '../common/guards/modulos.guard';
 import { SuperAdminGuard } from '../common/guards/superadmin.guard';
 import { Modulo, RequierePermiso } from '../common/permisos/permisos.decorator';
 import { Tenant } from '../common/decorators/tenant.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Idempotent } from '../common/decorators/idempotent.decorator';
+import { ParseIntMinPipe } from '../common/pipes/parse-int-min.pipe';
 import { Throttle } from '@nestjs/throttler';
 
 @UseGuards(
@@ -55,8 +56,10 @@ export class ClientesController {
   @RequierePermiso('clientes:ver')
   findAll(
     @Tenant() empresaId: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), new ParseIntMinPipe(1))
+    page: number,
+    @Query('limit', new DefaultValuePipe(20), new ParseIntMinPipe(1))
+    limit: number,
     @Query('search') search: string,
     @Query('ids') ids?: string,
   ) {
@@ -76,8 +79,10 @@ export class ClientesController {
   @RequierePermiso('clientes:ver')
   findInactivos(
     @Tenant() empresaId: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), new ParseIntMinPipe(1))
+    page: number,
+    @Query('limit', new DefaultValuePipe(20), new ParseIntMinPipe(1))
+    limit: number,
     @Query('search') search: string,
   ) {
     const porPagina = Math.min(limit, 100);
@@ -110,15 +115,25 @@ export class ClientesController {
   @Delete(':id')
   @Roles('ADMIN', 'EMPLEADO')
   @RequierePermiso('clientes:desactivar')
-  remove(@Param('id') id: string, @Tenant() empresaId: string) {
-    return this.clientesService.remove(id, empresaId);
+  remove(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: { sub?: string; userId?: string; id?: string },
+  ) {
+    const usuarioId = user?.sub ?? user?.userId ?? user?.id;
+    return this.clientesService.remove(id, empresaId, usuarioId);
   }
 
   @Patch(':id/reactivar')
   @Roles('ADMIN', 'EMPLEADO')
   @RequierePermiso('clientes:desactivar')
-  reaccionar(@Param('id') id: string, @Tenant() empresaId: string) {
-    return this.clientesService.reactivar(id, empresaId);
+  reaccionar(
+    @Param('id') id: string,
+    @Tenant() empresaId: string,
+    @CurrentUser() user: { sub?: string; userId?: string; id?: string },
+  ) {
+    const usuarioId = user?.sub ?? user?.userId ?? user?.id;
+    return this.clientesService.reactivar(id, empresaId, usuarioId);
   }
 
   @Post(':id/cedula')
