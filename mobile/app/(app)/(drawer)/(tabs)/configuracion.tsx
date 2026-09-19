@@ -36,6 +36,7 @@ import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { useTheme, getSolidFill } from "@/components/ui/theme-provider";
 import { usePermisos } from "@/permisos/use-permisos";
+import { useAuthStore } from "@/store/auth.store";
 import SinAcceso from "@/components/permisos/sin-acceso";
 import { SectionCard } from "@/components/ui/section-card";
 import { SettingRow } from "@/components/ui/setting-row";
@@ -138,6 +139,8 @@ export default function ConfiguracionScreen() {
   const { showToast } = useToast();
   const { moduloHabilitado, tienePermiso } = usePermisos();
   const puedeEditar = tienePermiso("configuracion:editar");
+  const user = useAuthStore((s) => s.user);
+  const accionesPrestamo = user?.accionesPrestamo;
 
   const { data: config, isLoading, isError, refetch } = useConfiguracion();
   const guardarMutation = useGuardarConfiguracion();
@@ -184,6 +187,13 @@ export default function ConfiguracionScreen() {
   const permitirRenovacionValue = watch("permitirRenovacion") ?? false;
   const permitirRefinanciamientoValue =
     watch("permitirRefinanciamiento") ?? true;
+
+  const empresaPuedeRefinanciar = accionesPrestamo?.refinanciar !== false;
+  const empresaPuedeRenovar = accionesPrestamo?.renovar !== false;
+  const refinanciamientoBloqueado =
+    !empresaPuedeRefinanciar || !permitirRefinanciamientoValue;
+  const renovacionBloqueada =
+    !empresaPuedeRenovar || !permitirRenovacionValue;
 
   // Resumen en vivo: refleja el borrador actual del formulario
   const resumenTasa = watch("tasaInteresBase");
@@ -511,6 +521,14 @@ export default function ConfiguracionScreen() {
           description="Controla cuándo se puede refinanciar un préstamo"
           colors={colors}
         >
+          {!empresaPuedeRefinanciar && (
+            <View style={[styles.blockedBadge, { backgroundColor: colors.errorLight }]}>
+              <Ionicons name="lock-closed-outline" size={scale(14)} color={colors.error} />
+              <Text style={[styles.blockedText, { color: colors.error }]}>
+                Bloqueado por el administrador del sistema
+              </Text>
+            </View>
+          )}
           <Controller
             control={control}
             name="permitirRefinanciamiento"
@@ -522,16 +540,16 @@ export default function ConfiguracionScreen() {
                 onValueChange={(v) =>
                   setValue("permitirRefinanciamiento", v, { shouldDirty: true })
                 }
-                disabled={!puedeEditar}
+                disabled={!puedeEditar || !empresaPuedeRefinanciar}
                 colors={colors}
               />
             )}
           />
           <View
             style={{
-              opacity: permitirRefinanciamientoValue ? 1 : 0.45,
+              opacity: refinanciamientoBloqueado ? 0.45 : 1,
             }}
-            pointerEvents={permitirRefinanciamientoValue ? "auto" : "none"}
+            pointerEvents={refinanciamientoBloqueado ? "none" : "auto"}
           >
             <Controller
               control={control}
@@ -576,6 +594,14 @@ export default function ConfiguracionScreen() {
           description="Liquida el saldo anterior y desembolsa un préstamo nuevo"
           colors={colors}
         >
+          {!empresaPuedeRenovar && (
+            <View style={[styles.blockedBadge, { backgroundColor: colors.errorLight }]}>
+              <Ionicons name="lock-closed-outline" size={scale(14)} color={colors.error} />
+              <Text style={[styles.blockedText, { color: colors.error }]}>
+                Bloqueado por el administrador del sistema
+              </Text>
+            </View>
+          )}
           <Controller
             control={control}
             name="permitirRenovacion"
@@ -587,16 +613,16 @@ export default function ConfiguracionScreen() {
                 onValueChange={(v) =>
                   setValue("permitirRenovacion", v, { shouldDirty: true })
                 }
-                disabled={!puedeEditar}
+                disabled={!puedeEditar || !empresaPuedeRenovar}
                 colors={colors}
               />
             )}
           />
           <View
             style={{
-              opacity: permitirRenovacionValue ? 1 : 0.45,
+              opacity: renovacionBloqueada ? 0.45 : 1,
             }}
-            pointerEvents={permitirRenovacionValue ? "auto" : "none"}
+            pointerEvents={renovacionBloqueada ? "none" : "auto"}
           >
             <Controller
               control={control}
@@ -749,6 +775,19 @@ const styles = StyleSheet.create({
   retryButton: {
     marginTop: Spacing.lg,
     minWidth: scale(180),
+  },
+  blockedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+  },
+  blockedText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   summaryCard: {
     borderRadius: BorderRadius.xl,

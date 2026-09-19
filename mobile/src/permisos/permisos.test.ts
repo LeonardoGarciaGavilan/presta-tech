@@ -11,13 +11,17 @@ describe('puedeAcceder (F5)', () => {
     expect(puedeAcceder({ user: null, permiso: 'clientes:ver' })).toBe(false);
   });
 
-  it('SUPERADMIN hace bypass total', () => {
+  it('SUPERADMIN sin permisos ni módulos recibe evaluación normal (no bypass)', () => {
+    const superadmin = {
+      rol: 'SUPERADMIN',
+      permisos: [],
+      modulosDeshabilitados: [],
+    };
     expect(
-      puedeAcceder({
-        user: { rol: 'SUPERADMIN', permisos: [], modulosDeshabilitados: [] },
-        permiso: 'prestamos:aprobar',
-        modulo: 'GASTOS',
-      }),
+      puedeAcceder({ user: superadmin, permiso: 'prestamos:aprobar' }),
+    ).toBe(false);
+    expect(
+      puedeAcceder({ user: superadmin, modulo: 'GASTOS' }),
     ).toBe(true);
   });
 

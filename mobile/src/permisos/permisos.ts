@@ -31,10 +31,12 @@ export interface AccesoUsuario {
 /**
  * Lógica pura de acceso client-side (testeable).
  * - Sin usuario → sin acceso.
- * - SUPERADMIN → bypass total (rol SUPERADMIN no debe existir en móvil: el
- *   servidor lo bloquea con X-App, esto es defensa en profundidad).
  * - `permiso` (p.ej. "clientes:crear") → se exige en permisos efectivos.
  * - `modulo` (p.ej. "CLIENTES") → se exige que no esté deshabilitado.
+ *
+ * Nota: el rol SUPERADMIN no existe en móvil (el servidor lo bloquea con
+ * X-App: mobile). Por ello no hay bypass por rol: si un usuario no trae el
+ * permiso o el módulo está deshabilitado, se deniega igual.
  */
 export function puedeAcceder(opts: {
   user?: AccesoUsuario | null;
@@ -43,7 +45,6 @@ export function puedeAcceder(opts: {
 }): boolean {
   const { user, permiso, modulo } = opts;
   if (!user) return false;
-  if (user.rol === 'SUPERADMIN') return true;
 
   const permisos = user.permisos ?? [];
   const deshabilitados = user.modulosDeshabilitados ?? [];

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Colors,
@@ -31,11 +32,15 @@ export default function PerfilScreen() {
   const queryClient = useQueryClient();
   const { tienePermiso } = usePermisos();
   const puedeEditarEmpresa = tienePermiso('configuracion:editar');
+  const { section } = useLocalSearchParams<{ section?: string }>();
 
   const { data: perfil, isLoading } = usePerfil();
   const actualizarNombreMutation = useActualizarNombre();
   const cambiarPasswordMutation = useCambiarPassword();
   const actualizarEmpresaMutation = useActualizarEmpresa();
+
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionYRef = useRef<Record<string, number>>({});
 
   const [nombreForm, setNombreForm] = useState('');
   const [pwActual, setPwActual] = useState('');
@@ -80,6 +85,22 @@ export default function PerfilScreen() {
       }
     };
   }, []);
+
+  const guardarY = useCallback((name: string, y: number) => {
+    sectionYRef.current[name] = y;
+  }, []);
+
+  useEffect(() => {
+    if (section && (section === 'empresa' || section === 'seguridad')) {
+      const id = setTimeout(() => {
+        const y = sectionYRef.current[section];
+        if (y != null) {
+          scrollRef.current?.scrollTo({ y: Math.max(y - 12, 0), animated: true });
+        }
+      }, 400);
+      return () => clearTimeout(id);
+    }
+  }, [section]);
 
   const handleGuardarNombre = async () => {
     try {
@@ -178,6 +199,7 @@ export default function PerfilScreen() {
         {ToastComp}
 
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -259,12 +281,13 @@ export default function PerfilScreen() {
         </SectionCard>
 
         {/* Seguridad */}
-        <SectionCard
-          icon="🔐"
-          title="Seguridad"
-          description="Cambia tu contraseña de acceso"
-          colors={colors}
-        >
+        <View onLayout={(e) => guardarY('seguridad', e.nativeEvent.layout.y)}>
+          <SectionCard
+            icon="🔐"
+            title="Seguridad"
+            description="Cambia tu contraseña de acceso"
+            colors={colors}
+          >
           <AppInput
             label="Contraseña actual"
             placeholder="••••••••"
@@ -310,9 +333,11 @@ export default function PerfilScreen() {
             icon="lock-closed-outline"
           />
         </SectionCard>
+        </View>
 
         {/* Empresa (solo admin) */}
         {puedeEditarEmpresa && (
+          <View onLayout={(e) => guardarY('empresa', e.nativeEvent.layout.y)}>
           <SectionCard
             icon="🏢"
             title="Datos de la empresa"
@@ -372,6 +397,7 @@ export default function PerfilScreen() {
               icon="business-outline"
             />
           </SectionCard>
+          </View>
         )}
 
         {/* Info de cuenta */}

@@ -5,13 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { CompanyHeader } from '@/components/ui/company-header';
 import { useTheme } from '@/components/ui/theme-provider';
 import { scale } from '@/constants/theme';
-import { useNetworkContext } from '@/components/providers/network-provider';
 import { usePermisos } from '@/permisos/use-permisos';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { colorScheme, colors } = useTheme();
-  const { pendingCount } = useNetworkContext();
+  const { colors } = useTheme();
   const { moduloHabilitado, tienePermiso } = usePermisos();
 
   // Visibilidad de tabs. Los Screens se registran SIEMPRE (Expo Router los
@@ -19,10 +17,7 @@ export default function TabLayout() {
   // de la barra manteniendo la ruta navegable.
   const puedeCaja = moduloHabilitado('CAJA') && tienePermiso('caja:ver');
   const puedePrestamos = moduloHabilitado('PRESTAMOS') && tienePermiso('prestamos:ver');
-  const puedeRutas = moduloHabilitado('RUTAS') && tienePermiso('rutas:ver');
   const puedeClientes = moduloHabilitado('CLIENTES') && tienePermiso('clientes:ver');
-  const puedeConfigurar =
-    moduloHabilitado('CONFIGURACION') && tienePermiso('configuracion:editar');
 
   return (
     <Tabs
@@ -52,10 +47,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'Dashboard',
-          tabBarLabel: 'Dashboard',
+          title: 'Inicio',
+          tabBarLabel: 'Inicio',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
@@ -89,20 +84,9 @@ export default function TabLayout() {
           title: 'Préstamos',
           tabBarLabel: 'Préstamos',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cash-outline" size={size} color={color} />
+            <Ionicons name="card-outline" size={size} color={color} />
           ),
           ...(puedePrestamos ? {} : { href: null }),
-        }}
-      />
-      <Tabs.Screen
-        name="rutas"
-        options={{
-          title: 'Rutas',
-          tabBarLabel: 'Rutas',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map-outline" size={size} color={color} />
-          ),
-          ...(puedeRutas ? {} : { href: null }),
         }}
       />
       <Tabs.Screen
@@ -116,8 +100,28 @@ export default function TabLayout() {
           ...(puedeClientes ? {} : { href: null }),
         }}
       />
-      {/* Perfil ya no es tab — se accede vía avatar en CompanyHeader.
-          href: null lo oculta del tab bar pero mantiene la ruta navegable. */}
+      {/* Más — centro de módulos. Rutas, Configuración y Perfil ya no
+          compiten por espacio en el tab bar; se acceden desde aquí. */}
+      <Tabs.Screen
+        name="mas"
+        options={{
+          title: 'Más',
+          tabBarLabel: 'Más',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="ellipsis-horizontal" size={size} color={color} />
+          ),
+        }}
+      />
+      {/* Rutas ya no es tab principal — se accede desde Más (Acceso rápido).
+          href: null lo oculta del tab bar manteniendo la ruta navegable. */}
+      <Tabs.Screen
+        name="rutas"
+        options={{
+          title: 'Rutas',
+          href: null,
+        }}
+      />
+      {/* Perfil — se accede vía avatar en el header o desde el menú ☰. */}
       <Tabs.Screen
         name="perfil"
         options={{
@@ -125,15 +129,12 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      {/* Configuración — se accede desde Más (Acceso rápido). */}
       <Tabs.Screen
         name="configuracion"
         options={{
           title: 'Configuración',
-          tabBarLabel: 'Configuración',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-          ...(puedeConfigurar ? {} : { href: null }),
+          href: null,
         }}
       />
     </Tabs>

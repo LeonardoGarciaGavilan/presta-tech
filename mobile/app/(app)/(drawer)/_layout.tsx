@@ -4,6 +4,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { DrawerContentScrollView, type DrawerContentComponentProps } from 'expo-router/drawer';
+import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Colors, FontSize, FontWeight, Spacing, BorderRadius, scale } from '@/constants/theme';
@@ -12,9 +13,6 @@ import { logout, clearPushToken } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
 import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
-import { useContarAlertas } from '@/hooks/use-alertas';
-import { usePermisos } from '@/permisos/use-permisos';
-import { MODULO_POR_PANTALLA, PERMISO_POR_PANTALLA } from '@/permisos/permisos';
 
 function DrawerItem({
   label,
@@ -22,14 +20,14 @@ function DrawerItem({
   onPress,
   colors,
   colorScheme,
-  badge,
+  tint,
 }: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   colors: typeof Colors.light;
   colorScheme: 'light' | 'dark';
-  badge?: number;
+  tint?: string;
 }) {
   return (
     <TouchableOpacity
@@ -44,32 +42,23 @@ function DrawerItem({
         borderRadius: BorderRadius.md,
       }}
     >
-      <View style={{ position: 'relative' }}>
-        <Ionicons name={icon} size={scale(22)} color={colors.textSecondary} style={{ marginRight: Spacing.md }} />
-        {badge != null && badge > 0 && (
-          <View
-            style={{
-              position: 'absolute',
-              top: -4,
-              right: -2,
-              backgroundColor: getSolidFill(colors, colorScheme, 'error'),
-              borderRadius: scale(8),
-              minWidth: scale(16),
-              height: scale(16),
-              justifyContent: 'center',
-              alignItems: 'center',
-              paddingHorizontal: scale(4),
-            }}
-          >
-            <Text style={{ color: '#FFFFFF', fontSize: scale(10), fontWeight: FontWeight.bold }}>
-              {badge > 99 ? '99+' : badge}
-            </Text>
-          </View>
-        )}
-      </View>
-      <Text style={{ color: colors.text, fontSize: FontSize.md, fontWeight: FontWeight.medium, flex: 1 }}>
+      <Ionicons
+        name={icon}
+        size={scale(22)}
+        color={tint ?? colors.textSecondary}
+        style={{ marginRight: Spacing.md }}
+      />
+      <Text
+        style={{
+          color: tint ?? colors.text,
+          fontSize: FontSize.md,
+          fontWeight: FontWeight.medium,
+          flex: 1,
+        }}
+      >
         {label}
       </Text>
+      <Ionicons name="chevron-forward" size={scale(18)} color={colors.textTertiary} />
     </TouchableOpacity>
   );
 }
@@ -79,10 +68,9 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { data: noLeidas } = useContarAlertas();
-  const { moduloHabilitado, tienePermiso } = usePermisos();
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -100,24 +88,12 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     await clearSession();
   };
 
-  const adminItems = [
-    { name: 'admin/alertas', label: 'Alertas', icon: 'notifications-outline' as const, badge: noLeidas },
-    { name: 'admin/analisis-rutas', label: 'Análisis Rutas', icon: 'analytics-outline' as const },
-    { name: 'admin/auditoria', label: 'Auditoría', icon: 'document-text-outline' as const },
-    { name: 'admin/empleados', label: 'Empleados', icon: 'people-outline' as const },
-    { name: 'admin/estado-financiero', label: 'Estado Financiero', icon: 'wallet-outline' as const },
-    { name: 'admin/gastos', label: 'Gastos', icon: 'cart-outline' as const },
-    { name: 'admin/usuarios', label: 'Usuarios', icon: 'people-outline' as const },
-    { name: 'admin/reportes', label: 'Reportes', icon: 'bar-chart-outline' as const },
-  ].filter(
-    (item) => {
-      const permiso = PERMISO_POR_PANTALLA[item.name];
-      return (
-        moduloHabilitado(MODULO_POR_PANTALLA[item.name] ?? item.name) &&
-        (permiso ? tienePermiso(permiso) : true)
-      );
-    },
-  );
+  const rolLabel =
+    user?.rol === 'ADMIN'
+      ? 'Administrador'
+      : user?.rol === 'SUPERADMIN'
+        ? 'Super Admin'
+        : 'Empleado';
 
   return (
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: colors.background }}>
@@ -161,11 +137,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             }}
           >
             <Text style={{ color: colors.primary, fontSize: FontSize.xs, fontWeight: FontWeight.semibold }}>
-              {user?.rol === 'ADMIN'
-                ? 'Administrador'
-                : user?.rol === 'SUPERADMIN'
-                  ? 'Super Admin'
-                  : 'Empleado'}
+              {rolLabel}
             </Text>
           </View>
         </View>
@@ -175,53 +147,55 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         <DrawerItem
           label="Inicio"
           icon="home-outline"
-          onPress={() => props.navigation.navigate('(tabs)')}
+          onPress={() => router.navigate('/dashboard')}
           colors={colors}
           colorScheme={colorScheme}
+        />
+        <DrawerItem
+          label="Mi perfil"
+          icon="person-outline"
+          onPress={() => router.navigate('/perfil')}
+          colors={colors}
+          colorScheme={colorScheme}
+        />
+        <DrawerItem
+          label="Mi empresa"
+          icon="business-outline"
+          onPress={() => router.navigate('/perfil?section=empresa')}
+          colors={colors}
+          colorScheme={colorScheme}
+        />
+        <DrawerItem
+          label="Seguridad"
+          icon="lock-closed-outline"
+          onPress={() => router.navigate('/perfil?section=seguridad')}
+          colors={colors}
+          colorScheme={colorScheme}
+        />
+
+        <View
+          style={{
+            height: scale(1),
+            backgroundColor: colors.border,
+            marginHorizontal: Spacing.lg,
+            marginVertical: Spacing.sm,
+          }}
         />
 
         <DrawerItem
-          label="Impresora"
-          icon="print-outline"
-          onPress={() => props.navigation.navigate('impresora')}
+          label="Ayuda"
+          icon="help-buoy-outline"
+          onPress={() => router.navigate('/ayuda' as never)}
           colors={colors}
           colorScheme={colorScheme}
         />
-
-        {adminItems.length > 0 && (
-          <>
-            <View
-              style={{
-                paddingHorizontal: Spacing.lg,
-                paddingTop: Spacing.md,
-                paddingBottom: Spacing.xs,
-              }}
-            >
-              <Text
-                style={{
-                  color: colors.textTertiary,
-                  fontSize: FontSize.xs,
-                  fontWeight: FontWeight.semibold,
-                  textTransform: 'uppercase',
-                  letterSpacing: scale(1),
-                }}
-              >
-                Administración
-              </Text>
-            </View>
-            {adminItems.map((item) => (
-              <DrawerItem
-                key={item.name}
-                label={item.label}
-                icon={item.icon}
-                onPress={() => props.navigation.navigate(item.name)}
-                colors={colors}
-                colorScheme={colorScheme}
-                badge={item.badge}
-              />
-            ))}
-          </>
-        )}
+        <DrawerItem
+          label="Acerca de PrestaTech"
+          icon="information-circle-outline"
+          onPress={() => router.navigate('/acerca-de' as never)}
+          colors={colors}
+          colorScheme={colorScheme}
+        />
       </DrawerContentScrollView>
 
       {/* Logout */}
@@ -270,11 +244,33 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 }
 
 export default function DrawerLayout() {
-  const { colorScheme, colors } = useTheme();
+  const { colors } = useTheme();
+  const router = useRouter();
+
+  const headerOptions = (title: string) => ({
+    title,
+    headerShown: true,
+    headerStyle: { backgroundColor: colors.background },
+    headerTintColor: colors.text,
+    headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg } as const,
+    drawerItemStyle: { display: 'none' as const },
+    headerBackTitle: '',
+    headerLeft: () => (
+      <TouchableOpacity
+        onPress={() => router.replace('/mas')}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={{ marginLeft: Spacing.sm }}
+        accessibilityRole="button"
+        accessibilityLabel="Volver a Más"
+      >
+        <Ionicons name="chevron-back" size={scale(28)} color={colors.text} />
+      </TouchableOpacity>
+    ),
+  });
 
   return (
     <Drawer
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      drawerContent={(dwProps) => <CustomDrawerContent {...dwProps} />}
       screenOptions={{
         headerShown: false,
         drawerType: 'front',
@@ -292,86 +288,16 @@ export default function DrawerLayout() {
           drawerItemStyle: { display: 'none' },
         }}
       />
-      <Drawer.Screen
-        name="impresora"
-        options={{
-          title: 'Impresora',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/alertas"
-        options={{
-          title: 'Alertas',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/analisis-rutas"
-        options={{
-          title: 'Análisis Rutas',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/auditoria"
-        options={{
-          title: 'Auditoría',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/empleados"
-        options={{
-          title: 'Empleados',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/estado-financiero"
-        options={{
-          title: 'Estado Financiero',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/gastos"
-        options={{
-          title: 'Gastos',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/usuarios"
-        options={{
-          title: 'Usuarios',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
+      <Drawer.Screen name="impresora" options={headerOptions('Impresora')} />
+      <Drawer.Screen name="ayuda" options={headerOptions('Ayuda y soporte')} />
+      <Drawer.Screen name="acerca-de" options={headerOptions('Acerca de PrestaTech')} />
+      <Drawer.Screen name="admin/alertas" options={headerOptions('Alertas')} />
+      <Drawer.Screen name="admin/analisis-rutas" options={headerOptions('Análisis Rutas')} />
+      <Drawer.Screen name="admin/auditoria" options={headerOptions('Auditoría')} />
+      <Drawer.Screen name="admin/empleados" options={headerOptions('Empleados')} />
+      <Drawer.Screen name="admin/estado-financiero" options={headerOptions('Estado Financiero')} />
+      <Drawer.Screen name="admin/gastos" options={headerOptions('Gastos')} />
+      <Drawer.Screen name="admin/usuarios" options={headerOptions('Usuarios')} />
       <Drawer.Screen
         name="admin/permisos/[id]"
         options={{
@@ -380,16 +306,7 @@ export default function DrawerLayout() {
           drawerItemStyle: { display: 'none' },
         }}
       />
-      <Drawer.Screen
-        name="admin/reportes"
-        options={{
-          title: 'Reportes',
-          headerShown: true,
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: FontWeight.semibold, fontSize: FontSize.lg },
-        }}
-      />
+      <Drawer.Screen name="admin/reportes" options={headerOptions('Reportes')} />
     </Drawer>
   );
 }

@@ -2,15 +2,12 @@ import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRouter } from 'expo-router';
+import { useNavigation, usePathname, useRouter } from 'expo-router';
 
 import { FontSize, FontWeight, Spacing, scale} from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { useTheme, getSolidFill } from '@/components/ui/theme-provider';
 import { ThemeSelectorModal } from '@/components/ui/theme-selector-modal';
-import { useNetworkContext } from '@/components/providers/network-provider';
-import { usePermisos } from '@/permisos/use-permisos';
-import { PERMISO_POR_PANTALLA } from '@/permisos/permisos';
 import { Routes } from '@/constants/routes';
 
 export function CompanyHeader() {
@@ -20,27 +17,15 @@ export function CompanyHeader() {
   const companyName = useAuthStore((s) => s.user?.empresa);
   const userNombre = useAuthStore((s) => s.user?.nombre);
   const userEmail = useAuthStore((s) => s.user?.email);
-  const { tienePermiso } = usePermisos();
-  const pantallasAdmin = [
-    'admin/alertas',
-    'admin/analisis-rutas',
-    'admin/auditoria',
-    'admin/empleados',
-    'admin/estado-financiero',
-    'admin/gastos',
-    'admin/usuarios',
-    'admin/reportes',
-  ];
-  const tieneAccesoAdmin = pantallasAdmin.some((screen) => {
-    const permiso = PERMISO_POR_PANTALLA[screen];
-    return permiso ? tienePermiso(permiso) : true;
-  });
-  const { bannerVisible, pendingCount } = useNetworkContext();
 
   const drawerNav = useNavigation('/(app)/(drawer)') as unknown as {
     toggleDrawer: () => void;
   };
   const router = useRouter();
+  const pathname = usePathname();
+
+  const esSubmodulo =
+    pathname === '/configuracion' || pathname === Routes.TABS.RUTAS || pathname.startsWith('/rutas/');
 
   const themeIcon =
     themeMode === 'light' ? 'sunny-outline' : themeMode === 'dark' ? 'moon-outline' : 'phone-portrait-outline';
@@ -48,7 +33,7 @@ export function CompanyHeader() {
   return (
     <View
       style={{
-        paddingTop: bannerVisible ? 0 : insets.top,
+        paddingTop: insets.top,
         backgroundColor: colors.background,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
@@ -62,7 +47,20 @@ export function CompanyHeader() {
           alignItems: 'center',
         }}
       >
-        {tieneAccesoAdmin && (
+        {esSubmodulo ? (
+          <TouchableOpacity
+            onPress={() => router.replace('/mas')}
+            activeOpacity={0.6}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Volver a Más"
+            accessibilityHint="Regresa a la pantalla de módulos"
+            style={{ marginRight: Spacing.sm }}
+          >
+            <Ionicons name="chevron-back" size={scale(26)} color={colors.text} />
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             onPress={() => drawerNav.toggleDrawer()}
             activeOpacity={0.6}
@@ -89,38 +87,6 @@ export function CompanyHeader() {
           {companyName || 'Mi Empresa'}
         </Text>
 
-        <TouchableOpacity
-          onPress={() => router.push('/sincronizacion')}
-          activeOpacity={0.6}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Sincronización"
-          accessibilityHint="Abre la pantalla de sincronización"
-          style={{ marginLeft: Spacing.sm, position: 'relative' }}
-        >
-          <Ionicons name="sync-outline" size={scale(24)} color={colors.text} />
-          {pendingCount > 0 && (
-            <View
-              style={{
-                position: 'absolute',
-                top: -4,
-                right: -6,
-                backgroundColor: '#EF4444',
-                borderRadius: scale(8),
-                minWidth: scale(16),
-                height: scale(16),
-                justifyContent: 'center',
-                alignItems: 'center',
-                paddingHorizontal: scale(4),
-              }}
-            >
-              <Text style={{ color: '#FFFFFF', fontSize: scale(10), fontWeight: FontWeight.bold }}>
-                {pendingCount > 99 ? '99+' : pendingCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowThemeModal(true)}
           activeOpacity={0.6}
