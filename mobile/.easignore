@@ -1,0 +1,43 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Android credentials
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision
+credentials.json
+
+# Tests
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+jest.config.js
+jest.setup.js
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Misc
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Generated
+dist/
+web-build/
+expo-env.d.ts
+app-example/

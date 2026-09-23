@@ -1,4 +1,4 @@
-import { PermissionsAndroid, Platform } from 'react-native';
+import { Linking, PermissionsAndroid, Platform } from 'react-native';
 import type { Device, Node, PrintResult, ScanResult } from 'react-native-thermal-printer-driver';
 
 import { buildDocumentoPrueba } from '@/utils/recibo-test';
@@ -52,14 +52,65 @@ export async function isThermalPrinterDisponible(): Promise<boolean> {
   }
 }
 
+export type EstadoPermisoBluetooth =
+  | 'concedido'
+  | 'denegado'
+  | 'denegado-permanente'
+  | 'no-requerido';
+
+export async function asegurarPermisoBluetooth(): Promise<EstadoPermisoBluetooth> {
+  if (Platform.OS !== 'android') return 'no-requerido';
+
+  const isAndroid12Plus = Number(Platform.Version) >= 31;
+
+  if (isAndroid12Plus) {
+    const scanGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN);
+    const connectGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
+    if (scanGranted && connectGranted) return 'concedido';
+
+    const granted = await PermissionsAndroid.requestMultiple([
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+    ]);
+
+    const allGranted = [
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+    ].every((p) => granted[p] === PermissionsAndroid.RESULTS.GRANTED);
+
+    if (allGranted) return 'concedido';
+
+    const showRationale =
+      PermissionsAndroid.shouldShowRequestPermissionRationale(PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN) ||
+      PermissionsAndroid.shouldShowRequestPermissionRationale(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
+
+    return showRationale ? 'denegado' : 'denegado-permanente';
+  }
+
+  const locationGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
+  if (locationGranted) return 'concedido';
+
+  const granted = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+  );
+
+  if (granted === PermissionsAndroid.RESULTS.GRANTED) return 'concedido';
+
+  const showRationale = PermissionsAndroid.shouldShowRequestPermissionRationale(
+    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+  );
+  return showRationale ? 'denegado' : 'denegado-permanente';
+}
+
 export async function requestBluetoothPermission(): Promise<boolean> {
-  if (Platform.OS !== 'android') return true;
-  const permissions =
-    Number(Platform.Version) >= 31
-      ? [PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN, PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT]
-      : [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
-  const granted = await PermissionsAndroid.requestMultiple(permissions);
-  return permissions.every((p) => granted[p] === PermissionsAndroid.RESULTS.GRANTED);
+  const estado = await asegurarPermisoBluetooth();
+  return estado === 'concedido';
+}
+
+export async function abrirAjustesApp(): Promise<void> {
+  if (Platform.OS === 'android') {
+    await Linking.openSettings();
+  }
 }
 
 export async function escanearImpresoras(): Promise<ScanResult> {

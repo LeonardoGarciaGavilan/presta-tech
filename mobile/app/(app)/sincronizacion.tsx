@@ -519,7 +519,7 @@ export default function SincronizacionScreen() {
   const { colors, colorScheme } = useTheme();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { network, isSyncing, pendingCount, failedCount, lastSyncAt, syncProgress, triggerSync, retryFailed } = useNetworkContext();
+  const { network, isSyncing, pendingCount, failedCount, expiredCount, lastSyncAt, syncProgress, triggerSync, retryFailed } = useNetworkContext();
   const [items, setItems] = useState<OfflineQueueItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -527,6 +527,7 @@ export default function SincronizacionScreen() {
 
   const pendingItems = items.filter((i) => i.status === 'pending' || i.status === 'syncing');
   const failedItems = items.filter((i) => i.status === 'failed');
+  const expiredItems = items.filter((i) => i.status === 'expired');
 
   const loadItems = useCallback(async () => {
     const queue = await getQueue();
@@ -535,7 +536,7 @@ export default function SincronizacionScreen() {
 
   useEffect(() => {
     loadItems().finally(() => setLoading(false));
-  }, [loadItems, pendingCount, failedCount, isSyncing]);
+  }, [loadItems, pendingCount, failedCount, expiredCount, isSyncing]);
 
   // Refresca la cola en vivo cuando cada item cambia de estado (syncing →
   // synced/failed), con throttle para no re-renderizar en ráfaga. Así se ve el
@@ -610,6 +611,29 @@ export default function SincronizacionScreen() {
     await loadItems();
     setShowClearConfirm(false);
   }, [items, loadItems]);
+
+  const handleDiscardExpired = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    const expired = items.filter((i) => i.status === 'expired');
+    const ids = expired.map((i) => i.id);
+
+    try {
+      await reportQueueClear(
+        expired.map((i) => ({
+          endpoint: i.endpoint,
+          method: i.method,
+          createdAt: i.createdAt,
+          monto: getItemMonto(i),
+        })),
+      );
+    } catch {
+      // Offline o error: la auditoría es best-effort y no bloquea la limpieza local
+    }
+
+    clearFailedItems(ids);
+    queryClient.invalidateQueries({ queryKey: ['prestamos'] });
+    await loadItems();
+  }, [items, loadItems, queryClient]);
 
   const handleForceReload = useCallback(async () => {
     if (!network.isOnline) {
@@ -816,6 +840,43 @@ export default function SincronizacionScreen() {
               Fallidos
             </Text>
           </View>
+
+          {expiredCount > 0 && (
+            <View
+              style={[
+                styles.summaryCard,
+                {
+                  backgroundColor: '#fff3e0',
+                  borderColor: '#ff9800',
+                },
+              ]}
+              accessible
+              accessibilityRole="summary"
+              accessibilityLabel={`${expiredCount} operaciones expiradas`}
+            >
+              <Ionicons
+                name="hourglass-outline"
+                size={scale(22)}
+                color={colors.warningDark}
+              />
+              <Text
+                style={[
+                  styles.summaryNumber,
+                  { color: colors.warningDark },
+                ]}
+              >
+                {expiredCount}
+              </Text>
+              <Text
+                style={[
+                  styles.summaryLabel,
+                  { color: colors.warningDark },
+                ]}
+              >
+                Expirados
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Acciones principales */}
@@ -827,11 +888,11 @@ export default function SincronizacionScreen() {
               Shadows.sm,
             ]}
             onPress={handleSync}
-            disabled={isSyncing || (pendingCount === 0 && failedCount === 0)}
+            disabled={isSyncing || (pendingCount === 0 && failedCount === 0 && expiredCount === 0)}
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={isSyncing ? 'Sincronizando' : 'Sincronizar ahora'}
-            accessibilityState={{ disabled: isSyncing || (pendingCount === 0 && failedCount === 0) }}
+            accessibilityState={{ disabled: isSyncing || (pendingCount === 0 && failedCount === 0 && expiredCount === 0) }}
           >
             {isSyncing ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -896,6 +957,27 @@ export default function SincronizacionScreen() {
             )}
             <Text style={styles.retryButtonText}>
               Reintentar fallidos ({failedCount})
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Reintentar expirados */}
+        {expiredCount > 0 && failedCount === 0 && (
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: getSolidFill(colors, colorScheme, 'warning') }]}
+            onPress={handleRetryFailed}
+            disabled={isSyncing}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Reintentar ${expiredCount} operaciones expiradas`}
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="refresh-outline" size={scale(18)} color="#FFFFFF" />
+            )}
+            <Text style={styles.retryButtonText}>
+              Reintentar expirados ({expiredCount})
             </Text>
           </TouchableOpacity>
         )}
@@ -965,6 +1047,47 @@ export default function SincronizacionScreen() {
                     </Text>
                   </View>
                   {failedItems.map((item, index) => (
+                    <AnimatedQueueItem
+                      key={item.id}
+                      item={item}
+                      details={detailsMap.get(item.id) ?? { summary: '', rows: [] }}
+                      colors={colors}
+                      index={index}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* Separador */}
+              {failedItems.length > 0 && expiredItems.length > 0 && (
+                <View style={styles.divider}>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                </View>
+              )}
+
+              {/* Sección expirados */}
+              {expiredItems.length > 0 && (
+                <View style={styles.queueSection}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="hourglass-outline" size={scale(14)} color="#ff9800" />
+                    <Text style={[styles.sectionLabel, { color: '#ff9800' }]}>
+                      Expirados / Requieren revisión ({expiredItems.length})
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.sectionActionButton}
+                      onPress={handleDiscardExpired}
+                      disabled={isSyncing}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Descartar ${expiredItems.length} operaciones expiradas`}
+                    >
+                      <Ionicons name="trash-outline" size={scale(16)} color="#ff9800" />
+                      <Text style={[styles.sectionActionText, { color: '#ff9800' }]}>
+                        Descartar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {expiredItems.map((item, index) => (
                     <AnimatedQueueItem
                       key={item.id}
                       item={item}
@@ -1199,6 +1322,18 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  sectionActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 'auto',
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+  },
+  sectionActionText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
   },
   divider: {
     flexDirection: 'row',

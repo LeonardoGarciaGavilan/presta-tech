@@ -53,6 +53,7 @@ jest.mock('@/api/client', () => {
 jest.mock('@/db/offline-queue-db', () => ({
   getPendingItems: jest.fn(),
   getFailedItems: jest.fn(),
+  getExpiredItems: jest.fn(),
   updateQueueItem: jest.fn(),
   removeFromQueue: jest.fn(),
   findDuplicate: jest.fn(),
@@ -92,7 +93,7 @@ jest.mock('@/store/auth.store', () => ({
 import client from '@/api/client';
 import { QueryClient } from '@tanstack/react-query';
 import {
-  getPendingItems, getFailedItems, updateQueueItem, removeFromQueue, findDuplicate, restoreSnapshot,
+  getPendingItems, getFailedItems, getExpiredItems, updateQueueItem, removeFromQueue, findDuplicate, restoreSnapshot,
 } from '@/db/offline-queue-db';
 import { getNetworkStatus } from '@/hooks/use-network-status';
 import { upsertClientes, deleteCliente } from '@/db/clientes-db';
@@ -104,6 +105,8 @@ import type { OfflineQueueItem } from '@/types/offline.types';
 
 const mockClient = client as unknown as jest.Mock;
 const mockGetPending = getPendingItems as jest.Mock;
+const mockGetFailed = getFailedItems as jest.Mock;
+const mockGetExpired = getExpiredItems as jest.Mock;
 const mockUpdateQueue = updateQueueItem as jest.Mock;
 const mockRemoveQueue = removeFromQueue as jest.Mock;
 const mockFindDuplicate = findDuplicate as jest.Mock;
@@ -140,6 +143,7 @@ beforeEach(() => {
   mockFindDuplicate.mockResolvedValue(null);
   mockUpdateQueue.mockResolvedValue(undefined);
   mockRemoveQueue.mockResolvedValue(undefined);
+  mockGetExpired.mockResolvedValue([]);
 
   const s = (global as any).__mockDbStores;
   if (s) {
@@ -523,6 +527,115 @@ describe('processItem', () => {
       expect(pagosPlanos.data[0].id).toBe('pago_server_1');
     });
   });
+
+  describe('idempotency key collision (R-06)', () => {
+    function makePagoItemWithKey(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem {
+      return makeItem({
+        id: 'item_pago',
+        endpoint: '/pagos',
+        method: 'POST',
+        data: {
+          prestamoId: 'prestamo_1',
+          montoTotal: 1000,
+          capital: 900,
+          interes: 100,
+          metodo: 'EFECTIVO',
+          fecha: '2026-08-02',
+        },
+        queryKeys: [
+          ['pagos'],
+          ['pagos', 'resumen'],
+          ['pagos', 'todos'],
+          ['pagos', 'prestamo', 'prestamo_1'],
+          ['prestamos'],
+          ['prestamos', 'prestamo_1'],
+          ['caja', 'activa', '2026-08-02'],
+        ],
+        tempId: 'pago_temp_1',
+        idempotencyKey: 'idem-x',
+        ...overrides,
+      });
+    }
+
+    it('409 con code IDEMPOTENCY_KEY_COLLISION: NO marca synced, NO elimina de cola, NO hace rollback de snapshot', async () => {
+      mockClient.mockRejectedValue({
+        statusCode: 409,
+        code: 'IDEMPOTENCY_KEY_COLLISION',
+        message: 'La idempotencyKey ya pertenece a otra operación',
+      });
+
+      const item = makePagoItemWithKey({ snapshot: { prestamo: { id: 'prestamo_1', saldoPendiente: 5000 } } });
+      const result = await processItem(item);
+
+      // Debe retornar false (fallo)
+      expect(result).toBe(false);
+      // NO debe eliminar de la cola
+      expect(mockRemoveQueue).not.toHaveBeenCalled();
+      // Debe actualizar a failed con retryable: false
+      expect(mockUpdateQueue).toHaveBeenCalledWith('item_pago', expect.objectContaining({
+        status: 'failed',
+        retryable: false,
+      }));
+      // NO debe restaurar snapshot (la operación local es válida, solo la key colisiona)
+      expect(mockRestoreSnapshot).not.toHaveBeenCalled();
+      // NO debe limpiar entidades sintéticas
+      expect(mockDeletePago).not.toHaveBeenCalled();
+      // Debe emitir evento failed
+      const events: { id: string; status: string }[] = [];
+      const unsub = onSyncItemEvent((e) => events.push(e));
+      // Forzar procesamiento para capturar eventos
+      await processItem(item);
+      unsub();
+      expect(events.some(e => e.id === 'item_pago' && e.status === 'failed')).toBe(true);
+    });
+
+    it('409 genérico (sin code IDEMPOTENCY_KEY_COLLISION): se trata como conflicto real, falla permanentemente con rollback', async () => {
+      mockClient.mockRejectedValue({
+        statusCode: 409,
+        message: 'Conflicto con datos existentes', // 409 genérico sin code
+      });
+
+      const item = makePagoItemWithKey({ snapshot: { prestamo: { id: 'prestamo_1', saldoPendiente: 5000 } } });
+      const result = await processItem(item);
+
+      expect(result).toBe(false);
+      // Debe hacer rollback completo (comportamiento C3)
+      expect(mockRestoreSnapshot).toHaveBeenCalledWith(item);
+      expect(mockDeletePago).toHaveBeenCalledWith('pago_temp_1');
+      expect(mockUpdateQueue).toHaveBeenCalledWith('item_pago', expect.objectContaining({
+        status: 'failed',
+        retryable: false,
+      }));
+    });
+
+    it('200 OK (replay normal): se procesa por el flujo de éxito, elimina de cola, emite synced', async () => {
+      mockClient.mockResolvedValue({
+        data: {
+          id: 'pago_server_1',
+          montoTotal: 1000,
+          capital: 900,
+          interes: 100,
+          mora: 0,
+          metodo: 'EFECTIVO',
+          cajaId: 'caja_1',
+          createdAt: '2026-08-02T12:00:00.000Z',
+        },
+        status: 201,
+      });
+
+      const item = makePagoItemWithKey();
+      const result = await processItem(item);
+
+      expect(result).toBe(true);
+      expect(mockRemoveQueue).toHaveBeenCalledWith('item_pago');
+      // Verificar que se emite synced
+      const events: { id: string; status: string }[] = [];
+      const unsub = onSyncItemEvent((e) => events.push(e));
+      await processItem(item);
+      unsub();
+      expect(events.some(e => e.id === 'item_pago' && e.status === 'synced')).toBe(true);
+    });
+  });
 });
 
 describe('syncNow', () => {
@@ -561,5 +674,125 @@ describe('syncNow', () => {
     const result = await syncNow();
     expect(result.synced).toBe(0);
     expect(result.errors).toContain('Conexión perdida durante sincronización');
+  });
+});
+
+describe('expired items behavior', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useRealTimers();
+    mockGetNetwork.mockReturnValue({ isOnline: true });
+    mockClient.mockResolvedValue({ data: { id: 'server_1', nombre: 'Juan' }, status: 201 });
+    mockFindDuplicate.mockResolvedValue(null);
+    mockUpdateQueue.mockResolvedValue(undefined);
+    mockRemoveQueue.mockResolvedValue(undefined);
+    mockGetExpired.mockResolvedValue([]);
+    mockGetPending.mockResolvedValue([]);
+    mockGetFailed.mockResolvedValue([]);
+  });
+
+  function makeExpiredItem(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem {
+    return makeItem({
+      id: 'expired_item',
+      status: 'expired',
+      retryable: true,
+      retryCount: 0,
+      idempotencyKey: 'idem-expired-1',
+      ...overrides,
+    });
+  }
+
+  it('D: expired + error permanente → permanece expired, SIN rollback', async () => {
+    const expiredItem = makeExpiredItem({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: { prestamoId: 'prestamo_1', montoTotal: 1000, metodo: 'EFECTIVO' },
+      snapshot: { prestamo: { id: 'prestamo_1', saldoPendiente: 5000 } },
+    });
+    mockGetExpired
+      .mockResolvedValueOnce([expiredItem])
+      .mockResolvedValue([expiredItem]);
+    mockClient.mockRejectedValue({ statusCode: 422, message: 'Validation error' });
+
+    const result = await syncNow();
+
+    expect(result.synced).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(mockUpdateQueue).toHaveBeenCalledWith('expired_item', expect.objectContaining({
+      status: 'expired',
+      retryable: true,
+    }));
+    expect(mockRestoreSnapshot).not.toHaveBeenCalled();
+    expect(mockDeletePago).not.toHaveBeenCalled();
+  });
+
+  it('E: expired retry conserva idempotencyKey', async () => {
+    const expiredItem = makeExpiredItem({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: { prestamoId: 'prestamo_1', montoTotal: 1000, metodo: 'EFECTIVO' },
+      idempotencyKey: 'idem-test-123',
+    });
+    mockGetExpired
+      .mockResolvedValueOnce([expiredItem])
+      .mockResolvedValue([]);
+    mockClient.mockResolvedValue({
+      data: {
+        pago: {
+          id: 'pago_server_1',
+          montoTotal: 1000,
+          capital: 900,
+          interes: 100,
+          mora: 0,
+          metodo: 'EFECTIVO',
+          referencia: null,
+          observacion: null,
+          prestamoId: 'prestamo_1',
+          usuarioId: 'user_1',
+          cajaId: null,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      },
+      status: 201,
+    });
+
+    const result = await syncNow();
+
+    expect(result.synced).toBe(1);
+    expect(mockClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Idempotency-Key': 'idem-test-123' }),
+      }),
+    );
+  });
+
+  it('G: reconexión después de >7 días evalúa stale antes del sync (simulado vía markStaleAsFailed + syncNow)', async () => {
+    const oldPayment = makeItem({
+      id: 'old_payment',
+      endpoint: '/pagos',
+      method: 'POST',
+      data: { prestamoId: 'prestamo_1', montoTotal: 1000, metodo: 'EFECTIVO' },
+      createdAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+      retryCount: 0,
+      status: 'pending',
+      retryable: true,
+      idempotencyKey: 'idem-old-1',
+    });
+
+    mockGetPending
+      .mockResolvedValueOnce([oldPayment])
+      .mockResolvedValue([]);
+    mockGetExpired.mockResolvedValue([]);
+    mockClient.mockRejectedValue({ statusCode: 422, message: 'Validation error' });
+
+    const result = await syncNow();
+
+    expect(result.synced).toBe(0);
+    expect(mockUpdateQueue).toHaveBeenCalledWith('old_payment', expect.objectContaining({
+      status: 'failed',
+      retryable: false,
+    }));
+    expect(mockRestoreSnapshot).toHaveBeenCalled();
+    expect(mockDeletePago).toHaveBeenCalled();
   });
 });

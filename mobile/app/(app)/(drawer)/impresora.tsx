@@ -7,6 +7,8 @@ import { AppButton } from '@/components/ui/app-button';
 import { useTheme } from '@/components/ui/theme-provider';
 import { BorderRadius, FontSize, FontWeight, scale, Spacing, Shadows } from '@/constants/theme';
 import {
+  abrirAjustesApp,
+  asegurarPermisoBluetooth,
   desconectarImpresora,
   direccionConTransporte,
   direccionLegible,
@@ -14,7 +16,7 @@ import {
   imprimirPrueba,
   isThermalPrinterDisponible,
   mensajeErrorImpresora,
-  requestBluetoothPermission,
+  type EstadoPermisoBluetooth,
 } from '@/services/printer.service';
 import { usePrinterStore } from '@/store/printer.store';
 import { renderNodes, buildReciboDocument } from '@/utils/recibo-escpos';
@@ -58,6 +60,13 @@ const DEMO_RECIBO: ReciboData = {
   usuario: { nombre: 'Sistema' },
 };
 
+const ESTADO_PERMISO_LABEL: Record<EstadoPermisoBluetooth, { label: string; icon: string; color: 'success' | 'warning' | 'error' | 'primary' }> = {
+  concedido: { label: 'Permiso concedido', icon: 'checkmark-circle', color: 'success' },
+  denegado: { label: 'Permiso denegado', icon: 'close-circle', color: 'error' },
+  'denegado-permanente': { label: 'Permiso denegado permanentemente', icon: 'alert-circle', color: 'error' },
+  'no-requerido': { label: 'Permiso no requerido', icon: 'information-circle', color: 'primary' },
+};
+
 export default function ImpresoraScreen() {
   const { colors } = useTheme();
   const printerConfig = usePrinterStore((state) => state.printer);
@@ -70,6 +79,8 @@ export default function ImpresoraScreen() {
   const [log, setLog] = useState<string[]>([]);
   const [disponible, setDisponible] = useState<boolean | null>(null);
   const [showTestPreview, setShowTestPreview] = useState(false);
+  const [permisoEstado, setPermisoEstado] = useState<EstadoPermisoBluetooth>('no-requerido');
+  const [verificandoPermiso, setVerificandoPermiso] = useState(true);
 
   const { vinculadas, detectadas } = devices
     ? fusionarListas(devices)
@@ -81,6 +92,16 @@ export default function ImpresoraScreen() {
     isThermalPrinterDisponible().then((available) => {
       if (active) setDisponible(available);
     });
+
+    const verificarPermiso = async () => {
+      const estado = await asegurarPermisoBluetooth();
+      if (active) {
+        setPermisoEstado(estado);
+        setVerificandoPermiso(false);
+      }
+    };
+    verificarPermiso();
+
     return () => {
       active = false;
     };
@@ -91,18 +112,11 @@ export default function ImpresoraScreen() {
     setLog((prev) => [...prev.slice(-49), `[${stamp}] ${line}`]);
   };
 
-  const handleBuscar = async () => {
+  const ejecutarBusqueda = async () => {
     if (disponible !== true) return;
     setScanning(true);
-    pushLog('Solicitando permisos Bluetooth...');
+    pushLog('Buscando impresoras Bluetooth...');
     try {
-      const granted = await requestBluetoothPermission();
-      if (!granted) {
-        pushLog('Permisos Bluetooth denegados');
-        Alert.alert('Permisos', 'Se necesita el permiso de Bluetooth para buscar impresoras.');
-        return;
-      }
-      pushLog('Buscando impresoras Bluetooth...');
       const result = await escanearImpresoras();
       setDevices(result);
       pushLog(`Escaneo completado: ${result.paired.length} vinculadas, ${result.found.length} encontradas`);
@@ -112,6 +126,45 @@ export default function ImpresoraScreen() {
     } finally {
       setScanning(false);
     }
+  };
+
+  const handleSolicitarPermiso = async () => {
+    setVerificandoPermiso(true);
+    pushLog('Solicitando permisos Bluetooth...');
+    const estado = await asegurarPermisoBluetooth();
+    setPermisoEstado(estado);
+    setVerificandoPermiso(false);
+
+    if (estado === 'concedido') {
+      pushLog('Permiso concedido');
+      await ejecutarBusqueda();
+    } else if (estado === 'denegado-permanente') {
+      pushLog('Permiso denegado permanentemente');
+    } else {
+      pushLog('Permiso denegado');
+    }
+  };
+
+  const handleAbrirAjustes = async () => {
+    pushLog('Abriendo ajustes de la app...');
+    await abrirAjustesApp();
+    const estado = await asegurarPermisoBluetooth();
+    setPermisoEstado(estado);
+    if (estado === 'concedido') {
+      pushLog('Permiso concedido tras ajustes');
+      await ejecutarBusqueda();
+    }
+  };
+
+  const handleBuscar = async () => {
+    if (disponible !== true) return;
+    const estado = await asegurarPermisoBluetooth();
+    setPermisoEstado(estado);
+    if (estado !== 'concedido') {
+      pushLog('Permiso no concedido');
+      return;
+    }
+    await ejecutarBusqueda();
   };
 
   const handleUsarDispositivo = async (device: Device) => {
@@ -203,6 +256,52 @@ export default function ImpresoraScreen() {
     );
   };
 
+  const renderPermisoBanner = () => {
+    if (verificandoPermiso) return null;
+    if (permisoEstado === 'concedido') return null;
+    if (Platform.OS === 'ios' && disponible === true) return null;
+
+    const entry = ESTADO_PERMISO_LABEL[permisoEstado];
+    const label = entry.label;
+    const icon = entry.icon;
+    const color: 'success' | 'warning' | 'error' | 'primary' = entry.color;
+    const bgColor = color === 'success' ? colors.successLight : color === 'error' ? colors.errorLight : colors.primaryLight;
+    const borderColor = colors[color];
+    const textColor = colors[color];
+
+    return (
+      <View style={[styles.permisoCard, { backgroundColor: bgColor, borderColor }]}>
+        <Ionicons name={icon as any} size={scale(18)} color={textColor as string} />
+        <View style={styles.permisoInfo}>
+          <Text style={[styles.permisoTitle, { color: textColor }]}>{label}</Text>
+          <Text style={[styles.permisoText, { color: colors.textSecondary }]}>
+            {permisoEstado === 'denegado-permanente'
+              ? 'El permiso "Dispositivos cercanos" fue denegado permanentemente. Ábrelo en los ajustes del sistema.'
+              : 'Para buscar impresoras Bluetooth se necesita el permiso de Dispositivos cercanos (Android 12+) o Ubicación (Android 11 y anterior).'}
+          </Text>
+        </View>
+        <View style={styles.permisoActions}>
+          {permisoEstado === 'denegado-permanente' && (
+            <AppButton
+              title="Abrir ajustes"
+              icon="settings-outline"
+              onPress={handleAbrirAjustes}
+              variant="outline"
+            />
+          )}
+          {permisoEstado === 'denegado' && (
+            <AppButton
+              title="Permitir acceso"
+              icon="checkmark-outline"
+              onPress={handleSolicitarPermiso}
+              variant="primary"
+            />
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -217,6 +316,8 @@ export default function ImpresoraScreen() {
           pagos y caja se imprimirán en ella automáticamente.
         </Text>
       </View>
+
+      {renderPermisoBanner()}
 
       {disponible === true && Platform.OS === 'ios' && (
         <View style={[styles.warnCard, { backgroundColor: colors.warningLight, borderColor: colors.warning }]}>
@@ -460,4 +561,17 @@ const styles = StyleSheet.create({
   },
   logTitle: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, marginBottom: Spacing.xs },
   logLine: { fontSize: FontSize.xs, lineHeight: scale(16) },
+  permisoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  permisoInfo: { flex: 1, gap: 2 },
+  permisoTitle: { fontSize: FontSize.sm, fontWeight: FontWeight.semibold },
+  permisoText: { fontSize: FontSize.xs, lineHeight: scale(17) },
+  permisoActions: { flexDirection: 'row', gap: Spacing.xs, flexWrap: 'wrap' },
 });

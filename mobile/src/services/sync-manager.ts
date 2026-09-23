@@ -3,10 +3,12 @@ import client from '@/api/client';
 import type { OfflineQueueItem, SyncProgress } from '@/types/offline.types';
 import {
   OFFLINE_MAX_RETRIES,
+  isFinancialCriticalOperation,
 } from '@/types/offline.types';
 import {
   getPendingItems,
   getFailedItems,
+  getExpiredItems,
   updateQueueItem,
   removeFromQueue,
   findDuplicate,
@@ -143,6 +145,22 @@ function getErrorMessage(error: any): string {
   if (status === 401 || status === 403) return 'Sesión expirada';
   if (status && status >= 500) return 'Error temporal del servidor';
   return error?.message || 'Error desconocido';
+}
+
+function isIdempotencyConflict(error: any): boolean {
+  // Con el nuevo backend:
+  // - Replay legítimo devuelve 200 OK → nunca llega al catch
+  // - Colisión real devuelve 409 con code: "IDEMPOTENCY_KEY_COLLISION"
+  // No hay caso donde un error 409 signifique "ya procesado".
+  // Esta función se mantiene por compatibilidad pero siempre retorna false.
+  return false;
+}
+
+function isIdempotencyKeyCollision(error: any): boolean {
+  const status = error?.statusCode;
+  if (status !== 409) return false;
+  const code = error?.code;
+  return code === 'IDEMPOTENCY_KEY_COLLISION';
 }
 
 // Deriva el préstamo afectado por un item de la cola para poder reconciliar su
@@ -447,6 +465,24 @@ export async function processItem(
     emitItemEvent({ id: item.id, status: 'synced' });
     return true;
   } catch (error: any) {
+    // Colisión real de idempotencyKey (409 con code: IDEMPOTENCY_KEY_COLLISION):
+    // la key pertenece a otra operación/recurso. NO fue procesada.
+    // Tratar como fallo permanente: mantener en cola, NO hacer rollback de snapshot
+    // (la operación local es válida, solo la key colisiona).
+    if (isIdempotencyKeyCollision(error)) {
+      if (__DEV__) {
+        console.log(`[Sync] Idempotency key collision for ${item.endpoint} - key belongs to another resource, keeping in queue as failed`);
+      }
+      await updateQueueItem(item.id, {
+        status: 'failed',
+        retryCount: item.retryCount + 1,
+        lastError: 'Colisión de idempotencyKey: la clave ya pertenece a otra operación',
+        retryable: false,
+      });
+      emitItemEvent({ id: item.id, status: 'failed' });
+      return false;
+    }
+
     if (isRetryableError(error) && item.retryCount < OFFLINE_MAX_RETRIES) {
       // Error reintentable: lo dejamos pendiente para el siguiente ciclo de
       // auto-sync (network-provider reintenta cada ~5s). No bloqueamos el resto
@@ -461,29 +497,33 @@ export async function processItem(
       return false;
     }
 
-    // C3: fallo permanente → la operación nunca se aplicará en el servidor.
-    // Revierte la mutación local (snapshot del préstamo/cuotas) y limpia las
-    // entidades sintéticas asociadas para que el estado offline no refleje
-    // operaciones fantasma (pago que redujo saldo pero el servidor rechazó).
-    restoreSnapshot(item);
-    if (item.tempId) {
-      const normEndpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
-      if (normEndpoint === '/clientes' && item.method === 'POST') {
-        deleteCliente(item.tempId);
-      } else if (normEndpoint === '/prestamos' && item.method === 'POST') {
-        deletePrestamo(item.tempId);
-      } else if (normEndpoint === '/pagos' && item.method === 'POST') {
-        deletePago(item.tempId);
+    const isCriticalExpired = item.status === 'expired' && isFinancialCriticalOperation(item);
+
+    if (!isCriticalExpired) {
+      restoreSnapshot(item);
+      if (item.tempId) {
+        const normEndpoint = item.endpoint.replace(/\/\d+(\/|$)/, '/:id$1');
+        if (normEndpoint === '/clientes' && item.method === 'POST') {
+          deleteCliente(item.tempId);
+        } else if (normEndpoint === '/prestamos' && item.method === 'POST') {
+          deletePrestamo(item.tempId);
+        } else if (normEndpoint === '/pagos' && item.method === 'POST') {
+          deletePago(item.tempId);
+        }
       }
+    } else if (__DEV__) {
+      console.log(
+        `[Sync] Operación crítica expirada (${item.endpoint}) falló permanentemente: se conserva como expired sin rollback`,
+      );
     }
 
     await updateQueueItem(item.id, {
-      status: 'failed',
+      status: isCriticalExpired ? 'expired' : 'failed',
       retryCount: item.retryCount + 1,
       lastError: getErrorMessage(error),
-      retryable: isRetryableError(error),
+      retryable: isCriticalExpired ? true : isRetryableError(error),
     });
-    emitItemEvent({ id: item.id, status: 'failed' });
+    emitItemEvent({ id: item.id, status: isCriticalExpired ? 'failed' : 'failed' });
     return false;
   }
 }
@@ -504,13 +544,17 @@ export async function syncNow(queryClient?: QueryClient): Promise<{
   let failed = 0;
 
   try {
+    // Procesar tanto items pendientes como expirados (expirados son operaciones
+    // financieras críticas que requieren revisión manual pero pueden reintentarse)
     let pending = await getPendingItems();
-    const total = pending.length;
+    let expired = await getExpiredItems();
+    let allItems = [...pending, ...expired];
+    const total = allItems.length;
     const retryingIds = new Set<string>();
 
-    while (pending.length > 0) {
-      const item = pending[0];
-      emitProgress({ processed: synced, total, current: item });
+    while (allItems.length > 0) {
+      const item = allItems[0];
+      emitProgress({ processed: synced + failed, total, current: item });
 
       const success = await processItem(item, queryClient);
       if (success) {
@@ -521,8 +565,11 @@ export async function syncNow(queryClient?: QueryClient): Promise<{
           errors.push('Conexión perdida durante sincronización');
           break;
         }
-        const stillPending = getPendingItems().some((i) => i.id === item.id);
-        if (stillPending) {
+        const pendingItems = await getPendingItems();
+        const expiredItems = await getExpiredItems();
+        const stillPending = pendingItems.some((i) => i.id === item.id);
+        const stillExpired = expiredItems.some((i) => i.id === item.id);
+        if (stillPending || stillExpired) {
           retryingIds.add(item.id);
         } else {
           failed++;
@@ -533,6 +580,8 @@ export async function syncNow(queryClient?: QueryClient): Promise<{
       emitProgress({ processed: synced + failed, total, current: null });
 
       pending = (await getPendingItems()).filter((i) => !retryingIds.has(i.id));
+      expired = (await getExpiredItems()).filter((i) => !retryingIds.has(i.id));
+      allItems = [...pending, ...expired];
     }
   } finally {
     syncing = false;
@@ -548,11 +597,13 @@ export async function retryFailed(queryClient?: QueryClient): Promise<{
   failed: number;
   errors: string[];
 }> {
+  // Reintentar tanto items fallidos como expirados que sean reintentables
   const failed = await getFailedItems();
-  for (const item of failed) {
-    // Solo reintentamos fallos transitorios (red/5xx/408/429). Los errores
-    // permanentes (validación/conflicto/expirados) no se resuelven reintentando;
-    // reintentarlos en bucle solo ensucia la cola.
+  const expired = await getExpiredItems();
+  
+  for (const item of [...failed, ...expired]) {
+    // Solo reintentamos fallos transitorios (red/5xx/408/429) y items expirados reintentables.
+    // Los errores permanentes (validación/conflicto) no se resuelven reintentando.
     if (item.retryable === false) continue;
     await updateQueueItem(item.id, { status: 'pending', retryCount: 0 });
   }

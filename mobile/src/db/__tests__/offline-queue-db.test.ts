@@ -219,13 +219,15 @@ jest.mock('@/db/clientes-db', () => ({
   deleteCliente: jest.fn(),
 }));
 
-import { addToQueue, findDuplicate, getQueue, getPagosPendientesDePrestamo, isPaymentEndpoint, updateQueueItem, restoreSnapshot, clearFailedItems, markStaleAsFailed, getQueueStats, getQueueItemsReferencingTempId, recoverSyncingItems } from '@/db/offline-queue-db';
-import { upsertPrestamos } from '@/db/prestamos-db';
+import { addToQueue, findDuplicate, getQueue, getPagosPendientesDePrestamo, isPaymentEndpoint, updateQueueItem, restoreSnapshot, clearFailedItems, markStaleAsFailed, getQueueStats, getQueueItemsReferencingTempId, recoverSyncingItems, discardExpiredItem } from '@/db/offline-queue-db';
+import { upsertPrestamos, deletePrestamo } from '@/db/prestamos-db';
 import { deletePago } from '@/db/pagos-db';
+import { prestamos } from '@/db/schema';
 import type { OfflineQueueItem } from '@/types/offline.types';
 
 const mockUpsertPrestamos = upsertPrestamos as jest.Mock;
 const mockDeletePago = deletePago as jest.Mock;
+const mockDeletePrestamo = deletePrestamo as jest.Mock;
 
 function makeItem(overrides: Partial<OfflineQueueItem> = {}): OfflineQueueItem {
   return {
@@ -432,7 +434,8 @@ describe('markStaleAsFailed (C3)', () => {
     mockDeletePago.mockClear();
   });
 
-  it('marca como failed los items viejos, restaura su snapshot y limpia los sintéticos (2.3)', () => {
+  it('marca como expired los items viejos de operaciones críticas, NO hace rollback', () => {
+    // /pagos es una operación crítica -> debe marcarse como expired, NO failed
     addToQueue({
       endpoint: '/pagos',
       method: 'POST',
@@ -452,19 +455,47 @@ describe('markStaleAsFailed (C3)', () => {
 
     const changed = markStaleAsFailed();
     expect(changed).toBe(1);
+    expect(getQueue()[0].status).toBe('expired');
+    expect(getQueue()[0].retryable).toBe(true);
+    // NO debe llamar restoreSnapshot ni limpiarSinteticos para operaciones críticas
+    expect(mockUpsertPrestamos).not.toHaveBeenCalled();
+    expect(mockDeletePago).not.toHaveBeenCalled();
+  });
+
+  it('marca como failed los items viejos de operaciones no críticas, SÍ hace rollback', () => {
+    // /clientes no es operación crítica -> debe marcarse como failed con rollback
+    addToQueue({
+      endpoint: '/clientes',
+      method: 'POST',
+      data: { nombre: 'Juan', cedula: '001-0000001-1' },
+      queryKeys: [['clientes']],
+      tempId: 'cliente_temp_1',
+      snapshot: { prestamo: { id: 'prestamo_1', saldoPendiente: 5000 } },
+    });
+    const stores = (global as any).__mockDbStores;
+    for (const [, arr] of stores) {
+      if (arr[0]?.id === getQueue()[0].id) {
+        arr[0].createdAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
+      }
+    }
+    mockUpsertPrestamos.mockClear();
+    mockDeletePago.mockClear();
+
+    const changed = markStaleAsFailed();
+    expect(changed).toBe(1);
     expect(getQueue()[0].status).toBe('failed');
     expect(getQueue()[0].retryable).toBe(false);
-    expect(mockUpsertPrestamos).toHaveBeenCalledWith([prestamoSnapshot.prestamo]);
-    expect(mockDeletePago).toHaveBeenCalledWith('pago_temp_1');
+    // SÍ debe llamar restoreSnapshot y limpiarSinteticos para operaciones no críticas
+    expect(mockUpsertPrestamos).toHaveBeenCalled();
   });
 });
 
 describe('getQueueStats', () => {
   it('cola vacía: todo en cero y oldestAt null', () => {
-    expect(getQueueStats()).toEqual({ pending: 0, failed: 0, total: 0, oldestAt: null });
+    expect(getQueueStats()).toEqual({ pending: 0, failed: 0, expired: 0, total: 0, oldestAt: null });
   });
 
-  it('cuenta pending/failed/total y el item más antiguo', () => {
+  it('cuenta pending/failed/expired/total y el item más antiguo', () => {
     addToQueue({
       endpoint: '/clientes',
       method: 'POST',
@@ -481,12 +512,36 @@ describe('getQueueStats', () => {
       queryKeys: [['prestamos']],
       tempId: 'pago_temp_1',
     });
+    // El pago es operación crítica, si estuviera viejo sería 'expired', no 'failed'
+    // Aquí lo forzamos a failed para testear el conteo
+    const pagoId = getQueue().find((i) => i.endpoint === '/pagos')!.id;
+    updateQueueItem(pagoId, { status: 'failed', retryable: false });
 
     const stats = getQueueStats();
-    expect(stats.pending).toBe(1);
-    expect(stats.failed).toBe(1);
+    expect(stats.pending).toBe(0);
+    expect(stats.failed).toBe(2);
+    expect(stats.expired).toBe(0);
     expect(stats.total).toBe(2);
     expect(stats.oldestAt).toBe(first.createdAt);
+  });
+
+  it('cuenta items expirados correctamente', () => {
+    addToQueue({
+      endpoint: '/pagos',
+      method: 'POST',
+      data: { prestamoId: 'prestamo_1', montoPagado: 3000, metodo: 'EFECTIVO' },
+      queryKeys: [['prestamos']],
+      tempId: 'pago_temp_1',
+    });
+    const pagoId = getQueue()[0].id;
+    // Forzar estado expired
+    updateQueueItem(pagoId, { status: 'expired', retryable: true });
+
+    const stats = getQueueStats();
+    expect(stats.pending).toBe(0);
+    expect(stats.failed).toBe(0);
+    expect(stats.expired).toBe(1);
+    expect(stats.total).toBe(1);
   });
 });
 
@@ -593,5 +648,144 @@ describe('recoverSyncingItems', () => {
       tempId: 'pago_temp_1',
     });
     expect(recoverSyncingItems()).toBe(0);
+  });
+});
+
+describe('discardExpiredItem', () => {
+  beforeEach(() => {
+    mockUpsertPrestamos.mockClear();
+    mockDeletePago.mockClear();
+    mockDeletePrestamo.mockClear();
+  });
+
+  it('B: stale disbursement → expired sin rollback', () => {
+    const prestamoSnapshot = {
+      prestamo: {
+        id: 'prestamo_1',
+        estado: 'APROBADO',
+        saldoPendiente: 5000,
+        montoTotal: 10000,
+      },
+    };
+
+    addToQueue({
+      endpoint: '/prestamos/prestamo_1/desembolsar',
+      method: 'PATCH',
+      data: {},
+      queryKeys: [['prestamos', 'prestamo_1'], ['prestamos']],
+      tempId: 'desembolso_temp_1',
+      tempDisplay: { prestamoId: 'prestamo_1', monto: 10000 },
+    });
+
+    const stores = (global as any).__mockDbStores;
+    for (const [, arr] of stores) {
+      if (arr[0]?.id === getQueue()[0].id) {
+        arr[0].createdAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
+      }
+    }
+
+    const changed = markStaleAsFailed();
+    expect(changed).toBe(1);
+    expect(getQueue()[0].status).toBe('expired');
+    expect(getQueue()[0].retryable).toBe(true);
+    expect(mockUpsertPrestamos).not.toHaveBeenCalled();
+  });
+
+  it('C: stale refinanciar → expired sin rollback', () => {
+    const prestamoSnapshot = {
+      prestamo: {
+        id: 'prestamo_1',
+        estado: 'ACTIVO',
+        saldoPendiente: 5000,
+        montoTotal: 10000,
+        tasaInteres: 24,
+        numeroCuotas: 12,
+      },
+    };
+
+    addToQueue({
+      endpoint: '/prestamos/prestamo_1/refinanciar',
+      method: 'PATCH',
+      data: { nuevasCuotas: 18, nuevaTasa: 30 },
+      queryKeys: [['prestamos', 'prestamo_1'], ['prestamos']],
+      tempId: 'refinanciar_temp_1',
+      tempDisplay: { prestamoId: 'prestamo_1', nuevasCuotas: 18, nuevaTasa: 30 },
+      snapshot: prestamoSnapshot,
+    });
+
+    const stores = (global as any).__mockDbStores;
+    for (const [, arr] of stores) {
+      if (arr[0]?.id === getQueue()[0].id) {
+        arr[0].createdAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
+      }
+    }
+
+    const changed = markStaleAsFailed();
+    expect(changed).toBe(1);
+    expect(getQueue()[0].status).toBe('expired');
+    expect(getQueue()[0].retryable).toBe(true);
+    expect(mockUpsertPrestamos).not.toHaveBeenCalled();
+  });
+
+  it('H: discard disbursement → ACTIVO → APROBADO', () => {
+    // Usar ID numérico para que la normalización de endpoint funcione correctamente
+    // La regex en discardExpiredItem reemplaza /\d+/ por :id, así que el ID no debe contener dígitos sueltos
+    addToQueue({
+      endpoint: '/prestamos/123/desembolsar',
+      method: 'PATCH',
+      data: {},
+      queryKeys: [['prestamos', '123'], ['prestamos']],
+      tempId: 'desembolso_temp_1',
+      tempDisplay: { prestamoId: '123', monto: 10000 },
+    });
+
+    const item = getQueue()[0];
+    updateQueueItem(item.id, { status: 'expired', retryable: true });
+    const expiredItem = getQueue()[0];
+
+    // Configurar préstamo en ACTIVO en el mock store usando la tabla prestamos
+    const stores = (global as any).__mockDbStores;
+    if (!stores.has(prestamos)) stores.set(prestamos, []);
+    const prestamosStore = stores.get(prestamos);
+    prestamosStore.push({ id: '123', estado: 'ACTIVO', monto: 10000 });
+
+    discardExpiredItem(expiredItem);
+
+    // Verificar que el préstamo se actualizó a APROBADO en el mock store
+    const updatedPrestamo = prestamosStore?.find((p: any) => p.id === '123');
+    expect(updatedPrestamo).toBeDefined();
+    expect(updatedPrestamo?.estado).toBe('APROBADO');
+  });
+
+  it('N: refinanciar conserva snapshot para descarte seguro', () => {
+    const prestamoSnapshot = {
+      prestamo: {
+        id: 'prestamo_1',
+        estado: 'ACTIVO',
+        saldoPendiente: 5000,
+        montoTotal: 10000,
+        tasaInteres: 24,
+        numeroCuotas: 12,
+      },
+    };
+
+    addToQueue({
+      endpoint: '/prestamos/prestamo_1/refinanciar',
+      method: 'PATCH',
+      data: { nuevasCuotas: 18, nuevaTasa: 30 },
+      queryKeys: [['prestamos', 'prestamo_1'], ['prestamos']],
+      tempId: 'refinanciar_temp_1',
+      tempDisplay: { prestamoId: 'prestamo_1', nuevasCuotas: 18, nuevaTasa: 30 },
+      snapshot: prestamoSnapshot,
+    });
+
+    const item = getQueue()[0];
+    updateQueueItem(item.id, { status: 'expired', retryable: true });
+    const expiredItem = getQueue()[0];
+
+    mockUpsertPrestamos.mockClear();
+    discardExpiredItem(expiredItem);
+
+    expect(mockUpsertPrestamos).toHaveBeenCalledWith([prestamoSnapshot.prestamo]);
   });
 });

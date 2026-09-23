@@ -76,17 +76,17 @@ function RootLayout() {
         <ErrorBoundary>
           <DatabaseProvider>
             <QueryClientProvider client={queryClient}>
-              <NetworkProvider>
-                <BackgroundPrefetch />
-                <ToastProvider>
+              <ToastProvider>
+                <NetworkProvider>
+                  <BackgroundPrefetch />
                   <AuthVersionSync />
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="index" />
                     <Stack.Screen name="(auth)" />
                     <Stack.Screen name="(app)" />
                   </Stack>
-                </ToastProvider>
-              </NetworkProvider>
+                </NetworkProvider>
+              </ToastProvider>
             </QueryClientProvider>
           </DatabaseProvider>
         </ErrorBoundary>

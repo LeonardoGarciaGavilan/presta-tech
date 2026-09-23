@@ -367,7 +367,9 @@ export function useRefinanciarPrestamo() {
           queryClient.getQueryData<Prestamo>(["prestamos", id]) ??
           getPrestamoById(id);
         let saldoRefinanciado = 0;
+        let prestamoSnapshot: Prestamo | null = null;
         if (cached) {
+          prestamoSnapshot = cached;
           const { prestamo: actualizado, saldoRefinanciado: saldo } =
             construirPrestamoRefinanciadoLocal(cached, data);
           saldoRefinanciado = saldo;
@@ -395,6 +397,7 @@ export function useRefinanciarPrestamo() {
             saldoRefinanciado,
             clienteNombre: clienteNombreDePrestamo(id),
           },
+          snapshot: prestamoSnapshot ? { prestamo: prestamoSnapshot } : undefined,
         });
         return { id, estado: "ACTIVO", esOffline: true } as OfflineResult;
       }

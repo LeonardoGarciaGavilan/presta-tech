@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 
 import { imprimirDocumento, mensajeErrorImpresora } from '@/services/printer.service';
 import { usePrinterStore } from '@/store/printer.store';
@@ -8,7 +8,18 @@ import type { ReciboImprimible } from '@/utils/recibo-pdf';
 
 export type ImprimirReciboResultado =
   | { ok: true }
-  | { ok: false; motivo: 'sin-impresora' | 'error'; mensaje: string };
+  | { ok: false; motivo: 'sin-impresora' | 'error' | 'permiso'; mensaje: string };
+
+async function asegurarPermisoConexion(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  if (Number(Platform.Version) < 31) return true;
+
+  const granted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
+  if (granted) return true;
+
+  const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+}
 
 export function useImprimirRecibo() {
   const printer = usePrinterStore((state) => state.printer);
@@ -28,6 +39,10 @@ export function useImprimirRecibo() {
       const config = usePrinterStore.getState().printer;
       if (!config) {
         return { ok: false, motivo: 'sin-impresora', mensaje: 'No hay impresora configurada' };
+      }
+      const permisoOk = await asegurarPermisoConexion();
+      if (!permisoOk) {
+        return { ok: false, motivo: 'permiso', mensaje: 'Permiso Bluetooth denegado. Concéndelo en ajustes para imprimir.' };
       }
       setImprimiendo(true);
       try {
