@@ -2,6 +2,7 @@ import { PagosService } from './pagos.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import { CreatePagoDto } from './dto/create-pago.dto';
 import { BadRequestException } from '@nestjs/common';
+import { IdempotencyKeyCollisionException } from '../common/filters/idempotency-collision.exception';
 
 function buildService(overrides: Record<string, unknown> = {}) {
   const prisma = {
@@ -195,6 +196,53 @@ describe('PagosService — idempotencia (C3)', () => {
     await expect(
       service.saldarPrestamo('p1', 'emp1', 'u1', 'EFECTIVO'),
     ).rejects.toEqual({ code: 'P2002', message: 'Unique constraint failed' });
+  });
+
+  it('saldarPrestamo: colisión real de idempotencyKey (distinto prestamoId) lanza IdempotencyKeyCollisionException', async () => {
+    // Replay check: no existe para este prestamoId
+    // Transacción: P2002 en idempotencyKey global
+    // Post-check: NO encuentra pago con este prestamoId + idempotencyKey
+    // → debe lanzar IdempotencyKeyCollisionException
+    const findFirst = jest
+      .fn()
+      .mockResolvedValueOnce(null) // replay check para prestamoId p1
+      .mockResolvedValueOnce(null) // post-check del helper (busca p1 + idem-x)
+      .mockResolvedValue(null); // respuestaPagoExistente no se llama
+    const $transaction = jest.fn().mockRejectedValue({
+      code: 'P2002',
+      message: 'Unique constraint failed',
+    });
+    const prestamo = {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'p1',
+        estado: 'ACTIVO',
+        monto: 1000,
+        numeroCuotas: 4,
+        frecuenciaPago: 'MENSUAL',
+        tasaInteres: 5,
+        cliente: { nombre: 'Ana', apellido: 'R', cedula: '000-1' },
+        cuotas: [
+          { id: 'c1', capital: 100, interes: 20, mora: 0, pagada: false },
+        ],
+      }),
+    };
+    const { service, prisma } = buildService({
+      pago: { findFirst },
+      $transaction,
+      prestamo,
+    });
+
+    await expect(
+      service.saldarPrestamo(
+        'p1',
+        'emp1',
+        'u1',
+        'EFECTIVO',
+        undefined,
+        undefined,
+        'idem-x',
+      ),
+    ).rejects.toThrow(IdempotencyKeyCollisionException);
   });
 });
 

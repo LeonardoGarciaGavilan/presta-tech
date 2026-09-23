@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
   Optional,
+  ConflictException,
 } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -14,6 +15,7 @@ import { TenantUtils } from '../common/utils/tenant.utils';
 import { ConfiguracionUtils } from '../common/utils/configuracion.utils';
 import { registrarAuditoria } from '../common/utils/auditoria.utils';
 import { roundMoney, m } from '../common/utils/money';
+import { IdempotencyKeyCollisionException } from '../common/filters/idempotency-collision.exception';
 import { startOfDay, differenceInDays } from 'date-fns';
 import {
   getFechaRD,
@@ -247,6 +249,8 @@ export class PagosService {
   //     bajo el lock, el segundo tx relee el estado y lo encuentra aplicado.
   // En ambos casos se devuelve el pago ya registrado en lugar de propagar un
   // error. Si la key no existe tras el error, el error original se re-lanza.
+  //  3) Colisión real: P2002 pero el post-check NO encuentra la operación
+  //     para este prestamoId + idempotencyKey → lanza IdempotencyKeyCollisionException.
   private async ejecutarTxConIdempotencia<T extends RespuestaPago>(
     fn: () => Promise<T>,
     prestamoId: string,
@@ -272,6 +276,9 @@ export class PagosService {
             resultado: (await this.respuestaPagoExistente(existente.id)) as T,
           };
         }
+        // Colisión real: P2002 o BadRequestException pero NO existe pago
+        // con este prestamoId + idempotencyKey. La key pertenece a otro recurso.
+        throw new IdempotencyKeyCollisionException();
       }
       throw error;
     }

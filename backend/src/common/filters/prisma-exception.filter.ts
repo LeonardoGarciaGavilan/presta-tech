@@ -6,14 +6,28 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { IdempotencyKeyCollisionException } from './idempotency-collision.exception';
 
 const UNIQUE_CONSTRAINT_CODE = 'P2002';
 
-@Catch(PrismaClientKnownRequestError)
+@Catch(PrismaClientKnownRequestError, IdempotencyKeyCollisionException)
 export class PrismaExceptionFilter implements ExceptionFilter {
-  catch(exception: PrismaClientKnownRequestError, host: ArgumentsHost) {
+  catch(
+    exception: PrismaClientKnownRequestError | IdempotencyKeyCollisionException,
+    host: ArgumentsHost,
+  ) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+
+    if (exception instanceof IdempotencyKeyCollisionException) {
+      const errorResponse = exception.getResponse() as Record<string, unknown>;
+      response.status(HttpStatus.CONFLICT).json({
+        statusCode: HttpStatus.CONFLICT,
+        code: errorResponse.code,
+        message: errorResponse.message,
+      });
+      return;
+    }
 
     if (exception.code === UNIQUE_CONSTRAINT_CODE) {
       const meta = exception.meta as { target?: string[] } | undefined;
