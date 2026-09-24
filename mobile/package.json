@@ -13,6 +13,7 @@
     "test:ci": "jest --ci --passWithNoTests --maxWorkers=2"
   },
   "dependencies": {
+    "@expo/config-plugins": "~57.0.0",
     "@expo/vector-icons": "^15.0.3",
     "@hookform/resolvers": "^5.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "119477933710",
+    "project_id": "sas-prestamos",
+    "storage_bucket": "sas-prestamos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:119477933710:android:eeb671bbe3394948c1dbdf",
+        "android_client_info": {
+          "package_name": "com.sasprestamos.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDthSPiituVWtXp4zKLTB1c8EIBkhmEqPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

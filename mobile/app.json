@@ -26,6 +26,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.sasprestamos.app",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 11
     },
     "web": {
