@@ -4,6 +4,8 @@ export interface ConfiguracionFinanciera {
   montoMinimoPrestamo: number;
   montoMaximoPrestamo: number | null;
   montoMaximoPago: number | null;
+  /** Si false, los pagos no pueden exceder la cuota objetivo (sin abonos a capital) */
+  permitirAbonoCapital: boolean;
 }
 
 export class ConfiguracionUtils {
@@ -20,6 +22,7 @@ export class ConfiguracionUtils {
         montoMinimoPrestamo: 500,
         montoMaximoPrestamo: null,
         montoMaximoPago: null,
+        permitirAbonoCapital: true,
       };
     }
 
@@ -27,6 +30,7 @@ export class ConfiguracionUtils {
       montoMinimoPrestamo: config.montoMinimoPrestamo ?? 500,
       montoMaximoPrestamo: config.montoMaximoPrestamo ?? null,
       montoMaximoPago: config.montoMaximoPago ?? null,
+      permitirAbonoCapital: config.permitirAbonoCapital ?? true,
     };
   }
 

@@ -457,16 +457,18 @@ export class PrestamosService {
 
           if (tokens.length > 0) {
             const titulo = `Alerta — ${params.tipo.replace('_', ' ')}`;
-            void this.pushService.enviarPushNotifications(
-              tokens,
-              titulo,
-              params.descripcion,
-              {
+            void this.pushService
+              .enviarPushNotifications(tokens, titulo, params.descripcion, {
                 alertaId: alertaCreada.id,
                 prestamoId: params.prestamoId,
                 screen: 'admin/alertas',
-              },
-            );
+              })
+              .catch((error) =>
+                this.logger.error(
+                  'Error enviando push tras crear alerta:',
+                  error,
+                ),
+              );
           }
         } catch (e) {
           this.logger.error('Error enviando push notifications:', e);

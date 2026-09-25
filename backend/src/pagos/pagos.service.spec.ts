@@ -709,6 +709,66 @@ describe('PagosService — C7 (concurrencia y replay)', () => {
     });
   });
 
+  it('C7f (3.2): con permitirAbonoCapital=false rechaza pagos que excedan la cuota', async () => {
+    const cuotaDos = {
+      id: 'c2',
+      numero: 2,
+      monto: 120,
+      capital: 100,
+      interes: 20,
+      mora: 0,
+      fechaVencimiento: new Date('2026-08-10T00:00:00.000Z'),
+    };
+    const { tx } = buildTx({
+      cuotasPendientes: [
+        { ...cuotaPendiente, pagada: false },
+        { ...cuotaDos, pagada: false },
+      ],
+      cuotasPostPago: [{ ...cuotaDos, pagada: false }],
+    });
+    const $transaction = jest
+      .fn()
+      .mockImplementation(
+        (cb: (tx: Record<string, unknown>) => Promise<unknown>) => cb(tx),
+      );
+    const prestamo = {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'p1',
+        estado: 'ACTIVO',
+        monto: 1000,
+        numeroCuotas: 4,
+        frecuenciaPago: 'MENSUAL',
+        tasaInteres: 5,
+        cliente: { nombre: 'Ana', apellido: 'R', cedula: '000-1' },
+        cuotas: [
+          { ...cuotaPendiente, pagada: false },
+          { ...cuotaDos, pagada: false },
+        ],
+      }),
+    };
+    const { service } = buildService({
+      $transaction,
+      prestamo,
+      // El negocio deshabilita abonos a capital
+      configuracion: {
+        findUnique: jest.fn().mockResolvedValue({
+          permitirAbonoCapital: false,
+        }),
+      },
+    });
+
+    // c1 tiene total 120 (100 capital + 20 interés). Pagar 150 → excedente 30
+    // (saldo pendiente 240, así el pago no excede el saldo real primero).
+    await expect(
+      service.registrarPago(
+        { prestamoId: 'p1', montoPagado: 150, metodo: 'EFECTIVO' },
+        'emp1',
+        'u1',
+      ),
+    ).rejects.toThrow('no permite abonos a capital');
+    expect(tx.pago.create).not.toHaveBeenCalled();
+  });
+
   it('C7e (A1): abono parcial de cuota con mora NO infla monto con la mora restante', async () => {
     const cuotaConMora = {
       id: 'c1',

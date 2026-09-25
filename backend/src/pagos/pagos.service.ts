@@ -442,6 +442,14 @@ export class PagosService {
           // Lo que sobra tras cubrir la cuota objetivo es excedente
           excedente = roundMoney(montoPagado);
 
+          // 🔒 permitirAbonoCapital=false: el pago no puede exceder
+          // mora+interés+capital de la cuota objetivo (sin abonos a capital).
+          if (config.permitirAbonoCapital === false && excedente > 0) {
+            throw new BadRequestException(
+              'Este negocio no permite abonos a capital. El monto del pago no puede exceder el total de la cuota.',
+            );
+          }
+
           // ¿Cubre el pago el total exacto de la cuota?
           const pagoCompleto = roundMoney(dto.montoPagado) >= montoExacto;
 

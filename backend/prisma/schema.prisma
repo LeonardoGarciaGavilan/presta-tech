@@ -203,6 +203,8 @@ model Prestamo {
 }
 
 model Cuota {
+  // Mora flat única (3.1): cargo único de % mensual sobre `monto`, NO
+  // prorrateado ni capitalizable. Se recalcula en calcularMora (prestamos.service).
   id               String    @id @default(uuid())
   numero           Int
   monto            Decimal   @db.Decimal(14, 2)

@@ -13,6 +13,12 @@ import { MovimientoFinancieroTipo } from '@prisma/client';
 
 // Tipos de movimiento que constituyen egresos de caja (salida de efectivo).
 // Fuente única de verdad para el cálculo de "esperado" en cierre y listado.
+// Nota de diseño (3.3): GASTO y RETIRO_GANANCIAS son egresos globales del
+// negocio y pueden registrarse sin cajaId (null). Al no asociarse a una caja,
+// no afectan el esperado por caja del día; su impacto se refleja en finanzas
+// (gastosTotales OPERATIVO / totalRetiradoGanancias) y en el capital de la
+// empresa (capital.service.ts). GASTO_CAPITAL sí se registra siempre dentro de
+// una caja.
 const EGRESOS_CAJA: MovimientoFinancieroTipo[] = [
   'DESEMBOLSO',
   'GASTO',

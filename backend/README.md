@@ -57,6 +57,19 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Reglas de negocio
+
+- **Mora flat única (3.1)**: la mora es un cargo único de % mensual sobre el
+  `monto` de la cuota (`configuracion.moraPorcentajeMensual`), calculado en
+  `calcularMora` (`prestamos.service.ts`). No se prorratea por días ni se
+  capitaliza.
+- **Abonos a capital (3.2)**: `permitirAbonoCapital` (default `true`) controla
+  si un pago puede exceder el total de la cuota (`POST /pagos`); si es `false` y
+  el pago genera excedente, se rechaza con `400`. `saldarPrestamo` no aplica.
+- **Egresos globales (3.3)**: `GASTO` y `RETIRO_GANANCIAS` pueden registrarse sin
+  `cajaId` (egresos globales del negocio); `GASTO_CAPITAL` y `DESEMBOLSO`
+  siempre se asocian a una caja. Ver `EGRESOS_CAJA` (`caja.service.ts`).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

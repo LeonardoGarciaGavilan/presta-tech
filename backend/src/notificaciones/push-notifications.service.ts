@@ -2,6 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 import { PrismaService } from '../prisma/prisma.service';
 
+const MAX_TITLE_LENGTH = 48;
+const MAX_BODY_LENGTH = 200;
+
+function truncar(texto: string, max: number): string {
+  const limpio = texto.trim();
+  if (limpio.length <= max) return limpio;
+  return `${limpio.slice(0, max).trimEnd()}…`;
+}
+
 @Injectable()
 export class PushNotificationsService {
   private readonly expo = new Expo();
@@ -24,8 +33,8 @@ export class PushNotificationsService {
     const messages: ExpoPushMessage[] = tokensValidos.map((token) => ({
       to: token,
       sound: 'default',
-      title: titulo,
-      body: cuerpo,
+      title: truncar(titulo, MAX_TITLE_LENGTH),
+      body: truncar(cuerpo, MAX_BODY_LENGTH),
       data,
       priority: 'high' as const,
       channelId: 'alertas',
@@ -49,35 +58,39 @@ export class PushNotificationsService {
 
     if (receiptIds.length === 0) return;
 
-    const receipts =
-      await this.expo.getPushNotificationReceiptsAsync(receiptIds);
+    try {
+      const receipts =
+        await this.expo.getPushNotificationReceiptsAsync(receiptIds);
 
-    for (const [id, receipt] of Object.entries(receipts)) {
-      if (receipt.status !== 'error') continue;
+      for (const [id, receipt] of Object.entries(receipts)) {
+        if (receipt.status !== 'error') continue;
 
-      const errorCode = receipt.details?.error;
+        const errorCode = receipt.details?.error;
 
-      switch (errorCode) {
-        case 'DeviceNotRegistered':
-          this.logger.warn(
-            `Token stale detectado (DeviceNotRegistered): ${id}`,
-          );
-          await this.limpiarTokenStale(id);
-          break;
-        case 'InvalidCredentials':
-          this.logger.warn(`Token push inválido (InvalidCredentials): ${id}`);
-          break;
-        case 'MessageTooBig':
-          this.logger.warn(`Mensaje demasiado grande: ${id}`);
-          break;
-        case 'MessageRateExceeded':
-          this.logger.warn(`Límite de mensajes excedido: ${id}`);
-          break;
-        default:
-          this.logger.warn(
-            `Error desconocido en push receipt [${id}]: ${errorCode}`,
-          );
+        switch (errorCode) {
+          case 'DeviceNotRegistered':
+            this.logger.warn(
+              `Token stale detectado (DeviceNotRegistered): ${id}`,
+            );
+            await this.limpiarTokenStale(id);
+            break;
+          case 'InvalidCredentials':
+            this.logger.warn(`Token push inválido (InvalidCredentials): ${id}`);
+            break;
+          case 'MessageTooBig':
+            this.logger.warn(`Mensaje demasiado grande: ${id}`);
+            break;
+          case 'MessageRateExceeded':
+            this.logger.warn(`Límite de mensajes excedido: ${id}`);
+            break;
+          default:
+            this.logger.warn(
+              `Error desconocido en push receipt [${id}]: ${errorCode}`,
+            );
+        }
       }
+    } catch (error) {
+      this.logger.error('Error obteniendo push receipts:', error);
     }
   }
 
