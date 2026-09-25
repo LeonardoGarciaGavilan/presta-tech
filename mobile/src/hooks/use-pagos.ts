@@ -14,6 +14,7 @@ import type {
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { insertPago, getPagosByPrestamoId, getAllPagos } from '@/db/pagos-db';
 import { aplicarPagoLocal, getPrestamoById, saldarPrestamoLocal } from '@/db/prestamos-db';
+import { getConfiguracion } from '@/db/config-db';
 import { getClienteNombre } from '@/db/clientes-db';
 import { useAuthStore } from '@/store/auth.store';
 import { formatCurrency, getFechaRD } from '@/utils/formatters';
@@ -99,7 +100,19 @@ async function encolarPagoOffline(
     ...(opts?.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}),
   });
   const now = new Date().toISOString();
-  const distribucion = aplicarPagoLocal(dto.prestamoId, dto.cuotaId, dto.montoPagado);
+  const configLocal = getConfiguracion();
+  const distribucion = aplicarPagoLocal(
+    dto.prestamoId,
+    dto.cuotaId,
+    dto.montoPagado,
+    undefined,
+    {
+      // Replica el guard del backend (3.2) solo cuando validamos de verdad:
+      // si es un re-encolado tras fallo incierto, el servidor ya validó.
+      permitirAbonoCapital:
+        validarLocal && configLocal ? configLocal.permitirAbonoCapital : undefined,
+    },
+  );
   const syntheticPago: Pago = {
     id: tempId,
     montoTotal: dto.montoPagado,

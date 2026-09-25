@@ -332,11 +332,14 @@ export interface DistribucionPagoLocal {
 // Aplica localmente (offline) un pago a las cuotas del préstamo replicando la
 // lógica del backend: mora → interés → capital, excedente a cuotas siguientes,
 // y recálculo de saldo / mora / estado. Devuelve la distribución calculada.
+// opciones.permitirAbonoCapital=false replica el guard del backend (3.2):
+// si el pago genera excedente (abono a capital), se rechaza con BadRequest.
 export function aplicarPagoLocal(
   prestamoId: string,
   cuotaId: string | undefined,
   montoPagadoRaw: number,
   fecha = new Date().toISOString(),
+  opciones: { permitirAbonoCapital?: boolean } = {},
 ): DistribucionPagoLocal {
   const resultadoVacio: DistribucionPagoLocal = {
     capital: 0,
@@ -382,6 +385,14 @@ export function aplicarPagoLocal(
   }
   const excedente = roundMoney(montoPagado);
   const pagoCompleto = roundMoney(montoPagadoRaw) >= montoExacto;
+
+  // 🔒 Espejo del guard del backend (3.2): sin abonos a capital, el pago no
+  // puede exceder la cuota objetivo → lanzar el mismo mensaje.
+  if (opciones.permitirAbonoCapital === false && excedente > 0) {
+    throw new Error(
+      'Este negocio no permite abonos a capital. El monto del pago no puede exceder el total de la cuota.',
+    );
+  }
 
   const map = new Map(todas.map((c) => [c.id, { ...c }]));
 

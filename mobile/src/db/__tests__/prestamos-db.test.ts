@@ -396,6 +396,24 @@ describe('aplicarPagoLocal (offline)', () => {
     expect(res.pagoCompleto).toBe(false);
     expect(res.capital).toBe(0);
   });
+
+  it('3.2: con permitirAbonoCapital=false rechaza pagos que excedan la cuota', () => {
+    seedConCuotas();
+    expect(() =>
+      aplicarPagoLocal('prestamo_1', 'cuota_1', 3500, undefined, {
+        permitirAbonoCapital: false,
+      }),
+    ).toThrow('no permite abonos a capital');
+  });
+
+  it('3.2: permitirAbonoCapital=false permite el pago exacto (sin excedente)', () => {
+    seedConCuotas();
+    const res = aplicarPagoLocal('prestamo_1', 'cuota_1', 3000, undefined, {
+      permitirAbonoCapital: false,
+    });
+    expect(res.abonoCapital).toBe(0);
+    expect(res.pagoCompleto).toBe(true);
+  });
 });
 
 describe('saldarPrestamoLocal (offline)', () => {

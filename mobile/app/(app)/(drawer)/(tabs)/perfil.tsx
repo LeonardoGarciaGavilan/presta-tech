@@ -14,7 +14,7 @@ import { Colors,
   scale } from '@/constants/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { usePermisos } from '@/permisos/use-permisos';
-import { logout } from '@/api/auth.api';
+import { logout, clearPushToken } from '@/api/auth.api';
 import { clearSession } from '@/utils/session';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
@@ -150,6 +150,11 @@ export default function PerfilScreen() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    try {
+      await clearPushToken();
+    } catch {
+      // ignore — token may already be null
+    }
     try {
       await logout();
     } catch {

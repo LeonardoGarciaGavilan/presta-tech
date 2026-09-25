@@ -37,6 +37,10 @@ jest.mock('@/db/prestamos-db', () => ({
   saldarPrestamoLocal: (...args: any[]) => mockSaldarPrestamoLocal(...args),
 }));
 
+jest.mock('@/db/config-db', () => ({
+  getConfiguracion: jest.fn(() => null),
+}));
+
 jest.mock('@/db/clientes-db', () => ({
   getClienteNombre: (...args: any[]) => mockGetClienteNombre(...args),
 }));
