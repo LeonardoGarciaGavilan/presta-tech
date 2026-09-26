@@ -287,8 +287,8 @@ describe('Permisos (e2e)', () => {
       get(tokenAdmin, `${PREFIX}/configuracion`).expect(200));
     it('GET /dashboard → 200', () =>
       get(tokenAdmin, `${PREFIX}/dashboard`).expect(200));
-    it('GET /finanzas/resumen → 200', () =>
-      get(tokenAdmin, `${PREFIX}/finanzas/resumen`).expect(200));
+    it('GET /finanzas/resumen-mensual → 200', () =>
+      get(tokenAdmin, `${PREFIX}/finanzas/resumen-mensual`).expect(200));
     it('GET /empleados → 200', () =>
       get(tokenAdmin, `${PREFIX}/empleados`).expect(200));
     it('GET /auditoria → 200', () =>
@@ -357,8 +357,8 @@ describe('Permisos (e2e)', () => {
       expectPermisoDenegado(post(tokenEmpleado, `${PREFIX}/gastos`)));
     it('GET /usuarios → 403 (falta usuarios:ver)', () =>
       expectPermisoDenegado(get(tokenEmpleado, `${PREFIX}/usuarios`)));
-    it('GET /finanzas/resumen → 403 (falta finanzas:ver)', () =>
-      expectPermisoDenegado(get(tokenEmpleado, `${PREFIX}/finanzas/resumen`)));
+    it('GET /finanzas/resumen-mensual → 403 (falta finanzas:ver)', () =>
+      expectPermisoDenegado(get(tokenEmpleado, `${PREFIX}/finanzas/resumen-mensual`)));
     it('GET /empleados → 403 (falta empleados:ver)', () =>
       expectPermisoDenegado(get(tokenEmpleado, `${PREFIX}/empleados`)));
     it('GET /auditoria → 403 (falta auditoria:ver)', () =>

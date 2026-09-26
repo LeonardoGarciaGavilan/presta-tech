@@ -9,7 +9,8 @@ import { CreateInyeccionDto } from './dto/create-inyeccion.dto';
 import { CreateRetiroDto } from './dto/create-retiro.dto';
 import { CreateCapitalInicialDto } from './dto/create-capital.dto';
 import { calcularSaldoDesdeCuotas } from '../common/utils/prestamo.utils';
-import { m } from '../common/utils/money';
+import { getFechaRD } from '../common/utils/fecha.utils';
+import { m, roundMoney } from '../common/utils/money';
 import type { MoneyInput } from '../common/utils/money';
 
 export interface Alerta {
@@ -123,25 +124,40 @@ export class CapitalService {
     });
 
     // Obtener total de retiros de capital desde MovimientoFinanciero
-    const retirosCapital = await this.prisma.movimientoFinanciero.aggregate({
-      where: { empresaId, tipo: 'RETIRO_CAPITAL' },
-      _sum: { capital: true },
-    });
+    const [retirosCapital, gastosCapital] = await Promise.all([
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'RETIRO_CAPITAL' },
+        _sum: { capital: true },
+      }),
+      this.prisma.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'GASTO_CAPITAL' },
+        _sum: { capital: true },
+      }),
+    ]);
     const totalRetirosCapital = Math.abs(m(retirosCapital._sum.capital ?? 0));
+
+    // Gastos clasificados como CAPITAL (Gasto.tipo='CAPITAL') se descuentan
+    // del capital, no de las ganancias (paridad con el ledger GASTO_CAPITAL).
+    const totalGastosCapital = roundMoney(m(gastosCapital._sum.capital ?? 0));
 
     const capitalInicial = capital?.capitalInicial ?? 0;
     const totalInyecciones = inyecciones.reduce(
       (sum, i) => sum + m(i.monto),
       0,
     );
-    const capitalTotal =
-      m(capitalInicial) + totalInyecciones - totalRetirosCapital;
+    const capitalTotal = roundMoney(
+      m(capitalInicial) +
+        totalInyecciones -
+        totalRetirosCapital -
+        totalGastosCapital,
+    );
 
     return {
       capitalInicial,
       capitalTotal,
       totalInyecciones,
       totalRetirosCapital,
+      totalGastosCapital,
       tieneCapitalRegistrado: !!capital,
       fechaRegistro: capital?.fechaRegistro ?? null,
       observaciones: capital?.observaciones ?? null,
@@ -252,7 +268,7 @@ export class CapitalService {
       m(totalIntereses._sum.interes ?? 0) + m(totalIntereses._sum.mora ?? 0);
     const totalRetirado = m(totalRetiros._sum.monto ?? 0);
 
-    return Math.round((totalGanado - totalRetirado) * 100) / 100;
+    return roundMoney(totalGanado - totalRetirado);
   }
 
   async retirarGanancias(dto: CreateRetiroDto, user: any) {
@@ -322,10 +338,8 @@ export class CapitalService {
   // ─── CALCULAR CAPITAL RETIRABLE ─────────────────────────────────
   // Capital que el usuario puede retirar del patrimonio
   // = Patrimonio - Ganancias - Caja - Calle
-  // Sin afectar la liquidez mínima operativa (RD$5,000)
+  // Sin afectar la liquidez mínima operativa (MINIMO_OPERATIVO = 10,000)
   async calcularCapitalRetirable(empresaId: string): Promise<number> {
-    const MINIMO_OPERATIVO = 5000;
-
     // Obtener componentes del patrimonio
     const capitalData = await this.getCapitalEmpresa(empresaId);
     const capitalTotal = capitalData.capitalTotal;
@@ -343,48 +357,15 @@ export class CapitalService {
     ]);
     const gananciasNetas = Math.max(
       0,
-      Math.round(
-        (m(ingresos._sum.interes ?? 0) +
+      roundMoney(
+        m(ingresos._sum.interes ?? 0) +
           m(ingresos._sum.mora ?? 0) -
-          Math.abs(m(gastos._sum.interes ?? 0))) *
-          100,
-      ) / 100,
+          Math.abs(m(gastos._sum.interes ?? 0)),
+      ),
     );
 
-    // Calcular dinero en caja
-    const cajas = await this.prisma.cajaSesion.findMany({
-      where: { empresaId, estado: 'ABIERTA' },
-      select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
-    });
-    const dineroEnCaja =
-      Math.round(
-        cajas.reduce(
-          (sum, c) =>
-            sum +
-            m(c.montoInicial ?? 0) +
-            m(c.totalIngresos ?? 0) -
-            m(c.totalEgresos ?? 0),
-          0,
-        ) * 100,
-      ) / 100;
-
-    // Calcular dinero en calle
-    const [prestamos, cobros] = await Promise.all([
-      this.prisma.prestamo.aggregate({
-        where: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
-        _sum: { monto: true },
-      }),
-      this.prisma.pago.aggregate({
-        where: { prestamo: { empresaId } },
-        _sum: { capital: true },
-      }),
-    ]);
-    const dineroEnCalle = Math.max(
-      0,
-      Math.round(
-        (m(prestamos._sum.monto ?? 0) - m(cobros._sum.capital ?? 0)) * 100,
-      ) / 100,
-    );
+    const dineroEnCaja = await this.calcularDineroEnCaja(empresaId);
+    const dineroEnCalle = await this.calcularCalle(empresaId);
 
     // Calcular patrimonio total
     const retiros = await this.prisma.retiroGanancias.aggregate({
@@ -392,23 +373,21 @@ export class CapitalService {
       _sum: { monto: true },
     });
     const totalRetiros = m(retiros._sum.monto ?? 0);
-    const patrimonioTotal =
-      Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
+    const patrimonioTotal = roundMoney(
+      capitalTotal + gananciasNetas - totalRetiros,
+    );
 
     // Capital retirable = Patrimonio - Ganancias - Caja - Calle
-    const capitalRetirable = Math.max(
+    return Math.max(
       0,
-      Math.round(
-        (patrimonioTotal -
+      roundMoney(
+        patrimonioTotal -
           gananciasNetas -
           dineroEnCaja -
           dineroEnCalle -
-          MINIMO_OPERATIVO) *
-          100,
-      ) / 100,
+          MINIMO_OPERATIVO,
+      ),
     );
-
-    return Math.max(0, capitalRetirable);
   }
 
   // ─── RETIRAR CAPITAL ───────────────────────────────────────────
@@ -431,19 +410,12 @@ export class CapitalService {
       );
     }
 
-    // Validar capital retirable disponible
+    // Validar capital retirable disponible (capitalRetirable ya descuenta la
+    // liquidez mínima operativa, por lo que no hay validación adicional).
     const capitalRetirable = await this.calcularCapitalRetirable(empresaId);
     if (dto.monto > capitalRetirable) {
       throw new BadRequestException(
         `No hay suficiente capital disponible para retirar. Disponible: RD$${capitalRetirable.toLocaleString()}`,
-      );
-    }
-
-    // Validar liquidez mínima
-    const MINIMO_OPERATIVO = 5000;
-    if (dto.monto > capitalRetirable - MINIMO_OPERATIVO) {
-      throw new BadRequestException(
-        `No puedes retirar este monto porque compromete la liquidez operativa mínima de RD$${MINIMO_OPERATIVO.toLocaleString()}`,
       );
     }
 
@@ -481,11 +453,6 @@ export class CapitalService {
       1,
     );
 
-    const inicioDia = new Date();
-    inicioDia.setHours(0, 0, 0, 0);
-    const finDia = new Date();
-    finDia.setHours(23, 59, 59, 999);
-
     const [
       capitalData,
       totalesPagos,
@@ -495,9 +462,8 @@ export class CapitalService {
       totalRetirosCapitalData,
       cajasAbiertas,
       interesEsperado,
+      saldoVivoCuotas,
       movimientosMensuales,
-      pagosDelDia,
-      desembolsosDelDia,
     ] = await Promise.all([
       this.getCapitalEmpresa(empresaId),
       this.prisma.pago.aggregate({
@@ -520,7 +486,7 @@ export class CapitalService {
         },
       }),
       this.prisma.gasto.aggregate({
-        where: { empresaId },
+        where: { empresaId, tipo: 'OPERATIVO' },
         _sum: { monto: true },
       }),
       this.prisma.retiroGanancias.aggregate({
@@ -533,14 +499,28 @@ export class CapitalService {
       }),
       this.prisma.cajaSesion.aggregate({
         where: { empresaId, estado: 'ABIERTA' },
-        _sum: { montoInicial: true },
+        _sum: { montoInicial: true, totalIngresos: true, totalEgresos: true },
       }),
       this.prisma.cuota.aggregate({
         where: {
-          prestamo: { empresaId },
+          pagada: false,
+          prestamo: {
+            empresaId,
+            estado: { in: ['ACTIVO', 'ATRASADO'] },
+          },
           fechaVencimiento: { lte: ahora },
         },
         _sum: { interes: true },
+      }),
+      this.prisma.cuota.aggregate({
+        where: {
+          pagada: false,
+          prestamo: {
+            empresaId,
+            estado: { in: ['ACTIVO', 'ATRASADO'] },
+          },
+        },
+        _sum: { capital: true, interes: true, mora: true },
       }),
       this.prisma.movimientoFinanciero.findMany({
         where: {
@@ -554,54 +534,24 @@ export class CapitalService {
           mora: true,
         },
       }),
-      this.prisma.pago.aggregate({
-        where: {
-          prestamo: { empresaId },
-          metodo: 'EFECTIVO',
-          createdAt: {
-            gte: inicioDia,
-            lte: finDia,
-          },
-        },
-        _sum: {
-          montoTotal: true,
-        },
-      }),
-      this.prisma.desembolsoCaja.aggregate({
-        where: {
-          empresaId,
-          createdAt: {
-            gte: inicioDia,
-            lte: finDia,
-          },
-        },
-        _sum: {
-          monto: true,
-        },
-      }),
     ]);
 
-    const gananciasBrutas =
-      Math.round(
-        (m(totalesPagos._sum.interes ?? 0) + m(totalesPagos._sum.mora ?? 0)) *
-          100,
-      ) / 100;
+    const gananciasBrutas = roundMoney(
+      m(totalesPagos._sum.interes ?? 0) + m(totalesPagos._sum.mora ?? 0),
+    );
 
-    const gastosTotales =
-      Math.round(m(totalesGastos._sum.monto ?? 0) * 100) / 100;
-    const totalCapitalRecuperado =
-      Math.round(m(totalesPagos._sum.capital ?? 0) * 100) / 100;
-    const totalDesembolsado =
-      Math.round(m(totalesDesembolsos._sum.monto ?? 0) * 100) / 100;
-    const totalRetiradoGanancias =
-      Math.round(m(totalRetirosGananciasData._sum.monto ?? 0) * 100) / 100;
+    const gastosTotales = roundMoney(m(totalesGastos._sum.monto ?? 0));
+    const totalDesembolsado = roundMoney(m(totalesDesembolsos._sum.monto ?? 0));
+    const totalRetiradoGanancias = roundMoney(
+      m(totalRetirosGananciasData._sum.monto ?? 0),
+    );
     const totalRetirosCapital = Math.abs(
       m(totalRetirosCapitalData._sum.capital ?? 0),
     );
     const totalRetirosCompleto = totalRetiradoGanancias + totalRetirosCapital;
 
     // Resultado operativo real
-    const resultadoOperativo = gananciasBrutas - gastosTotales;
+    const resultadoOperativo = roundMoney(gananciasBrutas - gastosTotales);
 
     // Si queda negativo, consume capital
     const excedenteQueConsumeCapital =
@@ -611,32 +561,36 @@ export class CapitalService {
     const gananciasNetas = resultadoOperativo > 0 ? resultadoOperativo : 0;
 
     // Capital ajustado
-    const capitalAjustado =
-      capitalData.capitalTotal - excedenteQueConsumeCapital;
+    const capitalAjustado = roundMoney(
+      capitalData.capitalTotal - excedenteQueConsumeCapital,
+    );
 
     // Patrimonio real (incluye ambos tipos de retiros)
-    const patrimonioTotal =
-      capitalAjustado + gananciasNetas - totalRetirosCompleto;
-
-    const dineroEnCalle = Math.max(
-      0,
-      Math.round((totalDesembolsado - totalCapitalRecuperado) * 100) / 100,
+    const patrimonioTotal = roundMoney(
+      capitalAjustado + gananciasNetas - totalRetirosCompleto,
     );
-    const montoInicialCajas =
-      Math.round(m(cajasAbiertas._sum.montoInicial ?? 0) * 100) / 100;
 
-    // ⚠️ IMPORTANTE:
-    // dineroEnCaja es MÉTRICA DEL DÍA (operativa)
-    // Usa pagos y desembolsos filtrados por fecha (hoy)
-    // NO usar datos históricos aquí
-    const totalPagosHoy = m(pagosDelDia._sum?.montoTotal ?? 0);
-    const totalDesembolsosHoy = m(desembolsosDelDia._sum?.monto ?? 0);
+    // D1: Dinero en la calle = saldo vivo desde cuotas no pagadas de
+    // préstamos ACTIVO/ATRASADO (capital + interés + mora).
+    const saldoVivoCalle = roundMoney(
+      m(saldoVivoCuotas._sum.capital ?? 0) +
+        m(saldoVivoCuotas._sum.interes ?? 0) +
+        m(saldoVivoCuotas._sum.mora ?? 0),
+    );
+    const dineroEnCalle = Math.max(0, saldoVivoCalle);
+    const montoInicialCajas = roundMoney(
+      m(cajasAbiertas._sum.montoInicial ?? 0),
+    );
 
+    // Caja actual (canónica) = Σ sobre las sesiones ABIERTAS de
+    // (montoInicial + ingresos - egresos). Mismo criterio que validarBalance.
     const dineroEnCaja = Math.max(
       0,
-      Math.round(
-        (montoInicialCajas + totalPagosHoy - totalDesembolsosHoy) * 100,
-      ) / 100,
+      roundMoney(
+        m(cajasAbiertas._sum.montoInicial ?? 0) +
+          m(cajasAbiertas._sum.totalIngresos ?? 0) -
+          m(cajasAbiertas._sum.totalEgresos ?? 0),
+      ),
     );
 
     const metricas = this.calcularMetricas(
@@ -650,14 +604,14 @@ export class CapitalService {
     );
 
     const resumen = {
-      totalCobrado:
-        Math.round(m(totalesPagos._sum.montoTotal ?? 0) * 100) / 100,
-      totalInteres: gananciasBrutas,
-      totalMora: Math.round(m(totalesPagos._sum.mora ?? 0) * 100) / 100,
+      totalCobrado: roundMoney(m(totalesPagos._sum.montoTotal ?? 0)),
+      // totalInteres es SOLO interés (sin mora) para que
+      // capital + interes + mora sumen totalCobrado de forma coherente.
+      totalInteres: roundMoney(m(totalesPagos._sum.interes ?? 0)),
+      totalMora: roundMoney(m(totalesPagos._sum.mora ?? 0)),
       totalGastos: gastosTotales,
       totalDesembolsos: totalDesembolsado,
-      balanceNeto:
-        Math.round((gananciasNetas - totalRetirosCompleto) * 100) / 100,
+      balanceNeto: roundMoney(gananciasNetas - totalRetirosCompleto),
     };
 
     const dinero = {
@@ -718,7 +672,9 @@ export class CapitalService {
         netas: gananciasNetas,
         brutas: gananciasBrutas,
         gastos: gastosTotales,
-        totalInteresCobrado: gananciasBrutas,
+        // totalInteresCobrado = interés únicamente (sin mora), coherente con
+        // resumen.totalInteres. No duplica "brutas".
+        totalInteresCobrado: resumen.totalInteres,
         totalRetiros: totalRetirosCompleto,
       },
       dinero: {
@@ -758,14 +714,18 @@ export class CapitalService {
     const dineroOcioso = Math.max(0, dineroEnCaja - MINIMO_OPERATIVO);
 
     const movimientosPorMes = this.agruparPorMes(movimientosMensuales);
-    const mesActualKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-    const mesAnteriorKey = `${new Date().getFullYear()}-${String(new Date().getMonth()).padStart(2, '0')}`;
+    // Claves de mes en zona RD (YYYY-MM) para comparar mes actual vs anterior.
+    const ahora = new Date();
+    const mesActualKey = getFechaRD(ahora).slice(0, 7);
+    const mesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+    const mesAnteriorKey = getFechaRD(mesAnterior).slice(0, 7);
 
     const gananciasMesActual = movimientosPorMes[mesActualKey] ?? 0;
     const gananciasMesAnterior = movimientosPorMes[mesAnteriorKey] ?? 0;
 
-    const crecimientoMensual =
-      Math.round((gananciasMesActual - gananciasMesAnterior) * 100) / 100;
+    const crecimientoMensual = roundMoney(
+      gananciasMesActual - gananciasMesAnterior,
+    );
 
     return {
       rentabilidad,
@@ -782,8 +742,8 @@ export class CapitalService {
     const agrupado: Record<string, number> = {};
 
     for (const mov of movimientos) {
-      const fecha = new Date(mov.fecha);
-      const mesKey = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+      // Buckets de mes en zona RD (YYYY-MM) para coherencia con finanzas.service
+      const mesKey = getFechaRD(mov.fecha).slice(0, 7);
       if (!agrupado[mesKey]) {
         agrupado[mesKey] = 0;
       }
@@ -791,7 +751,7 @@ export class CapitalService {
     }
 
     for (const key in agrupado) {
-      agrupado[key] = Math.round(agrupado[key] * 100) / 100;
+      agrupado[key] = roundMoney(agrupado[key]);
     }
 
     return agrupado;
@@ -802,31 +762,20 @@ export class CapitalService {
       where: { empresaId, activa: true },
       include: {
         usuario: { select: { id: true, nombre: true } },
-        clientes: {
-          include: {
-            cliente: true,
-          },
-        },
       },
     });
 
-    const rutaIds = rutas.map((r) => r.id);
+    const rutaIds = new Set(rutas.map((r) => r.id));
 
-    const prestamosPorRuta = await this.prisma.prestamo.findMany({
+    // Todos los préstamos ACTIVO/ATRASADO de la empresa (no solo los de
+    // clientes con ruta): así el total de dinero en calle cuadra con D1.
+    const prestamos = await this.prisma.prestamo.findMany({
       where: {
-        cliente: {
-          rutaClientes: {
-            some: {
-              rutaId: { in: rutaIds },
-            },
-          },
-        },
         empresaId,
         estado: { in: ['ACTIVO', 'ATRASADO'] },
       },
       select: {
         id: true,
-        monto: true,
         clienteId: true,
         cliente: {
           select: {
@@ -843,14 +792,9 @@ export class CapitalService {
       },
     });
 
-    const pagosPorRuta = await this.prisma.pago.findMany({
+    const pagos = await this.prisma.pago.findMany({
       where: {
         prestamo: {
-          cliente: {
-            rutaClientes: {
-              some: { rutaId: { in: rutaIds } },
-            },
-          },
           empresaId,
         },
       },
@@ -873,46 +817,94 @@ export class CapitalService {
       },
     });
 
-    const resumenRutas = rutas.map((ruta) => {
-      const clientesIds = new Set(ruta.clientes.map((rc) => rc.clienteId));
+    // Cada préstamo/pago se asigna a UNA sola ruta (la primera activa del
+    // cliente, en el orden de `rutas`). Esto deduplica a los clientes que
+    // pertenecen a varias rutas y garantiza que Σ filas == totales == D1.
+    const primeraRutaDe = (rutaClientes: { rutaId: string }[]): string | null => {
+      const ids = new Set(rutaClientes.map((rc) => rc.rutaId));
+      for (const r of rutas) {
+        if (ids.has(r.id)) return r.id;
+      }
+      return null;
+    };
 
-      const prestamosActivos = prestamosPorRuta.filter((p) =>
-        p.cliente.rutaClientes.some((rc) => rc.rutaId === ruta.id),
-      );
+    const bucketsPrestamos = new Map<string | null, typeof prestamos>();
+    const bucketsPagos = new Map<string | null, typeof pagos>();
+    const bucketea = (
+      clienteRutas: { rutaId: string }[],
+      item: any,
+      prestamoLike: boolean,
+    ) => {
+      const rid = primeraRutaDe(clienteRutas);
+      const target = prestamoLike ? bucketsPrestamos : bucketsPagos;
+      const arr = target.get(rid);
+      if (arr) (arr as any[]).push(item);
+      else (target as any).set(rid, [item]);
+    };
+    for (const p of prestamos) bucketea(p.cliente.rutaClientes, p, true);
+    for (const pg of pagos) bucketea(pg.prestamo.cliente.rutaClientes, pg, false);
 
-      const pagosRuta = pagosPorRuta.filter((p) =>
-        p.prestamo.cliente.rutaClientes.some((rc) => rc.rutaId === ruta.id),
-      );
-
-      const totalCobrado = pagosRuta.reduce(
+    const construir = (
+      rutaId: string | null,
+      nombre: string,
+      cobrador: string,
+      prestamosArr: typeof prestamos,
+      pagosArr: typeof pagos,
+    ) => {
+      const totalCobrado = pagosArr.reduce(
         (sum, p) => sum + m(p.montoTotal),
         0,
       );
-      const totalInteres = pagosRuta.reduce(
+      const totalInteres = pagosArr.reduce(
         (sum, p) => sum + m(p.interes) + m(p.mora),
         0,
       );
-      const capitalRecuperado = pagosRuta.reduce(
+      const capitalRecuperado = pagosArr.reduce(
         (sum, p) => sum + m(p.capital),
         0,
       );
-      const dineroEnCalleRuta = prestamosActivos.reduce(
+      const dineroEnCalle = prestamosArr.reduce(
         (sum, p) => sum + calcularSaldoDesdeCuotas(p.cuotas),
         0,
       );
 
       return {
-        rutaId: ruta.id,
-        nombre: ruta.nombre,
-        cobrador: ruta.usuario.nombre,
-        clientesActivos: clientesIds.size,
-        totalCobrado: Math.round(totalCobrado * 100) / 100,
-        totalInteres: Math.round(totalInteres * 100) / 100,
-        capitalRecuperado: Math.round(capitalRecuperado * 100) / 100,
-        dineroEnCalle: Math.round(dineroEnCalleRuta * 100) / 100,
-        prestamosActivos: prestamosActivos.length,
+        rutaId,
+        nombre,
+        cobrador,
+        clientesActivos: new Set(
+          prestamosArr.map((p) => p.clienteId),
+        ).size,
+        totalCobrado: roundMoney(totalCobrado),
+        totalInteres: roundMoney(totalInteres),
+        capitalRecuperado: roundMoney(capitalRecuperado),
+        dineroEnCalle: roundMoney(dineroEnCalle),
+        prestamosActivos: prestamosArr.length,
       };
-    });
+    };
+
+    const resumenRutas = rutas.map((ruta) =>
+      construir(
+        ruta.id,
+        ruta.nombre,
+        ruta.usuario.nombre,
+        bucketsPrestamos.get(ruta.id) ?? [],
+        bucketsPagos.get(ruta.id) ?? [],
+      ),
+    );
+
+    // Clientes/préstamos sin ruta activa: rubro aparte para que el total
+    // general cuadre con el D1 del dashboard.
+    const sinRuta = construir(
+      null,
+      'Sin ruta asignada',
+      '-',
+      bucketsPrestamos.get(null) ?? [],
+      bucketsPagos.get(null) ?? [],
+    );
+    if (sinRuta.prestamosActivos > 0 || sinRuta.totalCobrado > 0) {
+      resumenRutas.push(sinRuta);
+    }
 
     const totalGeneral = resumenRutas.reduce(
       (acc, r) => ({
@@ -936,11 +928,10 @@ export class CapitalService {
     return {
       rutas: resumenRutas.sort((a, b) => b.totalCobrado - a.totalCobrado),
       totales: {
-        totalCobrado: Math.round(totalGeneral.totalCobrado * 100) / 100,
-        totalInteres: Math.round(totalGeneral.totalInteres * 100) / 100,
-        capitalRecuperado:
-          Math.round(totalGeneral.capitalRecuperado * 100) / 100,
-        dineroEnCalle: Math.round(totalGeneral.dineroEnCalle * 100) / 100,
+        totalCobrado: roundMoney(totalGeneral.totalCobrado),
+        totalInteres: roundMoney(totalGeneral.totalInteres),
+        capitalRecuperado: roundMoney(totalGeneral.capitalRecuperado),
+        dineroEnCalle: roundMoney(totalGeneral.dineroEnCalle),
         clientesActivos: totalGeneral.clientesActivos,
         prestamosActivos: totalGeneral.prestamosActivos,
       },
@@ -976,100 +967,106 @@ export class CapitalService {
   // ─── VALIDAR BALANCE CONTABLE ─────────────────────────────────────────
   // Verifica que: Capital + Ganancias = Caja + Calle
   async validarBalance(empresaId: string) {
-    // 1. Calcular capital total
+    // 1. Calcular capital total (ya incluye descuento de GASTO_CAPITAL)
     const capitalData = await this.getCapitalEmpresa(empresaId);
     const capitalTotal = capitalData.capitalTotal;
 
-    // 2. Calcular ganancias netas: (intereses + mora) - gastos operativos
-    const [ingresos, gastosOperativos] = await Promise.all([
-      this.prisma.movimientoFinanciero.aggregate({
-        where: { empresaId, tipo: 'PAGO_RECIBIDO' },
-        _sum: { interes: true, mora: true },
-      }),
-      this.prisma.movimientoFinanciero.aggregate({
-        where: { empresaId, tipo: 'GASTO' },
-        _sum: { interes: true },
-      }),
-    ]);
-    const gananciasNetas =
-      Math.round(
-        (m(ingresos._sum.interes ?? 0) +
-          m(ingresos._sum.mora ?? 0) -
-          Math.abs(m(gastosOperativos._sum.interes ?? 0))) *
-          100,
-      ) / 100;
+    // 2. Resultado operativo igual que el dashboard (mismas fuentes):
+    //    ganancia bruta = Σ (interés + mora) de pagos; gastos = Σ gastos OPERATIVOS.
+    const [pagos, gastosOperativos, retirosGananciasData, retirosCapitalData] =
+      await Promise.all([
+        this.prisma.pago.aggregate({
+          where: { prestamo: { empresaId } },
+          _sum: { interes: true, mora: true },
+        }),
+        this.prisma.gasto.aggregate({
+          where: { empresaId, tipo: 'OPERATIVO' },
+          _sum: { monto: true },
+        }),
+        this.prisma.retiroGanancias.aggregate({
+          where: { empresaId },
+          _sum: { monto: true },
+        }),
+        this.prisma.movimientoFinanciero.aggregate({
+          where: { empresaId, tipo: 'RETIRO_CAPITAL' },
+          _sum: { capital: true },
+        }),
+      ]);
 
-    // 3. Calcular retiros de ganancias
-    const retirosGanancias = await this.prisma.retiroGanancias.aggregate({
-      where: { empresaId },
-      _sum: { monto: true },
-    });
-    const totalRetirosGanancias =
-      Math.round(m(retirosGanancias._sum.monto ?? 0) * 100) / 100;
+    const gananciasBrutas = roundMoney(
+      m(pagos._sum.interes ?? 0) + m(pagos._sum.mora ?? 0),
+    );
+    const gastosTotales = roundMoney(m(gastosOperativos._sum.monto ?? 0));
+    const resultadoOperativo = roundMoney(gananciasBrutas - gastosTotales);
 
-    const retirosCapital = await this.prisma.movimientoFinanciero.aggregate({
-      where: { empresaId, tipo: 'RETIRO_CAPITAL' },
-      _sum: { capital: true },
-    });
-    const totalRetirosCapital = Math.abs(m(retirosCapital._sum.capital ?? 0));
+    // Nunca mostrar ganancias negativas (igual que dashboard): si el resultado
+    // es negativo, el déficit consume capital (ver patrimonio).
+    const gananciasNetas = resultadoOperativo > 0 ? resultadoOperativo : 0;
 
+    // 3. Retiros (ganancias + capital)
+    const totalRetirosGanancias = roundMoney(
+      m(retirosGananciasData._sum.monto ?? 0),
+    );
+    const totalRetirosCapital = Math.abs(
+      m(retirosCapitalData._sum.capital ?? 0),
+    );
     const totalRetiros = totalRetirosGanancias + totalRetirosCapital;
 
-    // 4. PATRIMONIO = CapitalTotal + GananciasNetas - Retiros
-    const patrimonio =
-      Math.round((capitalTotal + gananciasNetas - totalRetiros) * 100) / 100;
+    // 4. PATRIMONIO = CapitalTotal + ResultadoOperativo - Retiros
+    // (sin clamp: si el resultado es negativo, el déficit reduce el patrimonio
+    //  al consumir capital, igual que el dashboard).
+    const patrimonio = roundMoney(
+      capitalTotal + resultadoOperativo - totalRetiros,
+    );
 
-    // 5. Calcular ACTIVOS: Caja Operativa + Fondo General + En Calle
-    // Caja Operativa = suma de cajas abiertas (montoInicial + ingresos - egresos)
-    const cajasAbiertas = await this.prisma.cajaSesion.findMany({
+    // 5. Calcular ACTIVOS: Caja Actual + En Calle
+    // Caja actual (canónica) = Σ sobre las sesiones ABIERTAS de
+    // (montoInicial + ingresos - egresos). Las sesiones cerradas ya quedaron
+    // incorporadas al montoInicial de la sesión siguiente (efectivo físico).
+    const cajas = await this.prisma.cajaSesion.findMany({
       where: { empresaId, estado: 'ABIERTA' },
       select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
     });
-    const dineroEnCaja =
-      Math.round(
-        cajasAbiertas.reduce(
-          (sum, c) =>
-            sum +
-            m(c.montoInicial ?? 0) +
-            m(c.totalIngresos ?? 0) -
-            m(c.totalEgresos ?? 0),
-          0,
-        ) * 100,
-      ) / 100;
+    const dineroEnCaja = roundMoney(
+      cajas.reduce(
+        (sum, c) =>
+          sum +
+          m(c.montoInicial ?? 0) +
+          m(c.totalIngresos ?? 0) -
+          m(c.totalEgresos ?? 0),
+        0,
+      ),
+    );
 
-    // En Calle
-    const prestamos = await this.prisma.prestamo.aggregate({
-      where: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
-      _sum: { monto: true },
-    });
-    const cobros = await this.prisma.pago.aggregate({
-      where: { prestamo: { empresaId } },
-      _sum: { capital: true },
+    // En Calle (D1): saldo vivo desde cuotas no pagadas de préstamos
+    // ACTIVO/ATRASADO (capital + interés + mora).
+    const saldoVivo = await this.prisma.cuota.aggregate({
+      where: {
+        pagada: false,
+        prestamo: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+      },
+      _sum: { capital: true, interes: true, mora: true },
     });
     const dineroEnCalle = Math.max(
       0,
-      Math.round(
-        (m(prestamos._sum.monto ?? 0) - m(cobros._sum.capital ?? 0)) * 100,
-      ) / 100,
+      roundMoney(
+        m(saldoVivo._sum.capital ?? 0) +
+          m(saldoVivo._sum.interes ?? 0) +
+          m(saldoVivo._sum.mora ?? 0),
+      ),
     );
 
-    // Fondo General = Patrimonio - Caja Operativa - En Calle
-    const fondoGeneral = Math.max(
-      0,
-      Math.round((patrimonio - dineroEnCaja - dineroEnCalle) * 100) / 100,
-    );
-
-    // 6. Validar: Activos (Caja + Fondo + Calle) == Patrimonio
-    const activos =
-      Math.round((dineroEnCaja + fondoGeneral + dineroEnCalle) * 100) / 100;
-    const diferencia = Math.round((activos - patrimonio) * 100) / 100;
-    const cuadra = Math.abs(diferencia) < 1;
+    // 6. Validar: Activos (Caja + Calle) == Patrimonio.
+    // Sin "fondo general" de relleno: si no cuadra, es un descuadre real.
+    const activos = roundMoney(dineroEnCaja + dineroEnCalle);
+    const diferencia = roundMoney(activos - patrimonio);
+    const cuadra = Math.abs(diferencia) < 0.01;
 
     return {
       capital: capitalTotal,
       gananciasNetas,
+      resultadoOperativo,
       caja: dineroEnCaja,
-      fondoGeneral,
       calle: dineroEnCalle,
       retiros: totalRetiros,
       patrimonio,
@@ -1088,39 +1085,67 @@ export class CapitalService {
     const capitalData = await this.getCapitalEmpresa(empresaId);
     const capitalTotal = capitalData.capitalTotal;
 
-    // Calcular dinero en calle
-    const prestamos = await this.prisma.prestamo.aggregate({
+    // D1: dinero en calle = saldo vivo desde cuotas no pagadas de préstamos
+    // ACTIVO/ATRASADO (capital + interés + mora).
+    const saldoVivo = await this.prisma.cuota.aggregate({
       where: {
-        empresaId,
-        estado: { in: ['ACTIVO', 'ATRASADO'] },
+        pagada: false,
+        prestamo: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
       },
-      _sum: { monto: true },
-    });
-    const cobros = await this.prisma.pago.aggregate({
-      where: {
-        prestamo: { empresaId },
-      },
-      _sum: { capital: true },
+      _sum: { capital: true, interes: true, mora: true },
     });
     const dineroEnCalle = Math.max(
       0,
-      Math.round(
-        (m(prestamos._sum.monto ?? 0) - m(cobros._sum.capital ?? 0)) * 100,
-      ) / 100,
+      roundMoney(
+        m(saldoVivo._sum.capital ?? 0) +
+          m(saldoVivo._sum.interes ?? 0) +
+          m(saldoVivo._sum.mora ?? 0),
+      ),
     );
 
-    return Math.max(0, Math.round((capitalTotal - dineroEnCalle) * 100) / 100);
+    return Math.max(0, roundMoney(capitalTotal - dineroEnCalle));
   }
 
   // ─── CALCULAR DINERO EN CAJA ACTUAL ───────────────────────────────────────────────
   async calcularDineroEnCaja(empresaId: string): Promise<number> {
-    const cajas = await this.prisma.cajaSesion.groupBy({
-      by: ['estado'],
+    const cajas = await this.prisma.cajaSesion.findMany({
       where: { empresaId, estado: 'ABIERTA' },
-      _sum: { montoInicial: true },
+      select: { montoInicial: true, totalIngresos: true, totalEgresos: true },
     });
-    const dineroEnCaja =
-      Math.round(m(cajas[0]?._sum?.montoInicial ?? 0) * 100) / 100;
-    return dineroEnCaja;
+    // Misma fórmula que la métrica del día del dashboard: montoInicial de cada
+    // caja abierta + ingresos acumulados - egresos acumulados.
+    const dineroEnCaja = roundMoney(
+      cajas.reduce(
+        (sum, c) =>
+          sum +
+          m(c.montoInicial ?? 0) +
+          m(c.totalIngresos ?? 0) -
+          m(c.totalEgresos ?? 0),
+        0,
+      ),
+    );
+    return Math.max(0, dineroEnCaja);
+  }
+
+  // ─── CALCULAR DINERO EN CALLE (D1) ──────────────────────────────────────────────
+  // Saldo vivo desde cuotas no pagadas (capital + interés + mora) de préstamos
+  // ACTIVO/ATRASADO. Fuente única canónica usada por dashboard, rutas,
+  // capital retirable y disponible.
+  private async calcularCalle(empresaId: string): Promise<number> {
+    const saldoVivo = await this.prisma.cuota.aggregate({
+      where: {
+        pagada: false,
+        prestamo: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
+      },
+      _sum: { capital: true, interes: true, mora: true },
+    });
+    return Math.max(
+      0,
+      roundMoney(
+        m(saldoVivo._sum.capital ?? 0) +
+          m(saldoVivo._sum.interes ?? 0) +
+          m(saldoVivo._sum.mora ?? 0),
+      ),
+    );
   }
 }

@@ -14,8 +14,10 @@ import { Tenant } from '../common/decorators/tenant.decorator';
 export class FinanzasController {
   constructor(private readonly finanzasService: FinanzasService) {}
 
-  // GET /finanzas/resumen?desde=2026-01-01&hasta=2026-03-31&meses=6
-  @Get('resumen')
+  // GET /finanzas/resumen-mensual?desde=2026-01-01&hasta=2026-03-31&meses=6
+  // Nota: el path es "resumen-mensual" (no "resumen") para no colisionar con
+  // GET /finanzas/resumen de capital.controller (dashboard).
+  @Get('resumen-mensual')
   @RequierePermiso('finanzas:ver')
   resumen(
     @Tenant() empresaId: string,

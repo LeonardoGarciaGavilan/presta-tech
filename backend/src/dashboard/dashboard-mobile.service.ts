@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getInicioDiaRD, getFinDiaRD } from '../common/utils/fecha.utils';
 import { getFechaRD } from '../common/utils/fecha.utils';
+import { roundMoney } from '../common/utils/money';
 import { startOfMonth, subDays } from 'date-fns';
 import type {
   DashboardMobileResponseDto,
@@ -161,33 +162,30 @@ export class DashboardMobileService {
       portfolio: {
         activos: portfolio.activos,
         atrasados: portfolio.atrasados,
-        montoTotalPrestado:
-          Math.round(portfolio.montoTotalPrestado * 100) / 100,
-        saldoPendienteTotal:
-          Math.round(saldoReal.saldo_pendiente_total * 100) / 100,
+        montoTotalPrestado: roundMoney(portfolio.montoTotalPrestado),
+        saldoPendienteTotal: roundMoney(saldoReal.saldo_pendiente_total),
       },
       today: {
-        cobradoHoy: Math.round(pagosDia.cobrado_hoy * 100) / 100,
+        cobradoHoy: roundMoney(pagosDia.cobrado_hoy),
         pagosHoy: pagosDia.pagos_hoy,
-        cobradoMes: Math.round(pagosMes.cobrado_mes * 100) / 100,
+        cobradoMes: roundMoney(pagosMes.cobrado_mes),
         cuotasPendientesHoy: cuotasHoyRaw.cuotas_pendientes_hoy,
-        montoEsperadoHoy:
-          Math.round(cuotasHoyRaw.monto_esperado_hoy * 100) / 100,
+        montoEsperadoHoy: roundMoney(cuotasHoyRaw.monto_esperado_hoy),
         prestamosMoraCritica: moraCritica.prestamos_mora_critica,
       },
       caja: cajaRaw
         ? {
             id: cajaRaw.id,
-            montoInicial: Math.round(cajaRaw.montoInicial * 100) / 100,
-            totalIngresos: Math.round(cajaRaw.totalIngresos * 100) / 100,
+            montoInicial: roundMoney(cajaRaw.montoInicial),
+            totalIngresos: roundMoney(cajaRaw.totalIngresos),
             createdAt: cajaRaw.createdAt,
           }
         : null,
       proximosCobros: (proximosCobrosRaw ?? []).map((c) => ({
         cuotaId: c.cuotaId,
         numero: c.numero,
-        monto: Math.round(c.monto * 100) / 100,
-        mora: Math.round(c.mora * 100) / 100,
+        monto: roundMoney(c.monto),
+        mora: roundMoney(c.mora),
         prestamoId: c.prestamoId,
         clienteId: c.clienteId,
         nombre: c.nombre,

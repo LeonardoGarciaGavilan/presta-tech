@@ -159,23 +159,42 @@ export class CajaService {
 
   // ─── Helper: Calcular capital total de la empresa ────────────────────────
   private async calcularCapitalTotal(empresaId: string): Promise<number> {
-    const capital = await this.prisma.capitalEmpresa.findUnique({
-      where: { empresaId },
-    });
-    const inyecciones = await this.prisma.inyeccionCapital.aggregate({
-      where: { empresaId },
-      _sum: { monto: true },
-    });
-    const retiros = await this.prisma.retiroGanancias.aggregate({
-      where: { empresaId },
-      _sum: { monto: true },
-    });
+    const [capital, inyecciones, retiros, retirosCapital, gastosCapital] =
+      await Promise.all([
+        this.prisma.capitalEmpresa.findUnique({
+          where: { empresaId },
+        }),
+        this.prisma.inyeccionCapital.aggregate({
+          where: { empresaId },
+          _sum: { monto: true },
+        }),
+        this.prisma.retiroGanancias.aggregate({
+          where: { empresaId },
+          _sum: { monto: true },
+        }),
+        this.prisma.movimientoFinanciero.aggregate({
+          where: { empresaId, tipo: 'RETIRO_CAPITAL' },
+          _sum: { capital: true },
+        }),
+        this.prisma.movimientoFinanciero.aggregate({
+          where: { empresaId, tipo: 'GASTO_CAPITAL' },
+          _sum: { capital: true },
+        }),
+      ]);
 
     const capitalBase = capital?.capitalInicial ?? 0;
     const totalInyectado = inyecciones._sum.monto ?? 0;
     const totalRetirado = retiros._sum.monto ?? 0;
+    const totalRetirosCapital = Math.abs(m(retirosCapital._sum.capital ?? 0));
+    const totalGastosCapital = Math.abs(m(gastosCapital._sum.capital ?? 0));
 
-    return roundMoney(m(capitalBase) + m(totalInyectado) - m(totalRetirado));
+    return roundMoney(
+      m(capitalBase) +
+        m(totalInyectado) -
+        m(totalRetirado) -
+        totalRetirosCapital -
+        totalGastosCapital,
+    );
   }
 
   // ─── Helper: Calcular dinero total en cajas abiertas ─────────────────────
@@ -190,27 +209,26 @@ export class CajaService {
     return roundMoney(abiertas?._sum?.montoInicial ?? 0);
   }
 
-  // ─── Helper: Calcular dinero en calle (préstamos activos) ─────────────
+  // ─── Helper: Calcular dinero en calle (D1) ─────────────────────────────
+  // Saldo vivo desde cuotas no pagadas de préstamos ACTIVO/ATRASADO
+  // (capital + interés + mora). Coincide con capital.service calcularCalle.
   private async calcularDineroEnCalle(empresaId: string): Promise<number> {
-    const prestamos = await this.prisma.prestamo.aggregate({
+    const saldoVivo = await this.prisma.cuota.aggregate({
       where: {
-        empresaId,
-        estado: { in: ['ACTIVO', 'ATRASADO'] },
+        pagada: false,
+        prestamo: { empresaId, estado: { in: ['ACTIVO', 'ATRASADO'] } },
       },
-      _sum: { monto: true },
+      _sum: { capital: true, interes: true, mora: true },
     });
 
-    const cobros = await this.prisma.pago.aggregate({
-      where: {
-        prestamo: { empresaId },
-      },
-      _sum: { capital: true },
-    });
-
-    const totalPrestado = prestamos._sum.monto ?? 0;
-    const totalCobrado = cobros._sum.capital ?? 0;
-
-    return Math.max(0, roundMoney(m(totalPrestado) - m(totalCobrado)));
+    return Math.max(
+      0,
+      roundMoney(
+        m(saldoVivo._sum.capital ?? 0) +
+          m(saldoVivo._sum.interes ?? 0) +
+          m(saldoVivo._sum.mora ?? 0),
+      ),
+    );
   }
 
   async abrirCaja(
@@ -462,8 +480,11 @@ export class CajaService {
     for (const mov of movimientos) {
       if (mov.tipo === 'PAGO_RECIBIDO' || mov.tipo === 'INYECCION_CAPITAL')
         entradas += m(mov.monto);
-      else if (mov.tipo === 'DESEMBOLSO') salidas += m(mov.monto);
-      // GASTOS, RETIROS, etc. NO afectan caja operativa (son globales)
+      // Mismos egresos que EGRESOS_CAJA: DESEMBOLSO, GASTO, GASTO_CAPITAL,
+      // RETIRO_GANANCIAS (si un movimiento lleva cajaId, afecta su caja).
+      if (EGRESOS_CAJA.includes(mov.tipo)) salidas += m(mov.monto);
+      // El resto (APERTURA_CAJA, CIERRE_CAJA, AJUSTE_CAJA, RETIRO_CAPITAL)
+      // no acumula directamente aquí: el neto vive en totalIngresos/totalEgresos.
     }
 
     return roundMoney(m(caja.montoInicial) + entradas - salidas);

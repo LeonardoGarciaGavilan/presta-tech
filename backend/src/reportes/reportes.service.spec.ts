@@ -17,7 +17,12 @@ describe('ReportesService', () => {
           count: jest.fn().mockResolvedValue(11),
           groupBy,
           aggregate: jest.fn().mockResolvedValue({
-            _sum: { monto: 50_000, saldoPendiente: 30_000 },
+            _sum: { monto: 50_000 },
+          }),
+        },
+        cuota: {
+          aggregate: jest.fn().mockResolvedValue({
+            _sum: { capital: 0, interes: 0, mora: 0 },
           }),
         },
       } as unknown as PrismaService);
@@ -42,9 +47,12 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([]),
           count: jest.fn().mockResolvedValue(0),
           groupBy: jest.fn().mockResolvedValue([]),
-          aggregate: jest
-            .fn()
-            .mockResolvedValue({ _sum: { monto: null, saldoPendiente: null } }),
+          aggregate: jest.fn().mockResolvedValue({ _sum: { monto: null } }),
+        },
+        cuota: {
+          aggregate: jest.fn().mockResolvedValue({
+            _sum: { capital: null, interes: null, mora: null },
+          }),
         },
       } as unknown as PrismaService);
 
@@ -57,13 +65,13 @@ describe('ReportesService', () => {
       expect(result.resumen.totalCartera).toBe(0);
     });
 
-    it('totalCartera viene del aggregate, no de la paginación parcial', async () => {
+    it('totalCartera viene del aggregate de cuotas, no de la paginación parcial', async () => {
       const aggregate = jest
         .fn()
-        .mockResolvedValueOnce({
-          _sum: { monto: 100_000, saldoPendiente: null },
-        }) // totalesMonto
-        .mockResolvedValueOnce({ _sum: { saldoPendiente: 75_000 } }); // totalesCartera
+        .mockResolvedValue({ _sum: { monto: 100_000 } });
+      const cuotaAggregate = jest.fn().mockResolvedValue({
+        _sum: { capital: 50_000, interes: 20_000, mora: 5_000 },
+      });
 
       const service = new ReportesService({
         prestamo: {
@@ -72,6 +80,7 @@ describe('ReportesService', () => {
           groupBy: jest.fn().mockResolvedValue([]),
           aggregate,
         },
+        cuota: { aggregate: cuotaAggregate },
       } as unknown as PrismaService);
 
       const result = await service.estadoGeneral({
@@ -80,7 +89,8 @@ describe('ReportesService', () => {
       });
 
       expect(result.resumen.totalCartera).toBe(75_000);
-      expect(aggregate).toHaveBeenCalledTimes(2);
+      expect(aggregate).toHaveBeenCalledTimes(1);
+      expect(cuotaAggregate).toHaveBeenCalledTimes(1);
     });
 
     it('rechaza usuarios no ADMIN via permisos (no en service)', async () => {
@@ -91,12 +101,14 @@ describe('ReportesService', () => {
           findMany: jest.fn().mockResolvedValue([]),
           count: jest.fn().mockResolvedValue(0),
           groupBy: jest.fn().mockResolvedValue([]),
-          aggregate: jest
-            .fn()
-            .mockResolvedValueOnce({
-              _sum: { monto: null, saldoPendiente: null },
-            })
-            .mockResolvedValueOnce({ _sum: { saldoPendiente: null } }),
+          aggregate: jest.fn().mockResolvedValue({
+            _sum: { monto: null },
+          }),
+        },
+        cuota: {
+          aggregate: jest.fn().mockResolvedValue({
+            _sum: { capital: null, interes: null, mora: null },
+          }),
         },
       } as unknown as PrismaService);
 
@@ -110,35 +122,16 @@ describe('ReportesService', () => {
   });
 
   describe('carteraVencida', () => {
-    it('no hace queries redundantes (solo 3 en paralelo)', async () => {
+    it('usa saldo vivo de cuotas (capital + interés + mora) para totalSaldoVencido', async () => {
       const findMany = jest.fn().mockResolvedValue([]);
       const count = jest.fn().mockResolvedValue(0);
-      const aggregate = jest
-        .fn()
-        .mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } });
+      const cuotaAggregate = jest.fn().mockResolvedValue({
+        _sum: { capital: 30_000, interes: 4_000, mora: 1_500 },
+      });
 
       const service = new ReportesService({
-        prestamo: { findMany, count, aggregate },
-      } as unknown as PrismaService);
-
-      await service.carteraVencida({ rol: 'ADMIN', empresaId: 'emp1' });
-
-      expect(findMany).toHaveBeenCalledTimes(1);
-      expect(count).toHaveBeenCalledTimes(1);
-      expect(aggregate).toHaveBeenCalledTimes(1);
-    });
-
-    it('calcula totalMora desde el aggregate (sin query adicional)', async () => {
-      const aggregate = jest
-        .fn()
-        .mockResolvedValue({ _sum: { monto: 50_000, moraAcumulada: 3_500 } });
-
-      const service = new ReportesService({
-        prestamo: {
-          findMany: jest.fn().mockResolvedValue([]),
-          count: jest.fn().mockResolvedValue(0),
-          aggregate,
-        },
+        prestamo: { findMany, count },
+        cuota: { aggregate: cuotaAggregate },
       } as unknown as PrismaService);
 
       const result = await service.carteraVencida({
@@ -146,7 +139,32 @@ describe('ReportesService', () => {
         empresaId: 'emp1',
       });
 
-      expect(result.totalMora).toBe(3_500);
+      expect(result.totalSaldoVencido).toBe(35_500);
+      expect(result.totalMora).toBe(1_500);
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(count).toHaveBeenCalledTimes(1);
+      expect(cuotaAggregate).toHaveBeenCalledTimes(1);
+    });
+
+    it('calcula totalSaldoVencido desde cuotas no pagadas de ATRASADO', async () => {
+      const cuotaAggregate = jest.fn().mockResolvedValue({
+        _sum: { capital: 50_000, interes: 3_000, mora: 0 },
+      });
+
+      const service = new ReportesService({
+        prestamo: {
+          findMany: jest.fn().mockResolvedValue([]),
+          count: jest.fn().mockResolvedValue(0),
+        },
+        cuota: { aggregate: cuotaAggregate },
+      } as unknown as PrismaService);
+
+      const result = await service.carteraVencida({
+        rol: 'ADMIN',
+        empresaId: 'emp1',
+      });
+
+      expect(result.totalSaldoVencido).toBe(53_000);
     });
 
     it('aplica paginación correctamente', async () => {
@@ -155,9 +173,11 @@ describe('ReportesService', () => {
         prestamo: {
           findMany,
           count: jest.fn().mockResolvedValue(0),
+        },
+        cuota: {
           aggregate: jest
             .fn()
-            .mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } }),
+            .mockResolvedValue({ _sum: { capital: 0, interes: 0, mora: 0 } }),
         },
       } as unknown as PrismaService);
 
@@ -174,9 +194,11 @@ describe('ReportesService', () => {
         prestamo: {
           findMany,
           count: jest.fn().mockResolvedValue(0),
+        },
+        cuota: {
           aggregate: jest
             .fn()
-            .mockResolvedValue({ _sum: { monto: 0, moraAcumulada: 0 } }),
+            .mockResolvedValue({ _sum: { capital: 0, interes: 0, mora: 0 } }),
         },
       } as unknown as PrismaService);
 
@@ -549,6 +571,7 @@ describe('ReportesService', () => {
         desembolsoCaja: { findMany: jest.fn().mockResolvedValue([]) },
         inyeccionCapital: { findMany: jest.fn().mockResolvedValue([]) },
         retiroGanancias: { findMany: jest.fn().mockResolvedValue([]) },
+        movimientoFinanciero: { findMany: jest.fn().mockResolvedValue([]) },
       } as unknown as PrismaService);
 
       await service.flujoDeCaja(

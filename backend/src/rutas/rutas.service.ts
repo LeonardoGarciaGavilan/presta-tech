@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { QuotaService } from '../common/quota/quota.service';
 import { calcularDesdeObjeto } from '../common/utils/prestamo.utils';
+import { roundMoney } from '../common/utils/money';
 
 const CLIENTE_SELECT = {
   id: true,
@@ -299,7 +300,7 @@ export class RutasService {
           })),
       );
 
-      const totalACobrar = cuotasAVencer.reduce(
+      const totalACobrar: number = cuotasAVencer.reduce(
         (s: number, c: any) => s + c.total,
         0,
       );
@@ -328,7 +329,7 @@ export class RutasService {
           };
         }),
         cuotasAVencer,
-        totalACobrar: Math.round(totalACobrar * 100) / 100,
+        totalACobrar: roundMoney(totalACobrar),
         tieneAtrasados,
         tienePrestamos,
         debeVisitar: cuotasAVencer.length > 0 || tieneAtrasados,
@@ -349,7 +350,7 @@ export class RutasService {
         aVisitarHoy: aVisitar.length,
         visitadosHoy: visitados.length,
         conAtrasados: conAtrasados.length,
-        totalACobrarHoy: Math.round(totalRuta * 100) / 100,
+        totalACobrarHoy: roundMoney(totalRuta),
       },
       clientes: resultado,
     };

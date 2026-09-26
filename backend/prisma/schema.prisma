@@ -301,6 +301,9 @@ model Auditoria {
 }
 
 model Gasto {
+  // tipo: OPERATIVO (ledger GASTO, resta de ganancias) o CAPITAL (ledger
+  // GASTO_CAPITAL, se descuenta del capital). Ver gastos.service.ts y la
+  // migración 20260924000000_gasto_tipo.
   id            String   @id @default(cuid())
   categoria     String
   descripcion   String
@@ -313,11 +316,13 @@ model Gasto {
   updatedAt     DateTime @updatedAt
   empresaId     String
   usuarioId     String
+  tipo          String   @default("OPERATIVO")
   empresa       Empresa  @relation(fields: [empresaId], references: [id])
   usuario       Usuario  @relation(fields: [usuarioId], references: [id])
 
   @@index([empresaId])
   @@index([empresaId, fecha])
+  @@index([empresaId, tipo])
 }
 
 model CajaSesion {

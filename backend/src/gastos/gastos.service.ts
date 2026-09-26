@@ -5,8 +5,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { m } from '../common/utils/money';
+import { m, roundMoney } from '../common/utils/money';
 import { CreateGastoDto, UpdateGastoDto } from './dto/gastos.dto';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class GastosService {
@@ -127,63 +128,21 @@ export class GastosService {
           observaciones: dto.observaciones || null,
           empresaId: user.empresaId,
           usuarioId: user.userId,
+          tipo,
         },
       });
 
-      // Usar GASTO para OPERATIVO, GASTO_CAPITAL para CAPITAL
-      const tipoMovimiento = tipo === 'CAPITAL' ? 'GASTO_CAPITAL' : 'GASTO';
-
-      // Calcular ganancias netas actuales para validar impacto
-      const [totalIntereses, totalGastosPrevios] = await Promise.all([
-        tx.movimientoFinanciero.aggregate({
-          where: { empresaId: user.empresaId, tipo: 'PAGO_RECIBIDO' },
-          _sum: { interes: true, mora: true },
-        }),
-        tx.movimientoFinanciero.aggregate({
-          where: { empresaId: user.empresaId, tipo: 'GASTO' },
-          _sum: { interes: true },
-        }),
-      ]);
-
-      const gananciasNetas =
-        Math.round(
-          (m(totalIntereses._sum.interes ?? 0) +
-            m(totalIntereses._sum.mora ?? 0) -
-            m(totalGastosPrevios._sum.interes ?? 0)) *
-            100,
-        ) / 100;
-
-      const excedeGanancias =
-        tipo === 'OPERATIVO' && dto.monto > gananciasNetas;
-
-      await tx.movimientoFinanciero.create({
-        data: {
-          tipo: tipoMovimiento,
+      await this.crearMovimiento(
+        tx,
+        {
+          tipo,
           monto: dto.monto,
-          capital:
-            tipo === 'CAPITAL'
-              ? dto.monto
-              : excedeGanancias
-                ? Math.max(0, dto.monto - gananciasNetas)
-                : 0,
-          interes: tipo === 'OPERATIVO' ? -dto.monto : 0,
-          mora: 0,
-          referenciaTipo: 'GASTO',
-          referenciaId: gasto.id,
-          cajaId: null, // Gastos nunca afectan caja operativa
-          empresaId: user.empresaId,
-          usuarioId: user.userId,
-          descripcion: `${dto.categoria}: ${dto.descripcion}${excedeGanancias ? ' (Excede ganancias, reduce capital)' : ''}`,
+          categoria: dto.categoria,
+          descripcion: dto.descripcion,
         },
-      });
-
-      // Si el gasto excede las ganancias, retornar alerta informativa
-      if (excedeGanancias) {
-        const excedente = Math.round((dto.monto - gananciasNetas) * 100) / 100;
-        // Guardar la alerta en un campo temporal no persistido (se maneja en el return)
-        (gasto as any).alerta =
-          `Este gasto excedió las ganancias disponibles. RD$${excedente.toLocaleString()} fueron descontados del capital.`;
-      }
+        gasto.id,
+        user,
+      );
 
       return gasto;
     });
@@ -199,23 +158,45 @@ export class GastosService {
     });
     if (!gasto) throw new NotFoundException('Gasto no encontrado');
 
-    return this.prisma.gasto.update({
+    const montoFinal = dto.monto ?? m(gasto.monto);
+    const tipoFinal = dto.tipo || gasto.tipo || 'OPERATIVO';
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.gasto.update({
+        where: { id },
+        data: {
+          ...(dto.categoria && { categoria: dto.categoria }),
+          ...(dto.descripcion && { descripcion: dto.descripcion }),
+          ...(dto.monto && { monto: dto.monto }),
+          ...(dto.fecha && { fecha: new Date(dto.fecha) }),
+          ...(dto.proveedor !== undefined && {
+            proveedor: dto.proveedor || null,
+          }),
+          ...(dto.referencia !== undefined && {
+            referencia: dto.referencia || null,
+          }),
+          ...(dto.observaciones !== undefined && {
+            observaciones: dto.observaciones || null,
+          }),
+          ...(dto.tipo && { tipo: dto.tipo }),
+        },
+      });
+
+      await this.sincronizarMovimiento(
+        tx,
+        id,
+        {
+          tipo: tipoFinal,
+          monto: montoFinal,
+          categoria: dto.categoria ?? gasto.categoria,
+          descripcion: dto.descripcion ?? gasto.descripcion,
+        },
+        user,
+      );
+    });
+
+    return this.prisma.gasto.findUnique({
       where: { id },
-      data: {
-        ...(dto.categoria && { categoria: dto.categoria }),
-        ...(dto.descripcion && { descripcion: dto.descripcion }),
-        ...(dto.monto && { monto: dto.monto }),
-        ...(dto.fecha && { fecha: new Date(dto.fecha) }),
-        ...(dto.proveedor !== undefined && {
-          proveedor: dto.proveedor || null,
-        }),
-        ...(dto.referencia !== undefined && {
-          referencia: dto.referencia || null,
-        }),
-        ...(dto.observaciones !== undefined && {
-          observaciones: dto.observaciones || null,
-        }),
-      },
       include: { usuario: { select: { nombre: true } } },
     });
   }
@@ -230,7 +211,161 @@ export class GastosService {
     });
     if (!gasto) throw new NotFoundException('Gasto no encontrado');
 
-    await this.prisma.gasto.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      // Revertir el impacto en el ledger al eliminar el gasto
+      await tx.movimientoFinanciero.deleteMany({
+        where: { referenciaTipo: 'GASTO', referenciaId: id },
+      });
+      await tx.gasto.delete({ where: { id } });
+    });
+
     return { mensaje: 'Gasto eliminado correctamente' };
+  }
+
+  // ─── HELPERS (ledger) ─────────────────────────────────────────────────────
+
+  /** Ganancias netas actuales = (intereses + mora) - gastos operativos. */
+  private async calcularGananciasNetas(
+    tx: Prisma.TransactionClient,
+    empresaId: string,
+  ): Promise<number> {
+    const [ingresos, gastos] = await Promise.all([
+      tx.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'PAGO_RECIBIDO' },
+        _sum: { interes: true, mora: true },
+      }),
+      tx.movimientoFinanciero.aggregate({
+        where: { empresaId, tipo: 'GASTO' },
+        _sum: { interes: true },
+      }),
+    ]);
+    return Math.max(
+      0,
+      roundMoney(
+        m(ingresos._sum.interes ?? 0) +
+          m(ingresos._sum.mora ?? 0) -
+          Math.abs(m(gastos._sum.interes ?? 0)),
+      ),
+    );
+  }
+
+  /** Resuelve (o crea) el movimiento financiero ligado a un gasto. */
+  private async resolverMovimiento(
+    tx: Prisma.TransactionClient,
+    gastoId: string,
+  ) {
+    return tx.movimientoFinanciero.findFirst({
+      where: { referenciaTipo: 'GASTO', referenciaId: gastoId },
+    });
+  }
+
+  private async crearMovimiento(
+    tx: Prisma.TransactionClient,
+    datos: {
+      tipo: string;
+      monto: number;
+      categoria: string;
+      descripcion: string;
+    },
+    gastoId: string,
+    user: any,
+  ) {
+    const tipoMovimiento = datos.tipo === 'CAPITAL' ? 'GASTO_CAPITAL' : 'GASTO';
+    const gananciasNetas = await this.calcularGananciasNetas(
+      tx,
+      user.empresaId,
+    );
+
+    const excedeGanancias =
+      datos.tipo === 'OPERATIVO' && datos.monto > gananciasNetas;
+
+    // OPERATIVO: consume ganancias (interes, negativo). Si excede, el resto
+    // consume capital (capital > 0). CAPITAL: descuenta capital directamente.
+    const capital =
+      datos.tipo === 'CAPITAL'
+        ? datos.monto
+        : excedeGanancias
+          ? roundMoney(datos.monto - gananciasNetas)
+          : 0;
+
+    await tx.movimientoFinanciero.create({
+      data: {
+        tipo: tipoMovimiento,
+        monto: datos.monto,
+        capital,
+        interes: datos.tipo === 'OPERATIVO' ? -datos.monto : 0,
+        mora: 0,
+        referenciaTipo: 'GASTO',
+        referenciaId: gastoId,
+        cajaId: null, // Gastos nunca afectan caja operativa
+        empresaId: user.empresaId,
+        usuarioId: user.userId,
+        descripcion: `${datos.categoria}: ${datos.descripcion}${excedeGanancias ? ' (Excede ganancias, reduce capital)' : ''}`,
+      },
+    });
+  }
+
+  private async sincronizarMovimiento(
+    tx: Prisma.TransactionClient,
+    gastoId: string,
+    datos: {
+      tipo: string;
+      monto: number;
+      categoria: string;
+      descripcion: string;
+    },
+    user: any,
+  ) {
+    const existente = await this.resolverMovimiento(tx, gastoId);
+    if (!existente) {
+      await this.crearMovimiento(tx, datos, gastoId, user);
+      return;
+    }
+
+    // Recalcular el movimiento descontando el impacto previo: las ganancias
+    // netas se calculan excluyendo este gasto.
+    const [ingresos, gastos] = await Promise.all([
+      tx.movimientoFinanciero.aggregate({
+        where: { empresaId: user.empresaId, tipo: 'PAGO_RECIBIDO' },
+        _sum: { interes: true, mora: true },
+      }),
+      tx.movimientoFinanciero.aggregate({
+        where: {
+          empresaId: user.empresaId,
+          tipo: 'GASTO',
+          NOT: { referenciaTipo: 'GASTO', referenciaId: gastoId },
+        },
+        _sum: { interes: true },
+      }),
+    ]);
+    const gananciasBase = Math.max(
+      0,
+      roundMoney(
+        m(ingresos._sum.interes ?? 0) +
+          m(ingresos._sum.mora ?? 0) -
+          Math.abs(m(gastos._sum.interes ?? 0)),
+      ),
+    );
+
+    const tipoMovimiento = datos.tipo === 'CAPITAL' ? 'GASTO_CAPITAL' : 'GASTO';
+    const excedeGanancias =
+      datos.tipo === 'OPERATIVO' && datos.monto > gananciasBase;
+    const capital =
+      datos.tipo === 'CAPITAL'
+        ? datos.monto
+        : excedeGanancias
+          ? roundMoney(datos.monto - gananciasBase)
+          : 0;
+
+    await tx.movimientoFinanciero.update({
+      where: { id: existente.id },
+      data: {
+        tipo: tipoMovimiento,
+        monto: datos.monto,
+        capital,
+        interes: datos.tipo === 'OPERATIVO' ? -datos.monto : 0,
+        descripcion: `${datos.categoria}: ${datos.descripcion}${excedeGanancias ? ' (Excede ganancias, reduce capital)' : ''}`,
+      },
+    });
   }
 }

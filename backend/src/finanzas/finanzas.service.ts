@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { m } from '../common/utils/money';
+import { m, roundMoney } from '../common/utils/money';
+import { getFechaRD } from '../common/utils/fecha.utils';
 
 @Injectable()
 export class FinanzasService {
@@ -12,6 +13,10 @@ export class FinanzasService {
   }
   private endOfDay(dateStr: string): Date {
     return new Date(`${dateStr.slice(0, 10)}T23:59:59.999Z`);
+  }
+
+  private mesKeyRD(date: Date): string {
+    return getFechaRD(date).slice(0, 7);
   }
 
   // ─── Genera etiqueta "Ene 2026" ─────────────────────────────────────────────
@@ -106,83 +111,112 @@ export class FinanzasService {
       }
     > = {};
 
-    // Iterar todos los meses entre fechaDesde y fechaHasta
+    // Iterar todos los meses entre fechaDesde y fechaHasta usando claves RD
     const cur = new Date(
       Date.UTC(fechaDesde.getUTCFullYear(), fechaDesde.getUTCMonth(), 1),
     );
     while (cur <= fechaHasta) {
-      const key = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}`;
-      mesMap[key] = {
-        key,
-        mes: this.mesLabel(cur.getUTCFullYear(), cur.getUTCMonth()),
-        año: cur.getUTCFullYear(),
-        mesNum: cur.getUTCMonth() + 1,
-        cobrado: 0,
-        capital: 0,
-        interes: 0,
-        mora: 0,
-        gastado: 0,
-        balance: 0,
-        cantidadPagos: 0,
-        cantidadGastos: 0,
-      };
+      const key = this.mesKeyRD(cur);
+      if (!mesMap[key]) {
+        mesMap[key] = {
+          key,
+          mes: this.mesLabel(
+            Number(key.slice(0, 4)),
+            Number(key.slice(5, 7)) - 1,
+          ),
+          año: Number(key.slice(0, 4)),
+          mesNum: Number(key.slice(5, 7)),
+          cobrado: 0,
+          capital: 0,
+          interes: 0,
+          mora: 0,
+          gastado: 0,
+          balance: 0,
+          cantidadPagos: 0,
+          cantidadGastos: 0,
+        };
+      }
       cur.setUTCMonth(cur.getUTCMonth() + 1);
     }
 
-    // ── Acumular pagos ────────────────────────────────────────────────────────
-    for (const p of pagos) {
-      const d = new Date(p.createdAt);
-      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-      if (mesMap[key]) {
-        mesMap[key].cobrado += m(p.montoTotal);
-        mesMap[key].capital += m(p.capital);
-        mesMap[key].interes += m(p.interes);
-        mesMap[key].mora += m(p.mora);
-        mesMap[key].cantidadPagos += 1;
+    const asegurarMes = (key: string) => {
+      if (!mesMap[key]) {
+        mesMap[key] = {
+          key,
+          mes: this.mesLabel(
+            Number(key.slice(0, 4)),
+            Number(key.slice(5, 7)) - 1,
+          ),
+          año: Number(key.slice(0, 4)),
+          mesNum: Number(key.slice(5, 7)),
+          cobrado: 0,
+          capital: 0,
+          interes: 0,
+          mora: 0,
+          gastado: 0,
+          balance: 0,
+          cantidadPagos: 0,
+          cantidadGastos: 0,
+        };
       }
+    };
+
+    // ── Acumular pagos (bucket por mes en zona RD) ────────────────────────
+    for (const p of pagos) {
+      const key = this.mesKeyRD(p.createdAt);
+      asegurarMes(key);
+      mesMap[key].cobrado += m(p.montoTotal);
+      mesMap[key].capital += m(p.capital);
+      mesMap[key].interes += m(p.interes);
+      mesMap[key].mora += m(p.mora);
+      mesMap[key].cantidadPagos += 1;
     }
 
-    // ── Acumular gastos ───────────────────────────────────────────────────────
+    // ── Acumular gastos (bucket por mes en zona RD) ───────────────────────
     for (const g of gastos) {
-      const d = new Date(g.fecha);
-      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-      if (mesMap[key]) {
-        mesMap[key].gastado += m(g.monto);
-        mesMap[key].cantidadGastos += 1;
-      }
+      const key = this.mesKeyRD(g.fecha);
+      asegurarMes(key);
+      mesMap[key].gastado += m(g.monto);
+      mesMap[key].cantidadGastos += 1;
     }
 
     // ── Calcular balance por mes ──────────────────────────────────────────────
-    const mesesArr = Object.values(mesMap).map((m) => ({
-      ...m,
-      cobrado: Math.round(m.cobrado * 100) / 100,
-      capital: Math.round(m.capital * 100) / 100,
-      interes: Math.round(m.interes * 100) / 100,
-      mora: Math.round(m.mora * 100) / 100,
-      gastado: Math.round(m.gastado * 100) / 100,
-      balance: Math.round((m.cobrado - m.gastado) * 100) / 100,
-    }));
+    const mesesArr = Object.values(mesMap)
+      .map((mes) => ({
+        ...mes,
+        cobrado: roundMoney(mes.cobrado),
+        capital: roundMoney(mes.capital),
+        interes: roundMoney(mes.interes),
+        mora: roundMoney(mes.mora),
+        gastado: roundMoney(mes.gastado),
+        balance: roundMoney(mes.cobrado - mes.gastado),
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
 
     // ── Totales globales ──────────────────────────────────────────────────────
-    const totalCobrado =
-      Math.round(mesesArr.reduce((s, m) => s + m.cobrado, 0) * 100) / 100;
-    const totalGastado =
-      Math.round(mesesArr.reduce((s, m) => s + m.gastado, 0) * 100) / 100;
-    const totalBalance = Math.round((totalCobrado - totalGastado) * 100) / 100;
-    const totalCapital =
-      Math.round(mesesArr.reduce((s, m) => s + m.capital, 0) * 100) / 100;
-    const totalInteres =
-      Math.round(mesesArr.reduce((s, m) => s + m.interes, 0) * 100) / 100;
-    const totalMora =
-      Math.round(mesesArr.reduce((s, m) => s + m.mora, 0) * 100) / 100;
-    const totalPagos = mesesArr.reduce((s, m) => s + m.cantidadPagos, 0);
-    const totalGastos = mesesArr.reduce((s, m) => s + m.cantidadGastos, 0);
+    const totalCobrado = roundMoney(
+      mesesArr.reduce((s, mes) => s + mes.cobrado, 0),
+    );
+    const totalGastado = roundMoney(
+      mesesArr.reduce((s, mes) => s + mes.gastado, 0),
+    );
+    const totalBalance = roundMoney(totalCobrado - totalGastado);
+    const totalCapital = roundMoney(
+      mesesArr.reduce((s, mes) => s + mes.capital, 0),
+    );
+    const totalInteres = roundMoney(
+      mesesArr.reduce((s, mes) => s + mes.interes, 0),
+    );
+    const totalMora = roundMoney(mesesArr.reduce((s, mes) => s + mes.mora, 0));
+    const totalPagos = mesesArr.reduce((s, mes) => s + mes.cantidadPagos, 0);
+    const totalGastos = mesesArr.reduce((s, mes) => s + mes.cantidadGastos, 0);
 
     // ── Gastos por categoría (total del período) ──────────────────────────────
     const porCategoria: Record<string, number> = {};
     for (const g of gastos) {
-      porCategoria[g.categoria] =
-        Math.round(((porCategoria[g.categoria] ?? 0) + m(g.monto)) * 100) / 100;
+      porCategoria[g.categoria] = roundMoney(
+        (porCategoria[g.categoria] ?? 0) + m(g.monto),
+      );
     }
 
     // ── Margen operacional (si cobrado > 0) ───────────────────────────────────

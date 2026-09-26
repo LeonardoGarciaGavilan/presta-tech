@@ -71,4 +71,9 @@ export class UpdateGastoDto {
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  /** Tipo de gasto: OPERATIVO (de caja) o CAPITAL (directo sin afectar caja) */
+  @IsOptional()
+  @IsIn(['OPERATIVO', 'CAPITAL'])
+  tipo?: 'OPERATIVO' | 'CAPITAL';
 }

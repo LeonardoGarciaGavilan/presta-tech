@@ -1,41 +1,59 @@
 // src/common/utils/prestamo.utils.ts
+import { m, roundMoney } from './money';
+import type { MoneyInput } from './money';
+
+// Forma mínima que necesita el cálculo desde una cuota (Decimal o number).
+type CuotaCalculable = {
+  pagada: boolean;
+  capital: MoneyInput;
+  interes: MoneyInput;
+  mora?: MoneyInput;
+};
 
 export function calcularDesdeObjeto(prestamo: any): {
   saldoPendiente: number;
   moraAcumulada: number;
 } {
-  const cuotasPendientes = prestamo.cuotas?.filter((c: any) => !c.pagada) ?? [];
+  const cuotasPendientes = (
+    (prestamo.cuotas ?? []) as CuotaCalculable[]
+  ).filter((c) => !c.pagada);
 
   const saldo = cuotasPendientes.reduce(
-    (sum: number, c: any) => sum + c.capital + c.interes + (c.mora || 0),
+    (sum, c) =>
+      sum + m(c.capital) + m(c.interes) + m(c.mora ?? 0),
     0,
   );
 
   const mora = cuotasPendientes.reduce(
-    (sum: number, c: any) => sum + (c.mora || 0),
+    (sum, c) => sum + m(c.mora ?? 0),
     0,
   );
 
   return {
-    saldoPendiente: Math.round(saldo * 100) / 100,
-    moraAcumulada: Math.round(mora * 100) / 100,
+    saldoPendiente: roundMoney(saldo),
+    moraAcumulada: roundMoney(mora),
   };
 }
 
 export function calcularSaldoDesdeCuotas(cuotas: any[]): number {
-  const cuotasPendientes = cuotas.filter((c: any) => !c.pagada);
+  const cuotasPendientes = (cuotas as CuotaCalculable[]).filter(
+    (c) => !c.pagada,
+  );
   const saldo = cuotasPendientes.reduce(
-    (sum: number, c: any) => sum + c.capital + c.interes + (c.mora || 0),
+    (sum, c) =>
+      sum + m(c.capital) + m(c.interes) + m(c.mora ?? 0),
     0,
   );
-  return Math.round(saldo * 100) / 100;
+  return roundMoney(saldo);
 }
 
 export function calcularMoraDesdeCuotas(cuotas: any[]): number {
-  const cuotasPendientes = cuotas.filter((c: any) => !c.pagada);
+  const cuotasPendientes = (cuotas as CuotaCalculable[]).filter(
+    (c) => !c.pagada,
+  );
   const mora = cuotasPendientes.reduce(
-    (sum: number, c: any) => sum + (c.mora || 0),
+    (sum, c) => sum + m(c.mora ?? 0),
     0,
   );
-  return Math.round(mora * 100) / 100;
+  return roundMoney(mora);
 }

@@ -85,10 +85,10 @@ export class ReportesService {
       porPagina,
       totalRegistros: totalCount,
       totalPaginas: Math.ceil(totalCount / porPagina),
-      totalCobrado: totales._sum.montoTotal ?? 0,
-      totalCapital: totales._sum.capital ?? 0,
-      totalInteres: totales._sum.interes ?? 0,
-      totalMora: totales._sum.mora ?? 0,
+      totalCobrado: roundMoney(totales._sum.montoTotal ?? 0),
+      totalCapital: roundMoney(totales._sum.capital ?? 0),
+      totalInteres: roundMoney(totales._sum.interes ?? 0),
+      totalMora: roundMoney(totales._sum.mora ?? 0),
       pagos: pagos.map((p) => ({
         fecha: p.createdAt,
         cliente: `${p.prestamo.cliente.nombre} ${p.prestamo.cliente.apellido}`,
@@ -122,7 +122,7 @@ export class ReportesService {
       cliente: provincia ? { provincia } : undefined,
     };
 
-    const [prestamos, totalPrestamos, totales] = await Promise.all([
+    const [prestamos, totalPrestamos, totalSaldoCuotas] = await Promise.all([
       this.prisma.prestamo.findMany({
         where,
         include: {
@@ -143,9 +143,16 @@ export class ReportesService {
         take: porPagina,
       }),
       this.prisma.prestamo.count({ where }),
-      this.prisma.prestamo.aggregate({
-        where,
-        _sum: { monto: true, moraAcumulada: true },
+      this.prisma.cuota.aggregate({
+        where: {
+          pagada: false,
+          prestamo: {
+            empresaId: user.empresaId,
+            estado: 'ATRASADO',
+            cliente: provincia ? { provincia } : undefined,
+          },
+        },
+        _sum: { capital: true, interes: true, mora: true },
       }),
     ]);
 
@@ -188,8 +195,14 @@ export class ReportesService {
       porPagina,
       totalRegistros: totalPrestamos,
       totalPaginas: Math.ceil(totalPrestamos / porPagina),
-      totalSaldoVencido: totales._sum.monto ?? 0,
-      totalMora: roundMoney(totales._sum.moraAcumulada ?? 0),
+      // totalSaldoVencido = saldo vivo de las cuotas no pagadas de préstamos
+      // ATRASADO (capital + interés + mora), no el monto original.
+      totalSaldoVencido: roundMoney(
+        m(totalSaldoCuotas._sum.capital ?? 0) +
+          m(totalSaldoCuotas._sum.interes ?? 0) +
+          m(totalSaldoCuotas._sum.mora ?? 0),
+      ),
+      totalMora: roundMoney(m(totalSaldoCuotas._sum.mora ?? 0)),
       prestamos: resultado,
     };
   }
@@ -245,12 +258,15 @@ export class ReportesService {
         where,
         _sum: { monto: true },
       }),
-      this.prisma.prestamo.aggregate({
+      this.prisma.cuota.aggregate({
         where: {
-          ...where,
-          estado: { in: ['ACTIVO', 'ATRASADO'] },
+          pagada: false,
+          prestamo: {
+            ...where,
+            estado: { in: ['ACTIVO', 'ATRASADO'] },
+          },
         },
-        _sum: { saldoPendiente: true },
+        _sum: { capital: true, interes: true, mora: true },
       }),
     ]);
 
@@ -268,8 +284,12 @@ export class ReportesService {
       pagados: estadoCounts['PAGADO'] ?? 0,
       renovados: estadoCounts['RENOVADO'] ?? 0,
       cancelados: estadoCounts['CANCELADO'] ?? 0,
-      totalCartera: roundMoney(totalesCartera._sum.saldoPendiente ?? 0),
-      totalDesembolsado: totalesMonto._sum.monto ?? 0,
+      totalCartera: roundMoney(
+        m(totalesCartera._sum.capital ?? 0) +
+          m(totalesCartera._sum.interes ?? 0) +
+          m(totalesCartera._sum.mora ?? 0),
+      ),
+      totalDesembolsado: roundMoney(totalesMonto._sum.monto ?? 0),
     };
 
     return {
@@ -688,7 +708,7 @@ export class ReportesService {
     const desdeDate = getInicioDiaRD(desde);
     const hastaDate = getFinDiaRD(hasta);
 
-    const [pagos, gastos, desembolsos, inyecciones, retiros] =
+    const [pagos, gastos, desembolsos, inyecciones, retiros, retirosCapital] =
       await Promise.all([
         this.prisma.pago.findMany({
           where: {
@@ -737,6 +757,15 @@ export class ReportesService {
           },
           select: { monto: true, fecha: true },
         }),
+        this.prisma.movimientoFinanciero.findMany({
+          where: {
+            empresaId: user.empresaId,
+            tipo: 'RETIRO_CAPITAL',
+            fecha: { gte: desdeDate, lte: hastaDate },
+            ...(usuarioId && { usuarioId }),
+          },
+          select: { monto: true, fecha: true },
+        }),
       ]);
 
     const entradasMap: Record<string, number> = {};
@@ -765,6 +794,11 @@ export class ReportesService {
     retiros.forEach((r) => {
       const f = toFechaStr(r.fecha);
       salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + m(r.monto));
+    });
+
+    retirosCapital.forEach((r) => {
+      const f = toFechaStr(r.fecha);
+      salidasMap[f] = roundMoney((salidasMap[f] ?? 0) + m(r.monto ?? 0));
     });
 
     const fechasSet = new Set([
@@ -816,6 +850,9 @@ export class ReportesService {
         ),
         gastos: roundMoney(gastos.reduce((s, g) => s + m(g.monto), 0)),
         retiros: roundMoney(retiros.reduce((s, r) => s + m(r.monto), 0)),
+        retirosCapital: roundMoney(
+          retirosCapital.reduce((s, r) => s + m(r.monto ?? 0), 0),
+        ),
       },
       gastosPorCategoria: porCategoria,
       porDia,
