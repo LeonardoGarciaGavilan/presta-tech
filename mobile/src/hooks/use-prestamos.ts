@@ -519,7 +519,8 @@ export function useResumenPrestamos() {
             if (p.cuotas) {
               for (const c of p.cuotas) {
                 if (!c.pagada && c.fechaVencimiento <= hoy) cuotasVencidasHoy++;
-                if (!c.pagada) saldoPendienteTotal += m(c.monto);
+                if (!c.pagada)
+                  saldoPendienteTotal += m(c.capital) + m(c.interes) + m(c.mora);
               }
             }
           }

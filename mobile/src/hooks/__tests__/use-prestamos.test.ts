@@ -15,6 +15,7 @@ const mockGetClienteNombre = jest.fn();
 const mockGetClienteById = jest.fn();
 const mockUpsertPrestamos = jest.fn();
 const mockAddToOfflineQueue = jest.fn();
+const mockGetResumen = jest.fn();
 
 jest.mock('@/api/prestamos.api', () => ({
   listar: (...args: any[]) => mockListar(...args),
@@ -26,7 +27,7 @@ jest.mock('@/api/prestamos.api', () => ({
   desembolsar: (...args: any[]) => mockDesembolsar(...args),
   refinanciar: (...args: any[]) => mockRefinanciar(...args),
   calcularTabla: jest.fn(),
-  getResumen: jest.fn(),
+  getResumen: (...args: any[]) => mockGetResumen(...args),
   getSolicitudes: jest.fn(),
 }));
 
@@ -63,6 +64,7 @@ import {
   useCancelarPrestamo,
   useDesembolsarPrestamo,
   useRefinanciarPrestamo,
+  useResumenPrestamos,
 } from '@/hooks/use-prestamos';
 import { useNetworkContext } from '@/components/providers/network-provider';
 import { getNetworkStatus } from '@/hooks/use-network-status';
@@ -119,6 +121,37 @@ describe('usePrestamos', () => {
     const { result } = await renderHook(() => usePrestamos(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+
+describe('useResumenPrestamos (fallback offline con mora)', () => {
+  it('suma capital + interés + mora de cuotas no pagadas (paridad D1)', async () => {
+    mockGetResumen.mockRejectedValue(new Error('off'));
+    (getNetworkStatus as jest.Mock).mockReturnValue({ isOnline: false });
+    mockGetAllCachedPrestamos.mockReturnValue([
+      {
+        id: 'p1',
+        estado: 'ACTIVO',
+        monto: 5000,
+        cuotas: [
+          { pagada: false, fechaVencimiento: '2025-01-10', capital: 1000, interes: 200, mora: 50, monto: 1200 },
+          { pagada: false, fechaVencimiento: '2025-01-20', capital: 1000, interes: 200, mora: 0, monto: 1200 },
+          { pagada: true, fechaVencimiento: '2025-01-01', capital: 1000, interes: 200, mora: 0, monto: 1200 },
+        ],
+      },
+    ]);
+
+    const { result } = await renderHook(() => useResumenPrestamos(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({
+      cantidad: { activos: 1, atrasados: 0, pagados: 0, cancelados: 0, solicitudes: 0, renovados: 0 },
+      saldoPendienteTotal: 2450,
+      montoTotalPrestado: 5000,
+      cuotasVencidasHoy: 2,
+    });
   });
 });
 

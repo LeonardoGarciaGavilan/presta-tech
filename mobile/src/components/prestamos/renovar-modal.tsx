@@ -24,6 +24,7 @@ import { useToast } from "@/components/ui/toast";
 import { getConfiguracion } from "@/db/config-db";
 import { calcularRenovacionLocal } from "@/utils/amortizacion";
 import { formatCurrency } from "@/utils/formatters";
+import { roundMoney } from "@/utils/money";
 import type {
   FrecuenciaPago,
   LiquidacionRenovacion,
@@ -232,11 +233,11 @@ const RenovarModal = ({
     if (modoCalculo === "PAGO") {
       const pagoVal = parseFloat(pagoPorPeriodo);
       if (!(pagoVal > 0)) return null;
-      return Math.round(pagoVal * duracionVal * 100) / 100;
+      return roundMoney(pagoVal * duracionVal);
     }
     const gananciaVal = parseFloat(gananciaDeseada);
     if (!(gananciaVal >= 0)) return null;
-    return Math.round((montoVal + gananciaVal) * 100) / 100;
+    return roundMoney(montoVal + gananciaVal);
   }, [modoCalculo, montoNuevo, duracion, pagoPorPeriodo, gananciaDeseada]);
 
   // Pre-validación best-effort de fondos con el cache de caja activa
@@ -244,13 +245,10 @@ const RenovarModal = ({
   // re-valida con la fórmula exacta pagos-efectivo − desembolsos).
   const efectivoEstimado = useMemo(() => {
     if (!cajaActiva || cajaActiva.estado !== "ABIERTA") return null;
-    return (
-      Math.round(
-        ((cajaActiva.montoInicial ?? 0) +
-          (cajaActiva.totalIngresos ?? 0) -
-          (cajaActiva.totalEgresos ?? 0)) *
-          100,
-      ) / 100
+    return roundMoney(
+      (cajaActiva.montoInicial ?? 0) +
+        (cajaActiva.totalIngresos ?? 0) -
+        (cajaActiva.totalEgresos ?? 0),
     );
   }, [cajaActiva]);
 

@@ -66,15 +66,26 @@ export default function AnalisisRutasScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useResumenRutas();
 
+  const rutasReales = useMemo(
+    () => (data?.rutas ?? []).filter((r) => r.rutaId !== null),
+    [data],
+  );
+
   const rutasOrdenadas = useMemo(() => {
     if (!data?.rutas) return [];
     return [...data.rutas].sort((a, b) => calcEficiencia(b) - calcEficiencia(a));
   }, [data]);
 
+  const rutasRealesOrdenadas = useMemo(
+    () => [...rutasReales].sort((a, b) => calcEficiencia(b) - calcEficiencia(a)),
+    [rutasReales],
+  );
+
   const cobradores = useMemo((): CobradorData[] => {
     if (!data?.rutas) return [];
     const map = new Map<string, CobradorData>();
     for (const r of data.rutas) {
+      if (r.rutaId === null) continue;
       const ef = calcEficiencia(r);
       const existing = map.get(r.cobrador);
       if (existing) {
@@ -98,20 +109,20 @@ export default function AnalisisRutasScreen() {
   }, [data]);
 
   const rutasCriticas = useMemo(
-    () => rutasOrdenadas.filter((r) => calcEficiencia(r) < 50),
-    [rutasOrdenadas],
+    () => rutasReales.filter((r) => calcEficiencia(r) < 50),
+    [rutasReales],
   );
 
   const rutasAlerta = useMemo(
-    () => rutasOrdenadas.filter((r) => {
+    () => rutasReales.filter((r) => {
       const ef = calcEficiencia(r);
       return (ef >= 50 && ef < 70) || r.dineroEnCalle > 150_000;
     }),
-    [rutasOrdenadas],
+    [rutasReales],
   );
 
-  const topRoute = rutasOrdenadas[0];
-  const worstRoute = rutasOrdenadas[rutasOrdenadas.length - 1];
+  const topRoute = rutasRealesOrdenadas[0];
+  const worstRoute = rutasRealesOrdenadas[rutasRealesOrdenadas.length - 1];
 
   const recomendaciones = useMemo(() => {
     const recs: string[] = [];
@@ -196,8 +207,8 @@ export default function AnalisisRutasScreen() {
   );
 
   const totalDistribucion = useMemo(
-    () => data?.rutas.reduce((s, r) => s + r.totalCobrado, 0) ?? 0,
-    [data],
+    () => rutasReales.reduce((s, r) => s + r.totalCobrado, 0),
+    [rutasReales],
   );
 
   if (isLoading) {
@@ -223,7 +234,7 @@ export default function AnalisisRutasScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={rutasOrdenadas}
-        keyExtractor={(item) => item.rutaId}
+        keyExtractor={(item) => item.rutaId ?? 'sin-ruta'}
         renderItem={renderRuta}
         refreshing={isRefetching}
         onRefresh={refetch}
@@ -320,11 +331,11 @@ export default function AnalisisRutasScreen() {
             )}
 
             {/* Distribution bar */}
-            {data?.rutas && data.rutas.length > 1 && totalDistribucion > 0 && (
+            {rutasReales.length > 1 && totalDistribucion > 0 && (
               <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Distribución por ruta</Text>
                 <View style={styles.distBar}>
-                  {data.rutas.map((r, i) => {
+                  {rutasReales.map((r, i) => {
                     const pct = (r.totalCobrado / totalDistribucion) * 100;
                     if (pct < 1) return null;
                     return (
@@ -342,7 +353,7 @@ export default function AnalisisRutasScreen() {
                   })}
                 </View>
                 <View style={styles.distLegend}>
-                  {data.rutas.map((r, i) => {
+                  {rutasReales.map((r, i) => {
                     const pct = (r.totalCobrado / totalDistribucion) * 100;
                     return (
                       <View key={r.rutaId} style={styles.distLegendItem}>

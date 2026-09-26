@@ -3,6 +3,7 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, View } 
 import { Ionicons } from '@expo/vector-icons';
 import { AppStyles, BorderRadius, FontSize, FontWeight, Spacing, scale } from '@/constants/theme';
 import { formatCurrency, unformatIngresosInput } from '@/utils/formatters';
+import { roundMoney } from '@/utils/money';
 import { useTheme } from '@/components/ui/theme-provider';
 import { AppButton } from '@/components/ui/app-button';
 import { AppInput } from '@/components/ui/app-input';
@@ -40,7 +41,7 @@ export default function ModalCerrarCaja({
 
   const cerrar = useCallback(async () => {
     const monto = parseFloat(unformatIngresosInput(montoCierre)) || 0;
-    const dif = monto - esperado;
+    const dif = roundMoney(monto - esperado);
     if (Math.abs(dif) > umbralDiferencia) {
       Alert.alert(
         dif > 0 ? 'Sobrante detectado' : 'Faltante detectado',

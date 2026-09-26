@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppStyles, BorderRadius, FontSize, FontWeight, Spacing, scale } from '@/constants/theme';
 import { formatCurrency } from '@/utils/formatters';
+import { roundMoney } from '@/utils/money';
 import { useTheme } from '@/components/ui/theme-provider';
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
 
 export default function DiferenciaBadge({ monto, esperado }: Props) {
   const { colors } = useTheme();
-  const dif = monto - esperado;
+  const dif = roundMoney(monto - esperado);
   const cuadrada = dif === 0;
 
   const color = cuadrada ? colors.success : colors.error;

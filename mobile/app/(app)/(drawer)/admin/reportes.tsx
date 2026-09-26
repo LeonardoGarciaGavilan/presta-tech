@@ -555,7 +555,7 @@ export default function ReportesScreen() {
           { label: 'Cancelados', value: String(r.cancelados), color: colors.textTertiary, bg: colors.surface },
         ])}
         {renderKpiRow([
-          { label: 'Cartera activa', value: formatFullCurrency(r.totalCartera ?? 0), color: colors.primary, bg: colors.primaryLight },
+          { label: 'Préstamos activos', value: formatFullCurrency(r.totalCartera ?? 0), color: colors.primary, bg: colors.primaryLight },
           { label: 'Desembolsado', value: formatFullCurrency(r.totalDesembolsado ?? 0), color: colors.secondary, bg: colors.secondaryLight },
         ])}
         <Text style={[styles.sectionTitle, { color: colors.text, marginTop: Spacing.sm }]}>

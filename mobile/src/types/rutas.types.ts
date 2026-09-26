@@ -160,7 +160,8 @@ export interface UsuarioEmpresa {
 }
 
 export interface ResumenRuta {
-  rutaId: string;
+  /** null cuando corresponde al rubro "Sin ruta asignada". */
+  rutaId: string | null;
   nombre: string;
   cobrador: string;
   clientesActivos: number;

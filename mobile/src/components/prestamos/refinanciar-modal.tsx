@@ -24,7 +24,7 @@ import {
   calcularAmortizacionRapidaLocal,
 } from '@/utils/amortizacion';
 import { formatCurrency } from '@/utils/formatters';
-import { m } from '@/utils/money';
+import { m, roundMoney } from '@/utils/money';
 import { humanizeError } from '@/utils/errors';
 import type { FrecuenciaPago, Prestamo } from '@/types/prestamo.types';
 import { FontSize, FontWeight, Spacing, BorderRadius, scale} from '@/constants/theme';
@@ -118,9 +118,9 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
   // no pagado NO se refinancia (igual que el backend).
   const saldoRefinanciado = useMemo(
     () =>
-      Math.round(
-        cuotasPendientes.reduce((s, c) => s + m(c.capital) + m(c.mora), 0) * 100,
-      ) / 100,
+      roundMoney(
+        cuotasPendientes.reduce((s, c) => s + m(c.capital) + m(c.mora), 0),
+      ),
     [cuotasPendientes],
   );
 
@@ -131,11 +131,11 @@ const RefinanciarModal = ({ visible, onClose, prestamo, onSuccess }: Refinanciar
     if (modoCalculo === 'PAGO') {
       const pagoVal = parseFloat(pagoPorPeriodo);
       if (!(pagoVal > 0)) return null;
-      return Math.round(pagoVal * duracionVal * 100) / 100;
+      return roundMoney(pagoVal * duracionVal);
     }
     const gananciaVal = parseFloat(gananciaDeseada);
     if (!(gananciaVal >= 0)) return null;
-    return Math.round((saldoRefinanciado + gananciaVal) * 100) / 100;
+    return roundMoney(saldoRefinanciado + gananciaVal);
   }, [modoCalculo, nuevasCuotas, pagoPorPeriodo, gananciaDeseada, saldoRefinanciado]);
 
   // Preview vivo con la misma matemática que validará el backend.

@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { useRegistrarPago, useSaldarPrestamo } from '@/hooks/use-pagos';
 import { FontSize, FontWeight, IoniconsName, Spacing, BorderRadius, scale} from '@/constants/theme';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { m, totalCuota } from '@/utils/money';
+import { m, roundMoney, totalCuota } from '@/utils/money';
 import ReciboPagoModal from '@/components/pagos/recibo-modal';
 import AnimatedModal from '@/components/ui/animated-modal';
 import type { Cuota, MetodoPago, Prestamo } from '@/types/prestamo.types';
@@ -82,7 +82,7 @@ export default function PaymentForm({
 
   const montoIngresado = parseFloat(montoPagado.replace(/[^0-9.]/g, '')) || 0;
   const excedente = montoIngresado > montoCuota
-    ? Math.round((montoIngresado - montoCuota) * 100) / 100
+    ? roundMoney(montoIngresado - montoCuota)
     : 0;
   const montoMaximo = prestamo?.saldoPendiente ?? 0;
   const totalSaldar = cuotasPendientes.reduce(

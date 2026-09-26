@@ -49,7 +49,7 @@ export function KPIGrid({ portfolio, today }: KPIGridProps) {
         iconColor={colors.primary}
         bgColor={colors.primaryLight}
         value={portfolio.activos.toString()}
-        label="Cartera activa"
+        label="Préstamos activos"
         width={cardWidth}
       />
       <KPICard

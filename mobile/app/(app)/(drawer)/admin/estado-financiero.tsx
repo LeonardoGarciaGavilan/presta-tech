@@ -89,7 +89,7 @@ export default function EstadoFinancieroScreen() {
     if (!dash) return [];
     return [
       { label: 'Capital', value: m(dash.capital.total), color: PATRIMONIO_COLORS[0] },
-      { label: 'Ganancias', value: Math.max(0, m(dash.ganancias.netas)), color: PATRIMONIO_COLORS[1] },
+      { label: 'Ganancias netas', value: Math.max(0, m(dash.ganancias.netas)), color: PATRIMONIO_COLORS[1] },
     ];
   }, [dash]);
 
@@ -237,7 +237,7 @@ export default function EstadoFinancieroScreen() {
                 </Text>
               </View>
               <View style={[styles.kpiCard, { width: cardWidth, backgroundColor: colors.secondaryLight }]}>
-                <Text style={[styles.kpiLabel, { color: colors.secondaryDark }]}>Ganancias</Text>
+                <Text style={[styles.kpiLabel, { color: colors.secondaryDark }]}>Ganancias brutas</Text>
                 <Text style={[styles.kpiValue, { color: colors.secondaryDark }]}>
                   {formatCurrencyCompact(dash?.ganancias.brutas ?? 0)}
                 </Text>
@@ -338,7 +338,7 @@ export default function EstadoFinancieroScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumen financiero</Text>
               {[
                 { label: 'Total cobrado', value: dash?.resumen.totalCobrado ?? 0 },
-                { label: 'Total gastos', value: dash?.resumen.totalGastos ?? 0 },
+                { label: 'Total gastos operativos', value: dash?.resumen.totalGastos ?? 0 },
                 { label: 'Balance neto', value: dash?.resumen.balanceNeto ?? 0, highlight: true },
                 { label: 'Total desembolsado', value: dash?.resumen.totalDesembolsos ?? 0 },
                 { label: 'Interés total', value: dash?.resumen.totalInteres ?? 0 },
