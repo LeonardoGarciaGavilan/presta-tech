@@ -1,7 +1,19 @@
-export type MoneyInput = number | { toNumber(): number };
+export type MoneyInput =
+  | number
+  | string
+  | null
+  | undefined
+  | { toNumber(): number };
 
-const aNumero = (v: MoneyInput): number =>
-  typeof v === 'number' ? v : v.toNumber();
+const aNumero = (v: MoneyInput): number => {
+  if (typeof v === 'number') return v;
+  if (v == null || v === '') return 0;
+  if (typeof v === 'string') {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return v.toNumber();
+};
 
 export const m = (v: MoneyInput): number => aNumero(v);
 
